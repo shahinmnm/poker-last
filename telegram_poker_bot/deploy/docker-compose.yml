@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: pokerbot
+      POSTGRES_USER: pokerbot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pokerbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.bot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - DATABASE_URL=postgresql+asyncpg://pokerbot:${POSTGRES_PASSWORD:-changeme}@postgres:5432/pokerbot
+      - REDIS_URL=redis://redis:6379/0
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
+      - WEBHOOK_SECRET_TOKEN=${WEBHOOK_SECRET_TOKEN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://pokerbot:${POSTGRES_PASSWORD:-changeme}@postgres:5432/pokerbot
+      - REDIS_URL=redis://redis:6379/0
+      - WEBAPP_SECRET=${WEBAPP_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+      - VITE_BOT_USERNAME=${VITE_BOT_USERNAME}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
