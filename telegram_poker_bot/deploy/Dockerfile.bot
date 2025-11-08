@@ -6,17 +6,22 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install pokerkit first (as it's a dependency)
+COPY pokerkit/ /app/pokerkit/
+RUN pip install --no-cache-dir -e /app/pokerkit
 
-# Copy application code
-COPY . .
+# Copy telegram_poker_bot requirements and filter out pokerkit line
+COPY telegram_poker_bot/requirements.txt /app/telegram_poker_bot/
+RUN grep -v "^-e ../pokerkit" /app/telegram_poker_bot/requirements.txt > /tmp/requirements_filtered.txt && \
+    pip install --no-cache-dir -r /tmp/requirements_filtered.txt
 
-# Install pokerkit locally
-RUN pip install -e ../pokerkit
+# Copy telegram_poker_bot application code
+COPY telegram_poker_bot/ /app/telegram_poker_bot/
+
+WORKDIR /app/telegram_poker_bot
 
 # Expose port
 EXPOSE 8443

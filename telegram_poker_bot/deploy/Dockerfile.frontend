@@ -3,11 +3,11 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY frontend/package.json frontend/package-lock.json* ./
+COPY telegram_poker_bot/frontend/package.json telegram_poker_bot/frontend/package-lock.json* ./
 RUN npm ci
 
 # Copy source code
-COPY frontend/ .
+COPY telegram_poker_bot/frontend/ .
 
 # Build application
 RUN npm run build
