@@ -92,7 +92,7 @@ docker-compose --profile nginx up -d
 ## Service Ports
 
 - **PostgreSQL**: 5432 (default)
-- **Redis**: 6379 (default)
+- **Redis**: dynamic (Docker assigns a free host port by default; set `REDIS_PORT` to override)
 - **API**: 8000 (default)
 - **Frontend**: 3000 (default)
 - **Nginx HTTP**: 80 (default)
@@ -100,7 +100,7 @@ docker-compose --profile nginx up -d
 
 You can override these in your `.env` file:
 - `POSTGRES_PORT`
-- `REDIS_PORT`
+- `REDIS_PORT` (host port published for Redis; defaults to `0` for an auto-assigned port)
 - `API_PORT`
 - `FRONTEND_PORT`
 - `NGINX_HTTP_PORT`
