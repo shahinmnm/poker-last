@@ -18,6 +18,25 @@ This typically happens when:
 2. Docker daemon was interrupted during image creation
 3. There's a version incompatibility between Docker and docker-compose
 4. The container references an image that has been corrupted
+5. Docker Compose still references a deleted image in its internal state
+
+### Specific Issue with the Original Fix Script
+
+The original fix script had a race condition issue:
+1. It manually stopped and removed the container
+2. It deleted the old image
+3. It rebuilt a new image
+4. When trying to start with `docker-compose up -d`, Docker Compose tried to recreate the container
+5. **Problem**: Docker Compose still had metadata referencing the OLD deleted image
+6. This caused the 'ContainerConfig' KeyError when it tried to inspect the non-existent image
+
+### How the Updated Script Fixes This
+
+The updated script uses `docker-compose down` BEFORE removing images, which:
+- Properly cleans up Docker Compose's internal state
+- Removes all container metadata
+- Then uses `--force-recreate` flag to ensure completely fresh containers
+- This prevents Docker Compose from trying to reference deleted images
 
 ## Quick Fix
 
@@ -29,12 +48,12 @@ cd /Poker-Bot/telegram_poker_bot/deploy
 ```
 
 This script will:
-1. Stop the problematic `pokerbot_bot` container
-2. Remove the container
+1. Stop all services and remove containers using `docker-compose down`
+2. Remove any orphaned bot containers
 3. Remove the corrupted bot image
 4. Prune dangling images
-5. Rebuild the bot image from scratch
-6. Start all services
+5. Rebuild the bot image from scratch with `--no-cache`
+6. Start all services with `--force-recreate` to ensure clean state
 
 ### Option 2: Manual Fix
 
@@ -43,24 +62,26 @@ If you prefer to fix it manually or need more control:
 ```bash
 cd /Poker-Bot/telegram_poker_bot/deploy
 
-# 1. Stop and remove the problematic container
-docker stop pokerbot_bot
-docker rm pokerbot_bot
+# 1. Stop all services and remove containers
+docker-compose down
 
-# 2. Remove the bot image (find it first)
+# 2. Remove any orphaned containers
+docker ps -a | grep pokerbot_bot && docker rm -f $(docker ps -a --filter "name=pokerbot_bot" --format "{{.ID}}")
+
+# 3. Remove the bot image
 docker images | grep bot
-docker rmi -f <IMAGE_ID>
+docker rmi -f <IMAGE_ID_OR_NAME>
 
-# 3. Clean up dangling images
+# 4. Clean up dangling images
 docker image prune -f
 
-# 4. Rebuild the bot image
+# 5. Rebuild the bot image
 docker-compose build --no-cache bot
 
-# 5. Start services
-docker-compose up -d
+# 6. Start services with force recreate
+docker-compose up -d --force-recreate
 
-# 6. Check status
+# 7. Check status
 docker-compose ps
 ```
 

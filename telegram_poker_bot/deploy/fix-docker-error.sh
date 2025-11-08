@@ -19,22 +19,18 @@ echo -e "${BLUE}   Docker ContainerConfig Error Fix${NC}"
 echo -e "${BLUE}==================================================${NC}"
 echo ""
 
-# Step 1: Stop the problematic container
-echo -e "${YELLOW}[1/6] Stopping pokerbot_bot container...${NC}"
-if docker ps -a --filter "name=pokerbot_bot" --format "{{.Names}}" | grep -q "pokerbot_bot"; then
-    docker stop pokerbot_bot 2>/dev/null || true
-    echo -e "${GREEN}✓ Container stopped${NC}"
-else
-    echo -e "${YELLOW}⚠ Container not found (might already be removed)${NC}"
-fi
+# Step 1: Stop all services and remove containers
+echo -e "${YELLOW}[1/6] Stopping all services and removing containers...${NC}"
+docker-compose down 2>/dev/null || true
+echo -e "${GREEN}✓ Services stopped and containers removed${NC}"
 
-# Step 2: Remove the problematic container
-echo -e "${YELLOW}[2/6] Removing pokerbot_bot container...${NC}"
+# Step 2: Remove any orphaned bot containers
+echo -e "${YELLOW}[2/6] Removing any orphaned bot containers...${NC}"
 if docker ps -a --filter "name=pokerbot_bot" --format "{{.Names}}" | grep -q "pokerbot_bot"; then
-    docker rm -f pokerbot_bot 2>/dev/null || true
-    echo -e "${GREEN}✓ Container removed${NC}"
+    docker rm -f $(docker ps -a --filter "name=pokerbot_bot" --format "{{.ID}}") 2>/dev/null || true
+    echo -e "${GREEN}✓ Orphaned containers removed${NC}"
 else
-    echo -e "${YELLOW}⚠ Container not found (might already be removed)${NC}"
+    echo -e "${GREEN}✓ No orphaned containers found${NC}"
 fi
 
 # Step 3: Find and remove the bot image
@@ -69,9 +65,9 @@ else
     exit 1
 fi
 
-# Step 6: Start all services
-echo -e "${YELLOW}[6/6] Starting all services...${NC}"
-if docker-compose up -d; then
+# Step 6: Start all services with force recreate
+echo -e "${YELLOW}[6/6] Starting all services (forcing recreation)...${NC}"
+if docker-compose up -d --force-recreate; then
     echo -e "${GREEN}✓ Services started successfully${NC}"
 else
     echo -e "${RED}✗ Failed to start services${NC}"
