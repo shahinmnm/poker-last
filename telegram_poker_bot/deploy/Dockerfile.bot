@@ -10,8 +10,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pokerkit first (as it's a dependency)
+COPY setup.py README.rst /app/
 COPY pokerkit/ /app/pokerkit/
-RUN pip install --no-cache-dir -e /app/pokerkit
+RUN pip install --no-cache-dir -e /app
 
 # Copy telegram_poker_bot requirements and filter out pokerkit line
 COPY telegram_poker_bot/requirements.txt /app/telegram_poker_bot/
