@@ -2,7 +2,7 @@ import { useTelegram } from '../hooks/useTelegram'
 import { Link } from 'react-router-dom'
 
 export default function HomePage() {
-  const { user, ready } = useTelegram()
+  const { ready } = useTelegram()
 
   if (!ready) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
