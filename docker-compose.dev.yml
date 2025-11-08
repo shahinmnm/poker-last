@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  bot:
+    command:
+      [
+        "watchfiles",
+        "--filter=python",
+        "--ignore-paths=/opt/app/tests",
+        "python -m telegram_poker_bot.bot.main",
+        "/opt/app",
+      ]
+    volumes:
+      - ./telegram_poker_bot:/opt/app
+      - ./pokerkit:/opt/pokerkit-src
+    environment:
+      PYTHONPATH: /opt/app:/opt/pokerkit-src
+
+  api:
+    command:
+      [
+        "uvicorn",
+        "telegram_poker_bot.api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+        "--reload-dir",
+        "/opt/app",
+      ]
+    volumes:
+      - ./telegram_poker_bot:/opt/app
+      - ./pokerkit:/opt/pokerkit-src
+    environment:
+      PYTHONPATH: /opt/app:/opt/pokerkit-src
+
+  frontend:
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+    volumes:
+      - ./telegram_poker_bot/frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      - VITE_BOT_USERNAME=${VITE_BOT_USERNAME:-@pokerbot}
+
+volumes:
+  frontend_node_modules:

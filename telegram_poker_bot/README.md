@@ -25,7 +25,7 @@ telegram_poker_bot/
 ├── shared/           # Shared utilities and types
 ├── migrations/       # Database migrations
 ├── config/           # Configuration files
-└── deploy/           # Deployment configs (Docker, Nginx)
+└── deploy/           # (legacy) see repository root /deploy for tooling
 ```
 
 ## Quick Start
@@ -36,56 +36,69 @@ telegram_poker_bot/
 - Node.js 18+
 - PostgreSQL 14+
 - Redis 7+
-- Docker & Docker Compose (optional)
+- Docker Engine 24+ with Compose plugin (for containerised workflow)
 
 ### Environment Setup
 
-1. Copy `.env.example` to `.env` and configure:
+1. Copy the repository root `.env.example` to `.env` and customise the values:
 
-```bash
-cp .env.example .env
-```
+   ```bash
+   cp ../.env.example ../.env
+   ```
 
-2. Set required environment variables (see `.env.example` for details)
+2. (Optional) Copy this service-specific example for local-only overrides:
+
+   ```bash
+   cp .env.example .env.local
+   ```
 
 ### Development
 
-#### Backend
+#### Local Python/Node toolchain
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# From repository root
+pip install -e .
+pip install -r telegram_poker_bot/requirements.txt
 
-# Run database migrations
+# Set up database
+createdb pokerbot
 alembic upgrade head
 
-# Start bot service
+# Run services
 python -m telegram_poker_bot.bot.main
-
-# Start API service
 uvicorn telegram_poker_bot.api.main:app --reload
-
-# Start worker
-python -m telegram_poker_bot.worker.main
 ```
 
-#### Frontend
+Frontend development:
 
 ```bash
-cd frontend
+cd telegram_poker_bot/frontend
 npm install
 npm run dev
+```
+
+#### Docker-based workflow
+
+```bash
+# Hot-reload stack
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+# Stop
+docker compose down
 ```
 
 ### Production Deployment
 
 ```bash
-# Build and start with Docker Compose
-docker-compose up -d
+# First time
+./deploy/first-deploy.sh --with-nginx
 
-# View logs
-docker-compose logs -f
+# Subsequent updates (pulls from ${DEPLOY_GIT_REMOTE}/${DEPLOY_GIT_BRANCH})
+./deploy/update.sh --with-nginx --prune-images
 ```
+
+Both scripts live at the repository root under `deploy/` and orchestrate Docker Compose builds, migrations, and restarts.
 
 ## Configuration
 
@@ -97,7 +110,7 @@ docker-compose logs -f
 
 ### Nginx Configuration
 
-The bot expects Nginx to handle TLS termination and route webhooks. See `deploy/nginx.conf` for reference.
+The bot expects Nginx to handle TLS termination and route webhooks. See the root-level `deploy/nginx/default.conf` for a production-ready template.
 
 ## Game Modes
 
