@@ -187,6 +187,17 @@ docker-compose down -v
 
 ## Troubleshooting
 
+### Docker ContainerConfig Error
+If you encounter `KeyError: 'ContainerConfig'` when running `docker-compose up`:
+
+```bash
+./fix-docker-error.sh
+```
+
+This script will automatically fix corrupted Docker images and restart services.
+
+See [README-FIX-DOCKER-ERROR.md](./README-FIX-DOCKER-ERROR.md) for detailed information.
+
 ### Database Connection Issues
 - Ensure PostgreSQL is healthy: `docker-compose ps postgres`
 - Check database URL format in `.env`
