@@ -1,19 +1,17 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
+# Install dependencies
 COPY telegram_poker_bot/frontend/package.json telegram_poker_bot/frontend/package-lock.json* ./
 RUN npm ci
 
-# Copy source code
+# Copy source
 COPY telegram_poker_bot/frontend/ .
 
-# Build application
+# Build assets
 RUN npm run build
 
-# Expose port
 EXPOSE 3000
 
-# Run frontend
 CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]

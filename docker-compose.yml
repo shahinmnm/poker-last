@@ -1,0 +1,130 @@
+version: "3.9"
+
+x-backend-build: &backend-build
+  context: .
+  dockerfile: docker/app.Dockerfile
+
+x-backend-env-file: &backend-env-file
+  - ./.env
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pokerbot_postgres
+    env_file: *backend-env-file
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pokerbot}
+      POSTGRES_USER: ${POSTGRES_USER:-pokerbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pokerbot} -d ${POSTGRES_DB:-pokerbot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: pokerbot_redis
+    env_file: *backend-env-file
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  migrations:
+    build: *backend-build
+    image: pokerbot/backend:latest
+    container_name: pokerbot_migrations
+    command: ["alembic", "upgrade", "head"]
+    env_file: *backend-env-file
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    profiles:
+      - ops
+
+  bot:
+    build: *backend-build
+    image: pokerbot/backend:latest
+    container_name: pokerbot_bot
+    command: ["python", "-m", "telegram_poker_bot.bot.main"]
+    env_file: *backend-env-file
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build: *backend-build
+    image: pokerbot/backend:latest
+    container_name: pokerbot_api
+    command:
+      [
+        "uvicorn",
+        "telegram_poker_bot.api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ]
+    env_file: *backend-env-file
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: pokerbot_frontend
+    env_file: *backend-env-file
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      - VITE_BOT_USERNAME=${VITE_BOT_USERNAME:-@pokerbot}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: pokerbot_nginx
+    depends_on:
+      bot:
+        condition: service_started
+      api:
+        condition: service_started
+      frontend:
+        condition: service_started
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${NGINX_SSL_CERT_PATH:-./deploy/nginx/ssl}:/etc/nginx/ssl:ro
+    restart: unless-stopped
+    profiles:
+      - nginx
+
+volumes:
+  postgres_data:
+  redis_data:

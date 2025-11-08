@@ -1,4 +1,4 @@
-# Telegram Poker Bot - Setup Guide
+# Telegram Poker Bot – Setup Guide
 
 ## Prerequisites
 
@@ -6,61 +6,62 @@
 - Node.js 18+
 - PostgreSQL 14+
 - Redis 7+
-- Docker & Docker Compose (for production)
+- Docker Engine 24+ with the Compose plugin (for container workflows)
 
 ## Quick Start
 
-### 1. Clone and Setup
+### 1. Clone and Configure Environment
 
 ```bash
-cd telegram_poker_bot
+# From repository root
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with production credentials and secrets
+
+# Optional: local overrides for this package only
+cd telegram_poker_bot
+cp .env.example .env.local
 ```
 
-### 2. Install Dependencies
+### 2. Install Dependencies (bare-metal workflow)
 
-**Backend:**
 ```bash
-pip install -r requirements.txt
-pip install -e ../pokerkit  # Install PokerKit locally
-```
+# Back-end deps
+pip install -e .
+pip install -r telegram_poker_bot/requirements.txt
 
-**Frontend:**
-```bash
-cd frontend
+# Front-end deps
+cd telegram_poker_bot/frontend
 npm install
 ```
 
-### 3. Database Setup
+### 3. Database & Migrations
 
 ```bash
-# Create database
 createdb pokerbot
-
-# Run migrations
 alembic upgrade head
 ```
 
 ### 4. Run Services
 
-**Development:**
+**Manual processes**
 
 ```bash
-# Terminal 1: Bot service
 python -m telegram_poker_bot.bot.main
-
-# Terminal 2: API service
 uvicorn telegram_poker_bot.api.main:app --reload
-
-# Terminal 3: Frontend
-cd frontend && npm run dev
+cd telegram_poker_bot/frontend && npm run dev
 ```
 
-**Production (Docker):**
+**Docker (hot reload)**
 
 ```bash
-docker-compose -f deploy/docker-compose.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+```
+
+**Docker (production-style)**
+
+```bash
+./deploy/first-deploy.sh        # initial bootstrap
+./deploy/update.sh              # subsequent redeploys
 ```
 
 ## Configuration
@@ -69,24 +70,25 @@ docker-compose -f deploy/docker-compose.yml up -d
 
 Key variables in `.env`:
 
-- `TELEGRAM_BOT_TOKEN`: Your bot token from @BotFather
-- `DATABASE_URL`: PostgreSQL connection string
+- `TELEGRAM_BOT_TOKEN`: Bot token from @BotFather
+- `DATABASE_URL`: PostgreSQL connection string (the default points to the compose network)
 - `REDIS_URL`: Redis connection string
-- `PUBLIC_BASE_URL`: Your public domain (e.g., https://poker.shahin8n.sbs)
+- `PUBLIC_BASE_URL`: Public domain (e.g. `https://poker.example.com`)
 - `WEBHOOK_SECRET_TOKEN`: Secret for webhook verification
+- `DEPLOY_GIT_REMOTE` / `DEPLOY_GIT_BRANCH`: Git source for automated updates
 
 ### Nginx Setup
 
-1. Copy `deploy/nginx.conf.example` to your Nginx config
-2. Update `server_name` and SSL certificate paths
-3. Reload Nginx: `sudo nginx -s reload`
+1. Copy `deploy/nginx/default.conf` to your host and adjust `server_name` & TLS paths  
+2. Place certificates under `deploy/nginx/ssl/` (or edit `NGINX_SSL_CERT_PATH`)  
+3. Bring the proxy online: `docker compose --profile nginx up -d`
 
 ### Webhook Setup
 
-The bot automatically sets the webhook on startup. Ensure:
-- Nginx is configured correctly
-- SSL certificate is valid
-- Webhook path matches `/telegram/webhook`
+The bot sets the webhook automatically during startup. Ensure:
+- Nginx is routing `PUBLIC_BASE_URL` to the bot service
+- TLS certificates are valid
+- `WEBHOOK_PATH` remains `/telegram/webhook`
 
 ## Project Structure
 
@@ -99,65 +101,40 @@ telegram_poker_bot/
 ├── frontend/         # React Mini App
 ├── shared/           # Shared utilities
 ├── migrations/       # Database migrations
-└── deploy/           # Deployment configs
+└── deploy/           # (legacy) see repository root /deploy for tooling
 ```
-
-## Features
-
-### Game Modes
-
-1. **Anonymous Matchmaking**: Players matched automatically
-2. **Group Games**: Games in Telegram groups
-
-### Mini App Features
-
-- Real-time table updates via WebSocket
-- Dark/light mode support
-- Internationalization (i18n)
-- Private card viewing
-- Statistics tracking
 
 ## Development
 
-### Running Tests
+### Tests
 
 ```bash
-pytest tests/
+pytest telegram_poker_bot/tests
 ```
 
 ### Code Quality
 
 ```bash
-# Format code
 black telegram_poker_bot/
-
-# Lint
 ruff check telegram_poker_bot/
-
-# Type check
 mypy telegram_poker_bot/
 ```
 
-## Deployment
+## Deployment Assets
 
-See `deploy/` directory for:
-- Dockerfiles
-- docker-compose.yml
-- Nginx configuration example
+Production automation, compose files, and Nginx templates now live in the repository root:
+
+- `/docker-compose.yml`
+- `/docker-compose.dev.yml`
+- `/deploy/`
+
+Refer to `deploy/README.md` for a full deployment playbook.
 
 ## Troubleshooting
 
-### Webhook Issues
-
-- Check Nginx logs: `tail -f /var/log/nginx/poker_bot_error.log`
-- Verify webhook secret token matches
-- Ensure bot token is correct
-
-### Database Issues
-
-- Check connection string format
-- Ensure PostgreSQL is running
-- Run migrations: `alembic upgrade head`
+- **Webhook issues**: check Nginx logs (`/var/log/nginx/poker_bot_error.log`) and confirm webhook secrets match  
+- **Database issues**: verify credentials, ensure PostgreSQL is reachable, rerun migrations (`./deploy/update.sh --skip-pull --skip-build`)  
+- **Frontend issues**: confirm `VITE_API_URL` in `.env` exposes a reachable API endpoint
 
 ## Support
 
