@@ -27,8 +27,9 @@ services:
     image: redis:7-alpine
     container_name: pokerbot_redis
     command: redis-server --appendonly yes
+    # Default to 0 so Docker chooses a free host port when running alongside a local Redis instance.
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT:-0}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
