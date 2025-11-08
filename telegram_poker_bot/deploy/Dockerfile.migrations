@@ -23,8 +23,5 @@ COPY telegram_poker_bot/ /app/telegram_poker_bot/
 
 WORKDIR /app/telegram_poker_bot
 
-# Expose port
-EXPOSE 8000
-
-# Run API service
-CMD ["uvicorn", "telegram_poker_bot.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run migrations
+CMD ["alembic", "upgrade", "head"]
