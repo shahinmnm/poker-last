@@ -48,6 +48,7 @@ docs/
 *.txt
 !requirements.txt
 !README.md
+!README.rst
 
 # Tests
 tests/
