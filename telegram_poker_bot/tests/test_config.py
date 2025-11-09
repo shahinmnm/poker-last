@@ -97,3 +97,34 @@ def test_missing_postgres_password_file_raises(monkeypatch, tmp_path):
 
     with pytest.raises(ValueError, match="POSTGRES_PASSWORD_FILE"):
         config.get_settings()
+
+
+def test_webhook_url_and_frontend_defaults(monkeypatch):
+    """Default domain-dependent URLs derive from PUBLIC_BASE_URL."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.example.com/")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("VITE_API_URL", raising=False)
+    monkeypatch.delenv("WEBHOOK_PATH", raising=False)
+
+    settings = config.get_settings()
+
+    assert settings.public_base_url == "https://poker.example.com"
+    assert settings.webhook_path == "/telegram/webhook"
+    assert settings.webhook_url == "https://poker.example.com/telegram/webhook"
+    assert settings.cors_origins == "https://poker.example.com"
+    assert settings.vite_api_url == "https://poker.example.com/api"
+
+
+def test_custom_webhook_path_normalized(monkeypatch):
+    """WEBHOOK_PATH without leading slash is normalized correctly."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://example.com")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.setenv("WEBHOOK_PATH", "telegram/custom")
+
+    settings = config.get_settings()
+
+    assert settings.webhook_path == "/telegram/custom"
+    assert settings.webhook_url == "https://example.com/telegram/custom"
