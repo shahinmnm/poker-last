@@ -13,6 +13,7 @@ PRUNE_IMAGES=false
 SKIP_CLEANUP=false
 PRUNE_VOLUMES=false
 SKIP_LOG_CLEANUP=false
+ALLOW_DIRTY=false
 LOG_SIZE_THRESHOLD="${LOG_SIZE_THRESHOLD:-100M}"
 BACKUP_DIR="${BACKUP_DIR:-${REPO_ROOT}/backups}"
 REMOTE=""
@@ -34,6 +35,7 @@ Options:
   --skip-cleanup       Skip Docker cleanup and log truncation steps.
   --skip-log-cleanup   Skip truncating oversized Docker log files.
   --prune-volumes      Remove unused Docker volumes (may delete persistent data).
+  --allow-dirty        Skip the clean worktree check.
   -h, --help           Show this help message.
 USAGE
 }
@@ -49,6 +51,7 @@ parse_args() {
       --skip-cleanup) SKIP_CLEANUP=true ;;
       --skip-log-cleanup) SKIP_LOG_CLEANUP=true ;;
       --prune-volumes) PRUNE_VOLUMES=true ;;
+      --allow-dirty) ALLOW_DIRTY=true ;;
       -h|--help) usage; exit 0 ;;
       *)
         log_error "Unknown option: $1"
@@ -157,7 +160,13 @@ prepare_environment() {
   ensure_env_file
   load_env_file
   backup_env_file
-  check_worktree_clean
+  if [[ "${ALLOW_DIRTY}" == "true" ]]; then
+    if [[ -n "$(git -C "${REPO_ROOT}" status --porcelain)" ]]; then
+      log_warn "Repository has uncommitted changes; continuing because --allow-dirty was provided."
+    fi
+  else
+    check_worktree_clean
+  fi
 }
 
 ensure_remote_exists() {
