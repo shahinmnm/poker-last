@@ -47,6 +47,24 @@ def test_database_url_constructed_from_postgres_env(monkeypatch):
     )
 
 
+def test_database_url_rebuilt_when_postgres_password_changes(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://example.com")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://pokerbot:old-password@postgres:5432/pokerbot",
+    )
+    monkeypatch.setenv("POSTGRES_PASSWORD", "new-secret")
+
+    settings = config.get_settings()
+
+    assert (
+        settings.database_url
+        == "postgresql+asyncpg://pokerbot:new-secret@postgres:5432/pokerbot"
+    )
+
+
 def test_postgres_password_loaded_from_file(monkeypatch, tmp_path):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://example.com")
