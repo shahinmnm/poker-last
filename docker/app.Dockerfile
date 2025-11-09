@@ -24,8 +24,8 @@ WORKDIR /opt/app
 COPY telegram_poker_bot/requirements.runtime.txt /tmp/runtime-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/runtime-requirements.txt
 
-# Copy application code
-COPY telegram_poker_bot/ /opt/app/
+# Copy application code without flattening the package structure
+COPY telegram_poker_bot/ /opt/app/telegram_poker_bot/
 
 # Create unprivileged user
 RUN useradd --create-home --shell /usr/sbin/nologin poker \
@@ -34,6 +34,7 @@ RUN useradd --create-home --shell /usr/sbin/nologin poker \
 WORKDIR /opt/app
 USER poker
 
-ENV PYTHONPATH=/opt/app
+ENV PYTHONPATH=/opt/app \
+    ALEMBIC_CONFIG=/opt/app/telegram_poker_bot/alembic.ini
 
 # Default command is intentionally left blank; docker compose sets the service command.
