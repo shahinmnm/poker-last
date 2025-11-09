@@ -1,8 +1,11 @@
 """Configuration management using environment variables."""
 
+import os
 from functools import lru_cache
 from typing import Optional
+from urllib.parse import quote_plus
 
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,7 +30,12 @@ class Settings(BaseSettings):
     webhook_secret_token: Optional[str] = None
 
     # Database
-    database_url: str
+    database_url: Optional[str] = None
+    postgres_host: str = "postgres"
+    postgres_port: int = 5432
+    postgres_user: str = "pokerbot"
+    postgres_password: str = "changeme"
+    postgres_db: str = "pokerbot"
     database_pool_min_size: int = 10
     database_pool_max_size: int = 20
 
@@ -60,6 +68,28 @@ class Settings(BaseSettings):
     cors_origins: str = "https://poker.shahin8n.sbs"
     vite_api_url: str = "https://poker.shahin8n.sbs/api"
     vite_bot_username: str = "@pokerbazabot"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def expand_database_url(cls, value: Optional[str]) -> Optional[str]:
+        """Expand environment variables and user home in DATABASE_URL."""
+        if isinstance(value, str):
+            expanded = os.path.expandvars(value)
+            return os.path.expanduser(expanded)
+        return value
+
+    @model_validator(mode="after")
+    def ensure_database_url(self) -> "Settings":
+        """Ensure DATABASE_URL is always populated."""
+        if not self.database_url:
+            user = quote_plus(self.postgres_user)
+            password = quote_plus(self.postgres_password) if self.postgres_password else ""
+            auth = f"{user}:{password}" if password else user
+            self.database_url = (
+                f"postgresql+asyncpg://{auth}@"
+                f"{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            )
+        return self
 
     @property
     def redis_url_computed(self) -> str:
