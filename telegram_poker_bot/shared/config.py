@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def ensure_database_url(self) -> "Settings":
-        """Ensure DATABASE_URL is always populated."""
+        """Ensure DATABASE_URL is always populated and synced with POSTGRES_* overrides."""
         if self.postgres_password_file:
             try:
                 file_contents = self.postgres_password_file.read_text(encoding="utf-8")
@@ -92,7 +92,22 @@ class Settings(BaseSettings):
                 ) from exc
             self.postgres_password = file_contents.rstrip("\r\n")
 
-        if not self.database_url:
+        component_env_vars = (
+            "POSTGRES_HOST",
+            "POSTGRES_PORT",
+            "POSTGRES_USER",
+            "POSTGRES_PASSWORD",
+            "POSTGRES_DB",
+            "POSTGRES_PASSWORD_FILE",
+        )
+        component_env_provided = any(os.getenv(var) is not None for var in component_env_vars)
+
+        env_database_url = os.getenv("DATABASE_URL")
+
+        # Always rebuild the URL when any granular POSTGRES_* env var is provided.
+        # This prevents stale credentials when the password or host changes but the composed DATABASE_URL
+        # (for example copied from .env.example) is not kept in sync.
+        if component_env_provided or not env_database_url:
             user = quote_plus(self.postgres_user)
             password = quote_plus(self.postgres_password) if self.postgres_password else ""
             auth = f"{user}:{password}" if password else user
