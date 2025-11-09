@@ -7,6 +7,7 @@ REPO_ROOT="$(cd "${LIB_DIR}/../.." && pwd)"
 
 readonly LIB_DIR
 readonly REPO_ROOT
+readonly ENV_FILE="${REPO_ROOT}/.env"
 
 COMPOSE_BIN=()
 COMPOSE_USES_PROJECT_DIR=false
@@ -55,10 +56,25 @@ ensure_command() {
 }
 
 ensure_env_file() {
-  local env_file="${REPO_ROOT}/.env"
-  if [[ ! -f "${env_file}" ]]; then
-    log_error "Missing ${env_file}. Copy .env.example and configure it before deploying."
+  if [[ ! -f "${ENV_FILE}" ]]; then
+    log_error "Missing ${ENV_FILE}. Copy .env.example and configure it before deploying."
     exit 1
+  fi
+}
+
+load_env_file() {
+  ensure_env_file
+
+  local allexport_was_on=false
+  if [[ "$(set -o | grep '^allexport')" =~ [[:space:]]on$ ]]; then
+    allexport_was_on=true
+  fi
+
+  set -a
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+  if [[ "${allexport_was_on}" == "false" ]]; then
+    set +a
   fi
 }
 
