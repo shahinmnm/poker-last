@@ -28,6 +28,8 @@ cp .env.example .env.local
 # Back-end deps
 pip install -e .
 pip install -r telegram_poker_bot/requirements.txt
+# Runtime-only (omit tests/code quality tools):
+# pip install -r telegram_poker_bot/requirements.runtime.txt
 
 # Front-end deps
 cd telegram_poker_bot/frontend

@@ -21,9 +21,8 @@ RUN pip install --upgrade pip \
 WORKDIR /opt/app
 
 # Install Telegram Poker Bot runtime dependencies
-COPY telegram_poker_bot/requirements.txt /tmp/requirements.txt
-RUN grep -v "^-e" /tmp/requirements.txt > /tmp/runtime-requirements.txt \
-    && pip install --no-cache-dir -r /tmp/runtime-requirements.txt
+COPY telegram_poker_bot/requirements.runtime.txt /tmp/runtime-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/runtime-requirements.txt
 
 # Copy application code
 COPY telegram_poker_bot/ /opt/app/

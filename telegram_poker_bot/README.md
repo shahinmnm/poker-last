@@ -60,6 +60,8 @@ telegram_poker_bot/
 # From repository root
 pip install -e .
 pip install -r telegram_poker_bot/requirements.txt
+# For runtime-only installs (no tests or code quality tooling):
+# pip install -r telegram_poker_bot/requirements.runtime.txt
 
 # Set up database
 createdb pokerbot
