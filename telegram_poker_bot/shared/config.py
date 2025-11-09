@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     public_base_url: str
     webhook_path: str = "/telegram/webhook"
     webhook_secret_token: Optional[str] = None
+    webhook_bind_host: str = "0.0.0.0"
+    webhook_bind_port: int = 8443
 
     # Database
     database_url: Optional[str] = None

@@ -91,6 +91,6 @@ if __name__ == "__main__":
     
     uvicorn.run(
         app,
-        host=settings.public_base_url.split("://")[1].split("/")[0] if "://" in settings.public_base_url else "0.0.0.0",
-        port=8443,
+        host=settings.webhook_bind_host,
+        port=settings.webhook_bind_port,
     )
