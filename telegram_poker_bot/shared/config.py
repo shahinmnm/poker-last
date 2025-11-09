@@ -2,6 +2,7 @@
 
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 from urllib.parse import quote_plus
 
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     postgres_user: str = "pokerbot"
     postgres_password: str = "changeme"
+    postgres_password_file: Optional[Path] = None
     postgres_db: str = "pokerbot"
     database_pool_min_size: int = 10
     database_pool_max_size: int = 20
@@ -81,6 +83,15 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def ensure_database_url(self) -> "Settings":
         """Ensure DATABASE_URL is always populated."""
+        if self.postgres_password_file:
+            try:
+                file_contents = self.postgres_password_file.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise ValueError(
+                    f"Unable to read POSTGRES_PASSWORD_FILE '{self.postgres_password_file}': {exc.strerror or exc}"
+                ) from exc
+            self.postgres_password = file_contents.rstrip("\r\n")
+
         if not self.database_url:
             user = quote_plus(self.postgres_user)
             password = quote_plus(self.postgres_password) if self.postgres_password else ""
