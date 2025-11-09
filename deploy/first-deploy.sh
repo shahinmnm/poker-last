@@ -49,6 +49,7 @@ log_info "Repository root: ${REPO_ROOT}"
 ensure_command git
 ensure_command docker
 ensure_env_file
+load_env_file
 
 if [[ "${SKIP_PULL}" == "false" ]]; then
   log_info "Pulling latest upstream images (if any)"

@@ -48,6 +48,7 @@ done
 ensure_command git
 ensure_command docker
 ensure_env_file
+load_env_file
 check_worktree_clean
 
 REMOTE=${DEPLOY_GIT_REMOTE:-origin}
