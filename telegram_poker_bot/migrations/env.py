@@ -23,12 +23,15 @@ from telegram_poker_bot.shared.models import Base
 from telegram_poker_bot.shared import models  # noqa: F401
 
 settings = get_settings()
+DATABASE_URL = settings.database_url
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not configured.")
 
 # this is the Alembic Config object
 config = context.config
 
-# Set SQLAlchemy URL from settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Set SQLAlchemy URL from settings, escaping percent signs for ConfigParser interpolation.
+config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
@@ -40,9 +43,8 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -62,8 +64,9 @@ def do_run_migrations(connection):
 
 async def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.database_url
+    configuration = config.get_section(config.config_ini_section) or {}
+    configuration = dict(configuration)  # ensure we don't mutate Alembic config state
+    configuration["sqlalchemy.url"] = DATABASE_URL
     connectable = AsyncEngine(
         engine_from_config(
             configuration,
