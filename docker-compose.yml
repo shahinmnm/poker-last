@@ -45,7 +45,14 @@ services:
     build: *backend-build
     image: pokerbot/backend:latest
     container_name: pokerbot_migrations
-    command: ["alembic", "upgrade", "head"]
+    command:
+      [
+        "alembic",
+        "-c",
+        "telegram_poker_bot/alembic.ini",
+        "upgrade",
+        "head"
+      ]
     env_file: *backend-env-file
     depends_on:
       postgres:
