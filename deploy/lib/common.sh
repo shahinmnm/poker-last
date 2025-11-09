@@ -3,7 +3,7 @@
 set -euo pipefail
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${LIB_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${LIB_DIR}/../.." && pwd)"
 
 readonly LIB_DIR
 readonly REPO_ROOT
