@@ -1,5 +1,3 @@
-version: "3.9"
-
 x-backend-build: &backend-build
   context: .
   dockerfile: docker/app.Dockerfile
