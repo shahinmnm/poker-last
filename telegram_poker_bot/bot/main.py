@@ -4,8 +4,8 @@ import asyncio
 from typing import Optional
 
 from fastapi import FastAPI, Request, Response, Header, HTTPException, status
-from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram import Update
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.logging import configure_logging, get_logger
@@ -23,11 +23,22 @@ settings = get_settings()
 configure_logging()
 logger = get_logger(__name__)
 
-# Reusable Telegram Bot client
-bot_client = Bot(settings.telegram_bot_token)
+# Global Telegram application and bot client reused for all updates
+bot_application = Application.builder().token(settings.telegram_bot_token).build()
+bot_client = bot_application.bot
+
+# Register command/callback handlers once during module import
+bot_application.add_handler(CommandHandler("start", start_handler))
+bot_application.add_handler(CommandHandler("language", language_handler))
+bot_application.add_handler(CommandHandler("help", help_handler))
+bot_application.add_handler(CommandHandler("stats", stats_handler))
+bot_application.add_handler(CommandHandler("settings", settings_handler))
+bot_application.add_handler(CallbackQueryHandler(callback_query_handler))
 
 # Create FastAPI app for webhook
 app = FastAPI(title="Telegram Poker Bot Webhook")
+
+bot_ready = asyncio.Event()
 
 
 @app.post("/telegram/webhook")
@@ -44,8 +55,9 @@ async def telegram_webhook(
     - Returns 200 immediately to Telegram
     """
     # Verify webhook secret
-    if settings.webhook_secret_token:
-        if not verify_webhook_secret(x_telegram_bot_api_secret_token, settings.webhook_secret_token):
+    expected_secret = settings.telegram_webhook_secret_token or settings.webhook_secret_token
+    if expected_secret:
+        if not verify_webhook_secret(x_telegram_bot_api_secret_token, expected_secret):
             logger.warning("Invalid webhook secret token")
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid secret token")
     
@@ -62,20 +74,8 @@ async def telegram_webhook(
 async def process_update(update: Update):
     """Process Telegram update."""
     try:
-        # Initialize bot application
-        application = Application.builder().token(settings.telegram_bot_token).build()
-        
-        # Register handlers
-        application.add_handler(CommandHandler("start", start_handler))
-        application.add_handler(CommandHandler("language", language_handler))
-        application.add_handler(CommandHandler("help", help_handler))
-        application.add_handler(CommandHandler("stats", stats_handler))
-        application.add_handler(CommandHandler("settings", settings_handler))
-        application.add_handler(CallbackQueryHandler(callback_query_handler))
-        
-        # Process update
-        await application.process_update(update)
-        
+        await bot_ready.wait()
+        await bot_application.process_update(update)
     except Exception as e:
         logger.error("Error processing update", exc_info=e)
 
@@ -135,12 +135,32 @@ async def configure_telegram_webhook():
 @app.on_event("startup")
 async def on_startup():
     """FastAPI startup hook to configure Telegram webhook."""
+    try:
+        await bot_application.initialize()
+        await bot_application.start()
+        bot_ready.set()
+    except Exception as exc:
+        logger.error("Failed to start Telegram bot application", error=str(exc))
+        bot_ready.clear()
+        raise
+
     await configure_telegram_webhook()
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
     """FastAPI shutdown hook to close the Telegram bot session."""
+    bot_ready.clear()
+    try:
+        await bot_application.stop()
+    except Exception as exc:  # pragma: no cover - best-effort cleanup
+        logger.warning("Failed to stop Telegram application cleanly", error=str(exc))
+
+    try:
+        await bot_application.shutdown()
+    except Exception as exc:  # pragma: no cover - best-effort cleanup
+        logger.warning("Failed to shutdown Telegram application cleanly", error=str(exc))
+
     close_method = getattr(bot_client, "close", None)
     if callable(close_method):
         try:
