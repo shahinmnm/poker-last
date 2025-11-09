@@ -587,6 +587,17 @@ Contributing
 
 Contributions are welcome! Please read our Contributing Guide for more information.
 
+Deployment Tooling
+------------------
+
+This repository now ships with a production-ready Docker Compose stack and helper scripts:
+
+* Run ``make deploy`` for the first bootstrap (builds images, runs migrations, and starts services).
+* Run ``make update`` to pull the latest Git changes and restart the stack.
+* The scripts live in ``deploy/`` alongside an nginx template and documentation.
+
+See ``deploy/README.md`` and ``telegram_poker_bot/SETUP.md`` for detailed instructions.
+
 License
 -------
 

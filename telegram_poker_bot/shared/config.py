@@ -1,8 +1,12 @@
 """Configuration management using environment variables."""
 
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Optional
+from urllib.parse import quote_plus
 
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,9 +29,17 @@ class Settings(BaseSettings):
     public_base_url: str
     webhook_path: str = "/telegram/webhook"
     webhook_secret_token: Optional[str] = None
+    webhook_bind_host: str = "0.0.0.0"
+    webhook_bind_port: int = 8443
 
     # Database
-    database_url: str
+    database_url: Optional[str] = None
+    postgres_host: str = "postgres"
+    postgres_port: int = 5432
+    postgres_user: str = "pokerbot"
+    postgres_password: str = "changeme"
+    postgres_password_file: Optional[Path] = None
+    postgres_db: str = "pokerbot"
     database_pool_min_size: int = 10
     database_pool_max_size: int = 20
 
@@ -60,6 +72,52 @@ class Settings(BaseSettings):
     cors_origins: str = "https://poker.shahin8n.sbs"
     vite_api_url: str = "https://poker.shahin8n.sbs/api"
     vite_bot_username: str = "@pokerbazabot"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def expand_database_url(cls, value: Optional[str]) -> Optional[str]:
+        """Expand environment variables and user home in DATABASE_URL."""
+        if isinstance(value, str):
+            expanded = os.path.expandvars(value)
+            return os.path.expanduser(expanded)
+        return value
+
+    @model_validator(mode="after")
+    def ensure_database_url(self) -> "Settings":
+        """Ensure DATABASE_URL is always populated and synced with POSTGRES_* overrides."""
+        if self.postgres_password_file:
+            try:
+                file_contents = self.postgres_password_file.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise ValueError(
+                    f"Unable to read POSTGRES_PASSWORD_FILE '{self.postgres_password_file}': {exc.strerror or exc}"
+                ) from exc
+            self.postgres_password = file_contents.rstrip("\r\n")
+
+        component_env_vars = (
+            "POSTGRES_HOST",
+            "POSTGRES_PORT",
+            "POSTGRES_USER",
+            "POSTGRES_PASSWORD",
+            "POSTGRES_DB",
+            "POSTGRES_PASSWORD_FILE",
+        )
+        component_env_provided = any(os.getenv(var) is not None for var in component_env_vars)
+
+        env_database_url = os.getenv("DATABASE_URL")
+
+        # Always rebuild the URL when any granular POSTGRES_* env var is provided.
+        # This prevents stale credentials when the password or host changes but the composed DATABASE_URL
+        # (for example copied from .env.example) is not kept in sync.
+        if component_env_provided or not env_database_url:
+            user = quote_plus(self.postgres_user)
+            password = quote_plus(self.postgres_password) if self.postgres_password else ""
+            auth = f"{user}:{password}" if password else user
+            self.database_url = (
+                f"postgresql+asyncpg://{auth}@"
+                f"{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            )
+        return self
 
     @property
     def redis_url_computed(self) -> str:

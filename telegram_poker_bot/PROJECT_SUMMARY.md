@@ -52,10 +52,10 @@
 - Easy to extend with new languages
 
 ### 9. Deployment Configs ✅
-- Dockerfiles for bot, API, and frontend
-- docker-compose.yml for full stack
-- Nginx configuration example
-- Production-ready setup
+- Root-level Docker Compose layout with dev overrides
+- Shared Dockerfiles for Python services and frontend
+- Automated first-deploy and update scripts (`deploy/`)
+- Nginx reverse proxy template
 
 ### 10. Tests ✅
 - Unit tests for engine adapter
@@ -129,7 +129,7 @@
 
 Key files to configure:
 - `.env`: Environment variables
-- `deploy/nginx.conf.example`: Nginx config (update domain and SSL paths)
+- `../deploy/nginx/default.conf`: Nginx config (update domain and SSL paths)
 - `config/locales/*.json`: Translation files
 
 ## 📚 Documentation
