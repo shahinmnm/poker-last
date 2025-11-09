@@ -1,6 +1,7 @@
 """Initial database migration - create all tables."""
 
-# revision identifiers
+# revision identifiers, used by Alembic.
+revision = "001_initial_schema"
 down_revision = None
 branch_labels = None
 depends_on = None
