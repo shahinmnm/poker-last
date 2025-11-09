@@ -1,10 +1,16 @@
 """Alembic migration configuration."""
 
 from logging.config import fileConfig
+import sys
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.ext.asyncio import AsyncEngine
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.models import Base
