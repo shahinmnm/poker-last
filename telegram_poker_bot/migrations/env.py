@@ -8,9 +8,13 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+MIGRATIONS_DIR = Path(__file__).resolve().parent
+PACKAGE_ROOT = MIGRATIONS_DIR.parent
+REPO_ROOT = PACKAGE_ROOT.parent
+
+for path in (REPO_ROOT, PACKAGE_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.models import Base
