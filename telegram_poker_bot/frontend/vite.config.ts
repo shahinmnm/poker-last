@@ -5,10 +5,25 @@ import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const allowedHosts = (env.VITE_ALLOWED_HOSTS || 'poker.shahin8n.sbs')
+  const DEFAULT_ALLOWED_HOSTS = [
+    'poker.shahin8n.sbs',
+    'localhost',
+    '127.0.0.1',
+    '::1',
+  ]
+
+  const allowedHostsFromEnv = (env.VITE_ALLOWED_HOSTS || '')
     .split(',')
     .map((host) => host.trim())
     .filter(Boolean)
+
+  const allowedHosts = Array.from(
+    new Set(
+      allowedHostsFromEnv.length > 0
+        ? [...allowedHostsFromEnv, ...DEFAULT_ALLOWED_HOSTS]
+        : DEFAULT_ALLOWED_HOSTS,
+    ),
+  )
 
   return {
     plugins: [react()],
