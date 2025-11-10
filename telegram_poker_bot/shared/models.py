@@ -255,7 +255,13 @@ class GroupGameInvite(Base):
     game_id = Column(String(64), nullable=False, unique=True, index=True)
     creator_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True)
-    status = Column(Enum(GroupGameInviteStatus), nullable=False, default=GroupGameInviteStatus.PENDING, index=True)
+    status = Column(
+        Enum(GroupGameInviteStatus),
+        nullable=False,
+        default=GroupGameInviteStatus.PENDING,
+        server_default=GroupGameInviteStatus.PENDING.value,
+        index=True,
+    )
     deep_link = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
