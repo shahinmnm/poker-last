@@ -4,7 +4,7 @@ A production-grade Telegram Poker Bot with a Mini App (WebApp) frontend, built w
 
 ## Features
 
-- 🎮 **Two Game Modes**: Anonymous Matchmaking and Group Games
+- 🎮 **Two Game Modes**: Anonymous Matchmaking and Group Games (with shareable link + QR invite flow)
 - 🃏 **PokerKit Engine**: Uses the authoritative PokerKit library for game logic
 - 🌐 **Mini App Frontend**: Modern React-based WebApp with day/night theming
 - 🌍 **i18n Support**: Internationalization from day zero
@@ -148,7 +148,15 @@ The bot expects Nginx to handle TLS termination and route webhooks. See the root
 4. **Join & register** – the mini app listens to `start_param` and routes to `/group/join/<GAME_ID>`. It checks `/users/me`, offers one-tap registration, and then calls `POST /group-games/invites/{game_id}/attend` which returns localized progress messaging.  
 5. **Launch** – once the invite status is `READY` (bot linked inside the group), players open the mini app via `startapp` and land at the table screen.  
 
-The full technical breakdown with schema diagrams and UI call-outs lives in [`docs/group-game-link.md`](docs/group-game-link.md).
+  The full technical breakdown with schema diagrams and UI call-outs lives in [`docs/group-game-link.md`](docs/group-game-link.md) (Group Play Integration Spec).
+
+#### API quick reference
+
+- `POST /group-games/invites` → create invite, deep links, QR payload.
+- `GET /group-games/invites/{game_id}` → fetch public status & metadata.
+- `POST /group-games/invites/{game_id}/attend` → join intent.
+- `GET /users/me` / `POST /users/register` → lightweight registration flow.
+- Bot handlers: `/start`, `/startgroup <GAME_ID>`, inline `Register with bot` button.
 
 #### Verification checklist
 
@@ -158,7 +166,7 @@ The full technical breakdown with schema diagrams and UI call-outs lives in [`do
 4. Switch the language toggle → invite/join screens re-render in English & Persian.  
 5. Toggle the day/night theme in Settings → modals, buttons, and toast adapt to the dark palette (#121212 / #1E88E5).  
 6. Forward the Telegram share message to another group and tap the inline button → the existing invite is reused and status remains `pending/ready`.  
-7. Run `pytest -k group_invite` → API flow and invite services are covered by automated tests.
+7. Run `pytest -k "group_invite or startgroup"` → API flow and bot startgroup handler scenarios are covered by automated tests.
 
 ## Development Guidelines
 
