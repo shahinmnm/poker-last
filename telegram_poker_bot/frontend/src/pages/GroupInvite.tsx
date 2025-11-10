@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch, ApiError } from '../lib/apiClient'
+import { apiFetch, ApiError } from '../utils/apiClient'
 import Toast from '../components/Toast'
 
 interface InviteResponse {
