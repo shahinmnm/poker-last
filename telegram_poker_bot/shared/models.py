@@ -62,6 +62,15 @@ class ActionType(PyEnum):
     ALL_IN = "all_in"
 
 
+class GroupGameInviteStatus(PyEnum):
+    """Status for group game invite lifecycle."""
+
+    PENDING = "pending"
+    READY = "ready"
+    CONSUMED = "consumed"
+    EXPIRED = "expired"
+
+
 class User(Base):
     """User model."""
 
@@ -78,6 +87,12 @@ class User(Base):
     # Relationships
     seats = relationship("Seat", back_populates="user", cascade="all, delete-orphan")
     actions = relationship("Action", back_populates="user")
+    group_game_invites = relationship(
+        "GroupGameInvite",
+        back_populates="creator",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     __table_args__ = (Index("idx_users_tg_user_id", "tg_user_id"),)
 
@@ -95,6 +110,12 @@ class Group(Base):
 
     # Relationships
     tables = relationship("Table", back_populates="group")
+    invites = relationship(
+        "GroupGameInvite",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     __table_args__ = (Index("idx_groups_tg_chat_id", "tg_chat_id"),)
 
@@ -219,6 +240,34 @@ class Message(Base):
     __table_args__ = (
         Index("idx_messages_table_chat", "table_id", "tg_chat_id"),
         Index("idx_messages_chat_message", "tg_chat_id", "tg_message_id"),
+    )
+
+
+# Group invitations -----------------------------------------------------
+
+
+class GroupGameInvite(Base):
+    """Group game invite and deep link metadata."""
+
+    __tablename__ = "group_game_invites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(String(64), nullable=False, unique=True, index=True)
+    creator_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True)
+    status = Column(Enum(GroupGameInviteStatus), nullable=False, default=GroupGameInviteStatus.PENDING, index=True)
+    deep_link = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
+    metadata_json = Column(JSON, default=dict)
+
+    creator = relationship("User", back_populates="group_game_invites")
+    group = relationship("Group", back_populates="invites")
+
+    __table_args__ = (
+        Index("idx_group_invites_status_expires", "status", "expires_at"),
     )
 
 

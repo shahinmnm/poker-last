@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import LanguageSelector from '../components/LanguageSelector'
+import { useTheme } from '../providers/ThemeProvider'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
-  const [darkMode, setDarkMode] = useState(false)
+  const { mode, setMode } = useTheme()
+  const darkMode = mode === 'dark'
   const [notifications, setNotifications] = useState(true)
 
   return (
@@ -30,12 +32,12 @@ export default function SettingsPage() {
           {t('settings.sections.appearance.description')}
         </p>
         <label className="mt-4 flex items-center gap-3 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={darkMode}
-            onChange={(event) => setDarkMode(event.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900"
-          />
+            <input
+              type="checkbox"
+              checked={darkMode}
+              onChange={(event) => setMode(event.target.checked ? 'dark' : 'light')}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900"
+            />
           {t('settings.toggles.darkMode')}
         </label>
       </section>

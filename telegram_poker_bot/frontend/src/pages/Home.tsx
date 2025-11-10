@@ -15,7 +15,7 @@ const quickActions = [
   },
   {
     key: 'group',
-    to: '/games/create',
+    to: '/group/invite',
     color: 'bg-emerald-500 hover:bg-emerald-600',
     icon: '👥',
   },

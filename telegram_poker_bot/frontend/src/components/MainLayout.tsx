@@ -14,8 +14,8 @@ export default function MainLayout() {
   const { t } = useTranslation()
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
+    <div className="flex min-h-screen flex-col bg-white text-gray-900 dark:bg-[#121212] dark:text-[#E0E0E0]">
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-[#1F1F1F] dark:bg-[#121212]/90">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex flex-col">
             <span className="text-base font-semibold sm:text-lg">{t('app.title')}</span>
@@ -25,7 +25,7 @@ export default function MainLayout() {
             <LanguageSelector />
             <Link
               to="/settings"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-lg hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-lg text-gray-700 transition hover:bg-gray-100 dark:border-[#2B2B2B] dark:text-[#E0E0E0] dark:hover:bg-[#1F1F1F]"
               aria-label={t('menu.settings.label')}
             >
               ⚙️
@@ -36,7 +36,7 @@ export default function MainLayout() {
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 pb-24 pt-4 sm:pb-28 sm:pt-6">
         <Outlet />
       </main>
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-[#1F1F1F] dark:bg-[#121212]/90">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-around px-2 py-2">
           {bottomNavItems.map((item) => (
             <NavLink
@@ -47,8 +47,8 @@ export default function MainLayout() {
                 [
                   'flex flex-col items-center rounded-md px-3 py-2 text-xs transition sm:text-sm',
                   isActive
-                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300'
-                    : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100',
+                    ? 'bg-[#E3F2FD] text-[#007BFF] dark:bg-[#1A2F45] dark:text-[#90CAF9]'
+                    : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-[#E0E0E0]',
                 ].join(' ')
               }
             >

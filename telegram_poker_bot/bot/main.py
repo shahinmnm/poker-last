@@ -11,6 +11,7 @@ from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.logging import configure_logging, get_logger
 from telegram_poker_bot.bot.handlers import (
     start_handler,
+    start_group_handler,
     language_handler,
     help_handler,
     stats_handler,
@@ -29,6 +30,7 @@ bot_client = bot_application.bot
 
 # Register command/callback handlers once during module import
 bot_application.add_handler(CommandHandler("start", start_handler))
+bot_application.add_handler(CommandHandler("startgroup", start_group_handler))
 bot_application.add_handler(CommandHandler("language", language_handler))
 bot_application.add_handler(CommandHandler("help", help_handler))
 bot_application.add_handler(CommandHandler("stats", stats_handler))
