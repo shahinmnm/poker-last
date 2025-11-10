@@ -46,20 +46,20 @@ async def telegram_webhook(
     request: Request,
     x_telegram_bot_api_secret_token: Optional[str] = Header(None),
 ):
-    """
-    Telegram webhook endpoint.
-    
-    Design Note:
-    - Verifies webhook secret token from Nginx
-    - Processes updates asynchronously
-    - Returns 200 immediately to Telegram
-    """
-    # Verify webhook secret
+    """Handle incoming Telegram webhook updates."""
+    secret_token = x_telegram_bot_api_secret_token
     expected_secret = settings.telegram_webhook_secret_token or settings.webhook_secret_token
-    if expected_secret:
-        if not verify_webhook_secret(x_telegram_bot_api_secret_token, expected_secret):
-            logger.warning("Invalid webhook secret token")
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid secret token")
+
+    token_valid = False
+    if secret_token and expected_secret:
+        token_valid = verify_webhook_secret(secret_token, expected_secret)
+
+    if not token_valid:
+        logger.warning(
+            "Invalid webhook secret token",
+            received=bool(secret_token),
+        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid secret token")
     
     # Parse update
     update_data = await request.json()
