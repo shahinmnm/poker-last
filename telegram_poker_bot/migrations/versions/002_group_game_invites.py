@@ -18,7 +18,6 @@ def upgrade():
         "CONSUMED",
         "EXPIRED",
         name="groupgameinvitestatus",
-        create_type=False,
     )
     group_invite_status.create(op.get_bind(), checkfirst=True)
 
