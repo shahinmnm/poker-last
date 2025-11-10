@@ -25,9 +25,11 @@ The scripts rely on these keys in `.env`:
 | --- | --- | --- |
 | `DEPLOY_GIT_REMOTE` | Git remote name used for updates | `origin` |
 | `DEPLOY_GIT_BRANCH` | Target branch for deploys | `main` |
+| `NGINX_HTTP_PORT` | Host port exposed for HTTP traffic | `8080` |
+| `NGINX_HTTPS_PORT` | Host port exposed for HTTPS traffic | `8443` |
 | `NGINX_SSL_CERT_PATH` | Host path containing TLS material mounted into the nginx container | `./deploy/nginx/ssl` |
 
-All application/service configuration is also read from `.env`. Review the file carefully before deploying.
+All application/service configuration is also read from `.env`. Review the file carefully before deploying. Override the Nginx port variables if you plan to expose the proxy on the conventional `80`/`443` pair or if another process already occupies the defaults.
 
 ## First-Time Deployment
 
