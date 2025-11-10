@@ -73,6 +73,8 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    ports:
+      - "8443:8443"
 
   api:
     build: *backend-build
@@ -93,9 +95,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "${API_PORT:-8000}:8000"
     restart: unless-stopped
+    ports:
+      - "8000:8000"
 
   frontend:
     build:
@@ -106,9 +108,9 @@ services:
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
       - VITE_BOT_USERNAME=${VITE_BOT_USERNAME:-@pokerbot}
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
     restart: unless-stopped
+    ports:
+      - "3000:3000"
 
   nginx:
     image: nginx:alpine
