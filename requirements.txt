@@ -6,3 +6,28 @@ mypy~=1.13.0
 Sphinx~=8.1.3
 sphinx-rtd-theme~=3.0.2
 twine~=6.0.1
+
+# Telegram Poker Bot runtime dependencies
+aiogram==3.3.0
+alembic==1.13.1
+asyncpg==0.29.0
+fastapi==0.109.0
+hiredis==2.2.3
+httpx==0.25.2
+psycopg2-binary==2.9.9
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-dateutil==2.8.2
+python-dotenv==1.0.0
+python-multipart==0.0.6
+python-telegram-bot==20.7
+redis==5.0.1
+sqlalchemy==2.0.25
+structlog==24.1.0
+uvicorn[standard]==0.27.0
+websockets==12.0
+
+# Telegram Poker Bot testing dependencies
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0

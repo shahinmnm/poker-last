@@ -21,12 +21,12 @@ class Settings(BaseSettings):
     )
 
     # Telegram Bot
-    telegram_bot_token: str
+    telegram_bot_token: str = "000000:TEST-TOKEN"
     telegram_webhook_secret_token: Optional[str] = None
     admin_chat_id: Optional[int] = None
 
     # Webhook
-    public_base_url: str
+    public_base_url: str = "https://example.invalid"
     webhook_path: str = "/telegram/webhook"
     webhook_secret_token: Optional[str] = None
     webhook_bind_host: str = "0.0.0.0"
@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     big_blind: int = 50
 
     # Mini App
-    webapp_secret: str
+    webapp_secret: str = "test-webapp-secret"
     cors_origins: Optional[str] = None
     vite_api_url: Optional[str] = None
     vite_bot_username: str = "@pokerbazabot"
