@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch, ApiError } from '../lib/apiClient'
+import { apiFetch, ApiError } from '../utils/apiClient'
 
 interface InviteStatusResponse {
   game_id: string
