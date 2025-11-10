@@ -8,15 +8,17 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 def upgrade():
-    group_invite_status = sa.Enum(
+    group_invite_status = postgresql.ENUM(
         "PENDING",
         "READY",
         "CONSUMED",
         "EXPIRED",
         name="groupgameinvitestatus",
+        create_type=False,
     )
     group_invite_status.create(op.get_bind(), checkfirst=True)
 
