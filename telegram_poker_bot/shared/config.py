@@ -162,14 +162,14 @@ class Settings(BaseSettings):
         base = self.public_base_url.rstrip("/")
         if not self.cors_origins:
             self.cors_origins = base
-          if not self.vite_api_url:
-              self.vite_api_url = f"{base}/api"
-          if not self.mini_app_base_url:
-              api_base = (self.vite_api_url or "").rstrip("/")
-              if api_base.endswith("/api"):
-                  self.mini_app_base_url = api_base[: -len("/api")]
-              else:
-                  self.mini_app_base_url = api_base or base
+        if not self.vite_api_url:
+            self.vite_api_url = f"{base}/api"
+        if not self.mini_app_base_url:
+            api_base = (self.vite_api_url or "").rstrip("/")
+            if api_base.endswith("/api"):
+                self.mini_app_base_url = api_base[: -len("/api")]
+            else:
+                self.mini_app_base_url = api_base or base
         return self
 
     @property
