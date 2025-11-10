@@ -44,6 +44,7 @@ services:
   migrations:
     build: *backend-build
     image: pokerbot/backend:latest
+    pull_policy: never
     container_name: pokerbot_migrations
     command:
       [
@@ -64,6 +65,7 @@ services:
   bot:
     build: *backend-build
     image: pokerbot/backend:latest
+    pull_policy: never
     container_name: pokerbot_bot
     command: ["python", "-m", "telegram_poker_bot.bot.main"]
     env_file: *backend-env-file
@@ -79,6 +81,7 @@ services:
   api:
     build: *backend-build
     image: pokerbot/backend:latest
+    pull_policy: never
     container_name: pokerbot_api
     command:
       [
