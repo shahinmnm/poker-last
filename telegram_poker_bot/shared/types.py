@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GameMode(str, Enum):
@@ -42,6 +42,15 @@ class ActionType(str, Enum):
     BET = "bet"
     RAISE = "raise"
     ALL_IN = "all_in"
+
+
+class GroupGameInviteStatus(str, Enum):
+    """Group game invite status enumeration."""
+
+    PENDING = "pending"
+    READY = "ready"
+    CONSUMED = "consumed"
+    EXPIRED = "expired"
 
 
 class User(BaseModel):
@@ -109,3 +118,19 @@ class Pot(BaseModel):
     hand_id: int
     pot_index: int
     size: int
+
+
+class GroupGameInvite(BaseModel):
+    """Group game invite model."""
+
+    id: int
+    game_id: str
+    creator_user_id: int
+    group_id: Optional[int]
+    status: GroupGameInviteStatus
+    deep_link: str
+    created_at: str
+    updated_at: Optional[str] = None
+    expires_at: str
+    consumed_at: Optional[str] = None
+    metadata_json: dict = Field(default_factory=dict)
