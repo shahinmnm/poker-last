@@ -72,8 +72,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    expose:
-      - "8443"
     restart: unless-stopped
 
   api:
@@ -129,6 +127,8 @@ services:
       - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ${NGINX_SSL_CERT_PATH:-./deploy/nginx/ssl}:/etc/nginx/ssl:ro
     restart: unless-stopped
+    profiles:
+      - nginx
 
 volumes:
   postgres_data:
