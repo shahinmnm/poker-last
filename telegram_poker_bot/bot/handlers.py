@@ -1,8 +1,7 @@
 """Telegram bot command handlers."""
 
-from typing import Dict
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram.constants import ChatType
 from telegram.ext import ContextTypes
 
 from telegram_poker_bot.shared.logging import get_logger
@@ -22,6 +21,14 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     - Provides buttons for different game modes
     - Detects user language from Telegram profile
     """
+    message = update.effective_message
+    if message is None:
+        logger.warning("/start received without an effective message")
+        return
+
+    chat = update.effective_chat
+    is_private_chat = chat.type == ChatType.PRIVATE if chat is not None else False
+
     user = update.effective_user
     language = user.language_code or "en"
     
@@ -57,7 +64,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton(
                 f"{t('open_mini_app')} 🎮",
-                web_app=WebAppInfo(url=webapp_url),
+                web_app=WebAppInfo(url=webapp_url) if is_private_chat else None,
+                url=webapp_url if not is_private_chat else None,
             ),
         ],
     ]
@@ -75,8 +83,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 {t('get_started')}
 """
-    
-    await update.message.reply_text(
+    await message.reply_text(
         welcome_text,
         reply_markup=reply_markup,
         parse_mode="Markdown",
@@ -85,11 +92,15 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def language_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /language command."""
+    message = update.effective_message
+    if message is None:
+        logger.warning("/language invoked without an effective message")
+        return
+
     user = update.effective_user
     language = user.language_code or "en"
     t = get_translation(language)
-    
-    # Show language selection keyboard
+
     keyboard = [
         [
             InlineKeyboardButton("English 🇬🇧", callback_data="lang_en"),
@@ -100,10 +111,10 @@ async def language_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("Français 🇫🇷", callback_data="lang_fr"),
         ],
     ]
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
+
+    await message.reply_text(
         t("select_language"),
         reply_markup=reply_markup,
     )
@@ -111,6 +122,11 @@ async def language_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command."""
+    message = update.effective_message
+    if message is None:
+        logger.warning("/help invoked without an effective message")
+        return
+
     user = update.effective_user
     language = user.language_code or "en"
     t = get_translation(language)
@@ -127,12 +143,17 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 {t('help_support')}
 """
-    
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+
+    await message.reply_text(help_text, parse_mode="Markdown")
 
 
 async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /stats command."""
+    message = update.effective_message
+    if message is None:
+        logger.warning("/stats invoked without an effective message")
+        return
+
     user = update.effective_user
     language = user.language_code or "en"
     t = get_translation(language)
@@ -143,12 +164,17 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 {t('stats_coming_soon')}
 """
-    
-    await update.message.reply_text(stats_text, parse_mode="Markdown")
+
+    await message.reply_text(stats_text, parse_mode="Markdown")
 
 
 async def settings_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /settings command."""
+    message = update.effective_message
+    if message is None:
+        logger.warning("/settings invoked without an effective message")
+        return
+
     user = update.effective_user
     language = user.language_code or "en"
     t = get_translation(language)
@@ -161,10 +187,9 @@ async def settings_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton(f"{t('notifications')} 🔔", callback_data="settings_notifications"),
         ],
     ]
-    
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
+
+    await message.reply_text(
         t("settings_title"),
         reply_markup=reply_markup,
     )
