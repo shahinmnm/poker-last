@@ -1,0 +1,322 @@
+{
+  "app": {
+    "title": "Poker Mini App",
+    "subtitle": "Play Texas Hold'em anywhere"
+  },
+  "languages": {
+    "en": "English",
+    "fa": "فارسی"
+  },
+  "common": {
+    "loading": "Loading...",
+    "comingSoon": "Coming soon",
+    "emptyState": "Nothing to show yet.",
+    "actions": {
+      "view": "View",
+      "open": "Open",
+      "start": "Start",
+      "saveChanges": "Save changes",
+      "join": "Join",
+      "create": "Create"
+    }
+  },
+  "menu": {
+    "home": {
+      "label": "Home",
+      "description": "Overview, quick actions, and announcements"
+    },
+    "lobby": {
+      "label": "Lobby",
+      "description": "Browse and join public tables",
+      "children": {
+        "activeTables": "Active tables",
+        "tournaments": "Upcoming tournaments",
+        "invitations": "Invitations"
+      }
+    },
+    "createGame": {
+      "label": "Create Game",
+      "description": "Host a private or public table",
+      "children": {
+        "privateTable": "Private table",
+        "publicListing": "Public listing",
+        "tournament": "Tournament"
+      }
+    },
+    "joinGame": {
+      "label": "Join Game",
+      "description": "Enter an invite code or scan a QR",
+      "children": {
+        "inviteCode": "Invite code",
+        "qrScan": "Scan QR"
+      }
+    },
+    "profile": {
+      "label": "Profile",
+      "description": "Player identity, stats, and achievements",
+      "children": {
+        "overview": "Overview",
+        "stats": "Performance stats",
+        "achievements": "Achievements"
+      }
+    },
+    "wallet": {
+      "label": "Wallet",
+      "description": "Chip balance and transactions",
+      "children": {
+        "balance": "Balance",
+        "history": "Transaction history",
+        "deposit": "Deposit",
+        "withdraw": "Withdraw"
+      }
+    },
+    "settings": {
+      "label": "Settings",
+      "description": "Preferences, notifications, and language",
+      "children": {
+        "preferences": "Preferences",
+        "notifications": "Notifications",
+        "language": "Language"
+      }
+    },
+    "help": {
+      "label": "Help",
+      "description": "How to play, FAQ, and support",
+      "children": {
+        "howToPlay": "How to play",
+        "faq": "FAQ",
+        "support": "Support"
+      }
+    }
+  },
+  "home": {
+    "welcome": "Welcome back{{name, select, undefined {} other {, {{name}}}}}",
+    "tagline": "Choose how you want to play today",
+    "quickActions": {
+      "anonymous": {
+        "title": "Quick seat",
+        "description": "Jump into the next available anonymous table.",
+        "action": "Play now"
+      },
+      "group": {
+        "title": "Play with friends",
+        "description": "Create a private table and share the invite link.",
+        "action": "Create table"
+      }
+    },
+    "primaryMenuTitle": "Main menu",
+    "secondaryMenuTitle": "Explore more",
+    "lobbyCallout": "Browse tables, tournaments, or accept invitations in the Lobby.",
+    "howItWorks": {
+      "title": "How it works",
+      "steps": [
+        "Choose a mode (Quick seat, Lobby, or Create Game).",
+        "Invite friends or join teammates using the shareable links.",
+        "Make your moves in real time with instant updates."
+      ]
+    }
+  },
+  "lobby": {
+    "title": "Lobby",
+    "activeTables": {
+      "title": "Active tables",
+      "empty": "No public tables are open right now."
+    },
+    "tournaments": {
+      "title": "Upcoming tournaments",
+      "cta": "View schedule",
+      "empty": "No tournaments scheduled."
+    },
+    "invitations": {
+      "title": "Invitations",
+      "empty": "No pending invitations.",
+      "private": "Private table"
+    },
+    "actions": {
+      "refresh": "Refresh list"
+    },
+    "fields": {
+      "players": "Players",
+      "blinds": "Blinds",
+      "status": "Status"
+    },
+    "status": {
+      "running": "Running",
+      "waiting": "Waiting",
+      "starting": "Starting soon"
+    }
+  },
+  "createGame": {
+    "title": "Create Game",
+    "description": "Set up a new table and share the invite with your friends.",
+    "tipsTitle": "Tips",
+    "success": "Table draft saved locally. Share the invite once it's created on the server.",
+    "form": {
+      "name": "Table name",
+      "namePlaceholder": "Friday Night Poker",
+      "variant": "Variant",
+      "variantOptions": {
+        "holdem": "No-Limit Hold'em",
+        "shortDeck": "Short Deck",
+        "plo": "Pot-Limit Omaha"
+      },
+      "buyIn": "Buy-in (chips)",
+      "maxPlayers": "Maximum players",
+      "privacy": "Privacy",
+      "privacyOptions": {
+        "private": "Private (code required)",
+        "public": "Public (visible in lobby)"
+      },
+      "autoStart": "Auto-start when table is full",
+      "button": "Create table"
+    },
+    "tips": [
+      "Share the invite code directly from the confirmation step.",
+      "Toggle lobby visibility to control who can find your table."
+    ]
+  },
+  "joinGame": {
+    "title": "Join Game",
+    "description": "Enter an invite code or scan a QR shared by the host.",
+    "success": "Invite accepted. We’ll seat you as soon as the host starts the game.",
+    "form": {
+      "codeLabel": "Invite code",
+      "codePlaceholder": "Enter 6-character code",
+      "joinButton": "Join table",
+      "scanButton": "Scan QR",
+      "invalidCode": "Enter a valid 6-character code."
+    },
+    "recent": {
+      "title": "Recent invites",
+      "empty": "No recent invites."
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Your poker identity across modes",
+    "playerSince": "Player since {{date}}",
+    "highlights": {
+      "title": "Highlights",
+      "handsPlayed": "Hands played",
+      "winRate": "Win rate",
+      "bestFinish": "Best tournament finish",
+      "trends": {
+        "handsPlayed": "+12 this week",
+        "winRate": "+3% vs last week",
+        "bestFinish": "Last: Sunday Showdown"
+      }
+    },
+    "actions": {
+      "viewStats": "View full stats",
+      "manageAccount": "Manage account"
+    },
+    "achievements": {
+      "title": "Achievements",
+      "empty": "Achievements unlock as you play more games.",
+      "unlocked": "Unlocked",
+      "locked": "Locked",
+      "items": {
+        "firstWin": "First win",
+        "fiveInRow": "5-hand streak",
+        "collector": "Collector"
+      }
+    }
+  },
+  "stats": {
+    "title": "Performance Stats",
+    "comingSoon": "Detailed performance analytics are coming soon.",
+    "samples": {
+      "period": "Last 30 days",
+      "mode": "Cash games",
+      "overall": "All tables",
+      "ev": "EV / 100"
+    }
+  },
+  "wallet": {
+    "title": "Wallet",
+    "balance": "Chip balance",
+    "chips": "{{amount}} chips",
+    "actions": {
+      "deposit": "Add chips",
+      "withdraw": "Withdraw",
+      "transfer": "Transfer"
+    },
+    "history": {
+      "title": "Recent transactions",
+      "empty": "No wallet activity yet."
+    },
+    "transactions": {
+      "deposit": "Deposit",
+      "buyIn": "Buy-in",
+      "payout": "Payout"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "sections": {
+      "language": {
+        "title": "Language",
+        "description": "Choose your preferred language for menus and notifications."
+      },
+      "appearance": {
+        "title": "Appearance",
+        "description": "Switch between light and dark themes."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Control Telegram messages and in-app alerts."
+      }
+    },
+    "toggles": {
+      "darkMode": "Enable dark mode",
+      "notifications": "Enable notifications"
+    },
+    "actions": {
+      "save": "Save preferences"
+    }
+  },
+  "help": {
+    "title": "Help & Support",
+    "howToPlay": {
+      "title": "How to play",
+      "steps": [
+        "Pick a game mode and join a table.",
+        "Follow the dealer actions shown in the table view.",
+        "Make your move using the action buttons."
+      ]
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "question": "How do I invite friends?",
+          "answer": "Create a table and share the invite code or link."
+        },
+        {
+          "question": "Can I play on desktop?",
+          "answer": "Yes, open the mini app in Telegram Desktop or Web."
+        }
+      ]
+    },
+    "support": {
+      "title": "Need more help?",
+      "description": "Contact support via the bot or email support@poker.shahin8n.sbs."
+    }
+  },
+  "table": {
+    "loading": "Loading table...",
+    "notFound": "Table not found",
+    "title": "Table #{{id}}",
+    "board": "Board",
+    "pots": "Pots",
+    "potMain": "Main pot",
+    "potSide": "Side pot {{index}}",
+    "chips": "{{amount}} chips",
+    "actions": {
+      "fold": "Fold",
+      "check": "Check",
+      "call": "Call",
+      "bet": "Bet / Raise"
+    }
+  }
+}

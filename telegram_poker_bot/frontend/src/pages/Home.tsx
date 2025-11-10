@@ -1,62 +1,116 @@
-import { useTelegram } from '../hooks/useTelegram'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+
+import { useTelegram } from '../hooks/useTelegram'
+import { menuTree } from '../config/menu'
+
+const menuCards = menuTree.filter((item) => item.key !== 'home')
+
+const quickActions = [
+  {
+    key: 'anonymous',
+    to: '/lobby',
+    color: 'bg-blue-500 hover:bg-blue-600',
+    icon: '⚡️',
+  },
+  {
+    key: 'group',
+    to: '/games/create',
+    color: 'bg-emerald-500 hover:bg-emerald-600',
+    icon: '👥',
+  },
+]
 
 export default function HomePage() {
-  const { ready } = useTelegram()
+  const { ready, user } = useTelegram()
+  const { t } = useTranslation()
+  const howItWorksSteps = t('home.howItWorks.steps', {
+    returnObjects: true,
+  }) as string[]
 
   if (!ready) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-sm text-gray-500 dark:text-gray-300">
+        {t('common.loading')}
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          🎰 Poker Bot
+    <div className="space-y-8">
+      <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
+        <h1 className="text-xl font-semibold sm:text-2xl">
+          {t('home.welcome', { name: user?.first_name })}
         </h1>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{t('home.tagline')}</p>
 
-        <div className="space-y-4">
-          <Link
-            to="/table/new?mode=anonymous"
-            className="block w-full p-4 bg-blue-500 text-white rounded-lg text-center font-semibold hover:bg-blue-600 transition"
-          >
-            Play Anonymous ♣️
-          </Link>
-
-          <Link
-            to="/table/new?mode=group"
-            className="block w-full p-4 bg-green-500 text-white rounded-lg text-center font-semibold hover:bg-green-600 transition"
-          >
-            Play in Group ♠️
-          </Link>
-
-          <div className="grid grid-cols-2 gap-4 mt-6">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {quickActions.map((action) => (
             <Link
-              to="/stats"
-              className="p-4 bg-gray-200 dark:bg-gray-700 rounded-lg text-center font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              key={action.key}
+              to={action.to}
+              className={`${action.color} flex items-center justify-between rounded-xl px-4 py-4 text-white transition`}
             >
-              My Stats 📊
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {t(`home.quickActions.${action.key}.title`)}
+                </h2>
+                <p className="mt-1 text-sm text-white/80">
+                  {t(`home.quickActions.${action.key}.description`)}
+                </p>
+              </div>
+              <span className="text-3xl">{action.icon}</span>
             </Link>
-
-            <Link
-              to="/settings"
-              className="p-4 bg-gray-200 dark:bg-gray-700 rounded-lg text-center font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-            >
-              Settings ⚙️
-            </Link>
-          </div>
-
-          <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <h2 className="font-semibold mb-2">How to Play 📘</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              1. Join a game (Anonymous or Group)<br />
-              2. Wait for players to join<br />
-              3. Make your decisions when it's your turn<br />
-              4. Win pots by having the best hand!
-            </p>
-          </div>
+          ))}
         </div>
-      </div>
+      </section>
+
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{t('home.primaryMenuTitle')}</h2>
+          <Link to="/lobby" className="text-sm font-medium text-blue-600 dark:text-blue-400">
+            {t('home.lobbyCallout')}
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {menuCards.map((item) => (
+            <Link
+              key={item.key}
+              to={item.path}
+              className="rounded-2xl bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:bg-gray-800"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-2xl">{item.icon}</span>
+                <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
+                  {t('common.actions.open')}
+                </span>
+              </div>
+              <h3 className="mt-3 text-lg font-semibold">{t(item.labelKey)}</h3>
+              {item.descriptionKey && (
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                  {t(item.descriptionKey)}
+                </p>
+              )}
+              {item.children && (
+                <ul className="mt-4 space-y-1 text-sm text-gray-500 dark:text-gray-400">
+                  {item.children.map((child) => (
+                    <li key={child.key}>• {t(child.labelKey)}</li>
+                  ))}
+                </ul>
+              )}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
+        <h2 className="text-lg font-semibold">{t('home.howItWorks.title')}</h2>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-600 dark:text-gray-300">
+          {howItWorksSteps.map((step, index) => (
+            <li key={index}>{step}</li>
+          ))}
+        </ol>
+      </section>
     </div>
   )
 }

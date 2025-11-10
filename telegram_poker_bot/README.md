@@ -80,6 +80,14 @@ npm install
 npm run dev
 ```
 
+### Frontend configuration
+
+- Copy `telegram_poker_bot/frontend/.env.example` to `.env` when you need to override defaults.  
+  - `VITE_ALLOWED_HOSTS` controls which domains may load the Vite dev/preview server (comma separated).  
+  - `VITE_SUPPORTED_LANGS` and `VITE_DEFAULT_LANGUAGE` define the active locale set for the mini app.  
+- Translation resources live in `telegram_poker_bot/frontend/src/locales/<lang>/translation.json`. Add a folder per language and list the language code in `VITE_SUPPORTED_LANGS`.  
+- The full navigation map, with English and Persian labels, is documented in `telegram_poker_bot/frontend/docs/menu-structure.md`.
+
 #### Docker-based workflow
 
 ```bash
