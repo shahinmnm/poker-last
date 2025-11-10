@@ -18,6 +18,7 @@
    contributing
    changelog
    reference
+   ui_play_in_group
 
 Indices and tables
 ------------------
