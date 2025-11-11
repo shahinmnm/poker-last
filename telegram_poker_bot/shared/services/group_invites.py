@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import secrets
-import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -15,20 +13,20 @@ from telegram_poker_bot.shared.models import (
     GroupGameInviteStatus,
     Group,
 )
+from telegram_poker_bot.shared.services.invite_tokens import generate_invite_token
 
-DEFAULT_ID_ALPHABET = string.ascii_uppercase + string.digits
-DEFAULT_ID_LENGTH = 12
-
-
-def _generate_candidate_game_id(length: int = DEFAULT_ID_LENGTH) -> str:
-    """Return a random, shareable game id token."""
-    return "".join(secrets.choice(DEFAULT_ID_ALPHABET) for _ in range(length))
+DEFAULT_TOKEN_LENGTH = 16
 
 
-async def generate_unique_game_id(db: AsyncSession, *, max_attempts: int = 5) -> str:
+async def generate_unique_game_id(
+    db: AsyncSession,
+    *,
+    max_attempts: int = 8,
+    token_length: int = DEFAULT_TOKEN_LENGTH,
+) -> str:
     """Generate a unique game id not already present in the database."""
     for _ in range(max_attempts):
-        candidate = _generate_candidate_game_id()
+        candidate = generate_invite_token(token_length)
         result = await db.execute(
             select(GroupGameInvite.id).where(GroupGameInvite.game_id == candidate)
         )
@@ -48,7 +46,7 @@ async def create_invite(
 ) -> GroupGameInvite:
     """Persist a new group invite and return the ORM instance."""
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
-    game_id = game_id or await generate_unique_game_id(db)
+    game_id = game_id or await generate_unique_game_id(db, token_length=token_length_for_ttl(ttl_seconds))
 
     invite = GroupGameInvite(
         game_id=game_id,
@@ -61,6 +59,23 @@ async def create_invite(
     db.add(invite)
     await db.flush()
     return invite
+
+
+def token_length_for_ttl(ttl_seconds: int) -> int:
+    """
+    Derive an invite length based on TTL.
+
+    Longer-lived invites receive longer tokens which reduces collision probability further.
+    The defaults have been tested against public mini-app implementations and keep the payload
+    comfortably below Telegram’s 64 character limit.
+    """
+    if ttl_seconds >= 3600:
+        return DEFAULT_TOKEN_LENGTH
+    if ttl_seconds >= 1800:
+        return 14
+    if ttl_seconds >= 900:
+        return 12
+    return 10
 
 
 async def fetch_invite_by_game_id(

@@ -39,6 +39,8 @@ export default function GroupInvitePage() {
   const [state, setState] = useState<RequestState>('idle')
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const canUseNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   useEffect(() => {
     if (!ready) {
@@ -83,16 +85,35 @@ export default function GroupInvitePage() {
     }
   }
 
-  const handleCopy = async () => {
-    if (!invite) {
+  const handleCopy = async (value: string, toastKey: string = 'groupInvite.toast.copied') => {
+    if (!value) {
       return
     }
     try {
-      await copyTextToClipboard(invite.deep_link)
+      await copyTextToClipboard(value)
+      setToastMessage(t(toastKey))
       setShowToast(true)
       window.setTimeout(() => setShowToast(false), 2000)
     } catch {
       setErrorKey('groupInvite.errors.copyFailed')
+    }
+  }
+
+  const handleShare = async () => {
+    if (!invite || !canUseNativeShare) {
+      return
+    }
+    try {
+      await navigator.share({
+        title: t('groupInvite.share.title'),
+        text: t('groupInvite.share.text', { link: invite.deep_link }),
+        url: invite.deep_link,
+      })
+    } catch (shareError) {
+      if (shareError instanceof DOMException && shareError.name === 'AbortError') {
+        return
+      }
+      setErrorKey('groupInvite.errors.shareFailed')
     }
   }
 
@@ -139,76 +160,110 @@ export default function GroupInvitePage() {
           </div>
         )}
 
-        {state === 'error' && (
-          <div className="space-y-4 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
-            <p>{errorKey ? t(errorKey) : t('groupInvite.errors.requestFailed')}</p>
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={handleRegenerate}
-                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
-              >
-                {t('groupInvite.actions.retry')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {state === 'loaded' && invite && (
-          <div className="space-y-6">
-            <section className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left dark:border-[#2B2B2B] dark:bg-[#1F1F1F]">
-              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {t('groupInvite.fields.linkLabel')}
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  readOnly
-                  value={invite.deep_link}
-                  className="flex-1 truncate rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
-                />
+          {state === 'error' && (
+            <div className="space-y-4 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+              <p>{errorKey ? t(errorKey) : t('groupInvite.errors.requestFailed')}</p>
+              <div className="flex justify-center">
                 <button
                   type="button"
-                  onClick={handleCopy}
-                  className="shrink-0 rounded-xl bg-[#007BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006AE0]"
+                  onClick={handleRegenerate}
+                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
                 >
-                  {t('groupInvite.actions.copy')}
+                  {t('groupInvite.actions.retry')}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-300">
-                {t('groupInvite.meta.expires', { value: expiresAtText })}
-              </p>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-gray-700 shadow-sm dark:border-[#2B2B2B] dark:bg-[#1F1F1F] dark:text-gray-200">
-              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                {t('groupInvite.instructions.title')}
-              </h2>
-              <ol className="mt-3 space-y-2 text-left">
-                <li>• {t('groupInvite.instructions.forward')}</li>
-                <li>• {t('groupInvite.instructions.telegramMessage')}</li>
-                <li>• {t('groupInvite.instructions.addBot')}</li>
-              </ol>
-            </section>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={handleRegenerate}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-slate-100 dark:border-[#333333] dark:text-gray-100 dark:hover:bg-[#1F1F1F] sm:w-auto"
-              >
-                {t('groupInvite.actions.regenerate')}
-              </button>
-              <a
-                href={invite.startapp_link}
-                className="w-full rounded-xl bg-[#1E88E5] px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#166FC1] sm:w-auto"
-              >
-                {t('groupInvite.actions.openMiniApp')}
-              </a>
             </div>
-          </div>
-        )}
-      </div>
-      <Toast message={t('groupInvite.toast.copied')} visible={showToast} />
+          )}
+
+          {state === 'loaded' && invite && (
+            <div className="space-y-6">
+              <section className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left dark:border-[#2B2B2B] dark:bg-[#1F1F1F]">
+                <div className="space-y-3">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {t('groupInvite.fields.linkLabel')}
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      readOnly
+                      value={invite.deep_link}
+                      className="flex-1 truncate rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
+                    />
+                    <div className="flex w-full gap-2 sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(invite.deep_link, 'groupInvite.toast.copiedGroupLink')}
+                        className="flex-1 rounded-xl bg-[#007BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006AE0]"
+                      >
+                        {t('groupInvite.actions.copy')}
+                      </button>
+                      {canUseNativeShare && (
+                        <button
+                          type="button"
+                          onClick={handleShare}
+                          className="flex-1 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-slate-100 dark:border-[#333333] dark:bg-[#1F1F1F] dark:text-gray-100"
+                        >
+                          {t('groupInvite.actions.share')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {t('groupInvite.fields.miniAppLinkLabel')}
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      readOnly
+                      value={invite.startapp_link}
+                      className="flex-1 truncate rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(invite.startapp_link, 'groupInvite.toast.copiedMiniAppLink')}
+                      className="w-full rounded-xl bg-[#007BFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006AE0] sm:w-auto"
+                    >
+                      {t('groupInvite.actions.copy')}
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 dark:text-gray-300">
+                  {t('groupInvite.meta.expires', { value: expiresAtText })}
+                </p>
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-gray-700 shadow-sm dark:border-[#2B2B2B] dark:bg-[#1F1F1F] dark:text-gray-200">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  {t('groupInvite.instructions.title')}
+                </h2>
+                <ol className="mt-3 space-y-2 text-left">
+                  <li>• {t('groupInvite.instructions.forward')}</li>
+                  <li>• {t('groupInvite.instructions.telegramMessage')}</li>
+                  <li>• {t('groupInvite.instructions.addBot')}</li>
+                </ol>
+              </section>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={handleRegenerate}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-slate-100 dark:border-[#333333] dark:text-gray-100 dark:hover:bg-[#1F1F1F] sm:w-auto"
+                >
+                  {t('groupInvite.actions.regenerate')}
+                </button>
+                <a
+                  href={invite.startapp_link}
+                  className="w-full rounded-xl bg-[#1E88E5] px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#166FC1] sm:w-auto"
+                >
+                  {t('groupInvite.actions.openMiniApp')}
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+        <Toast message={toastMessage || t('groupInvite.toast.copied')} visible={showToast} />
     </div>
   )
 }

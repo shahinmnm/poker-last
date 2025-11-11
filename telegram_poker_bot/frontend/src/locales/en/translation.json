@@ -310,7 +310,8 @@
         "generating": "Creating your group link..."
       },
       "fields": {
-        "linkLabel": "Shareable link"
+        "linkLabel": "Group invite link",
+        "miniAppLinkLabel": "Mini app link"
       },
       "meta": {
         "expires": "Expires on {{value}}"
@@ -323,18 +324,26 @@
       },
       "actions": {
         "copy": "Copy link",
+        "share": "Share link",
         "regenerate": "Generate new link",
         "openMiniApp": "Open mini app",
         "retry": "Try again"
       },
       "toast": {
-        "copied": "Link copied!"
+        "copied": "Link copied!",
+        "copiedGroupLink": "Group link copied!",
+        "copiedMiniAppLink": "Mini app link copied!"
       },
       "errors": {
         "missingInit": "We could not verify your Telegram session. Open the mini app from the bot to try again.",
         "unauthorized": "We were unable to authenticate you. Please reopen the mini app from Telegram.",
         "requestFailed": "We couldn't generate the link. Please try again in a moment.",
-        "copyFailed": "Copy failed. Please copy the link manually."
+        "copyFailed": "Copy failed. Please copy the link manually.",
+        "shareFailed": "We couldn't open the share sheet. Copy the link instead."
+      },
+      "share": {
+        "title": "Join my poker game",
+        "text": "Add the bot to our group and open the table: {{link}}"
       }
     },
     "groupJoin": {

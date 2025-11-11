@@ -42,6 +42,7 @@ from telegram_poker_bot.shared.services.group_invites import (
     create_invite,
     fetch_invite_by_game_id,
     generate_unique_game_id,
+    token_length_for_ttl,
 )
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import TableManager, get_matchmaking_pool
@@ -408,7 +409,8 @@ async def create_group_game_invite(
     user = await ensure_user(db, auth)
     language = user.language or sanitize_language(auth.language_code)
 
-    game_id = await generate_unique_game_id(db)
+    token_length = token_length_for_ttl(settings.group_invite_ttl_seconds)
+    game_id = await generate_unique_game_id(db, token_length=token_length)
     deep_link = build_group_deep_link(game_id)
     startapp_link = build_startapp_link(game_id)
 
