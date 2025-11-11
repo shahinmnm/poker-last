@@ -1,7 +1,7 @@
 """Normalize groupgameinvitestatus enum values to lowercase."""
 
 # revision identifiers, used by Alembic.
-revision = "003_lowercase_group_game_invite_status"
+revision = "003_lowercase_invite_status"
 down_revision = "002_group_game_invites"
 branch_labels = None
 depends_on = None
