@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, ApiError } from '../utils/apiClient'
+import { upsertRecentInvite } from '../utils/recentInvites'
 
 interface InviteStatusResponse {
   game_id: string
@@ -96,6 +97,11 @@ export default function GroupJoinPage() {
         initData: authData,
       })
       setJoinResponse(response)
+      upsertRecentInvite({
+        gameId: response.game_id,
+        status: response.status,
+        groupTitle: response.group_title ?? inviteStatus?.group_title ?? null,
+      })
       setView('ready')
     } catch (error) {
       handleError(error)
