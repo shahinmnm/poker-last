@@ -177,18 +177,27 @@
   },
   "joinGame": {
     "title": "Join Game",
-    "description": "Enter an invite code or scan a QR shared by the host.",
-    "success": "Invite accepted. We’ll seat you as soon as the host starts the game.",
+      "description": "Enter an invite code or scan a QR shared by the host.",
+      "success": "Invite accepted. We’ll seat you as soon as the host starts the game.",
     "form": {
       "codeLabel": "Invite code",
-      "codePlaceholder": "Enter 6-character code",
+        "codePlaceholder": "Enter invite code",
       "joinButton": "Join table",
       "scanButton": "Scan QR",
-      "invalidCode": "Enter a valid 6-character code."
+        "invalidCode": "Enter a valid invite code (at least 8 characters)."
     },
     "recent": {
-      "title": "Recent invites",
-      "empty": "No recent invites."
+        "title": "Recent invites",
+        "empty": "No recent invites.",
+        "clear": "Clear history",
+        "unknownGroup": "Unknown group",
+        "updated": "Updated {{value}}",
+        "status": {
+          "pending": "Pending",
+          "ready": "Ready",
+          "consumed": "Completed",
+          "expired": "Expired"
+        }
     }
   },
   "profile": {
@@ -382,11 +391,44 @@
     "potMain": "Main pot",
     "potSide": "Side pot {{index}}",
     "chips": "{{amount}} chips",
-    "actions": {
-      "fold": "Fold",
-      "check": "Check",
-      "call": "Call",
-      "bet": "Bet / Raise"
-    }
+      "actions": {
+        "fold": "Fold",
+        "check": "Check",
+        "call": "Call",
+        "bet": "Bet / Raise",
+        "retry": "Retry"
+      },
+      "errors": {
+        "loadFailed": "We couldn’t load the table. Please try again.",
+        "actionFailed": "We couldn’t submit your action. Please try again.",
+        "unauthorized": "We couldn’t verify your session. Reopen the mini app from Telegram.",
+        "notFound": "We couldn’t find this table. Ask the host for a fresh link."
+      },
+      "toast": {
+        "actionSuccess": "Action submitted."
+      },
+      "meta": {
+        "mode": "Game mode",
+        "status": "Status",
+        "created": "Created",
+        "unknown": "Unknown"
+      },
+      "empty": {
+        "board": "No community cards yet.",
+        "pots": "No chips in the pot yet."
+      },
+      "modes": {
+        "holdem": "Hold’em",
+        "shortdeck": "Short Deck",
+        "plo": "Pot Limit Omaha"
+      },
+      "status": {
+        "pending": "Pending",
+        "ready": "Ready",
+        "consumed": "Completed",
+        "expired": "Expired",
+        "running": "Running",
+        "waiting": "Waiting"
+      }
   }
 }
