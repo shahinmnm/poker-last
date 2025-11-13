@@ -6,8 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 
 WITH_NGINX=false
-SKIP_PRUNE=false
-PULL_BASE_IMAGES=true
+DOCKER_SHOULD_PRUNE=false
+PULL_BASE_IMAGES=false
 
 usage() {
   cat <<'USAGE'
@@ -18,8 +18,9 @@ Usage:
 
 Options:
   --with-nginx   Include the nginx profile when starting services.
-  --skip-prune   Skip docker system prune.
-  --no-pull      Do not pull newer base images during the build.
+  --prune        Run docker system prune before rebuilding.
+  --pull         Pull newer base images during the build.
+  --no-pull      Do not pull newer base images during the build (default).
   -h, --help     Show this help message.
 USAGE
 }
@@ -30,8 +31,15 @@ parse_args() {
       --with-nginx)
         WITH_NGINX=true
         ;;
+      --prune)
+        DOCKER_SHOULD_PRUNE=true
+        ;;
       --skip-prune)
-        SKIP_PRUNE=true
+        log_warn "--skip-prune is deprecated; skipping prune is now the default."
+        DOCKER_SHOULD_PRUNE=false
+        ;;
+      --pull)
+        PULL_BASE_IMAGES=true
         ;;
       --no-pull)
         PULL_BASE_IMAGES=false
@@ -71,8 +79,8 @@ stop_services() {
 }
 
 prune_docker_resources() {
-  if [[ "${SKIP_PRUNE}" == "true" ]]; then
-    log_info "Skipping Docker prune (--skip-prune)"
+  if [[ "${DOCKER_SHOULD_PRUNE}" != "true" ]]; then
+    log_info "Skipping Docker prune (default)"
     return
   fi
 
