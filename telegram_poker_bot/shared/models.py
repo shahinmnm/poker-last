@@ -256,7 +256,11 @@ class GroupGameInvite(Base):
     creator_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True)
     status = Column(
-        Enum(GroupGameInviteStatus),
+        Enum(
+            GroupGameInviteStatus,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="groupgameinvitestatus",
+        ),
         nullable=False,
         default=GroupGameInviteStatus.PENDING,
         server_default=GroupGameInviteStatus.PENDING.value,
