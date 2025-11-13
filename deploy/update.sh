@@ -8,6 +8,7 @@ source "${SCRIPT_DIR}/lib/common.sh"
 WITH_NGINX=false
 SKIP_PRUNE=false
 PULL_BASE_IMAGES=true
+SKIP_GIT_UPDATE=false
 
 usage() {
   cat <<'USAGE'
@@ -20,6 +21,7 @@ Options:
   --with-nginx   Include the nginx profile when starting services.
   --skip-prune   Skip docker system prune.
   --no-pull      Do not pull newer base images during the build.
+  --no-git       Skip updating the local git checkout.
   -h, --help     Show this help message.
 USAGE
 }
@@ -35,6 +37,9 @@ parse_args() {
         ;;
       --no-pull)
         PULL_BASE_IMAGES=false
+        ;;
+      --no-git)
+        SKIP_GIT_UPDATE=true
         ;;
       -h|--help)
         usage
@@ -58,7 +63,7 @@ log_disk_usage() {
 }
 
 prepare_environment() {
-  ensure_command docker
+  ensure_command docker git
   ensure_env_file
   load_env_file
 }
@@ -109,7 +114,36 @@ show_summary() {
   log_disk_usage "Disk usage after restart"
 }
 
+update_repository() {
+  if [[ "${SKIP_GIT_UPDATE}" == "true" ]]; then
+    log_info "Skipping git update (--no-git)"
+    return
+  fi
+
+  ensure_command git
+  check_worktree_clean
+
+  local current_branch upstream_ref
+  current_branch="$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref HEAD)"
+  if ! upstream_ref="$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref "${current_branch}@{upstream}" 2>/dev/null)"; then
+    log_warn "No upstream configured for branch ${current_branch}. Skipping git update."
+    return
+  fi
+
+  log_info "Fetching latest changes from remote"
+  git -C "${REPO_ROOT}" fetch --prune
+
+  log_info "Fast-forwarding ${current_branch} to ${upstream_ref}"
+  if git -C "${REPO_ROOT}" merge --ff-only "${upstream_ref}"; then
+    log_success "Repository updated to latest ${upstream_ref}"
+  else
+    log_error "Unable to fast-forward ${current_branch}. Resolve manually and rerun."
+    exit 1
+  fi
+}
+
 main() {
+  update_repository
   prepare_environment
   log_disk_usage "Disk usage before restart"
   stop_services
