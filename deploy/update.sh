@@ -132,15 +132,21 @@ update_repository() {
     check_worktree_clean
   fi
 
-  local current_branch upstream_ref
+  local current_branch upstream_remote upstream_merge_ref upstream_branch upstream_ref
   current_branch="$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref HEAD)"
-  if ! upstream_ref="$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref "${current_branch}@{upstream}" 2>/dev/null)"; then
+  upstream_remote="$(git -C "${REPO_ROOT}" config --get "branch.${current_branch}.remote" 2>/dev/null || true)"
+  upstream_merge_ref="$(git -C "${REPO_ROOT}" config --get "branch.${current_branch}.merge" 2>/dev/null || true)"
+
+  if [[ -z "${upstream_remote}" || -z "${upstream_merge_ref}" ]]; then
     log_warn "No upstream configured for branch ${current_branch}. Skipping git update."
     return
   fi
 
-  log_info "Fetching latest changes from remote"
-  git -C "${REPO_ROOT}" fetch --prune
+  upstream_branch="${upstream_merge_ref#refs/heads/}"
+  upstream_ref="${upstream_remote}/${upstream_branch}"
+
+  log_info "Fetching latest changes from ${upstream_remote}"
+  git -C "${REPO_ROOT}" fetch --prune "${upstream_remote}"
 
   log_info "Fast-forwarding ${current_branch} to ${upstream_ref}"
   if git -C "${REPO_ROOT}" merge --ff-only "${upstream_ref}"; then
