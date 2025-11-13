@@ -21,6 +21,7 @@ interface TableInfo {
   } | null
   created_at?: string | null
   is_full?: boolean
+  is_private?: boolean
   viewer?: {
     is_seated?: boolean
     seat_position?: number | null
@@ -42,40 +43,41 @@ interface ActiveTable {
 
 export default function LobbyPage() {
   const { t } = useTranslation()
-  const { initData } = useTelegram()
+  const { initData, ready } = useTelegram()
   const [availableTables, setAvailableTables] = useState<TableInfo[]>([])
   const [myTables, setMyTables] = useState<ActiveTable[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchTables = async () => {
-    if (!initData) {
-      return
-    }
-
     try {
       setLoading(true)
       setError(null)
 
       const [tablesData, myTablesData] = await Promise.all([
-        apiFetch<{ tables: TableInfo[] }>('/tables', { initData }),
-        apiFetch<{ tables: ActiveTable[] }>('/users/me/tables', { initData }),
+        apiFetch<{ tables: TableInfo[] }>('/tables', initData ? { initData } : {}),
+        initData
+          ? apiFetch<{ tables: ActiveTable[] }>('/users/me/tables', { initData })
+          : Promise.resolve<{ tables: ActiveTable[] }>({ tables: [] }),
       ])
 
-      setAvailableTables(tablesData.tables)
-      setMyTables(myTablesData.tables)
+      setAvailableTables(tablesData.tables ?? [])
+      setMyTables(myTablesData.tables ?? [])
     } catch (err) {
       console.error('Error fetching tables:', err)
-      setError('Failed to load tables')
+      setError(t('lobby.errors.loadFailed'))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
+    if (!ready) {
+      return
+    }
     fetchTables()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initData])
+  }, [ready, initData])
 
   const formatDate = useMemo(
     () =>
@@ -120,7 +122,7 @@ export default function LobbyPage() {
           onClick={fetchTables}
           className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
         >
-          Retry
+          {t('lobby.actions.retry')}
         </button>
       </div>
     )
@@ -142,7 +144,7 @@ export default function LobbyPage() {
               onClick={fetchTables}
               className="text-sm font-medium text-blue-600 dark:text-blue-300"
             >
-              Refresh
+              {t('lobby.actions.refresh')}
             </button>
           </div>
           <div className="space-y-3">
@@ -150,6 +152,7 @@ export default function LobbyPage() {
               <Link
                 key={table.table_id}
                 to={`/table/${table.table_id}`}
+                state={{ from: '/lobby' }}
                 className="flex flex-col rounded-xl border-2 border-emerald-200 bg-white p-4 shadow-sm hover:shadow-md transition dark:border-emerald-700 dark:bg-gray-800"
               >
                 <div className="flex items-center justify-between">
@@ -192,13 +195,13 @@ export default function LobbyPage() {
             onClick={fetchTables}
             className="text-sm font-medium text-blue-600 dark:text-blue-300"
           >
-            Refresh
+            {t('lobby.actions.refresh')}
           </button>
         </div>
         <div className="space-y-3">
           {availableTables.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
-              <p className="mb-2">No public tables available right now.</p>
+              <p className="mb-2">{t('lobby.empty.public')}</p>
               <Link
                 to="/group/invite"
                 className="text-blue-600 dark:text-blue-300 hover:underline"
@@ -266,6 +269,7 @@ export default function LobbyPage() {
 
                   <Link
                     to={`/table/${table.table_id}`}
+                    state={{ from: '/lobby' }}
                     className={`mt-4 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
                       cardMuted
                         ? 'bg-gray-300 text-gray-600 dark:bg-gray-700 dark:text-gray-300'

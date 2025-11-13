@@ -22,6 +22,34 @@ from telegram_poker_bot.shared.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _is_table_private(config: Dict[str, Any]) -> bool:
+    """Resolve whether a table configuration represents a private table."""
+
+    raw_private = config.get("is_private")
+    if isinstance(raw_private, bool):
+        return raw_private
+
+    if isinstance(raw_private, (int, float)):
+        return bool(raw_private)
+
+    if isinstance(raw_private, str):
+        normalized = raw_private.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "private"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "public"}:
+            return False
+
+    visibility = config.get("visibility")
+    if isinstance(visibility, str):
+        normalized_visibility = visibility.strip().lower()
+        if normalized_visibility == "private":
+            return True
+        if normalized_visibility == "public":
+            return False
+
+    return bool(raw_private)
+
+
 async def create_table_with_config(
     db: AsyncSession,
     *,
@@ -50,6 +78,7 @@ async def create_table_with_config(
             "table_name": table_name or f"Table #{datetime.now().strftime('%H%M%S')}",
             "creator_user_id": creator_user_id,
             "is_private": is_private,
+            "visibility": "private" if is_private else "public",
         },
     )
     db.add(table)
@@ -234,6 +263,38 @@ async def seat_user_at_table(
     return seat
 
 
+async def leave_table(
+    db: AsyncSession,
+    table_id: int,
+    user_id: int,
+) -> Seat:
+    """Mark a user's seat as vacated for the given table."""
+
+    result = await db.execute(
+        select(Seat)
+        .where(
+            Seat.table_id == table_id,
+            Seat.user_id == user_id,
+            Seat.left_at.is_(None)
+        )
+    )
+    seat = result.scalar_one_or_none()
+    if not seat:
+        raise ValueError(f"User {user_id} is not seated at table {table_id}")
+
+    seat.left_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    logger.info(
+        "User left table",
+        table_id=table_id,
+        user_id=user_id,
+        seat_id=seat.id,
+    )
+
+    return seat
+
+
 async def get_table_info(
     db: AsyncSession,
     table_id: int,
@@ -255,6 +316,7 @@ async def get_table_info(
     
     config = table.config_json or {}
     creator_user_id = config.get("creator_user_id")
+    is_private = _is_table_private(config)
 
     # Fetch host user if available
     host_user = None
@@ -347,7 +409,12 @@ async def get_table_info(
             and table.status == TableStatus.WAITING
             and player_count >= 2
         ),
-        "can_join": (not viewer_is_creator) and player_count < max_players,
+        "can_join": (
+            (not viewer_is_seated)
+            and player_count < max_players
+            and (not is_private or viewer_is_creator)
+        ),
+        "can_leave": viewer_is_seated,
     }
 
     viewer_info = None
@@ -369,7 +436,7 @@ async def get_table_info(
         "big_blind": config.get("big_blind", 50),
         "starting_stack": config.get("starting_stack", 10000),
         "table_name": config.get("table_name"),
-        "is_private": config.get("is_private", False),
+        "is_private": is_private,
         "group_id": table.group_id,
         "group_title": group_title,
         "created_at": table.created_at.isoformat() if table.created_at else None,
@@ -451,12 +518,14 @@ async def list_available_tables(
     tables_data: List[Dict[str, Any]] = []
     for table in tables:
         config = table.config_json or {}
-        if config.get("is_private"):
+        is_private = _is_table_private(config)
+        creator_user_id = config.get("creator_user_id")
+
+        if is_private and (viewer_user_id is None or viewer_user_id != creator_user_id):
             continue
 
         player_count = seat_counts.get(table.id, 0)
         max_players = config.get("max_players", 8)
-        creator_user_id = config.get("creator_user_id")
         creator = (
             creator_map.get(creator_user_id)
             if creator_user_id in creator_map
@@ -491,6 +560,7 @@ async def list_available_tables(
                 "host": host_info,
                 "created_at": table.created_at.isoformat() if table.created_at else None,
                 "is_full": player_count >= max_players,
+                "is_private": is_private,
                 "viewer": viewer_info,
             }
         )

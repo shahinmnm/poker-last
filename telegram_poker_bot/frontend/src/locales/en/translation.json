@@ -135,7 +135,14 @@
     "actions": {
       "refresh": "Refresh list",
       "join": "Open table",
-      "view": "View table"
+      "view": "View table",
+      "retry": "Try again"
+    },
+    "empty": {
+      "public": "No public tables available right now."
+    },
+    "errors": {
+      "loadFailed": "We couldn't load the latest tables. Please try again."
     },
     "fields": {
       "players": "Players",
@@ -427,9 +434,14 @@
     "actions": {
       "titleHost": "Host controls",
       "titleGuest": "Table actions",
+      "back": "Back to lobby",
       "start": "Start game",
       "takeSeat": "Take a seat",
       "seated": "Already seated",
+      "joining": "Joining...",
+      "leave": "Leave table",
+      "leaving": "Leaving...",
+      "starting": "Starting...",
       "refresh": "Refresh",
       "retry": "Try again"
     },
@@ -452,7 +464,8 @@
     },
     "toast": {
       "seated": "Seat reserved.",
-      "started": "Game starting now!"
+      "started": "Game starting now!",
+      "left": "You left the table."
     },
     "errors": {
       "loadFailed": "We couldn’t load the table. Please try again.",
