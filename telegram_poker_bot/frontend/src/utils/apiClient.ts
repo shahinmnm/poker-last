@@ -25,19 +25,8 @@ export function getApiBaseUrl(): string {
     return API_BASE_CACHE.api
   }
 
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    API_BASE_CACHE.api = normalizeBaseUrl(window.location.origin)
-    return API_BASE_CACHE.api
-  }
-
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[apiClient] VITE_API_URL is not defined; requests will use relative URLs resolved by the browser.',
-    )
-  }
-
-  API_BASE_CACHE.api = ''
+  // Default to /api for production behind Nginx
+  API_BASE_CACHE.api = '/api'
   return API_BASE_CACHE.api
 }
 
