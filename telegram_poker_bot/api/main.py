@@ -44,6 +44,7 @@ from telegram_poker_bot.shared.services.group_invites import (
     generate_unique_game_id,
     token_length_for_ttl,
 )
+from telegram_poker_bot.shared.services import user_service, table_service
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import TableManager, get_matchmaking_pool
 
@@ -395,10 +396,20 @@ async def register_current_user(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_group_game_invite(
+    small_blind: int = 25,
+    big_blind: int = 50,
+    starting_stack: int = 10000,
+    max_players: int = 8,
+    table_name: Optional[str] = None,
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new Telegram group invite link for poker tables."""
+    """
+    Create a new Telegram group invite link for poker tables.
+    
+    This creates an invite that users can share to groups, allowing friends
+    to join a specific poker table with configured stakes.
+    """
     if not x_telegram_init_data:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Telegram init data")
 
@@ -414,11 +425,28 @@ async def create_group_game_invite(
     deep_link = build_group_deep_link(game_id)
     startapp_link = build_startapp_link(game_id)
 
+    # Create a table for this invite
+    table = await table_service.create_private_table(
+        db,
+        creator_user_id=user.id,
+        small_blind=small_blind,
+        big_blind=big_blind,
+        starting_stack=starting_stack,
+        max_players=max_players,
+        table_name=table_name or f"{auth.first_name or auth.username}'s Table",
+    )
+
     metadata = {
         "creator_username": auth.username,
         "creator_first_name": auth.first_name,
         "creator_last_name": auth.last_name,
         "language": language,
+        "table_id": table.id,
+        "small_blind": small_blind,
+        "big_blind": big_blind,
+        "starting_stack": starting_stack,
+        "max_players": max_players,
+        "table_name": table_name,
     }
 
     invite = await create_invite(
@@ -428,7 +456,10 @@ async def create_group_game_invite(
         ttl_seconds=settings.group_invite_ttl_seconds,
         metadata=metadata,
         game_id=game_id,
+        table_id=table.id,
     )
+
+    await db.commit()
 
     await send_invite_share_message(
         user=user,
@@ -453,13 +484,26 @@ async def get_group_game_invite(
     game_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve public metadata about a group game invite."""
+    """
+    Retrieve public metadata about a group game invite.
+    
+    Includes table configuration and current player count.
+    """
     invite = await fetch_invite_by_game_id(db, game_id)
     if not invite:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
 
+    # Get table info if available
+    table_id = invite.metadata_json.get("table_id")
     group_title = None
-    if invite.group_id:
+    
+    if table_id:
+        try:
+            table_info = await table_service.get_table_info(db, table_id)
+            group_title = table_info.get("table_name")
+        except ValueError:
+            pass  # Table no longer exists
+    elif invite.group_id:
         result = await db.execute(select(Group).where(Group.id == invite.group_id))
         group = result.scalar_one_or_none()
         if group:
@@ -484,7 +528,11 @@ async def attend_group_game_invite(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Signal the user's intent to join the specified group invite."""
+    """
+    Signal the user's intent to join the specified group invite.
+    
+    This endpoint handles seating the user at the table associated with the invite.
+    """
     if not x_telegram_init_data:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Telegram init data")
 
@@ -500,47 +548,234 @@ async def attend_group_game_invite(
     language = user.language or sanitize_language(auth.language_code)
     translator = get_translation(language)
 
-    group_title = None
-    if invite.group_id:
-        result = await db.execute(select(Group).where(Group.id == invite.group_id))
-        group = result.scalar_one_or_none()
-        if group:
-            group_title = group.title
-
-    status_value = invite.status.value
+    # Check invite status
     if invite.status == GroupGameInviteStatus.EXPIRED:
-        message = translator("group_invite_join_expired")
-    elif invite.status == GroupGameInviteStatus.CONSUMED:
-        message = translator("group_invite_join_consumed")
-    elif invite.status == GroupGameInviteStatus.READY:
-        message = translator("group_invite_join_ready")
-    else:
-        message = translator("group_invite_join_pending", title=group_title or "")
+        return GroupInviteJoinResponse(
+            game_id=invite.game_id,
+            status=invite.status.value,
+            message=translator("group_invite_join_expired"),
+            group_title=None,
+        )
+    
+    if invite.status == GroupGameInviteStatus.CONSUMED:
+        return GroupInviteJoinResponse(
+            game_id=invite.game_id,
+            status=invite.status.value,
+            message=translator("group_invite_join_consumed"),
+            group_title=None,
+        )
 
-    return GroupInviteJoinResponse(
-        game_id=invite.game_id,
-        status=status_value,
-        message=message,
-        group_title=group_title,
-    )
+    # Get table from invite metadata
+    table_id = invite.metadata_json.get("table_id")
+    if not table_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No table associated with invite")
+
+    # Attempt to seat user at table
+    try:
+        seat = await table_service.seat_user_at_table(db, table_id, user.id)
+        await db.commit()
+        
+        # Get table info
+        table_info = await table_service.get_table_info(db, table_id)
+        
+        message = translator(
+            "group_invite_seat_success",
+            table_name=table_info.get("table_name", f"Table #{table_id}"),
+            position=seat.position + 1,
+            chips=seat.chips,
+        )
+        
+        return GroupInviteJoinResponse(
+            game_id=invite.game_id,
+            status="seated",
+            message=message,
+            group_title=table_info.get("group_title"),
+        )
+    except ValueError as e:
+        # User already seated or table full
+        await db.rollback()
+        return GroupInviteJoinResponse(
+            game_id=invite.game_id,
+            status="error",
+            message=str(e),
+            group_title=None,
+        )
 
 
 @app.get("/tables/{table_id}")
 async def get_table(table_id: int, db: AsyncSession = Depends(get_db)):
     """Get table information."""
-    from sqlalchemy import select
-    result = await db.execute(select(Table).where(Table.id == table_id))
-    table = result.scalar_one_or_none()
+    try:
+        table_info = await table_service.get_table_info(db, table_id)
+        return table_info
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/tables")
+async def list_tables(
+    mode: Optional[str] = None,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+):
+    """List available tables."""
+    game_mode = None
+    if mode:
+        try:
+            game_mode = GameMode(mode)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
     
-    if not table:
-        raise HTTPException(status_code=404, detail="Table not found")
+    tables = await table_service.list_available_tables(db, limit=limit, mode=game_mode)
+    return {"tables": tables}
+
+
+@app.post("/tables", status_code=status.HTTP_201_CREATED)
+async def create_table(
+    small_blind: int = 25,
+    big_blind: int = 50,
+    starting_stack: int = 10000,
+    max_players: int = 8,
+    table_name: Optional[str] = None,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new private table."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
     
-    return {
-        "id": table.id,
-        "mode": table.mode.value,
-        "status": table.status.value,
-        "created_at": table.created_at.isoformat(),
-    }
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    
+    table = await table_service.create_private_table(
+        db,
+        creator_user_id=user.id,
+        small_blind=small_blind,
+        big_blind=big_blind,
+        starting_stack=starting_stack,
+        max_players=max_players,
+        table_name=table_name,
+    )
+    
+    await db.commit()
+    
+    table_info = await table_service.get_table_info(db, table.id)
+    return table_info
+
+
+@app.post("/tables/{table_id}/sit")
+async def sit_at_table(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sit at a table."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    
+    try:
+        seat = await table_service.seat_user_at_table(db, table_id, user.id)
+        await db.commit()
+        
+        return {
+            "success": True,
+            "table_id": table_id,
+            "position": seat.position,
+            "chips": seat.chips,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/users/me/stats")
+async def get_my_stats(
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current user's statistics."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    stats = await user_service.get_user_stats(db, user.id)
+    
+    return stats
+
+
+@app.get("/users/me/balance")
+async def get_my_balance(
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current user's chip balance."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    
+    # Ensure wallet exists
+    await user_service.ensure_wallet(db, user.id)
+    await db.commit()
+    
+    balance = await user_service.get_user_balance(db, user.id)
+    
+    return {"balance": balance}
+
+
+@app.get("/users/me/tables")
+async def get_my_tables(
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current user's active tables."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    tables = await user_service.get_active_tables(db, user.id)
+    
+    return {"tables": tables}
+
+
+@app.get("/users/me/history")
+async def get_my_history(
+    limit: int = 10,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current user's game history."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    games = await user_service.get_recent_games(db, user.id, limit=limit)
+    
+    return {"games": games}
 
 
 @app.post("/tables/{table_id}/actions")

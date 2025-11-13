@@ -43,18 +43,38 @@ async def create_invite(
     ttl_seconds: int,
     metadata: Optional[dict] = None,
     game_id: Optional[str] = None,
+    table_id: Optional[int] = None,
 ) -> GroupGameInvite:
-    """Persist a new group invite and return the ORM instance."""
+    """
+    Persist a new group invite and return the ORM instance.
+    
+    Args:
+        db: Database session
+        creator_user_id: User who created the invite
+        deep_link: Telegram deep link for the invite
+        ttl_seconds: Time to live in seconds
+        metadata: Additional metadata (table config, creator info, etc.)
+        game_id: Optional specific game ID
+        table_id: Optional existing table ID to link
+    
+    Returns:
+        Created GroupGameInvite instance
+    """
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
     game_id = game_id or await generate_unique_game_id(db, token_length=token_length_for_ttl(ttl_seconds))
 
+    # Ensure metadata includes table configuration
+    full_metadata = metadata or {}
+    if table_id:
+        full_metadata["table_id"] = table_id
+    
     invite = GroupGameInvite(
         game_id=game_id,
         creator_user_id=creator_user_id,
         deep_link=deep_link,
         expires_at=expires_at,
         status=GroupGameInviteStatus.PENDING,
-        metadata_json=metadata or {},
+        metadata_json=full_metadata,
     )
     db.add(invite)
     await db.flush()
