@@ -9,6 +9,7 @@ WITH_NGINX=false
 SKIP_PRUNE=false
 PULL_BASE_IMAGES=true
 SKIP_GIT_UPDATE=false
+ALLOW_DIRTY_WORKTREE=false
 
 usage() {
   cat <<'USAGE'
@@ -18,11 +19,12 @@ Usage:
   update.sh [options]
 
 Options:
-  --with-nginx   Include the nginx profile when starting services.
-  --skip-prune   Skip docker system prune.
-  --no-pull      Do not pull newer base images during the build.
-  --no-git       Skip updating the local git checkout.
-  -h, --help     Show this help message.
+    --with-nginx      Include the nginx profile when starting services.
+    --skip-prune      Skip docker system prune.
+    --no-pull         Do not pull newer base images during the build.
+    --no-git          Skip updating the local git checkout.
+    --allow-dirty     Skip enforcing a clean git worktree before updating.
+    -h, --help        Show this help message.
 USAGE
 }
 
@@ -40,6 +42,9 @@ parse_args() {
         ;;
       --no-git)
         SKIP_GIT_UPDATE=true
+        ;;
+      --allow-dirty)
+        ALLOW_DIRTY_WORKTREE=true
         ;;
       -h|--help)
         usage
@@ -121,7 +126,11 @@ update_repository() {
   fi
 
   ensure_command git
-  check_worktree_clean
+  if [[ "${ALLOW_DIRTY_WORKTREE}" == "true" ]]; then
+    log_warn "Skipping clean worktree check (--allow-dirty)"
+  else
+    check_worktree_clean
+  fi
 
   local current_branch upstream_ref
   current_branch="$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref HEAD)"
