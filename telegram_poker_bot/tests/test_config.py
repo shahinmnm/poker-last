@@ -128,3 +128,43 @@ def test_custom_webhook_path_normalized(monkeypatch):
 
     assert settings.webhook_path == "/telegram/custom"
     assert settings.webhook_url == "https://example.com/telegram/custom"
+
+
+def test_mini_app_url_with_relative_vite_api_url(monkeypatch):
+    """mini_app_url should derive correctly when VITE_API_URL is a relative path."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.shahin8n.sbs")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.setenv("VITE_API_URL", "/api")
+
+    settings = config.get_settings()
+
+    assert settings.vite_api_url == "/api"
+    assert settings.mini_app_url == "https://poker.shahin8n.sbs"
+
+
+def test_mini_app_url_with_absolute_vite_api_url(monkeypatch):
+    """mini_app_url should derive correctly when VITE_API_URL is an absolute URL."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.shahin8n.sbs")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.setenv("VITE_API_URL", "https://poker.shahin8n.sbs/api")
+
+    settings = config.get_settings()
+
+    assert settings.vite_api_url == "https://poker.shahin8n.sbs/api"
+    assert settings.mini_app_url == "https://poker.shahin8n.sbs"
+
+
+def test_mini_app_url_when_vite_api_url_not_set(monkeypatch):
+    """mini_app_url should use PUBLIC_BASE_URL when VITE_API_URL is not set."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.example.com")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.delenv("VITE_API_URL", raising=False)
+
+    settings = config.get_settings()
+
+    # vite_api_url should be derived from PUBLIC_BASE_URL
+    assert settings.vite_api_url == "https://poker.example.com/api"
+    assert settings.mini_app_url == "https://poker.example.com"
