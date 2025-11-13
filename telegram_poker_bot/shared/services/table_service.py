@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
-from sqlalchemy import select, func
+from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram_poker_bot.shared.models import (
@@ -15,10 +15,67 @@ from telegram_poker_bot.shared.models import (
     GameMode,
     TableStatus,
     GroupGameInvite,
+    GroupGameInviteStatus,
 )
 from telegram_poker_bot.shared.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+async def create_table_with_config(
+    db: AsyncSession,
+    *,
+    creator_user_id: int,
+    small_blind: int = 25,
+    big_blind: int = 50,
+    starting_stack: int = 10000,
+    max_players: int = 8,
+    table_name: Optional[str] = None,
+    mode: GameMode = GameMode.ANONYMOUS,
+    group_id: Optional[int] = None,
+    is_private: bool = False,
+    auto_seat_creator: bool = False,
+) -> Table:
+    """Create a table with explicit configuration options."""
+
+    table = Table(
+        mode=mode,
+        group_id=group_id,
+        status=TableStatus.WAITING,
+        config_json={
+            "small_blind": small_blind,
+            "big_blind": big_blind,
+            "starting_stack": starting_stack,
+            "max_players": max_players,
+            "table_name": table_name or f"Table #{datetime.now().strftime('%H%M%S')}",
+            "creator_user_id": creator_user_id,
+            "is_private": is_private,
+        },
+    )
+    db.add(table)
+    await db.flush()
+
+    logger.info(
+        "Table created",
+        table_id=table.id,
+        creator_user_id=creator_user_id,
+        max_players=max_players,
+        is_private=is_private,
+        mode=mode.value,
+    )
+
+    if auto_seat_creator:
+        try:
+            await seat_user_at_table(db, table.id, creator_user_id)
+        except ValueError as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "Failed to auto-seat creator",
+                table_id=table.id,
+                creator_user_id=creator_user_id,
+                error=str(exc),
+            )
+
+    return table
 
 
 async def create_private_table(
@@ -30,45 +87,19 @@ async def create_private_table(
     max_players: int = 8,
     table_name: Optional[str] = None,
 ) -> Table:
-    """
-    Create a new private table for "play with friends".
-    
-    Args:
-        db: Database session
-        creator_user_id: User ID of table creator
-        small_blind: Small blind amount
-        big_blind: Big blind amount
-        starting_stack: Starting chip stack
-        max_players: Maximum players allowed
-        table_name: Optional friendly table name
-    
-    Returns:
-        Created Table instance
-    """
-    table = Table(
-        mode=GameMode.ANONYMOUS,  # Private tables use anonymous mode
-        status=TableStatus.WAITING,
-        config_json={
-            "small_blind": small_blind,
-            "big_blind": big_blind,
-            "starting_stack": starting_stack,
-            "max_players": max_players,
-            "table_name": table_name or f"Table #{datetime.now().strftime('%H%M%S')}",
-            "creator_user_id": creator_user_id,
-            "is_private": True,
-        },
-    )
-    db.add(table)
-    await db.flush()
-    
-    logger.info(
-        "Private table created",
-        table_id=table.id,
+    """Create a private table (used for invite-based games)."""
+
+    return await create_table_with_config(
+        db,
         creator_user_id=creator_user_id,
+        small_blind=small_blind,
+        big_blind=big_blind,
+        starting_stack=starting_stack,
         max_players=max_players,
+        table_name=table_name,
+        is_private=True,
+        auto_seat_creator=False,
     )
-    
-    return table
 
 
 async def create_group_table(
@@ -95,29 +126,18 @@ async def create_group_table(
     Returns:
         Created Table instance
     """
-    table = Table(
+    return await create_table_with_config(
+        db,
+        creator_user_id=creator_user_id,
+        small_blind=small_blind,
+        big_blind=big_blind,
+        starting_stack=starting_stack,
+        max_players=max_players,
         mode=GameMode.GROUP,
         group_id=group_id,
-        status=TableStatus.WAITING,
-        config_json={
-            "small_blind": small_blind,
-            "big_blind": big_blind,
-            "starting_stack": starting_stack,
-            "max_players": max_players,
-            "creator_user_id": creator_user_id,
-        },
+        is_private=False,
+        auto_seat_creator=False,
     )
-    db.add(table)
-    await db.flush()
-    
-    logger.info(
-        "Group table created",
-        table_id=table.id,
-        group_id=group_id,
-        creator_user_id=creator_user_id,
-    )
-    
-    return table
 
 
 async def seat_user_at_table(
@@ -214,7 +234,12 @@ async def seat_user_at_table(
     return seat
 
 
-async def get_table_info(db: AsyncSession, table_id: int) -> Dict[str, Any]:
+async def get_table_info(
+    db: AsyncSession,
+    table_id: int,
+    *,
+    viewer_user_id: Optional[int] = None,
+) -> Dict[str, Any]:
     """
     Get comprehensive table information.
     
@@ -228,16 +253,50 @@ async def get_table_info(db: AsyncSession, table_id: int) -> Dict[str, Any]:
     if not table:
         raise ValueError(f"Table {table_id} not found")
     
-    # Count seated players
-    result = await db.execute(
-        select(func.count(Seat.id)).where(
+    config = table.config_json or {}
+    creator_user_id = config.get("creator_user_id")
+
+    # Fetch host user if available
+    host_user = None
+    if creator_user_id:
+        host_result = await db.execute(
+            select(User).where(User.id == creator_user_id)
+        )
+        host_user = host_result.scalar_one_or_none()
+
+    # Load seated players with user information
+    seats_result = await db.execute(
+        select(Seat, User)
+        .join(User, Seat.user_id == User.id)
+        .where(
             Seat.table_id == table_id,
             Seat.left_at.is_(None)
         )
+        .order_by(Seat.position.asc())
     )
-    player_count = result.scalar() or 0
-    
-    config = table.config_json or {}
+
+    players: List[Dict[str, Any]] = []
+    viewer_is_seated = False
+    viewer_position: Optional[int] = None
+    for seat, user in seats_result.all():
+        display_name = user.username or f"Player #{user.id}"
+        players.append(
+            {
+                "user_id": user.id,
+                "username": user.username,
+                "display_name": display_name,
+                "position": seat.position,
+                "chips": seat.chips,
+                "joined_at": seat.joined_at.isoformat() if seat.joined_at else None,
+                "is_host": user.id == creator_user_id,
+            }
+        )
+
+        if viewer_user_id is not None and user.id == viewer_user_id:
+            viewer_is_seated = True
+            viewer_position = seat.position
+
+    player_count = len(players)
     
     # Get group info if it's a group table
     group_title = None
@@ -249,12 +308,63 @@ async def get_table_info(db: AsyncSession, table_id: int) -> Dict[str, Any]:
         if group:
             group_title = group.title
     
+    # Determine invite metadata for the table
+    invite_info = None
+    if creator_user_id:
+        invite_result = await db.execute(
+            select(GroupGameInvite)
+            .where(GroupGameInvite.creator_user_id == creator_user_id)
+            .order_by(desc(GroupGameInvite.expires_at))
+        )
+        for invite in invite_result.scalars():
+            if invite.status not in {GroupGameInviteStatus.PENDING, GroupGameInviteStatus.READY}:
+                continue
+            if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
+                continue
+            table_hint = invite.metadata_json.get("table_id") if invite.metadata_json else None
+            if table_hint == table.id:
+                invite_info = {
+                    "game_id": invite.game_id,
+                    "status": invite.status.value,
+                    "expires_at": invite.expires_at.isoformat() if invite.expires_at else None,
+                }
+                break
+
+    host_info = None
+    if host_user:
+        host_info = {
+            "user_id": host_user.id,
+            "username": host_user.username,
+            "display_name": host_user.username or f"Player #{host_user.id}",
+        }
+
+    max_players = config.get("max_players", 8)
+    viewer_is_creator = viewer_user_id is not None and viewer_user_id == creator_user_id
+
+    permissions = {
+        "can_start": (
+            viewer_is_creator
+            and table.status == TableStatus.WAITING
+            and player_count >= 2
+        ),
+        "can_join": (not viewer_is_creator) and player_count < max_players,
+    }
+
+    viewer_info = None
+    if viewer_user_id is not None:
+        viewer_info = {
+            "user_id": viewer_user_id,
+            "is_creator": viewer_is_creator,
+            "is_seated": viewer_is_seated,
+            "seat_position": viewer_position,
+        }
+
     return {
         "table_id": table.id,
         "mode": table.mode.value,
         "status": table.status.value,
         "player_count": player_count,
-        "max_players": config.get("max_players", 8),
+        "max_players": max_players,
         "small_blind": config.get("small_blind", 25),
         "big_blind": config.get("big_blind", 50),
         "starting_stack": config.get("starting_stack", 10000),
@@ -263,6 +373,12 @@ async def get_table_info(db: AsyncSession, table_id: int) -> Dict[str, Any]:
         "group_id": table.group_id,
         "group_title": group_title,
         "created_at": table.created_at.isoformat() if table.created_at else None,
+        "updated_at": table.updated_at.isoformat() if table.updated_at else None,
+        "players": players,
+        "host": host_info,
+        "viewer": viewer_info,
+        "permissions": permissions,
+        "invite": invite_info,
     }
 
 
@@ -270,6 +386,7 @@ async def list_available_tables(
     db: AsyncSession,
     limit: int = 20,
     mode: Optional[GameMode] = None,
+    viewer_user_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
     List available tables that players can join.
@@ -287,32 +404,141 @@ async def list_available_tables(
     
     result = await db.execute(query)
     tables = result.scalars().all()
-    
-    tables_data = []
+
+    if not tables:
+        return []
+
+    table_ids = [table.id for table in tables]
+
+    # Preload seat counts for all candidate tables
+    seat_counts_result = await db.execute(
+        select(Seat.table_id, func.count(Seat.id))
+        .where(
+            Seat.table_id.in_(table_ids),
+            Seat.left_at.is_(None)
+        )
+        .group_by(Seat.table_id)
+    )
+    seat_counts = {table_id: count for table_id, count in seat_counts_result.all()}
+
+    viewer_positions: Dict[int, int] = {}
+    if viewer_user_id is not None:
+        viewer_seat_result = await db.execute(
+            select(Seat.table_id, Seat.position)
+            .where(
+                Seat.table_id.in_(table_ids),
+                Seat.left_at.is_(None),
+                Seat.user_id == viewer_user_id,
+            )
+        )
+        viewer_positions = {
+            table_id: position for table_id, position in viewer_seat_result.all()
+        }
+
+    # Preload host user information
+    creator_ids = {
+        table.config_json.get("creator_user_id")
+        for table in tables
+        if table.config_json and table.config_json.get("creator_user_id")
+    }
+    creator_map: Dict[int, User] = {}
+    if creator_ids:
+        creator_result = await db.execute(
+            select(User).where(User.id.in_(creator_ids))
+        )
+        creator_map = {user.id: user for user in creator_result.scalars()}
+
+    tables_data: List[Dict[str, Any]] = []
     for table in tables:
-        # Skip private tables unless explicitly requested
         config = table.config_json or {}
         if config.get("is_private"):
             continue
-        
-        # Count players
-        result = await db.execute(
-            select(func.count(Seat.id)).where(
-                Seat.table_id == table.id,
-                Seat.left_at.is_(None)
-            )
+
+        player_count = seat_counts.get(table.id, 0)
+        max_players = config.get("max_players", 8)
+        creator_user_id = config.get("creator_user_id")
+        creator = (
+            creator_map.get(creator_user_id)
+            if creator_user_id in creator_map
+            else None
         )
-        player_count = result.scalar() or 0
-        
-        tables_data.append({
-            "table_id": table.id,
-            "mode": table.mode.value,
-            "status": table.status.value,
-            "player_count": player_count,
-            "max_players": config.get("max_players", 8),
-            "small_blind": config.get("small_blind", 25),
-            "big_blind": config.get("big_blind", 50),
-            "table_name": config.get("table_name", f"Table #{table.id}"),
-        })
-    
+
+        host_info = None
+        if creator:
+            host_info = {
+                "user_id": creator.id,
+                "username": creator.username,
+                "display_name": creator.username or f"Player #{creator.id}",
+            }
+
+        viewer_info = None
+        if viewer_user_id is not None:
+            viewer_info = {
+                "is_seated": table.id in viewer_positions,
+                "seat_position": viewer_positions.get(table.id),
+            }
+
+        tables_data.append(
+            {
+                "table_id": table.id,
+                "mode": table.mode.value,
+                "status": table.status.value,
+                "player_count": player_count,
+                "max_players": max_players,
+                "small_blind": config.get("small_blind", 25),
+                "big_blind": config.get("big_blind", 50),
+                "table_name": config.get("table_name", f"Table #{table.id}"),
+                "host": host_info,
+                "created_at": table.created_at.isoformat() if table.created_at else None,
+                "is_full": player_count >= max_players,
+                "viewer": viewer_info,
+            }
+        )
+
     return tables_data
+
+
+async def start_table(
+    db: AsyncSession,
+    table_id: int,
+    *,
+    user_id: int,
+) -> Table:
+    """Transition a table into the active state if the caller is the host."""
+
+    result = await db.execute(select(Table).where(Table.id == table_id))
+    table = result.scalar_one_or_none()
+    if not table:
+        raise ValueError(f"Table {table_id} not found")
+
+    config = table.config_json or {}
+    creator_user_id = config.get("creator_user_id")
+    if creator_user_id is None or creator_user_id != user_id:
+        raise PermissionError("Only the table creator can start the game")
+
+    if table.status != TableStatus.WAITING:
+        raise ValueError("Table is not in a state that can be started")
+
+    result = await db.execute(
+        select(func.count(Seat.id)).where(
+            Seat.table_id == table_id,
+            Seat.left_at.is_(None)
+        )
+    )
+    player_count = result.scalar() or 0
+    required_players = 2
+    if player_count < required_players:
+        raise ValueError("At least two seated players are required to start the game")
+
+    table.status = TableStatus.ACTIVE
+    table.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    logger.info(
+        "Table started",
+        table_id=table.id,
+        started_by=user_id,
+        player_count=player_count,
+    )
+
+    return table

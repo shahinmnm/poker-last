@@ -6,39 +6,83 @@ import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, ApiError, resolveWebSocketUrl } from '../utils/apiClient'
 import Toast from '../components/Toast'
 
-interface TableState {
-  id: number
-  status: string
-  mode?: string
-  created_at?: string
-  players?: Array<{
-    id: number
-    position: number
-    chips: number
-  }>
-  board?: string[]
-  pots?: Array<{
-    pot_index: number
-    amount: number
-  }>
-  current_player?: number | null
+interface TablePlayer {
+  user_id: number
+  username?: string | null
+  display_name?: string | null
+  position: number
+  chips: number
+  joined_at?: string | null
+  is_host?: boolean
 }
+
+interface TableViewerInfo {
+  user_id: number | null
+  is_creator: boolean
+  is_seated: boolean
+  seat_position?: number | null
+}
+
+interface TablePermissions {
+  can_start: boolean
+  can_join: boolean
+}
+
+interface TableHostInfo {
+  user_id: number
+  username?: string | null
+  display_name?: string | null
+}
+
+interface TableInviteInfo {
+  game_id?: string
+  status?: string
+  expires_at?: string | null
+}
+
+interface TableDetails {
+  table_id: number
+  table_name?: string | null
+  mode?: string
+  status: string
+  small_blind: number
+  big_blind: number
+  starting_stack: number
+  player_count: number
+  max_players: number
+  created_at?: string | null
+  updated_at?: string | null
+  host?: TableHostInfo | null
+  players?: TablePlayer[]
+  viewer?: TableViewerInfo | null
+  permissions?: TablePermissions | null
+  invite?: TableInviteInfo | null
+  is_private?: boolean
+  group_title?: string | null
+}
+
+const DEFAULT_TOAST = { message: '', visible: false }
 
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const { initData } = useTelegram()
   const { t } = useTranslation()
-  const [tableState, setTableState] = useState<TableState | null>(null)
+
+  const [tableDetails, setTableDetails] = useState<TableDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [actionPending, setActionPending] = useState(false)
-  const [toast, setToast] = useState<{ message: string; visible: boolean }>({
-    message: '',
-    visible: false,
-  })
+  const [isSeating, setIsSeating] = useState(false)
+  const [isStarting, setIsStarting] = useState(false)
+  const [toast, setToast] = useState(DEFAULT_TOAST)
 
-  const boardCards = tableState?.board && Array.isArray(tableState.board) ? tableState.board : []
-  const pots = tableState?.pots && Array.isArray(tableState.pots) ? tableState.pots : []
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+    [],
+  )
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true })
@@ -54,15 +98,11 @@ export default function TablePage() {
     try {
       setLoading(true)
       setError(null)
-      const data = await apiFetch<TableState>(`/tables/${tableId}`, {
+      const data = await apiFetch<TableDetails>(`/tables/${tableId}`, {
         method: 'GET',
         initData: initData ?? undefined,
       })
-      setTableState({
-        ...data,
-        board: data.board ?? [],
-        pots: data.pots ?? [],
-      })
+      setTableDetails(data)
     } catch (err) {
       console.error('Error fetching table:', err)
       if (err instanceof ApiError) {
@@ -76,7 +116,7 @@ export default function TablePage() {
       } else {
         setError(t('table.errors.loadFailed'))
       }
-      setTableState(null)
+      setTableDetails(null)
     } finally {
       setLoading(false)
     }
@@ -114,31 +154,71 @@ export default function TablePage() {
     return () => socket?.close()
   }, [fetchTable, tableId])
 
-  const handleAction = async (actionType: string, amount?: number) => {
+  const handleSeat = async () => {
     if (!tableId) {
       return
     }
+    if (!initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
     try {
-      setActionPending(true)
-      await apiFetch(`/tables/${tableId}/actions`, {
+      setIsSeating(true)
+      await apiFetch(`/tables/${tableId}/sit`, {
         method: 'POST',
-        initData: initData ?? undefined,
-        body: {
-          action_type: actionType,
-          amount,
-        },
+        initData,
       })
-      showToast(t('table.toast.actionSuccess'))
-      fetchTable()
-    } catch (error) {
-      console.error('Error submitting action:', error)
-      if (error instanceof ApiError && error.status === 401) {
-        showToast(t('table.errors.unauthorized'))
+      showToast(t('table.toast.seated'))
+      await fetchTable()
+    } catch (err) {
+      console.error('Error taking seat:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
       } else {
         showToast(t('table.errors.actionFailed'))
       }
     } finally {
-      setActionPending(false)
+      setIsSeating(false)
+    }
+  }
+
+  const handleStart = async () => {
+    if (!tableId) {
+      return
+    }
+    if (!initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      setIsStarting(true)
+      const updated = await apiFetch<TableDetails>(`/tables/${tableId}/start`, {
+        method: 'POST',
+        initData,
+      })
+      setTableDetails(updated)
+      showToast(t('table.toast.started'))
+    } catch (err) {
+      console.error('Error starting table:', err)
+      if (err instanceof ApiError) {
+        if (err.status === 403) {
+          showToast(t('table.errors.startNotAllowed'))
+        } else {
+          const message =
+            (typeof err.data === 'object' && err.data && 'detail' in err.data
+              ? String((err.data as { detail?: unknown }).detail)
+              : null) || t('table.errors.actionFailed')
+          showToast(message)
+        }
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    } finally {
+      setIsStarting(false)
     }
   }
 
@@ -173,7 +253,7 @@ export default function TablePage() {
     )
   }
 
-  if (!tableState) {
+  if (!tableDetails) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-gray-500 dark:text-gray-300">
         {t('table.notFound')}
@@ -181,136 +261,217 @@ export default function TablePage() {
     )
   }
 
-  const createdAtText = useMemo(() => {
-    if (!tableState.created_at) {
-      return null
-    }
-    try {
-      return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }).format(new Date(tableState.created_at))
-    } catch {
-      return tableState.created_at
-    }
-  }, [tableState.created_at])
+  const createdAtText = tableDetails.created_at
+    ? dateFormatter.format(new Date(tableDetails.created_at))
+    : null
+  const inviteExpiresText = tableDetails.invite?.expires_at
+    ? dateFormatter.format(new Date(tableDetails.invite.expires_at))
+    : null
+  const viewerIsCreator = tableDetails.viewer?.is_creator ?? false
+  const viewerIsSeated = tableDetails.viewer?.is_seated ?? false
+  const canStart = tableDetails.permissions?.can_start ?? false
+  const canJoin = tableDetails.permissions?.can_join ?? false
+  const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
+  const tableName = tableDetails.table_name || `Table #${tableDetails.table_id}`
+  const hostName = tableDetails.host?.display_name || tableDetails.host?.username || null
+  const statusLabel = t(`table.status.${tableDetails.status.toLowerCase()}` as const, {
+    defaultValue: tableDetails.status,
+  })
 
   return (
-    <div className="min-h-screen p-4 pb-28">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <header className="space-y-2">
-          <h1 className="text-xl font-bold">{t('table.title', { id: tableState.id })}</h1>
-          <dl className="grid grid-cols-1 gap-2 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-3">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-4 pb-28 dark:from-gray-950 dark:to-gray-900">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <header className="rounded-3xl bg-white/80 p-5 shadow-sm backdrop-blur dark:bg-gray-900/80">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {t('table.meta.mode')}
+              <p className="text-xs uppercase tracking-wide text-blue-500 dark:text-blue-300">
+                {t('table.headerLabel')}
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{tableName}</h1>
+              {tableDetails.group_title && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('table.groupTag', { value: tableDetails.group_title })}
+                </p>
+              )}
+            </div>
+            <span className="inline-flex h-7 items-center rounded-full bg-emerald-100 px-3 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
+              {statusLabel}
+            </span>
+          </div>
+          <dl className="mt-4 grid grid-cols-1 gap-3 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                {t('table.meta.host')}
               </dt>
-              <dd className="mt-1 capitalize">
-                {tableState.mode
-                  ? t(`table.modes.${tableState.mode.toLowerCase()}` as const, {
-                      defaultValue: tableState.mode,
-                    })
-                  : t('table.meta.unknown')}
+              <dd className="mt-1 text-base font-medium text-gray-800 dark:text-gray-100">
+                {hostName || t('table.meta.unknown')}
+                {tableDetails.mode && (
+                  <span className="mt-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+                    {t(`table.modes.${tableDetails.mode.toLowerCase()}` as const, {
+                      defaultValue: tableDetails.mode,
+                    })}
+                  </span>
+                )}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {t('table.meta.status')}
-              </dt>
-              <dd className="mt-1 capitalize">
-                {t(`table.status.${tableState.status.toLowerCase()}` as const, {
-                  defaultValue: tableState.status,
-                })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
                 {t('table.meta.created')}
               </dt>
               <dd className="mt-1">{createdAtText || '—'}</dd>
             </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                {t('table.meta.stakes')}
+              </dt>
+              <dd className="mt-1 font-medium">
+                {tableDetails.small_blind}/{tableDetails.big_blind} • {t('table.stacks', { amount: tableDetails.starting_stack })}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                {t('table.meta.players')}
+              </dt>
+              <dd className="mt-1 font-medium">
+                {tableDetails.player_count} / {tableDetails.max_players}
+              </dd>
+            </div>
           </dl>
         </header>
 
-        <section className="rounded-xl bg-green-100 p-4 dark:bg-green-900">
-          <h2 className="mb-2 font-semibold text-green-900 dark:text-green-100">{t('table.board')}</h2>
-          {boardCards.length === 0 ? (
-            <p className="text-sm text-green-800/80 dark:text-green-200/80">{t('table.empty.board')}</p>
+        <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {t('table.players.title')}
+            </h2>
+            <button
+              type="button"
+              className="text-sm font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-300"
+              onClick={fetchTable}
+            >
+              {t('table.actions.refresh')}
+            </button>
+          </div>
+          {players.length === 0 ? (
+            <p className="mt-3 rounded-xl bg-slate-100/80 px-3 py-4 text-sm text-slate-600 dark:bg-gray-800/60 dark:text-gray-300">
+              {t('table.players.empty')}
+            </p>
           ) : (
-            <div className="flex gap-2">
-              {boardCards.map((card, idx) => (
-                <div
-                  key={`${card}-${idx}`}
-                  className="flex h-16 w-12 items-center justify-center rounded border-2 border-gray-300 bg-white text-lg font-bold dark:border-gray-600 dark:bg-gray-800"
-                >
-                  {card}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-900/40">
-          <h2 className="mb-2 font-semibold text-yellow-900 dark:text-yellow-100">{t('table.pots')}</h2>
-          {pots.length === 0 ? (
-            <p className="text-sm text-yellow-900/80 dark:text-yellow-200/80">{t('table.empty.pots')}</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {pots.map((pot) => (
+            <ul className="mt-4 space-y-3">
+              {players.map((player) => (
                 <li
-                  key={pot.pot_index}
-                  className="rounded-lg bg-white/70 px-3 py-2 dark:bg-yellow-950/60"
+                  key={`${player.user_id}-${player.position}`}
+                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-white/80 px-4 py-3 text-sm shadow-sm dark:border-gray-800 dark:bg-gray-950/50"
                 >
-                  <span className="font-medium">
-                    {pot.pot_index === 0
-                      ? t('table.potMain')
-                      : t('table.potSide', { index: pot.pot_index })}
-                  </span>{' '}
-                  · {t('table.chips', { amount: pot.amount })}
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      {t('table.players.seat', { index: player.position + 1 })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {player.display_name || player.username || t('table.meta.unknown')}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      {t('table.chips', { amount: player.chips })}
+                    </p>
+                    {player.is_host && (
+                      <span className="mt-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                        {t('table.players.hostTag')}
+                      </span>
+                    )}
+                    {tableDetails.viewer?.user_id === player.user_id && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                        {t('table.players.youTag')}
+                      </span>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {viewerIsCreator ? t('table.actions.titleHost') : t('table.actions.titleGuest')}
+          </h2>
+          <div className="mt-4 flex flex-col gap-3">
+            {viewerIsCreator ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleStart}
+                  disabled={!canStart || isStarting}
+                  className={`flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    !canStart || isStarting
+                      ? 'cursor-not-allowed bg-emerald-200 text-emerald-700 opacity-70 dark:bg-emerald-900/40 dark:text-emerald-200'
+                      : 'bg-emerald-500 text-white shadow-sm hover:bg-emerald-600'
+                  }`}
+                >
+                  {t('table.actions.start')}
+                </button>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {canStart
+                    ? t('table.messages.readyToStart')
+                    : t('table.messages.waitForPlayers', {
+                        count: Math.max(0, 2 - tableDetails.player_count),
+                      })}
+                </p>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSeat}
+                  disabled={!canJoin || viewerIsSeated || isSeating}
+                  className={`flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    !canJoin || viewerIsSeated
+                      ? 'cursor-not-allowed bg-slate-200 text-slate-600 opacity-70 dark:bg-gray-800/60 dark:text-gray-400'
+                      : 'bg-blue-500 text-white shadow-sm hover:bg-blue-600'
+                  }`}
+                >
+                  {viewerIsSeated ? t('table.actions.seated') : t('table.actions.takeSeat')}
+                </button>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {viewerIsSeated
+                    ? t('table.messages.waitingForHost')
+                    : canJoin
+                    ? t('table.messages.joinPrompt')
+                    : t('table.messages.tableFull')}
+                </p>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={fetchTable}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            >
+              {t('table.actions.refresh')}
+            </button>
+          </div>
+        </section>
+
+        {inviteExpiresText && (
+          <section className="rounded-3xl border border-indigo-200 bg-indigo-50/80 p-5 shadow-sm dark:border-indigo-800 dark:bg-indigo-950/40">
+            <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+              {t('table.invite.title')}
+            </h3>
+            <p className="mt-2 text-xs text-indigo-800 dark:text-indigo-200/80">
+              {t('table.invite.expires', { value: inviteExpiresText })}
+            </p>
+            {tableDetails.invite?.status && (
+              <p className="mt-1 text-xs uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
+                {t(`table.invite.status.${tableDetails.invite.status.toLowerCase()}` as const, {
+                  defaultValue: tableDetails.invite.status,
+                })}
+              </p>
+            )}
+          </section>
+        )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-4 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
-        <div className="mx-auto grid max-w-2xl grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => handleAction('fold')}
-            disabled={actionPending}
-            className="rounded-lg bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {t('table.actions.fold')}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAction('check')}
-            disabled={actionPending}
-            className="rounded-lg bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {t('table.actions.check')}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAction('call')}
-            disabled={actionPending}
-            className="rounded-lg bg-green-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {t('table.actions.call')}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAction('bet', 100)}
-            disabled={actionPending}
-            className="rounded-lg bg-purple-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {t('table.actions.bet')}
-          </button>
-        </div>
-      </div>
-      <Toast message={toast.message || ''} visible={toast.visible} />
+      <Toast message={toast.message} visible={toast.visible} />
     </div>
   )
 }

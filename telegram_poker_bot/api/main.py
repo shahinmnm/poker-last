@@ -15,6 +15,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Header,
+    Query,
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -603,10 +604,26 @@ async def attend_group_game_invite(
 
 
 @app.get("/tables/{table_id}")
-async def get_table(table_id: int, db: AsyncSession = Depends(get_db)):
+async def get_table(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
     """Get table information."""
+    viewer_user_id: Optional[int] = None
+    if x_telegram_init_data:
+        auth = verify_telegram_init_data(x_telegram_init_data)
+        if not auth:
+            raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+        viewer = await ensure_user(db, auth)
+        viewer_user_id = viewer.id
+
     try:
-        table_info = await table_service.get_table_info(db, table_id)
+        table_info = await table_service.get_table_info(
+            db,
+            table_id,
+            viewer_user_id=viewer_user_id,
+        )
         return table_info
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -616,6 +633,7 @@ async def get_table(table_id: int, db: AsyncSession = Depends(get_db)):
 async def list_tables(
     mode: Optional[str] = None,
     limit: int = 20,
+    x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
     """List available tables."""
@@ -625,8 +643,21 @@ async def list_tables(
             game_mode = GameMode(mode)
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
-    
-    tables = await table_service.list_available_tables(db, limit=limit, mode=game_mode)
+
+    viewer_user_id: Optional[int] = None
+    if x_telegram_init_data:
+        auth = verify_telegram_init_data(x_telegram_init_data)
+        if not auth:
+            raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+        viewer = await ensure_user(db, auth)
+        viewer_user_id = viewer.id
+
+    tables = await table_service.list_available_tables(
+        db,
+        limit=limit,
+        mode=game_mode,
+        viewer_user_id=viewer_user_id,
+    )
     return {"tables": tables}
 
 
@@ -637,6 +668,9 @@ async def create_table(
     starting_stack: int = 10000,
     max_players: int = 8,
     table_name: Optional[str] = None,
+    visibility: Optional[str] = Query(default=None, description="Table visibility: public or private"),
+    is_private: Optional[bool] = Query(default=None, description="Legacy flag for privacy"),
+    auto_seat_host: Optional[bool] = Query(default=None, description="Whether to seat the creator immediately"),
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -647,10 +681,25 @@ async def create_table(
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, auth)
-    
-    table = await table_service.create_private_table(
+
+    normalized_visibility = None
+    if visibility:
+        normalized_visibility = visibility.strip().lower()
+        if normalized_visibility not in {"public", "private"}:
+            raise HTTPException(status_code=400, detail=f"Invalid visibility: {visibility}")
+
+    if normalized_visibility is None:
+        if is_private is not None:
+            normalized_visibility = "private" if is_private else "public"
+        else:
+            normalized_visibility = "private"
+
+    private_flag = normalized_visibility != "public"
+    auto_seat = auto_seat_host if auto_seat_host is not None else not private_flag
+
+    table = await table_service.create_table_with_config(
         db,
         creator_user_id=user.id,
         small_blind=small_blind,
@@ -658,11 +707,17 @@ async def create_table(
         starting_stack=starting_stack,
         max_players=max_players,
         table_name=table_name,
+        is_private=private_flag,
+        auto_seat_creator=auto_seat,
     )
-    
+
     await db.commit()
-    
-    table_info = await table_service.get_table_info(db, table.id)
+
+    table_info = await table_service.get_table_info(
+        db,
+        table.id,
+        viewer_user_id=user.id,
+    )
     return table_info
 
 
@@ -694,6 +749,38 @@ async def sit_at_table(
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/tables/{table_id}/start")
+async def start_table(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Allow the table host to start the game."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, auth)
+
+    try:
+        await table_service.start_table(db, table_id, user_id=user.id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    await db.commit()
+
+    return await table_service.get_table_info(
+        db,
+        table_id,
+        viewer_user_id=user.id,
+    )
 
 
 @app.get("/users/me/stats")

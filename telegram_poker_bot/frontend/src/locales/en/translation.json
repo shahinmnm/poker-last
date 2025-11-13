@@ -133,12 +133,22 @@
       "private": "Private table"
     },
     "actions": {
-      "refresh": "Refresh list"
+      "refresh": "Refresh list",
+      "join": "Open table",
+      "view": "View table"
     },
     "fields": {
       "players": "Players",
       "blinds": "Blinds",
-      "status": "Status"
+      "status": "Status",
+      "host": "Host",
+      "created": "Created"
+    },
+    "labels": {
+      "seating": "Seating",
+      "full": "Table full",
+      "open": "Seats open",
+      "seated": "You're seated"
     },
     "status": {
       "running": "Running",
@@ -385,50 +395,71 @@
   "table": {
     "loading": "Loading table...",
     "notFound": "Table not found",
-    "title": "Table #{{id}}",
-    "board": "Board",
-    "pots": "Pots",
-    "potMain": "Main pot",
-    "potSide": "Side pot {{index}}",
+    "headerLabel": "Table details",
+    "groupTag": "Group: {{value}}",
+    "meta": {
+      "host": "Host",
+      "created": "Created",
+      "stakes": "Stakes",
+      "players": "Players",
+      "unknown": "Unknown player"
+    },
+    "stacks": "{{amount}} chips starting",
     "chips": "{{amount}} chips",
-      "actions": {
-        "fold": "Fold",
-        "check": "Check",
-        "call": "Call",
-        "bet": "Bet / Raise",
-        "retry": "Retry"
-      },
-      "errors": {
-        "loadFailed": "We couldn’t load the table. Please try again.",
-        "actionFailed": "We couldn’t submit your action. Please try again.",
-        "unauthorized": "We couldn’t verify your session. Reopen the mini app from Telegram.",
-        "notFound": "We couldn’t find this table. Ask the host for a fresh link."
-      },
-      "toast": {
-        "actionSuccess": "Action submitted."
-      },
-      "meta": {
-        "mode": "Game mode",
-        "status": "Status",
-        "created": "Created",
-        "unknown": "Unknown"
-      },
-      "empty": {
-        "board": "No community cards yet.",
-        "pots": "No chips in the pot yet."
-      },
-      "modes": {
-        "holdem": "Hold’em",
-        "shortdeck": "Short Deck",
-        "plo": "Pot Limit Omaha"
-      },
+    "status": {
+      "waiting": "Waiting",
+      "active": "Running",
+      "paused": "Paused",
+      "ended": "Ended"
+    },
+    "modes": {
+      "holdem": "Hold’em",
+      "shortdeck": "Short Deck",
+      "plo": "Pot Limit Omaha"
+    },
+    "players": {
+      "title": "Players seated",
+      "empty": "No one is seated yet.",
+      "seat": "Seat {{index}}",
+      "hostTag": "Host",
+      "youTag": "You"
+    },
+    "actions": {
+      "titleHost": "Host controls",
+      "titleGuest": "Table actions",
+      "start": "Start game",
+      "takeSeat": "Take a seat",
+      "seated": "Already seated",
+      "refresh": "Refresh",
+      "retry": "Try again"
+    },
+    "messages": {
+      "readyToStart": "Ready to shuffle up.",
+      "waitForPlayers": "Need {{count}} more player(s) to start.",
+      "waitingForHost": "Waiting for the host to start the game.",
+      "joinPrompt": "Grab a seat before the action begins.",
+      "tableFull": "Table is full at the moment."
+    },
+    "invite": {
+      "title": "Invite link",
+      "expires": "Invite expires {{value}}",
       "status": {
         "pending": "Pending",
         "ready": "Ready",
-        "consumed": "Completed",
-        "expired": "Expired",
-        "running": "Running",
-        "waiting": "Waiting"
+        "consumed": "Used",
+        "expired": "Expired"
       }
+    },
+    "toast": {
+      "seated": "Seat reserved.",
+      "started": "Game starting now!"
+    },
+    "errors": {
+      "loadFailed": "We couldn’t load the table. Please try again.",
+      "actionFailed": "We couldn’t complete that action. Please try again.",
+      "unauthorized": "We couldn’t verify your session. Reopen the mini app from Telegram.",
+      "notFound": "We couldn’t find this table. Ask the host for a fresh link.",
+      "startNotAllowed": "Only the table host can start the game."
+    }
   }
 }
