@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { useTelegram } from '../hooks/useTelegram'
@@ -26,6 +26,7 @@ interface TableViewerInfo {
 interface TablePermissions {
   can_start: boolean
   can_join: boolean
+  can_leave?: boolean
 }
 
 interface TableHostInfo {
@@ -65,6 +66,8 @@ const DEFAULT_TOAST = { message: '', visible: false }
 
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
   const { initData } = useTelegram()
   const { t } = useTranslation()
 
@@ -72,8 +75,14 @@ export default function TablePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSeating, setIsSeating] = useState(false)
+  const [isLeaving, setIsLeaving] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
   const [toast, setToast] = useState(DEFAULT_TOAST)
+
+  const fromRoute = useMemo(() => {
+    const state = location.state as { from?: string } | null
+    return typeof state?.from === 'string' ? state.from : null
+  }, [location.state])
 
   const dateFormatter = useMemo(
     () =>
@@ -90,6 +99,18 @@ export default function TablePage() {
       setToast((prev) => ({ ...prev, visible: false }))
     }, 2400)
   }, [])
+
+  const handleBack = useCallback(() => {
+    if (fromRoute) {
+      navigate(fromRoute)
+      return
+    }
+    if (window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate('/lobby', { replace: true })
+    }
+  }, [fromRoute, navigate])
 
   const fetchTable = useCallback(async () => {
     if (!tableId) {
@@ -186,6 +207,38 @@ export default function TablePage() {
     }
   }
 
+  const handleLeave = async () => {
+    if (!tableId) {
+      return
+    }
+    if (!initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      setIsLeaving(true)
+      await apiFetch(`/tables/${tableId}/leave`, {
+        method: 'POST',
+        initData,
+      })
+      showToast(t('table.toast.left'))
+      await fetchTable()
+    } catch (err) {
+      console.error('Error leaving seat:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    } finally {
+      setIsLeaving(false)
+    }
+  }
+
   const handleStart = async () => {
     if (!tableId) {
       return
@@ -271,6 +324,8 @@ export default function TablePage() {
   const viewerIsSeated = tableDetails.viewer?.is_seated ?? false
   const canStart = tableDetails.permissions?.can_start ?? false
   const canJoin = tableDetails.permissions?.can_join ?? false
+  const canLeave = tableDetails.permissions?.can_leave ?? false
+  const missingPlayers = Math.max(0, 2 - tableDetails.player_count)
   const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
   const tableName = tableDetails.table_name || `Table #${tableDetails.table_id}`
   const hostName = tableDetails.host?.display_name || tableDetails.host?.username || null
@@ -282,7 +337,20 @@ export default function TablePage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-4 pb-28 dark:from-gray-950 dark:to-gray-900">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <header className="rounded-3xl bg-white/80 p-5 shadow-sm backdrop-blur dark:bg-gray-900/80">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-950/60 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus:ring-offset-gray-900"
+              >
+                <span aria-hidden="true">←</span>
+                {t('table.actions.back')}
+              </button>
+              <span className="inline-flex h-7 items-center rounded-full bg-emerald-100 px-3 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
+                {statusLabel}
+              </span>
+            </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-blue-500 dark:text-blue-300">
                 {t('table.headerLabel')}
@@ -294,9 +362,6 @@ export default function TablePage() {
                 </p>
               )}
             </div>
-            <span className="inline-flex h-7 items-center rounded-full bg-emerald-100 px-3 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
-              {statusLabel}
-            </span>
           </div>
           <dl className="mt-4 grid grid-cols-1 gap-3 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-2">
             <div>
@@ -396,52 +461,70 @@ export default function TablePage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {viewerIsCreator ? t('table.actions.titleHost') : t('table.actions.titleGuest')}
           </h2>
-          <div className="mt-4 flex flex-col gap-3">
-            {viewerIsCreator ? (
-              <>
+          <div className="mt-4 flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              {viewerIsSeated ? (
+                <button
+                  type="button"
+                  onClick={handleLeave}
+                  disabled={!canLeave || isLeaving}
+                  className={`w-full rounded-2xl px-4 py-3 text-base font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    !canLeave || isLeaving
+                      ? 'cursor-not-allowed bg-rose-200 text-rose-700 opacity-70 dark:bg-rose-900/40 dark:text-rose-200 dark:focus:ring-offset-gray-900'
+                      : 'bg-rose-500 text-white shadow-lg hover:bg-rose-600 focus:ring-rose-400 dark:focus:ring-offset-gray-900'
+                  }`}
+                >
+                  {isLeaving ? t('table.actions.leaving') : t('table.actions.leave')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSeat}
+                  disabled={!canJoin || isSeating}
+                  className={`w-full rounded-2xl px-4 py-3 text-base font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    !canJoin || isSeating
+                      ? 'cursor-not-allowed bg-blue-200 text-blue-800 opacity-70 dark:bg-blue-900/40 dark:text-blue-200 dark:focus:ring-offset-gray-900'
+                      : 'bg-blue-600 text-white shadow-lg hover:bg-blue-700 focus:ring-blue-400 dark:focus:ring-offset-gray-900'
+                  }`}
+                >
+                  {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat')}
+                </button>
+              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {viewerIsSeated
+                  ? viewerIsCreator
+                    ? canStart
+                      ? t('table.messages.readyToStart')
+                      : t('table.messages.waitForPlayers', { count: missingPlayers })
+                    : t('table.messages.waitingForHost')
+                  : canJoin
+                  ? t('table.messages.joinPrompt')
+                  : t('table.messages.tableFull')}
+              </p>
+            </div>
+
+            {viewerIsCreator && (
+              <div className="flex flex-col gap-2">
                 <button
                   type="button"
                   onClick={handleStart}
                   disabled={!canStart || isStarting}
-                  className={`flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  className={`w-full rounded-2xl px-4 py-3 text-base font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     !canStart || isStarting
-                      ? 'cursor-not-allowed bg-emerald-200 text-emerald-700 opacity-70 dark:bg-emerald-900/40 dark:text-emerald-200'
-                      : 'bg-emerald-500 text-white shadow-sm hover:bg-emerald-600'
+                      ? 'cursor-not-allowed bg-emerald-200 text-emerald-700 opacity-70 dark:bg-emerald-900/40 dark:text-emerald-200 dark:focus:ring-offset-gray-900'
+                      : 'bg-emerald-500 text-white shadow-lg hover:bg-emerald-600 focus:ring-emerald-400 dark:focus:ring-offset-gray-900'
                   }`}
                 >
-                  {t('table.actions.start')}
+                  {isStarting ? t('table.actions.starting') : t('table.actions.start')}
                 </button>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {canStart
                     ? t('table.messages.readyToStart')
-                    : t('table.messages.waitForPlayers', {
-                        count: Math.max(0, 2 - tableDetails.player_count),
-                      })}
+                    : t('table.messages.waitForPlayers', { count: missingPlayers })}
                 </p>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={handleSeat}
-                  disabled={!canJoin || viewerIsSeated || isSeating}
-                  className={`flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                    !canJoin || viewerIsSeated
-                      ? 'cursor-not-allowed bg-slate-200 text-slate-600 opacity-70 dark:bg-gray-800/60 dark:text-gray-400'
-                      : 'bg-blue-500 text-white shadow-sm hover:bg-blue-600'
-                  }`}
-                >
-                  {viewerIsSeated ? t('table.actions.seated') : t('table.actions.takeSeat')}
-                </button>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {viewerIsSeated
-                    ? t('table.messages.waitingForHost')
-                    : canJoin
-                    ? t('table.messages.joinPrompt')
-                    : t('table.messages.tableFull')}
-                </p>
-              </>
+              </div>
             )}
+
             <button
               type="button"
               onClick={fetchTable}

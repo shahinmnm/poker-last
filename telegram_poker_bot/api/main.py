@@ -751,6 +751,30 @@ async def sit_at_table(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/tables/{table_id}/leave")
+async def leave_table(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Leave a table by releasing the current player's seat."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, auth)
+
+    try:
+        await table_service.leave_table(db, table_id, user.id)
+        await db.commit()
+        return {"success": True, "table_id": table_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.post("/tables/{table_id}/start")
 async def start_table(
     table_id: int,
