@@ -63,7 +63,7 @@ class ActionType(PyEnum):
     ALL_IN = "all_in"
 
 
-class GroupGameInviteStatus(str, PyEnum):
+class GroupGameInviteStatus(PyEnum):
     """Status for group game invite lifecycle."""
 
     PENDING = "pending"
