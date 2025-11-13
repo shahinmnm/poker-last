@@ -9,6 +9,9 @@ This directory contains scripted tooling and configuration for running the Teleg
 - A populated `.env` file in the repository root (copy from `.env.example` and customise)
 
 > The scripts automatically abort if `.env` is missing. Populate it before proceeding.
+>
+> **ℹ️ Environment File Structure:** For detailed information about .env files, see `../ENV_FILES.md`. 
+> **TL;DR:** You only need ONE `.env` file in the repository root for Docker deployments.
 
 ## Files
 - `first-deploy.sh` – bootstrap a fresh host, build images, run migrations, and start the stack

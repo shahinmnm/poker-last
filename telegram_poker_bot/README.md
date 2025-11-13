@@ -46,11 +46,15 @@ telegram_poker_bot/
    cp ../.env.example ../.env
    ```
 
+   **ℹ️ This is the ONLY required .env file.** See `../ENV_FILES.md` for detailed documentation on environment file structure.
+
 2. (Optional) Copy this service-specific example for local-only overrides:
 
    ```bash
    cp .env.example .env.local
    ```
+
+   **Note:** Only needed if you're running services locally without Docker.
 
 ### Development
 
@@ -82,7 +86,11 @@ npm run dev
 
 ### Frontend configuration
 
-- Copy `telegram_poker_bot/frontend/.env.example` to `.env` when you need to override defaults.  
+- **For Docker deployments:** Set VITE_* variables in the repository root `.env` file (they will be passed to the frontend container automatically).
+- **For local development only:** Copy `telegram_poker_bot/frontend/.env.example` to `.env` when you need to override defaults for `npm run dev`.
+- See `../ENV_FILES.md` for detailed documentation on environment file structure.
+
+Configuration variables:
   - `VITE_ALLOWED_HOSTS` controls which domains may load the Vite dev/preview server (comma separated).  
   - `VITE_SUPPORTED_LANGS` and `VITE_DEFAULT_LANGUAGE` define the active locale set for the mini app.  
   - Translation resources live in `telegram_poker_bot/frontend/src/locales/<lang>/translation.json`. Add a folder per language and list the language code in `VITE_SUPPORTED_LANGS`.  
