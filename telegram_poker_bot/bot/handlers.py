@@ -100,7 +100,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text(t("group_invite_register_confirm"))
     
     # Create Mini App URL
-    webapp_url = f"{settings.vite_api_url.replace('/api', '')}?start=1"
+    webapp_url = f"{settings.mini_app_url}?start=1"
     
     keyboard = [
         [
