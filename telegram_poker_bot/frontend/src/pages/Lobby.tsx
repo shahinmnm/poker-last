@@ -1,138 +1,94 @@
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 
-type TableStatus = 'running' | 'waiting' | 'starting'
+import { useTelegram } from '../hooks/useTelegram'
+import { apiFetch } from '../utils/apiClient'
 
-const demoTables: Array<{
-  id: string
-  name: string
-  players: string
-  blinds: string
-  status: TableStatus
-}> = [
-  { id: 'A2F9', name: 'Sunset Hold’em', players: '4 / 6', blinds: '1 / 2', status: 'running' },
-  { id: 'B7K1', name: 'Midnight Grind', players: '3 / 9', blinds: '2 / 5', status: 'waiting' },
-]
+interface TableInfo {
+  table_id: number
+  mode: string
+  status: string
+  player_count: number
+  max_players: number
+  small_blind: number
+  big_blind: number
+  table_name: string
+}
 
-const demoTournaments = [
-  { id: 'WS-09', name: 'Weekend Shootout', start: '19:00', seats: '23 / 64' },
-  { id: 'HR-21', name: 'High Roller', start: '21:30', seats: '12 / 32' },
-]
-
-const demoInvites = [
-  { host: 'Ali', code: 'QRM9X2', mode: 'private' },
-  { host: 'Sara', code: 'LBT7Q4', mode: 'private' },
-]
-
-interface LobbySection {
-  key: 'activeTables' | 'tournaments' | 'invitations'
-  anchor: string
-  items: unknown[]
-  render: (item: unknown) => JSX.Element
-  emptyLabel: string
+interface ActiveTable {
+  table_id: number
+  mode: string
+  status: string
+  player_count: number
+  max_players: number
+  small_blind: number
+  big_blind: number
+  chips: number
+  position: number
 }
 
 export default function LobbyPage() {
   const { t } = useTranslation()
+  const { initData } = useTelegram()
+  const [availableTables, setAvailableTables] = useState<TableInfo[]>([])
+  const [myTables, setMyTables] = useState<ActiveTable[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const sections: LobbySection[] = useMemo(
-    () => [
-      {
-        key: 'activeTables',
-        anchor: 'active-tables',
-        items: demoTables,
-        render: (table) => {
-          const data = table as (typeof demoTables)[number]
-          return (
-            <div
-              key={data.id}
-              className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-semibold">{data.name}</span>
-                <span className="text-xs uppercase text-blue-600 dark:text-blue-300">
-                  #{data.id}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-gray-600 dark:text-gray-300">
-                <div>
-                  <span className="block font-semibold">{data.players}</span>
-                  <span>{t('lobby.fields.players')}</span>
-                </div>
-                <div>
-                  <span className="block font-semibold">{data.blinds}</span>
-                  <span>{t('lobby.fields.blinds')}</span>
-                </div>
-                <div>
-                  <span className="block font-semibold capitalize">
-                    {t(`lobby.status.${data.status}` as const)}
-                  </span>
-                  <span>{t('lobby.fields.status')}</span>
-                </div>
-              </div>
-            </div>
-          )
-        },
-        emptyLabel: t('lobby.activeTables.empty'),
-      },
-      {
-        key: 'tournaments',
-        anchor: 'tournaments',
-        items: demoTournaments,
-        render: (tournament) => {
-          const data = tournament as (typeof demoTournaments)[number]
-          return (
-            <div
-              key={data.id}
-              className="flex flex-col rounded-xl border border-purple-100 bg-white p-4 shadow-sm dark:border-purple-900/60 dark:bg-gray-800"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-semibold">{data.name}</span>
-                <span className="text-xs uppercase text-purple-600 dark:text-purple-300">
-                  #{data.id}
-                </span>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
-                <span>
-                  {t('common.actions.start')}: {data.start}
-                </span>
-                <span>{data.seats}</span>
-              </div>
-            </div>
-          )
-        },
-        emptyLabel: t('lobby.tournaments.empty'),
-      },
-      {
-        key: 'invitations',
-        anchor: 'invitations',
-        items: demoInvites,
-        render: (invite) => {
-          const data = invite as (typeof demoInvites)[number]
-          return (
-            <div
-              key={data.code}
-              className="flex flex-col rounded-xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/60 dark:bg-gray-800"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="block text-sm font-semibold">{data.host}</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {data.mode === 'private' ? t('lobby.invitations.private') : data.mode}
-                  </span>
-                </div>
-                <span className="rounded-md bg-emerald-500 px-2 py-1 text-xs font-semibold text-white">
-                  {data.code}
-                </span>
-              </div>
-            </div>
-          )
-        },
-        emptyLabel: t('lobby.invitations.empty'),
-      },
-    ],
-    [t],
-  )
+  const fetchTables = async () => {
+    if (!initData) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+
+      const [tablesData, myTablesData] = await Promise.all([
+        apiFetch<{ tables: TableInfo[] }>('/tables', { initData }),
+        apiFetch<{ tables: ActiveTable[] }>('/users/me/tables', { initData }),
+      ])
+
+      setAvailableTables(tablesData.tables)
+      setMyTables(myTablesData.tables)
+    } catch (err) {
+      console.error('Error fetching tables:', err)
+      setError('Failed to load tables')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTables()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initData])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
+          <p className="text-sm text-gray-600 dark:text-gray-300">{t('common.loading')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl bg-red-50 p-5 text-red-700 dark:bg-red-950/40 dark:text-red-200">
+        <p>{error}</p>
+        <button
+          onClick={fetchTables}
+          className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -141,31 +97,117 @@ export default function LobbyPage() {
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('menu.lobby.description')}</p>
       </header>
 
-      {sections.map((section) => (
-        <section key={section.key} id={section.anchor} className="space-y-3">
+      {/* My Active Tables */}
+      {myTables.length > 0 && (
+        <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">{t(`lobby.${section.key}.title`)}</h2>
-            {section.key === 'tournaments' ? (
-              <button className="text-sm font-medium text-purple-600 dark:text-purple-300">
-                {t('lobby.tournaments.cta')}
-              </button>
-            ) : (
-              <button className="text-sm font-medium text-blue-600 dark:text-blue-300">
-                {t('lobby.actions.refresh')}
-              </button>
-            )}
+            <h2 className="text-lg font-semibold">🎲 Your Active Tables</h2>
+            <button
+              onClick={fetchTables}
+              className="text-sm font-medium text-blue-600 dark:text-blue-300"
+            >
+              Refresh
+            </button>
           </div>
           <div className="space-y-3">
-            {section.items.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
-                {section.emptyLabel}
-              </div>
-            ) : (
-              section.items.map((item) => section.render(item))
-            )}
+            {myTables.map((table) => (
+              <Link
+                key={table.table_id}
+                to={`/table/${table.table_id}`}
+                className="flex flex-col rounded-xl border-2 border-emerald-200 bg-white p-4 shadow-sm hover:shadow-md transition dark:border-emerald-700 dark:bg-gray-800"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">Table #{table.table_id}</span>
+                  <span className="text-xs uppercase text-emerald-600 dark:text-emerald-300">
+                    Your Seat: {table.position + 1}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                  <div>
+                    <span className="block font-semibold">
+                      {table.player_count} / {table.max_players}
+                    </span>
+                    <span>Players</span>
+                  </div>
+                  <div>
+                    <span className="block font-semibold">
+                      {table.small_blind}/{table.big_blind}
+                    </span>
+                    <span>Blinds</span>
+                  </div>
+                  <div>
+                    <span className="block font-semibold">{table.chips}</span>
+                    <span>Your Chips</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
-      ))}
+      )}
+
+      {/* Available Tables */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">🃏 Available Tables</h2>
+          <button
+            onClick={fetchTables}
+            className="text-sm font-medium text-blue-600 dark:text-blue-300"
+          >
+            Refresh
+          </button>
+        </div>
+        <div className="space-y-3">
+          {availableTables.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
+              <p className="mb-2">No public tables available right now.</p>
+              <Link
+                to="/group/invite"
+                className="text-blue-600 dark:text-blue-300 hover:underline"
+              >
+                Create a private table →
+              </Link>
+            </div>
+          ) : (
+            availableTables.map((table) => (
+              <div
+                key={table.table_id}
+                className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">
+                    {table.table_name || `Table #${table.table_id}`}
+                  </span>
+                  <span className="text-xs uppercase text-blue-600 dark:text-blue-300">
+                    {table.mode}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                  <div>
+                    <span className="block font-semibold">
+                      {table.player_count} / {table.max_players}
+                    </span>
+                    <span>Players</span>
+                  </div>
+                  <div>
+                    <span className="block font-semibold">
+                      {table.small_blind}/{table.big_blind}
+                    </span>
+                    <span>Blinds</span>
+                  </div>
+                  <div>
+                    <span className="block font-semibold capitalize">{table.status}</span>
+                    <span>Status</span>
+                  </div>
+                </div>
+                <button className="mt-3 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600">
+                  Join Table
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     </div>
   )
 }

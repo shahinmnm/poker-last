@@ -1,23 +1,76 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useState, useEffect } from 'react'
 
 import { useTelegram } from '../hooks/useTelegram'
+import { apiFetch } from '../utils/apiClient'
 
-const highlightMetrics = [
-  { key: 'handsPlayed', value: '128', trendKey: 'profile.highlights.trends.handsPlayed' },
-  { key: 'winRate', value: '24%', trendKey: 'profile.highlights.trends.winRate' },
-  { key: 'bestFinish', value: '1st', trendKey: 'profile.highlights.trends.bestFinish' },
-]
-
-const achievements = [
-  { id: 'firstWin', labelKey: 'profile.achievements.items.firstWin', unlocked: true },
-  { id: 'fiveInRow', labelKey: 'profile.achievements.items.fiveInRow', unlocked: false },
-  { id: 'collector', labelKey: 'profile.achievements.items.collector', unlocked: false },
-]
+interface UserStats {
+  hands_played: number
+  tables_played: number
+  total_profit: number
+  biggest_pot: number
+  win_rate: number
+  first_game_date: string | null
+}
 
 export default function ProfilePage() {
   const { t } = useTranslation()
-  const { user } = useTelegram()
+  const { user, initData } = useTelegram()
+  const [stats, setStats] = useState<UserStats | null>(null)
+  const [balance, setBalance] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!initData) {
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Fetch stats and balance in parallel
+        const [statsData, balanceData] = await Promise.all([
+          apiFetch<UserStats>('/users/me/stats', { initData }),
+          apiFetch<{ balance: number }>('/users/me/balance', { initData }),
+        ])
+
+        setStats(statsData)
+        setBalance(balanceData.balance)
+      } catch (err) {
+        console.error('Error fetching profile data:', err)
+        setError('Failed to load profile data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProfileData()
+  }, [initData])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
+          <p className="text-sm text-gray-600 dark:text-gray-300">{t('common.loading')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl bg-red-50 p-5 text-red-700 dark:bg-red-950/40 dark:text-red-200">
+        <p>{error}</p>
+      </div>
+    )
+  }
+
+  const hasPlayedGames = stats && stats.hands_played > 0
 
   return (
     <div className="space-y-6">
@@ -43,57 +96,57 @@ export default function ProfilePage() {
             {t('profile.actions.viewStats')}
           </Link>
         </div>
-        <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-          {t('profile.playerSince', { date: '2023' })}
-        </p>
+        <div className="mt-4 flex items-center gap-2">
+          <span className="text-2xl">💰</span>
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Balance</p>
+            <p className="text-xl font-bold">{balance.toLocaleString()} chips</p>
+          </div>
+        </div>
+        {stats?.first_game_date && (
+          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+            {t('profile.playerSince', {
+              date: new Date(stats.first_game_date).getFullYear(),
+            })}
+          </p>
+        )}
       </section>
 
       <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
         <h2 className="text-lg font-semibold">{t('profile.highlights.title')}</h2>
-        <div className="mt-3 grid gap-4 sm:grid-cols-3">
-          {highlightMetrics.map((metric) => (
-            <div
-              key={metric.key}
-              className="rounded-xl border border-slate-200 p-4 dark:border-gray-700"
-            >
+        {hasPlayedGames ? (
+          <div className="mt-3 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 p-4 dark:border-gray-700">
               <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
-                {t(`profile.highlights.${metric.key}`)}
+                {t('profile.highlights.handsPlayed')}
               </p>
-              <p className="mt-2 text-xl font-semibold">{metric.value}</p>
-              {metric.trendKey && (
-                <p className="mt-1 text-xs text-emerald-500 dark:text-emerald-300">
-                  {t(metric.trendKey)}
-                </p>
-              )}
+              <p className="mt-2 text-xl font-semibold">{stats!.hands_played}</p>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="achievements" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <h2 className="text-lg font-semibold">{t('profile.achievements.title')}</h2>
-        <div className="mt-3 space-y-3">
-          {achievements.map((achievement) => (
-            <div
-              key={achievement.id}
-              className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm dark:border-gray-700"
-            >
-              <span>{t(achievement.labelKey)}</span>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  achievement.unlocked
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200'
-                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'
+            <div className="rounded-xl border border-slate-200 p-4 dark:border-gray-700">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                {t('profile.highlights.winRate')}
+              </p>
+              <p className="mt-2 text-xl font-semibold">{stats!.win_rate.toFixed(1)}%</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4 dark:border-gray-700">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                {t('profile.highlights.totalProfit')}
+              </p>
+              <p
+                className={`mt-2 text-xl font-semibold ${
+                  stats!.total_profit >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}
               >
-                {achievement.unlocked
-                  ? t('profile.achievements.unlocked')
-                  : t('profile.achievements.locked')}
-              </span>
+                {stats!.total_profit >= 0 ? '+' : ''}
+                {stats!.total_profit.toLocaleString()}
+              </p>
             </div>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t('profile.achievements.empty')}</p>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+            Play some games to see your stats!
+          </p>
+        )}
       </section>
 
       <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
