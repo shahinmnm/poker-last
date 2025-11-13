@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     Index,
+    event,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -279,6 +280,24 @@ class GroupGameInvite(Base):
     __table_args__ = (
         Index("idx_group_invites_status_expires", "status", "expires_at"),
     )
+
+
+@event.listens_for(GroupGameInvite.status, "set", retval=True)
+def _normalize_group_invite_status(target, value, oldvalue, initiator):
+    """Allow string inputs while normalizing to lowercase enum values."""
+    if value is None:
+        return value
+    if isinstance(value, GroupGameInviteStatus):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        try:
+            return GroupGameInviteStatus(normalized)
+        except ValueError as exc:  # pragma: no cover - defensive branch
+            raise ValueError(f"Invalid group invite status: {value!r}") from exc
+    raise TypeError(
+        f"Unsupported type for group invite status: {type(value)!r}"
+    )  # pragma: no cover - defensive branch
 
 
 # Wallet placeholder models (feature flagged)
