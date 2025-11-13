@@ -598,6 +598,8 @@ This repository now ships with a production-ready Docker Compose stack and helpe
 
 See ``deploy/README.md`` and ``telegram_poker_bot/SETUP.md`` for detailed instructions.
 
+**Environment Configuration:** For information about .env file structure and requirements, see ``ENV_FILES.md``.
+
 License
 -------
 
