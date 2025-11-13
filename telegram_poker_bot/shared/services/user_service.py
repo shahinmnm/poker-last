@@ -171,8 +171,9 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
             "chips": seat.chips,
             "position": seat.position,
             "joined_at": seat.joined_at.isoformat(),
+            "table_name": config.get("table_name", f"Table #{table.id}"),
         })
-    
+
     return tables_data
 
 
