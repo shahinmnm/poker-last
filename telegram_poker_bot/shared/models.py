@@ -94,6 +94,11 @@ class User(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    tables_created = relationship(
+        "Table",
+        back_populates="creator",
+        foreign_keys="Table.creator_user_id",
+    )
 
     __table_args__ = (Index("idx_users_tg_user_id", "tg_user_id"),)
 
@@ -133,14 +138,29 @@ class Table(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     config_json = Column(JSON, default=dict)
+    creator_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    is_public = Column(Boolean, nullable=False, server_default="true", default=True)
 
     # Relationships
     group = relationship("Group", back_populates="tables")
     seats = relationship("Seat", back_populates="table", cascade="all, delete-orphan", order_by="Seat.position")
     hands = relationship("Hand", back_populates="table", cascade="all, delete-orphan", order_by="Hand.hand_no")
     messages = relationship("Message", back_populates="table", cascade="all, delete-orphan")
+    creator = relationship(
+        "User",
+        back_populates="tables_created",
+        foreign_keys=[creator_user_id],
+    )
 
-    __table_args__ = (Index("idx_tables_mode_status", "mode", "status"),)
+    __table_args__ = (
+        Index("idx_tables_mode_status", "mode", "status"),
+        Index("ix_tables_is_public_status", "is_public", "status"),
+    )
 
 
 class Seat(Base):

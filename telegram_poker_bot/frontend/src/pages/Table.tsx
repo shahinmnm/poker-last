@@ -59,6 +59,8 @@ interface TableDetails {
   permissions?: TablePermissions | null
   invite?: TableInviteInfo | null
   is_private?: boolean
+  is_public?: boolean
+  visibility?: 'public' | 'private'
   group_title?: string | null
 }
 

@@ -22,6 +22,8 @@ interface TableInfo {
   created_at?: string | null
   is_full?: boolean
   is_private?: boolean
+  is_public?: boolean
+  visibility?: 'public' | 'private'
   viewer?: {
     is_seated?: boolean
     seat_position?: number | null
@@ -55,7 +57,12 @@ export default function LobbyPage() {
       setError(null)
 
       const [tablesData, myTablesData] = await Promise.all([
-        apiFetch<{ tables: TableInfo[] }>('/tables', initData ? { initData } : {}),
+        apiFetch<{ tables: TableInfo[] }>(
+          '/tables',
+          initData
+            ? { initData, query: { scope: 'public' } }
+            : { query: { scope: 'public' } },
+        ),
         initData
           ? apiFetch<{ tables: ActiveTable[] }>('/users/me/tables', { initData })
           : Promise.resolve<{ tables: ActiveTable[] }>({ tables: [] }),

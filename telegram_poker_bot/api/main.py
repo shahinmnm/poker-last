@@ -633,6 +633,10 @@ async def get_table(
 async def list_tables(
     mode: Optional[str] = None,
     limit: int = 20,
+    scope: str = Query(
+        "public",
+        description="Scope for table visibility: public, all, or mine.",
+    ),
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -652,12 +656,19 @@ async def list_tables(
         viewer = await ensure_user(db, auth)
         viewer_user_id = viewer.id
 
-    tables = await table_service.list_available_tables(
-        db,
-        limit=limit,
-        mode=game_mode,
-        viewer_user_id=viewer_user_id,
-    )
+    normalized_scope = (scope or "public").strip().lower()
+
+    try:
+        tables = await table_service.list_available_tables(
+            db,
+            limit=limit,
+            mode=game_mode,
+            viewer_user_id=viewer_user_id,
+            scope=normalized_scope,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     return {"tables": tables}
 
 
@@ -694,7 +705,7 @@ async def create_table(
         if is_private is not None:
             normalized_visibility = "private" if is_private else "public"
         else:
-            normalized_visibility = "private"
+            normalized_visibility = "public"
 
     private_flag = normalized_visibility != "public"
     auto_seat = auto_seat_host if auto_seat_host is not None else not private_flag

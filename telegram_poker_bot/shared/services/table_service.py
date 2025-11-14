@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram_poker_bot.shared.models import (
@@ -66,10 +66,14 @@ async def create_table_with_config(
 ) -> Table:
     """Create a table with explicit configuration options."""
 
+    is_public = not is_private
+
     table = Table(
         mode=mode,
         group_id=group_id,
         status=TableStatus.WAITING,
+        creator_user_id=creator_user_id,
+        is_public=is_public,
         config_json={
             "small_blind": small_blind,
             "big_blind": big_blind,
@@ -77,8 +81,8 @@ async def create_table_with_config(
             "max_players": max_players,
             "table_name": table_name or f"Table #{datetime.now().strftime('%H%M%S')}",
             "creator_user_id": creator_user_id,
-            "is_private": is_private,
-            "visibility": "private" if is_private else "public",
+            "is_private": not is_public,
+            "visibility": "public" if is_public else "private",
         },
     )
     db.add(table)
@@ -89,7 +93,8 @@ async def create_table_with_config(
         table_id=table.id,
         creator_user_id=creator_user_id,
         max_players=max_players,
-        is_private=is_private,
+        is_private=not is_public,
+        is_public=is_public,
         mode=mode.value,
     )
 
@@ -315,8 +320,9 @@ async def get_table_info(
         raise ValueError(f"Table {table_id} not found")
     
     config = table.config_json or {}
-    creator_user_id = config.get("creator_user_id")
-    is_private = _is_table_private(config)
+    creator_user_id = table.creator_user_id or config.get("creator_user_id")
+    is_public = table.is_public if table.is_public is not None else not _is_table_private(config)
+    is_private = not is_public
 
     # Fetch host user if available
     host_user = None
@@ -437,6 +443,9 @@ async def get_table_info(
         "starting_stack": config.get("starting_stack", 10000),
         "table_name": config.get("table_name"),
         "is_private": is_private,
+        "is_public": is_public,
+        "visibility": "public" if is_public else "private",
+        "creator_user_id": creator_user_id,
         "group_id": table.group_id,
         "group_title": group_title,
         "created_at": table.created_at.isoformat() if table.created_at else None,
@@ -454,19 +463,52 @@ async def list_available_tables(
     limit: int = 20,
     mode: Optional[GameMode] = None,
     viewer_user_id: Optional[int] = None,
+    scope: str = "public",
 ) -> List[Dict[str, Any]]:
     """
     List available tables that players can join.
-    
-    Returns public/group tables that are waiting for players or active.
+
+    Args:
+        db: Database session
+        limit: Maximum number of tables to return
+        mode: Optional game mode filter
+        viewer_user_id: Viewer requesting the list (used for personalized scopes)
+        scope: Visibility scope. Supported values:
+            - "public": only globally visible tables (default)
+            - "all": public tables plus ones created by the viewer
+            - "mine": only tables created by the viewer
+
+    Returns:
+        List of table metadata dictionaries.
     """
+    normalized_scope = (scope or "public").strip().lower()
+    if normalized_scope not in {"public", "all", "mine"}:
+        raise ValueError(f"Unsupported scope: {scope}")
+
     query = select(Table).where(
         Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
     )
-    
+
     if mode:
         query = query.where(Table.mode == mode)
-    
+
+    if normalized_scope == "public":
+        query = query.where(Table.is_public.is_(True))
+    elif normalized_scope == "mine":
+        if viewer_user_id is None:
+            return []
+        query = query.where(Table.creator_user_id == viewer_user_id)
+    elif normalized_scope == "all":
+        if viewer_user_id is not None:
+            query = query.where(
+                or_(
+                    Table.is_public.is_(True),
+                    Table.creator_user_id == viewer_user_id,
+                )
+            )
+        else:
+            query = query.where(Table.is_public.is_(True))
+
     query = query.order_by(Table.created_at.desc()).limit(limit)
     
     result = await db.execute(query)
@@ -504,9 +546,7 @@ async def list_available_tables(
 
     # Preload host user information
     creator_ids = {
-        table.config_json.get("creator_user_id")
-        for table in tables
-        if table.config_json and table.config_json.get("creator_user_id")
+        table.creator_user_id for table in tables if table.creator_user_id
     }
     creator_map: Dict[int, User] = {}
     if creator_ids:
@@ -518,11 +558,9 @@ async def list_available_tables(
     tables_data: List[Dict[str, Any]] = []
     for table in tables:
         config = table.config_json or {}
-        is_private = _is_table_private(config)
-        creator_user_id = config.get("creator_user_id")
-
-        if is_private and (viewer_user_id is None or viewer_user_id != creator_user_id):
-            continue
+        creator_user_id = table.creator_user_id or config.get("creator_user_id")
+        is_public = table.is_public if table.is_public is not None else not _is_table_private(config)
+        is_private = not is_public
 
         player_count = seat_counts.get(table.id, 0)
         max_players = config.get("max_players", 8)
@@ -561,6 +599,9 @@ async def list_available_tables(
                 "created_at": table.created_at.isoformat() if table.created_at else None,
                 "is_full": player_count >= max_players,
                 "is_private": is_private,
+                "is_public": is_public,
+                "visibility": "public" if is_public else "private",
+                "creator_user_id": creator_user_id,
                 "viewer": viewer_info,
             }
         )
@@ -582,7 +623,7 @@ async def start_table(
         raise ValueError(f"Table {table_id} not found")
 
     config = table.config_json or {}
-    creator_user_id = config.get("creator_user_id")
+    creator_user_id = table.creator_user_id or config.get("creator_user_id")
     if creator_user_id is None or creator_user_id != user_id:
         raise PermissionError("Only the table creator can start the game")
 
