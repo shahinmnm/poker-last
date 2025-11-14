@@ -27,7 +27,7 @@ The scripts rely on these keys in `.env`:
 | Variable | Purpose | Default |
 | --- | --- | --- |
 | `DEPLOY_GIT_REMOTE` | Git remote name used for updates | `origin` |
-| `DEPLOY_GIT_BRANCH` | Target branch for deploys | `main` |
+| `DEPLOY_GIT_BRANCH` | Target branch for deploys | `gamecore` |
 | `NGINX_SSL_CERT_PATH` | Host path containing TLS material mounted into the nginx container | `./deploy/nginx/ssl` |
 
 All application/service configuration is also read from `.env`. Review the file carefully before deploying.
@@ -59,6 +59,25 @@ make update
 ```
 
 This script hard-resets the repository to `${DEPLOY_GIT_REMOTE}/${DEPLOY_GIT_BRANCH}`, then rebuilds and restarts services. Flags allow you to skip pulls, builds, or migrations when appropriate.
+
+## Git hygiene on the VPS
+
+All deployment hosts must track a real branch so `update.sh` can fast-forward without warnings. Run the following once per host (after cloning) to ensure the `gamecore` branch tracks `origin/gamecore`:
+
+```bash
+git checkout gamecore
+git branch --set-upstream-to=origin/gamecore gamecore
+```
+
+The update script now double-checks this configuration and will automatically heal detached `HEAD` states, but running the commands above keeps the history tidy and avoids unnecessary warnings in the logs.
+
+> ℹ️ Executable permissions (like the `+x` flag on `deploy/update.sh`) are tracked in Git so clones already have runnable scripts. If you ever see permission drift, prefer `git checkout -- deploy/update.sh` over `chmod` so that the repository stays clean.
+
+## Backups live outside the repository
+
+Keep your ad-hoc dumps, media exports, or any other large artifacts under `/opt/pokerbot-backups` (or another path outside the repo). This prevents `git status` from becoming dirty and allows `update.sh` to run without `--allow-dirty`.
+
+The repository’s `.gitignore` intentionally ignores any accidental `backups/` folder in the repo root so that deploys do not get stuck if someone temporarily copies files there, but the authoritative location should remain outside the repo.
 
 ## Scheduling Updates
 

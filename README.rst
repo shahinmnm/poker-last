@@ -4,6 +4,23 @@ PokerKit
 
 PokerKit is an open-source software library, written in pure Python, for simulating games, evaluating hands, and facilitating statistical analysis, developed by the Universal, Open, Free, and Transparent Computer Poker Research Group. PokerKit supports an extensive array of poker variants and it provides a flexible architecture for users to define their custom games. These facilities are exposed via an intuitive unified high-level programmatic API. The library can be used in a variety of use cases, from poker AI development, and tool creation, to online poker casino implementation. PokerKit's reliability has been established through static type checking, extensive doctests, and unit tests, achieving 99% code coverage.
 
+Deployment Git Maintenance
+--------------------------
+
+Production hosts that run ``./deploy/update.sh`` must stay on a real branch so Git fast-forwards cleanly. After cloning on the VPS, run:
+
+.. code-block:: bash
+
+   git checkout gamecore
+   git branch --set-upstream-to=origin/gamecore gamecore
+
+The deploy script now self-heals detached ``HEAD`` states using ``DEPLOY_GIT_REMOTE``/``DEPLOY_GIT_BRANCH`` (defaulting to ``origin/gamecore``), but executing the commands above prevents the ``[WARN] No upstream configured for branch 'HEAD'`` message entirely.
+
+Additional hygiene tips for deployments:
+
+* Repository scripts (notably ``deploy/update.sh``) have their executable bit tracked in Git, so fresh clones are immediately runnable without ``chmod``.
+* Store backups outside the repo (for example ``/opt/pokerbot-backups``). The repo’s ``.gitignore`` also ignores any accidental ``backups/`` directory to keep ``git status`` clean, but the canonical storage path should remain outside the worktree.
+
 Features
 --------
 

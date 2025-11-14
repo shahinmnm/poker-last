@@ -147,6 +147,13 @@ update_repository() {
     return
   fi
 
+  # Ensure DEPLOY_GIT_REMOTE/DEPLOY_GIT_BRANCH defaults are available before
+  # checking git state so we can heal detached HEAD deployments automatically.
+  load_env_file
+
+  local deploy_remote="${DEPLOY_GIT_REMOTE:-origin}"
+  local deploy_branch="${DEPLOY_GIT_BRANCH:-gamecore}"
+
   log_step "Updating git repository"
 
   if [[ "${ALLOW_DIRTY_WORKTREE}" == "true" ]]; then
@@ -158,12 +165,30 @@ update_repository() {
   local current_branch upstream_remote upstream_merge_ref upstream_branch upstream_ref
 
   current_branch="$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref HEAD)"
+
+  if [[ "${current_branch}" == "HEAD" ]]; then
+    log_warn "Repository is in a detached HEAD state."
+    log_info "Checking out '${deploy_branch}' so deployments track a branch."
+
+    if git -C "${REPO_ROOT}" show-ref --verify --quiet "refs/heads/${deploy_branch}"; then
+      git -C "${REPO_ROOT}" checkout "${deploy_branch}"
+    else
+      log_info "Creating local '${deploy_branch}' from ${deploy_remote}/${deploy_branch}"
+      git -C "${REPO_ROOT}" fetch --prune "${deploy_remote}"
+      git -C "${REPO_ROOT}" checkout -b "${deploy_branch}" "${deploy_remote}/${deploy_branch}"
+    fi
+
+    current_branch="${deploy_branch}"
+  fi
+
   upstream_remote="$(git -C "${REPO_ROOT}" config --get "branch.${current_branch}.remote" 2>/dev/null || true)"
   upstream_merge_ref="$(git -C "${REPO_ROOT}" config --get "branch.${current_branch}.merge" 2>/dev/null || true)"
 
   if [[ -z "${upstream_remote}" || -z "${upstream_merge_ref}" ]]; then
-    log_warn "No upstream configured for branch '${current_branch}'. Skipping git update."
-    return
+    log_warn "No upstream configured for branch '${current_branch}'. Configuring tracking."
+    git -C "${REPO_ROOT}" branch --set-upstream-to="${deploy_remote}/${deploy_branch}" "${current_branch}"
+    upstream_remote="${deploy_remote}"
+    upstream_merge_ref="refs/heads/${deploy_branch}"
   fi
 
   upstream_branch="${upstream_merge_ref#refs/heads/}"
