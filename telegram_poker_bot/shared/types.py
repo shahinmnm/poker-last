@@ -74,6 +74,8 @@ class Table(BaseModel):
     created_at: str
     updated_at: str
     config_json: dict
+    creator_user_id: Optional[int] = None
+    is_public: bool = True
 
 
 class Seat(BaseModel):

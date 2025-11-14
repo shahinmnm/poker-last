@@ -41,13 +41,17 @@ async def test_public_table_visible_to_non_creator(db_session: AsyncSession) -> 
         auto_seat_creator=True,
     )
 
+    assert table.is_public is True
+    assert table.creator_user_id == creator.id
+
     tables_for_other = await table_service.list_available_tables(
         db_session, viewer_user_id=other.id
     )
     assert any(t["table_id"] == table.id for t in tables_for_other)
+    assert all(t["is_public"] for t in tables_for_other)
 
     tables_for_creator = await table_service.list_available_tables(
-        db_session, viewer_user_id=creator.id
+        db_session, viewer_user_id=creator.id, scope="all"
     )
     assert any(t["table_id"] == table.id for t in tables_for_creator)
 
@@ -76,13 +80,14 @@ async def test_private_table_visibility_and_permissions(db_session: AsyncSession
     assert all(t["table_id"] != private_table.id for t in tables_for_guest)
 
     tables_for_creator = await table_service.list_available_tables(
-        db_session, viewer_user_id=creator.id
+        db_session, viewer_user_id=creator.id, scope="all"
     )
     assert any(t["table_id"] == private_table.id for t in tables_for_creator)
 
     info_for_creator = await table_service.get_table_info(
         db_session, private_table.id, viewer_user_id=creator.id
     )
+    assert info_for_creator["is_public"] is False
     assert info_for_creator["permissions"]["can_join"] is True
     assert info_for_creator["permissions"]["can_leave"] is False
 
