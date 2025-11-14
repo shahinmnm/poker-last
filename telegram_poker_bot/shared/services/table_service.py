@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TYPE_CHECKING, Tuple
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +21,13 @@ from telegram_poker_bot.shared.models import (
 from telegram_poker_bot.shared.logging import get_logger
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:  # pragma: no cover - import for typing only
+    from redis.asyncio import Redis
+
+
+PUBLIC_TABLE_CACHE_PREFIX = "lobby:public_tables"
+PUBLIC_TABLE_CACHE_KEYS = f"{PUBLIC_TABLE_CACHE_PREFIX}:keys"
 
 
 def _is_table_private(config: Dict[str, Any]) -> bool:
@@ -48,6 +56,22 @@ def _is_table_private(config: Dict[str, Any]) -> bool:
             return False
 
     return bool(raw_private)
+
+
+def _resolve_visibility_flags(table: Table) -> Tuple[bool, bool, str]:
+    """Return (is_public, is_private, visibility_label) for a table."""
+
+    config = table.config_json or {}
+    is_public = table.is_public if table.is_public is not None else not _is_table_private(config)
+    visibility = "public" if is_public else "private"
+    return is_public, not is_public, visibility
+
+
+def _public_cache_key(mode: Optional[GameMode], limit: int) -> str:
+    """Compose a Redis cache key for public tables."""
+
+    mode_value = mode.value if mode else "any"
+    return f"{PUBLIC_TABLE_CACHE_PREFIX}:{mode_value}:{limit}"
 
 
 async def create_table_with_config(
@@ -110,6 +134,23 @@ async def create_table_with_config(
             )
 
     return table
+
+
+async def invalidate_public_table_cache(redis_client: Optional["Redis"]) -> None:
+    """Clear cached public table listings when lobby state changes."""
+
+    if not redis_client:
+        return
+
+    try:
+        cached_keys = await redis_client.smembers(PUBLIC_TABLE_CACHE_KEYS)
+        if cached_keys:
+            keys = [key.decode() if isinstance(key, bytes) else str(key) for key in cached_keys]
+            if keys:
+                await redis_client.delete(*keys)
+        await redis_client.delete(PUBLIC_TABLE_CACHE_KEYS)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Failed to invalidate public table cache", error=str(exc))
 
 
 async def create_private_table(
@@ -255,6 +296,7 @@ async def seat_user_at_table(
         joined_at=datetime.now(timezone.utc),
     )
     db.add(seat)
+    table.updated_at = datetime.now(timezone.utc)
     await db.flush()
     
     logger.info(
@@ -288,6 +330,7 @@ async def leave_table(
         raise ValueError(f"User {user_id} is not seated at table {table_id}")
 
     seat.left_at = datetime.now(timezone.utc)
+    seat.table.updated_at = datetime.now(timezone.utc)
     await db.flush()
 
     logger.info(
@@ -464,147 +507,191 @@ async def list_available_tables(
     mode: Optional[GameMode] = None,
     viewer_user_id: Optional[int] = None,
     scope: str = "public",
+    *,
+    redis_client: Optional["Redis"] = None,
+    cache_ttl: int = 20,
 ) -> List[Dict[str, Any]]:
-    """
-    List available tables that players can join.
+    """List tables visible to the viewer, optionally using a Redis cache."""
 
-    Args:
-        db: Database session
-        limit: Maximum number of tables to return
-        mode: Optional game mode filter
-        viewer_user_id: Viewer requesting the list (used for personalized scopes)
-        scope: Visibility scope. Supported values:
-            - "public": only globally visible tables (default)
-            - "all": public tables plus ones created by the viewer
-            - "mine": only tables created by the viewer
-
-    Returns:
-        List of table metadata dictionaries.
-    """
     normalized_scope = (scope or "public").strip().lower()
     if normalized_scope not in {"public", "all", "mine"}:
         raise ValueError(f"Unsupported scope: {scope}")
 
-    query = select(Table).where(
-        Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
-    )
+    use_cache = normalized_scope == "public" and redis_client is not None
+    cache_key = _public_cache_key(mode, limit) if use_cache else None
+    cached_payload: Optional[List[Dict[str, Any]]] = None
 
-    if mode:
-        query = query.where(Table.mode == mode)
-
-    if normalized_scope == "public":
-        query = query.where(Table.is_public.is_(True))
-    elif normalized_scope == "mine":
-        if viewer_user_id is None:
-            return []
-        query = query.where(Table.creator_user_id == viewer_user_id)
-    elif normalized_scope == "all":
-        if viewer_user_id is not None:
-            query = query.where(
-                or_(
-                    Table.is_public.is_(True),
-                    Table.creator_user_id == viewer_user_id,
-                )
-            )
+    if use_cache and cache_key:
+        try:
+            cached_raw = await redis_client.get(cache_key)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Failed to read public table cache", error=str(exc))
         else:
+            if cached_raw:
+                try:
+                    cached_text = cached_raw.decode() if isinstance(cached_raw, (bytes, bytearray)) else cached_raw
+                    cached_payload = json.loads(cached_text)
+                except (json.JSONDecodeError, AttributeError):
+                    logger.warning("Corrupted public table cache entry", cache_key=cache_key)
+                    cached_payload = None
+
+    if cached_payload is None:
+        query = select(Table).where(
+            Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
+        )
+
+        if mode:
+            query = query.where(Table.mode == mode)
+
+        if normalized_scope == "public":
             query = query.where(Table.is_public.is_(True))
+        elif normalized_scope == "mine":
+            if viewer_user_id is None:
+                return []
+            query = query.where(Table.creator_user_id == viewer_user_id)
+        elif normalized_scope == "all":
+            if viewer_user_id is not None:
+                query = query.where(
+                    or_(
+                        Table.is_public.is_(True),
+                        Table.creator_user_id == viewer_user_id,
+                    )
+                )
+            else:
+                query = query.where(Table.is_public.is_(True))
 
-    query = query.order_by(Table.created_at.desc()).limit(limit)
-    
-    result = await db.execute(query)
-    tables = result.scalars().all()
+        query = query.order_by(Table.created_at.desc(), Table.id.desc()).limit(limit)
 
-    if not tables:
+        result = await db.execute(query)
+        tables = result.scalars().all()
+
+        if not tables:
+            if use_cache and cache_key:
+                try:
+                    await redis_client.setex(cache_key, cache_ttl, "[]")
+                    await redis_client.sadd(PUBLIC_TABLE_CACHE_KEYS, cache_key)
+                except Exception as exc:  # pragma: no cover
+                    logger.warning("Failed to write empty public table cache", error=str(exc))
+            return []
+
+        table_ids = [table.id for table in tables]
+
+        seat_counts_result = await db.execute(
+            select(Seat.table_id, func.count(Seat.id))
+            .where(
+                Seat.table_id.in_(table_ids),
+                Seat.left_at.is_(None)
+            )
+            .group_by(Seat.table_id)
+        )
+        seat_counts = {
+            table_id: count for table_id, count in seat_counts_result.all()
+        }
+
+        creator_ids = {
+            table.creator_user_id or (table.config_json or {}).get("creator_user_id")
+            for table in tables
+            if table.creator_user_id or (table.config_json or {}).get("creator_user_id")
+        }
+        creator_map: Dict[int, User] = {}
+        if creator_ids:
+            creator_result = await db.execute(
+                select(User).where(User.id.in_(creator_ids))
+            )
+            creator_map = {user.id: user for user in creator_result.scalars()}
+
+        payload: List[Dict[str, Any]] = []
+        for table in tables:
+            config = table.config_json or {}
+            creator_user_id = table.creator_user_id or config.get("creator_user_id")
+            host_user = creator_map.get(creator_user_id) if creator_user_id else None
+            host_info = None
+            if host_user:
+                host_info = {
+                    "user_id": host_user.id,
+                    "username": host_user.username,
+                    "display_name": host_user.username or f"Player #{host_user.id}",
+                }
+
+            is_public, is_private, visibility = _resolve_visibility_flags(table)
+            player_count = seat_counts.get(table.id, 0)
+            max_players = config.get("max_players", 8)
+
+            payload.append(
+                {
+                    "table_id": table.id,
+                    "mode": table.mode.value,
+                    "status": table.status.value,
+                    "player_count": player_count,
+                    "max_players": max_players,
+                    "small_blind": config.get("small_blind", 25),
+                    "big_blind": config.get("big_blind", 50),
+                    "starting_stack": config.get("starting_stack", 10000),
+                    "table_name": config.get("table_name", f"Table #{table.id}"),
+                    "host": host_info,
+                    "created_at": table.created_at.isoformat() if table.created_at else None,
+                    "updated_at": table.updated_at.isoformat() if table.updated_at else None,
+                    "is_full": player_count >= max_players,
+                    "is_private": is_private,
+                    "is_public": is_public,
+                    "visibility": visibility,
+                    "creator_user_id": creator_user_id,
+                    "viewer": None,
+                }
+            )
+
+        cached_payload = payload
+
+        if use_cache and cache_key:
+            try:
+                await redis_client.setex(cache_key, cache_ttl, json.dumps(payload))
+                await redis_client.sadd(PUBLIC_TABLE_CACHE_KEYS, cache_key)
+            except Exception as exc:  # pragma: no cover
+                logger.warning("Failed to cache public tables", error=str(exc))
+
+    if not cached_payload:
         return []
 
-    table_ids = [table.id for table in tables]
+    tables_data = [dict(entry) for entry in cached_payload]
 
-    # Preload seat counts for all candidate tables
-    seat_counts_result = await db.execute(
-        select(Seat.table_id, func.count(Seat.id))
-        .where(
-            Seat.table_id.in_(table_ids),
-            Seat.left_at.is_(None)
-        )
-        .group_by(Seat.table_id)
-    )
-    seat_counts = {table_id: count for table_id, count in seat_counts_result.all()}
-
-    viewer_positions: Dict[int, int] = {}
-    if viewer_user_id is not None:
-        viewer_seat_result = await db.execute(
-            select(Seat.table_id, Seat.position)
+    if viewer_user_id is not None and tables_data:
+        table_ids = [entry["table_id"] for entry in tables_data]
+        viewer_seats_result = await db.execute(
+            select(
+                Seat.table_id,
+                Seat.position,
+                Seat.chips,
+                Seat.joined_at,
+            )
             .where(
                 Seat.table_id.in_(table_ids),
                 Seat.left_at.is_(None),
                 Seat.user_id == viewer_user_id,
             )
         )
-        viewer_positions = {
-            table_id: position for table_id, position in viewer_seat_result.all()
+        viewer_map = {
+            table_id: {
+                "seat_position": position,
+                "chips": chips,
+                "joined_at": joined_at.isoformat() if joined_at else None,
+            }
+            for table_id, position, chips, joined_at in viewer_seats_result.all()
         }
+    else:
+        viewer_map = {}
 
-    # Preload host user information
-    creator_ids = {
-        table.creator_user_id for table in tables if table.creator_user_id
-    }
-    creator_map: Dict[int, User] = {}
-    if creator_ids:
-        creator_result = await db.execute(
-            select(User).where(User.id.in_(creator_ids))
-        )
-        creator_map = {user.id: user for user in creator_result.scalars()}
-
-    tables_data: List[Dict[str, Any]] = []
-    for table in tables:
-        config = table.config_json or {}
-        creator_user_id = table.creator_user_id or config.get("creator_user_id")
-        is_public = table.is_public if table.is_public is not None else not _is_table_private(config)
-        is_private = not is_public
-
-        player_count = seat_counts.get(table.id, 0)
-        max_players = config.get("max_players", 8)
-        creator = (
-            creator_map.get(creator_user_id)
-            if creator_user_id in creator_map
-            else None
-        )
-
-        host_info = None
-        if creator:
-            host_info = {
-                "user_id": creator.id,
-                "username": creator.username,
-                "display_name": creator.username or f"Player #{creator.id}",
-            }
-
-        viewer_info = None
+    for entry in tables_data:
+        viewer_details = None
         if viewer_user_id is not None:
-            viewer_info = {
-                "is_seated": table.id in viewer_positions,
-                "seat_position": viewer_positions.get(table.id),
+            seat_info = viewer_map.get(entry["table_id"])
+            viewer_details = {
+                "is_seated": seat_info is not None,
+                "seat_position": seat_info.get("seat_position") if seat_info else None,
+                "chips": seat_info.get("chips") if seat_info else None,
+                "joined_at": seat_info.get("joined_at") if seat_info else None,
+                "is_creator": entry.get("creator_user_id") == viewer_user_id,
             }
-
-        tables_data.append(
-            {
-                "table_id": table.id,
-                "mode": table.mode.value,
-                "status": table.status.value,
-                "player_count": player_count,
-                "max_players": max_players,
-                "small_blind": config.get("small_blind", 25),
-                "big_blind": config.get("big_blind", 50),
-                "table_name": config.get("table_name", f"Table #{table.id}"),
-                "host": host_info,
-                "created_at": table.created_at.isoformat() if table.created_at else None,
-                "is_full": player_count >= max_players,
-                "is_private": is_private,
-                "is_public": is_public,
-                "visibility": "public" if is_public else "private",
-                "creator_user_id": creator_user_id,
-                "viewer": viewer_info,
-            }
-        )
+        entry["viewer"] = viewer_details
 
     return tables_data
 

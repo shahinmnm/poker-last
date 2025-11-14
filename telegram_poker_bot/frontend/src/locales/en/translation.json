@@ -118,6 +118,12 @@
   },
   "lobby": {
     "title": "Lobby",
+    "myTables": {
+      "title": "Your active tables",
+      "empty": "You’re not seated at any tables right now.",
+      "ctaCreate": "Create a table",
+      "ctaBrowse": "Browse public tables"
+    },
     "activeTables": {
       "title": "Active tables",
       "empty": "No public tables are open right now."
@@ -149,13 +155,21 @@
       "blinds": "Blinds",
       "status": "Status",
       "host": "Host",
-      "created": "Created"
+      "created": "Created",
+      "stack": "Stack",
+      "seat": "Seat",
+      "joined": "Joined"
     },
     "labels": {
       "seating": "Seating",
       "full": "Table full",
       "open": "Seats open",
-      "seated": "You're seated"
+      "seated": "You're seated",
+      "youHost": "You’re the host",
+      "visibility": {
+        "public": "Public",
+        "private": "Private"
+      }
     },
     "status": {
       "running": "Running",
@@ -418,6 +432,10 @@
       "active": "Running",
       "paused": "Paused",
       "ended": "Ended"
+    },
+    "visibility": {
+      "public": "Public table",
+      "private": "Private table"
     },
     "modes": {
       "holdem": "Hold’em",

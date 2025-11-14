@@ -160,6 +160,7 @@ class Table(Base):
     __table_args__ = (
         Index("idx_tables_mode_status", "mode", "status"),
         Index("ix_tables_is_public_status", "is_public", "status"),
+        Index("ix_tables_status_created_at", "status", "created_at"),
     )
 
 
@@ -183,6 +184,7 @@ class Seat(Base):
     __table_args__ = (
         Index("idx_seats_table_user", "table_id", "user_id"),
         Index("idx_seats_table_position", "table_id", "position"),
+        Index("ix_seats_user_left_at", "user_id", "left_at"),
     )
 
 

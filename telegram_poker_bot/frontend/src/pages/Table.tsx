@@ -340,19 +340,28 @@ export default function TablePage() {
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <header className="rounded-3xl bg-white/80 p-5 shadow-sm backdrop-blur dark:bg-gray-900/80">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-950/60 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus:ring-offset-gray-900"
-              >
-                <span aria-hidden="true">←</span>
-                {t('table.actions.back')}
-              </button>
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-950/60 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus:ring-offset-gray-900"
+            >
+              <span aria-hidden="true">←</span>
+              {t('table.actions.back')}
+            </button>
+            <div className="flex items-center gap-2">
               <span className="inline-flex h-7 items-center rounded-full bg-emerald-100 px-3 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
                 {statusLabel}
               </span>
+              {tableDetails.visibility && (
+                <span className="inline-flex h-7 items-center rounded-full bg-slate-200 px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:bg-gray-700 dark:text-gray-200">
+                  {t(`table.visibility.${tableDetails.visibility}` as const, {
+                    defaultValue: tableDetails.visibility,
+                  })}
+                </span>
+              )}
             </div>
+          </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-blue-500 dark:text-blue-300">
                 {t('table.headerLabel')}

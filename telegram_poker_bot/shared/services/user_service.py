@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from telegram_poker_bot.shared.models import (
     User,
@@ -17,6 +18,36 @@ from telegram_poker_bot.shared.models import (
     TableStatus,
     Wallet,
 )
+
+
+def _resolve_is_public(table: Table) -> bool:
+    """Determine whether a table should be treated as public."""
+
+    if table.is_public is not None:
+        return bool(table.is_public)
+
+    config = table.config_json or {}
+    raw_private = config.get("is_private")
+    if isinstance(raw_private, bool):
+        return not raw_private
+    if isinstance(raw_private, (int, float)):
+        return not bool(raw_private)
+    if isinstance(raw_private, str):
+        normalized = raw_private.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "private"}:
+            return False
+        if normalized in {"false", "0", "no", "n", "public"}:
+            return True
+
+    visibility = config.get("visibility")
+    if isinstance(visibility, str):
+        normalized_visibility = visibility.strip().lower()
+        if normalized_visibility == "private":
+            return False
+        if normalized_visibility == "public":
+            return True
+
+    return True
 
 
 async def get_user_stats(db: AsyncSession, user_id: int) -> Dict[str, Any]:
@@ -139,40 +170,94 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
     
     Returns list of table info dicts.
     """
+    ActiveSeat = aliased(Seat)
+
     result = await db.execute(
-        select(Table, Seat)
-        .join(Seat, Table.id == Seat.table_id)
+        select(Table, ActiveSeat)
+        .join(ActiveSeat, Table.id == ActiveSeat.table_id)
         .where(
-            Seat.user_id == user_id,
-            Seat.left_at.is_(None),  # Still seated
-            Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
+            ActiveSeat.user_id == user_id,
+            ActiveSeat.left_at.is_(None),
+            Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE]),
         )
+        .order_by(ActiveSeat.joined_at.desc(), Table.created_at.desc())
     )
-    
-    tables_data = []
-    for table, seat in result.all():
-        # Count players at this table
-        player_count_result = await db.execute(
-            select(func.count(Seat.id))
-            .where(Seat.table_id == table.id, Seat.left_at.is_(None))
+
+    rows = result.all()
+    if not rows:
+        return []
+
+    table_ids = [table.id for table, _ in rows]
+
+    seat_counts_result = await db.execute(
+        select(Seat.table_id, func.count(Seat.id))
+        .where(
+            Seat.table_id.in_(table_ids),
+            Seat.left_at.is_(None),
         )
-        player_count = player_count_result.scalar() or 0
-        
+        .group_by(Seat.table_id)
+    )
+    seat_counts = {
+        table_id: count for table_id, count in seat_counts_result.all()
+    }
+
+    creator_ids = set()
+    for table, _ in rows:
         config = table.config_json or {}
-        
-        tables_data.append({
-            "table_id": table.id,
-            "mode": table.mode.value,
-            "status": table.status.value,
-            "player_count": player_count,
-            "max_players": config.get("max_players", 8),
-            "small_blind": config.get("small_blind", 25),
-            "big_blind": config.get("big_blind", 50),
-            "chips": seat.chips,
-            "position": seat.position,
-            "joined_at": seat.joined_at.isoformat(),
-            "table_name": config.get("table_name", f"Table #{table.id}"),
-        })
+        creator_user_id = table.creator_user_id or config.get("creator_user_id")
+        if creator_user_id:
+            creator_ids.add(creator_user_id)
+
+    creator_map = {}
+    if creator_ids:
+        creator_result = await db.execute(
+            select(User).where(User.id.in_(creator_ids))
+        )
+        creator_map = {user.id: user for user in creator_result.scalars()}
+
+    tables_data = []
+    for table, seat in rows:
+        config = table.config_json or {}
+        creator_user_id = table.creator_user_id or config.get("creator_user_id")
+        host_user = creator_map.get(creator_user_id) if creator_user_id else None
+        host_info = None
+        if host_user:
+            host_info = {
+                "user_id": host_user.id,
+                "username": host_user.username,
+                "display_name": host_user.username or f"Player #{host_user.id}",
+            }
+
+        is_public = _resolve_is_public(table)
+        player_count = seat_counts.get(table.id, 0)
+        max_players = config.get("max_players", 8)
+        starting_stack = config.get("starting_stack", 10000)
+
+        tables_data.append(
+            {
+                "table_id": table.id,
+                "mode": table.mode.value,
+                "status": table.status.value,
+                "player_count": player_count,
+                "max_players": max_players,
+                "small_blind": config.get("small_blind", 25),
+                "big_blind": config.get("big_blind", 50),
+                "starting_stack": starting_stack,
+                "table_name": config.get("table_name", f"Table #{table.id}"),
+                "host": host_info,
+                "created_at": table.created_at.isoformat() if table.created_at else None,
+                "updated_at": table.updated_at.isoformat() if table.updated_at else None,
+                "is_public": is_public,
+                "visibility": "public" if is_public else "private",
+                "viewer": {
+                    "is_seated": True,
+                    "seat_position": seat.position,
+                    "chips": seat.chips,
+                    "joined_at": seat.joined_at.isoformat() if seat.joined_at else None,
+                    "is_creator": creator_user_id == user_id,
+                },
+            }
+        )
 
     return tables_data
 
