@@ -657,6 +657,13 @@ async def list_tables(
         viewer_user_id = viewer.id
 
     normalized_scope = (scope or "public").strip().lower()
+    redis_client = None
+    if normalized_scope == "public":
+        try:
+            matchmaking_pool = await get_matchmaking_pool()
+            redis_client = matchmaking_pool.redis
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Redis unavailable for public table cache", error=str(exc))
 
     try:
         tables = await table_service.list_available_tables(
@@ -665,6 +672,7 @@ async def list_tables(
             mode=game_mode,
             viewer_user_id=viewer_user_id,
             scope=normalized_scope,
+            redis_client=redis_client,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -724,6 +732,12 @@ async def create_table(
 
     await db.commit()
 
+    try:
+        matchmaking_pool = await get_matchmaking_pool()
+        await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Failed to invalidate public table cache after create", error=str(exc))
+
     table_info = await table_service.get_table_info(
         db,
         table.id,
@@ -751,7 +765,13 @@ async def sit_at_table(
     try:
         seat = await table_service.seat_user_at_table(db, table_id, user.id)
         await db.commit()
-        
+
+        try:
+            matchmaking_pool = await get_matchmaking_pool()
+            await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Failed to invalidate public table cache after seat", error=str(exc))
+
         return {
             "success": True,
             "table_id": table_id,
@@ -781,6 +801,12 @@ async def leave_table(
     try:
         await table_service.leave_table(db, table_id, user.id)
         await db.commit()
+
+        try:
+            matchmaking_pool = await get_matchmaking_pool()
+            await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Failed to invalidate public table cache after leave", error=str(exc))
         return {"success": True, "table_id": table_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -810,6 +836,12 @@ async def start_table(
         raise HTTPException(status_code=400, detail=str(exc))
 
     await db.commit()
+
+    try:
+        matchmaking_pool = await get_matchmaking_pool()
+        await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Failed to invalidate public table cache after start", error=str(exc))
 
     return await table_service.get_table_info(
         db,

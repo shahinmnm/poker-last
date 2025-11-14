@@ -12,7 +12,7 @@ from sqlalchemy.sql import text
 
 # revision identifiers, used by Alembic.
 revision = "004_table_visibility_columns"
-down_revision = "003_lowercase_group_game_invite_status"
+down_revision = "003_lowercase_invite_status"
 branch_labels = None
 depends_on = None
 
