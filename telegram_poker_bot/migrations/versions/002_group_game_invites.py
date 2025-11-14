@@ -34,7 +34,7 @@ def upgrade():
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("consumed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("metadata_json", sa.JSON(), nullable=True, server_default="{}"),
+        sa.Column("metadata_json", postgresql.JSONB(), nullable=True, server_default="{}"),
         sa.ForeignKeyConstraint(["creator_user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
