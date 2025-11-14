@@ -69,6 +69,9 @@ pip install -r telegram_poker_bot/requirements.txt
 
 # Set up database
 createdb pokerbot
+
+# Run migrations (REQUIRED before starting services)
+cd telegram_poker_bot
 alembic upgrade head
 
 # Run services
@@ -119,6 +122,44 @@ docker compose down
 ```
 
 Both scripts live at the repository root under `deploy/` and orchestrate Docker Compose builds, migrations, and restarts.
+
+## Database Migrations
+
+This project uses Alembic for database migrations. **Migrations must be run before starting the services.**
+
+### Running Migrations
+
+```bash
+cd telegram_poker_bot
+alembic upgrade head
+```
+
+### Checking Current Version
+
+```bash
+alembic current
+```
+
+Should show: `005_active_table_indexes (head)`
+
+### Migration History
+
+1. **001_initial_schema**: Creates all base tables (users, groups, tables, seats, hands, etc.)
+2. **002_group_game_invites**: Adds group game invite table for deep-link sharing
+3. **003_lowercase_invite_status**: Normalizes enum values to lowercase
+4. **004_table_visibility_columns**: **CRITICAL** - Adds `creator_user_id` and `is_public` columns to tables
+5. **005_active_table_indexes**: Adds performance indexes for lobby and active table queries
+
+### Troubleshooting
+
+If you encounter `UndefinedColumnError: column tables.creator_user_id does not exist`:
+
+1. **Check migration status**: `alembic current`
+2. **Apply missing migrations**: `alembic upgrade head`
+3. **Verify**: `alembic current` should show `005_active_table_indexes (head)`
+4. **Restart services** after applying migrations
+
+See `MIGRATION_FIX_GUIDE.md` for detailed troubleshooting and `IMPLEMENTATION_SUMMARY.md` for architecture details.
 
 ## Configuration
 
