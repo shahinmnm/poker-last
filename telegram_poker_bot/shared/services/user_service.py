@@ -74,7 +74,7 @@ async def get_user_stats(db: AsyncSession, user_id: int) -> Dict[str, Any]:
         select(User).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
-    stats_blob = user.stats_blob if user else {}
+    stats_blob = (user.stats_blob or {}) if user else {}
     
     # Get first game date (earliest seat join)
     first_game_date = None
