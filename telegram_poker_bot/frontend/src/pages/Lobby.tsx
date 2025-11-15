@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
 import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch } from '../utils/apiClient'
+import { apiFetch, buildApiUrl, resolveApiUrl, type ApiFetchOptions } from '../utils/apiClient'
 
-const REFRESH_INTERVAL_MS = 20000
+const REFRESH_INTERVAL_MS = 5000
+
+type LobbyTablesState = 'loading' | 'ready' | 'empty' | 'error'
 
 interface TableHostInfo {
   user_id: number
@@ -47,54 +49,141 @@ interface ActiveTable extends TableInfo {
   viewer?: TableViewerState | null
 }
 
+function normalizeTablesResponse<T>(data: unknown): T[] {
+  if (Array.isArray(data)) {
+    return data as T[]
+  }
+
+  if (data && typeof data === 'object') {
+    const candidate =
+      (data as Record<string, unknown>).tables ??
+      (data as Record<string, unknown>).items ??
+      (data as Record<string, unknown>).data
+
+    if (Array.isArray(candidate)) {
+      return candidate as T[]
+    }
+  }
+
+  return []
+}
+
+async function fetchPublicTables(
+  initData?: string | null,
+  signal?: AbortSignal,
+): Promise<TableInfo[]> {
+  const options: ApiFetchOptions = {
+    query: { scope: 'public' },
+    signal,
+  }
+
+  if (initData) {
+    options.initData = initData
+  }
+
+  const finalUrl = resolveApiUrl('/tables', options.query)
+  console.debug('GET', finalUrl)
+  const payload = await apiFetch<unknown>('/tables', options)
+  console.debug('Response for /tables', payload)
+  return normalizeTablesResponse<TableInfo>(payload)
+}
+
+async function fetchMyTables(
+  initData?: string | null,
+  signal?: AbortSignal,
+): Promise<ActiveTable[]> {
+  const options: ApiFetchOptions = {
+    signal,
+  }
+
+  if (initData) {
+    options.initData = initData
+  }
+
+  console.debug('GET', buildApiUrl('/users/me/tables'))
+  const payload = await apiFetch<unknown>('/users/me/tables', options)
+  console.debug('Response for /users/me/tables', payload)
+  return normalizeTablesResponse<ActiveTable>(payload)
+}
+
 export default function LobbyPage() {
   const { t } = useTranslation()
   const { initData, ready } = useTelegram()
   const [availableTables, setAvailableTables] = useState<TableInfo[]>([])
   const [myTables, setMyTables] = useState<ActiveTable[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [viewState, setViewState] = useState<LobbyTablesState>('loading')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const activeControllerRef = useRef<AbortController | null>(null)
 
-  const fetchTables = useCallback(async () => {
-    if (!ready) {
-      return
-    }
+  const loadTables = useCallback(
+    async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
+      if (!ready) {
+        return
+      }
 
-    try {
-      setLoading(true)
-      setError(null)
+      activeControllerRef.current?.abort()
+      const controller = new AbortController()
+      activeControllerRef.current = controller
 
-      const [tablesData, myTablesData] = await Promise.all([
-        apiFetch<{ tables: TableInfo[] }>(
-          '/tables',
+      if (mode === 'initial') {
+        setViewState('loading')
+      } else if (mode === 'refresh') {
+        setViewState((prev) => (prev === 'error' ? 'loading' : prev))
+        setIsRefreshing(true)
+      }
+
+      try {
+        console.debug('Loading lobby tables...')
+        const [publicTables, userTables] = await Promise.all([
+          fetchPublicTables(initData, controller.signal),
           initData
-            ? { initData, query: { scope: 'public' } }
-            : { query: { scope: 'public' } },
-        ),
-        initData
-          ? apiFetch<{ tables: ActiveTable[] }>('/users/me/tables', { initData })
-          : Promise.resolve<{ tables: ActiveTable[] }>({ tables: [] }),
-      ])
+            ? fetchMyTables(initData, controller.signal)
+            : Promise.resolve<ActiveTable[]>([]),
+        ])
 
-      setAvailableTables(tablesData.tables ?? [])
-      setMyTables(myTablesData.tables ?? [])
-    } catch (err) {
-      console.error('Error fetching tables:', err)
-      setError(t('lobby.errors.loadFailed'))
-    } finally {
-      setLoading(false)
-    }
-  }, [initData, ready, t])
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setAvailableTables(publicTables)
+        setMyTables(userTables)
+
+        const nextState: LobbyTablesState = publicTables.length === 0 && userTables.length === 0 ? 'empty' : 'ready'
+        setViewState(nextState)
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
+        console.error('Error fetching tables:', error)
+        setViewState('error')
+      } finally {
+        if (!controller.signal.aborted && mode === 'refresh') {
+          setIsRefreshing(false)
+        }
+      }
+    },
+    [initData, ready],
+  )
 
   useEffect(() => {
     if (!ready) {
       return
     }
 
-    fetchTables()
-    const interval = window.setInterval(fetchTables, REFRESH_INTERVAL_MS)
-    return () => window.clearInterval(interval)
-  }, [ready, fetchTables])
+    loadTables('initial')
+    const interval = window.setInterval(() => {
+      loadTables('silent')
+    }, REFRESH_INTERVAL_MS)
+
+    return () => {
+      window.clearInterval(interval)
+      activeControllerRef.current?.abort()
+    }
+  }, [ready, loadTables])
+
+  const handleRefresh = useCallback(() => {
+    loadTables('refresh')
+  }, [loadTables])
 
   const formatDate = useMemo(
     () =>
@@ -120,7 +209,25 @@ export default function LobbyPage() {
     })
   }
 
-  if (loading) {
+  const prioritizedTables = useMemo(() => {
+    if (availableTables.length === 0) {
+      return availableTables
+    }
+
+    return [...availableTables].sort((a, b) => {
+      const aSeated = a.viewer?.is_seated ? 1 : 0
+      const bSeated = b.viewer?.is_seated ? 1 : 0
+      if (aSeated !== bSeated) {
+        return bSeated - aSeated
+      }
+
+      const aUpdated = a.updated_at ? new Date(a.updated_at).getTime() : 0
+      const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0
+      return bUpdated - aUpdated
+    })
+  }, [availableTables])
+
+  if (viewState === 'loading') {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">
@@ -131,16 +238,47 @@ export default function LobbyPage() {
     )
   }
 
-  if (error) {
+  if (viewState === 'error') {
     return (
       <div className="rounded-2xl bg-red-50 p-5 text-red-700 dark:bg-red-950/40 dark:text-red-200">
-        <p>{error}</p>
+        <p>{t('lobby.errors.loadFailed')}</p>
         <button
-          onClick={fetchTables}
+          onClick={() => loadTables('refresh')}
           className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
         >
           {t('lobby.actions.retry')}
         </button>
+      </div>
+    )
+  }
+
+  if (viewState === 'empty') {
+    return (
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-semibold">{t('lobby.title')}</h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('menu.lobby.description')}</p>
+        </header>
+
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800/60">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('lobby.activeTables.empty')}</h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{t('lobby.empty.public')}</p>
+          <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              to="/games/create"
+              className="w-full rounded-full bg-blue-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
+            >
+              {t('lobby.myTables.ctaCreate')}
+            </Link>
+            <button
+              onClick={handleRefresh}
+              className="w-full rounded-full border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-900/40 sm:w-auto"
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? t('common.loading') : t('lobby.actions.refresh')}
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -158,10 +296,11 @@ export default function LobbyPage() {
           <h2 className="text-lg font-semibold">🎲 {t('lobby.myTables.title')}</h2>
           <div className="flex items-center gap-2">
             <button
-              onClick={fetchTables}
-              className="rounded-full border border-blue-100 px-3 py-1 text-sm font-medium text-blue-600 transition hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-900/40"
+              onClick={handleRefresh}
+              className="rounded-full border border-blue-100 px-3 py-1 text-sm font-medium text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-900/40"
+              disabled={isRefreshing}
             >
-              {t('lobby.actions.refresh')}
+              {isRefreshing ? t('common.loading') : t('lobby.actions.refresh')}
             </button>
           </div>
         </div>
@@ -285,14 +424,15 @@ export default function LobbyPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">🃏 Available Tables</h2>
           <button
-            onClick={fetchTables}
-            className="text-sm font-medium text-blue-600 dark:text-blue-300"
+            onClick={handleRefresh}
+            className="text-sm font-medium text-blue-600 transition hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-blue-300"
+            disabled={isRefreshing}
           >
-            {t('lobby.actions.refresh')}
+            {isRefreshing ? t('common.loading') : t('lobby.actions.refresh')}
           </button>
         </div>
         <div className="space-y-3">
-          {availableTables.length === 0 ? (
+          {prioritizedTables.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
               <p className="mb-2">{t('lobby.empty.public')}</p>
               <Link
@@ -303,18 +443,21 @@ export default function LobbyPage() {
               </Link>
             </div>
           ) : (
-            availableTables.map((table) => {
+            prioritizedTables.map((table) => {
               const createdAtText = table.created_at ? formatDate.format(new Date(table.created_at)) : null
               const isSeated = table.viewer?.is_seated
               const isCreator = table.viewer?.is_creator
-              const cardMuted = table.is_full || Boolean(isSeated)
+              const cardMuted = table.is_full && !isSeated
+              const highlight = isSeated
 
               return (
                 <div
                   key={table.table_id}
-                  className={`flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition dark:border-gray-700 dark:bg-gray-800 ${
-                    cardMuted ? 'opacity-80' : ''
-                  }`}
+                  className={`flex flex-col rounded-xl border p-4 shadow-sm transition ${
+                    highlight
+                      ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200 dark:border-blue-500/70 dark:bg-blue-900/40 dark:ring-blue-400/40'
+                      : 'border-slate-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+                  } ${cardMuted ? 'opacity-80' : ''}`}
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -334,6 +477,11 @@ export default function LobbyPage() {
                       {table.visibility && (
                         <span className="inline-flex h-6 items-center rounded-full bg-slate-200 px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:bg-gray-700 dark:text-gray-200">
                           {t(`lobby.labels.visibility.${table.visibility}` as const)}
+                        </span>
+                      )}
+                      {highlight && (
+                        <span className="inline-flex h-6 items-center rounded-full bg-emerald-100 px-3 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                          {t('lobby.labels.seated')}
                         </span>
                       )}
                       {isCreator && (
@@ -376,7 +524,7 @@ export default function LobbyPage() {
                   <Link
                     to={`/table/${table.table_id}`}
                     state={{ from: '/lobby' }}
-                    className={`mt-4 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    className={`mt-4 inline-flex w-full items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto ${
                       cardMuted
                         ? 'bg-gray-300 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
                         : 'bg-blue-500 text-white hover:bg-blue-600'
