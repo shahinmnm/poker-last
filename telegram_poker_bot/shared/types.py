@@ -44,6 +44,25 @@ class ActionType(str, Enum):
     ALL_IN = "all_in"
 
 
+class TableVisibility(str, Enum):
+    """Visibility flag for tables exposed via the API."""
+
+    PUBLIC = "public"
+    PRIVATE = "private"
+
+
+class TableCreateRequest(BaseModel):
+    """Validated payload for creating poker tables."""
+
+    table_name: Optional[str] = None
+    small_blind: int = Field(default=25, ge=1)
+    big_blind: int = Field(default=50, ge=1)
+    starting_stack: int = Field(default=10000, ge=1)
+    max_players: int = Field(default=8, ge=2, le=9)
+    visibility: TableVisibility = TableVisibility.PUBLIC
+    auto_seat_host: Optional[bool] = None
+
+
 class GroupGameInviteStatus(str, Enum):
     """Group game invite status enumeration."""
 

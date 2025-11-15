@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
+import Card from '../components/ui/Card'
+import Button from '../components/ui/Button'
+import SectionHeader from '../components/ui/SectionHeader'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, buildApiUrl, resolveApiUrl, type ApiFetchOptions } from '../utils/apiClient'
 
@@ -136,9 +139,7 @@ export default function LobbyPage() {
         console.debug('Loading lobby tables...')
         const [publicTables, userTables] = await Promise.all([
           fetchPublicTables(initData, controller.signal),
-          initData
-            ? fetchMyTables(initData, controller.signal)
-            : Promise.resolve<ActiveTable[]>([]),
+          initData ? fetchMyTables(initData, controller.signal) : Promise.resolve<ActiveTable[]>([]),
         ])
 
         if (controller.signal.aborted) {
@@ -148,7 +149,8 @@ export default function LobbyPage() {
         setAvailableTables(publicTables)
         setMyTables(userTables)
 
-        const nextState: LobbyTablesState = publicTables.length === 0 && userTables.length === 0 ? 'empty' : 'ready'
+        const nextState: LobbyTablesState =
+          publicTables.length === 0 && userTables.length === 0 ? 'empty' : 'ready'
         setViewState(nextState)
       } catch (error) {
         if (controller.signal.aborted) {
@@ -229,102 +231,66 @@ export default function LobbyPage() {
 
   if (viewState === 'loading') {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
-          <p className="text-sm text-gray-600 dark:text-gray-300">{t('common.loading')}</p>
-        </div>
-      </div>
+      <Card className="flex min-h-[40vh] items-center justify-center text-sm text-[color:var(--text-muted)]">
+        {t('common.loading')}
+      </Card>
     )
   }
 
   if (viewState === 'error') {
     return (
-      <div className="rounded-2xl bg-red-50 p-5 text-red-700 dark:bg-red-950/40 dark:text-red-200">
+      <Card className="space-y-3 text-sm text-red-200">
         <p>{t('lobby.errors.loadFailed')}</p>
-        <button
-          onClick={() => loadTables('refresh')}
-          className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-        >
+        <Button onClick={() => loadTables('refresh')} variant="secondary" disabled={isRefreshing}>
           {t('lobby.actions.retry')}
-        </button>
-      </div>
+        </Button>
+      </Card>
     )
   }
 
   if (viewState === 'empty') {
     return (
-      <div className="space-y-6">
-        <header>
-          <h1 className="text-2xl font-semibold">{t('lobby.title')}</h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('menu.lobby.description')}</p>
-        </header>
-
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800/60">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('lobby.activeTables.empty')}</h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{t('lobby.empty.public')}</p>
-          <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link
-              to="/games/create"
-              className="w-full rounded-full bg-blue-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
-            >
-              {t('lobby.myTables.ctaCreate')}
-            </Link>
-            <button
-              onClick={handleRefresh}
-              className="w-full rounded-full border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-900/40 sm:w-auto"
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? t('common.loading') : t('lobby.actions.refresh')}
-            </button>
-          </div>
+      <Card className="space-y-6 text-center">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold text-[color:var(--text-primary)]">{t('lobby.title')}</h1>
+          <p className="text-sm text-[color:var(--text-muted)]">{t('menu.lobby.description')}</p>
         </div>
-      </div>
+        <p className="text-sm text-[color:var(--text-muted)]">{t('lobby.empty.public')}</p>
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Link to="/games/create?visibility=public" className="app-button app-button--primary app-button--lg">
+            {t('lobby.empty.createPublic')}
+          </Link>
+          <Button variant="secondary" onClick={handleRefresh} disabled={isRefreshing}>
+            {isRefreshing ? t('common.loading') : t('lobby.actions.refresh')}
+          </Button>
+        </div>
+      </Card>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">{t('lobby.title')}</h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('menu.lobby.description')}</p>
+    <div className="space-y-6 sm:space-y-7">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold text-[color:var(--text-primary)]">{t('lobby.title')}</h1>
+        <p className="text-sm text-[color:var(--text-muted)]">{t('menu.lobby.description')}</p>
       </header>
 
-      {/* My Active Tables */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">🎲 {t('lobby.myTables.title')}</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleRefresh}
-              className="rounded-full border border-blue-100 px-3 py-1 text-sm font-medium text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-900/40"
-              disabled={isRefreshing}
-            >
+      <Card>
+        <SectionHeader
+          title={t('lobby.myTables.title')}
+          subtitle={t('lobby.myTables.subtitle')}
+          action={
+            <Button variant="ghost" size="md" onClick={handleRefresh} disabled={isRefreshing}>
               {isRefreshing ? t('common.loading') : t('lobby.actions.refresh')}
-            </button>
-          </div>
-        </div>
-
+            </Button>
+          }
+        />
         {myTables.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-sm text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300">
-            <p>{t('lobby.myTables.empty')}</p>
-            <div className="mt-4 flex flex-col gap-2 text-sm font-medium sm:flex-row sm:justify-center">
-              <Link
-                to="/games/create"
-                className="rounded-full bg-blue-600 px-4 py-2 text-white shadow-sm transition hover:bg-blue-700"
-              >
-                {t('lobby.myTables.ctaCreate')}
-              </Link>
-              <a
-                href="#public-tables"
-                className="rounded-full border border-blue-200 px-4 py-2 text-blue-600 transition hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-900/40"
-              >
-                {t('lobby.myTables.ctaBrowse')}
-              </a>
-            </div>
-          </div>
+          <p className="mt-4 rounded-2xl border border-dashed border-[color:var(--surface-border)] px-4 py-5 text-center text-sm text-[color:var(--text-muted)]">
+            {t('lobby.myTables.empty')}
+          </p>
         ) : (
-          <div className="space-y-3">
+          <div className="mt-4 space-y-3">
             {myTables.map((table) => {
               const seatPosition = table.viewer?.seat_position ?? null
               const joinedAtText = table.viewer?.joined_at
@@ -340,74 +306,48 @@ export default function LobbyPage() {
                   key={table.table_id}
                   to={`/table/${table.table_id}`}
                   state={{ from: '/lobby' }}
-                  className="flex flex-col rounded-2xl border-2 border-emerald-200 bg-white p-4 shadow-sm transition hover:shadow-md dark:border-emerald-700 dark:bg-gray-800"
+                  className="app-card app-card--overlay block rounded-3xl p-5 transition hover:-translate-y-1"
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <span className="block font-semibold text-gray-900 dark:text-gray-100">
-                        {tableName}
-                      </span>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                      <span className="block font-semibold text-[color:var(--text-primary)]">{tableName}</span>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--text-muted)]">
+                        <span className="inline-flex items-center rounded-full bg-[color:var(--accent-soft)]/40 px-3 py-1 font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
                           {statusLabel}
                         </span>
                         {isCreator && (
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                          <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
                             {t('lobby.labels.youHost')}
                           </span>
                         )}
-                        {table.visibility && (
-                          <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-700 dark:bg-gray-700 dark:text-gray-200">
-                            {t(`lobby.labels.visibility.${table.visibility}` as const)}
+                        {seatPosition !== null && (
+                          <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
+                            {t('lobby.labels.seated')}
                           </span>
                         )}
                       </div>
-                      {table.host?.display_name && !isCreator && (
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          {t('lobby.fields.host')}: {table.host.display_name}
-                        </p>
-                      )}
+                    </div>
+                    <div className="text-right text-sm text-[color:var(--text-muted)]">
+                      <span className="block text-lg font-semibold text-[color:var(--text-primary)]">
+                        {table.small_blind}/{table.big_blind}
+                      </span>
+                      <span>{t('lobby.fields.blinds')}</span>
                     </div>
                   </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-gray-600 dark:text-gray-300 sm:grid-cols-5">
+                  <div className="mt-4 grid grid-cols-1 gap-3 text-xs text-[color:var(--text-muted)] sm:grid-cols-4">
                     <div>
-                      <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        {t('lobby.fields.players')}
-                      </span>
-                      <span className="mt-1 block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      <span className="block text-[11px] uppercase tracking-[0.2em]">{t('lobby.fields.players')}</span>
+                      <span className="mt-1 block text-sm font-semibold text-[color:var(--text-primary)]">
                         {table.player_count} / {table.max_players}
                       </span>
                     </div>
                     <div>
-                      <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        {t('lobby.fields.blinds')}
-                      </span>
-                      <span className="mt-1 block text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        {table.small_blind}/{table.big_blind}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        {t('lobby.fields.stack')}
-                      </span>
-                      <span className="mt-1 block text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        {stackAmount}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        {t('lobby.fields.seat')}
-                      </span>
-                      <span className="mt-1 block text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        {seatPosition !== null ? seatPosition + 1 : '—'}
-                      </span>
+                      <span className="block text-[11px] uppercase tracking-[0.2em]">{t('lobby.fields.stack')}</span>
+                      <span className="mt-1 block text-sm font-semibold text-[color:var(--text-primary)]">{stackAmount}</span>
                     </div>
                     <div className="sm:col-span-2">
-                      <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        {t('lobby.fields.joined')}
-                      </span>
-                      <span className="mt-1 block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      <span className="block text-[11px] uppercase tracking-[0.2em]">{t('lobby.fields.joined')}</span>
+                      <span className="mt-1 block text-sm font-semibold text-[color:var(--text-primary)]">
                         {joinedAtText || '—'}
                       </span>
                     </div>
@@ -417,96 +357,83 @@ export default function LobbyPage() {
             })}
           </div>
         )}
-      </section>
+      </Card>
 
-      {/* Available Tables */}
-      <section id="public-tables" className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">🃏 Available Tables</h2>
-          <button
-            onClick={handleRefresh}
-            className="text-sm font-medium text-blue-600 transition hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-blue-300"
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? t('common.loading') : t('lobby.actions.refresh')}
-          </button>
-        </div>
-        <div className="space-y-3">
+      <Card id="public-tables">
+        <SectionHeader
+          title={t('lobby.availableTables.title')}
+          subtitle={t('lobby.availableTables.subtitle')}
+          action={
+            <Button variant="ghost" size="md" onClick={handleRefresh} disabled={isRefreshing}>
+              {isRefreshing ? t('common.loading') : t('lobby.actions.refresh')}
+            </Button>
+          }
+        />
+        <div className="mt-4 space-y-3">
           {prioritizedTables.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
-              <p className="mb-2">{t('lobby.empty.public')}</p>
-              <Link
-                to="/group/invite"
-                className="text-blue-600 dark:text-blue-300 hover:underline"
-              >
-                Create a private table →
-              </Link>
-            </div>
+            <p className="rounded-2xl border border-dashed border-[color:var(--surface-border)] px-4 py-5 text-center text-sm text-[color:var(--text-muted)]">
+              {t('lobby.availableTables.empty')}
+            </p>
           ) : (
             prioritizedTables.map((table) => {
               const createdAtText = table.created_at ? formatDate.format(new Date(table.created_at)) : null
               const isSeated = table.viewer?.is_seated
               const isCreator = table.viewer?.is_creator
               const cardMuted = table.is_full && !isSeated
-              const highlight = isSeated
 
               return (
                 <div
                   key={table.table_id}
-                  className={`flex flex-col rounded-xl border p-4 shadow-sm transition ${
-                    highlight
-                      ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200 dark:border-blue-500/70 dark:bg-blue-900/40 dark:ring-blue-400/40'
-                      : 'border-slate-200 bg-white dark:border-gray-700 dark:bg-gray-800'
-                  } ${cardMuted ? 'opacity-80' : ''}`}
+                  className={`app-card app-card--overlay flex flex-col gap-4 rounded-3xl p-5 transition ${cardMuted ? 'opacity-70' : ''}`}
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <span className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                      <span className="block text-base font-semibold text-[color:var(--text-primary)]">
                         {table.table_name || `Table #${table.table_id}`}
                       </span>
                       {table.host?.display_name && (
-                        <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                        <span className="mt-1 block text-xs text-[color:var(--text-muted)]">
                           {t('lobby.fields.host')}: {table.host.display_name}
                         </span>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex h-6 items-center rounded-full bg-blue-100 px-3 text-xs font-semibold uppercase tracking-wide text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
+                      <span className="inline-flex h-7 items-center rounded-full bg-[color:var(--accent-soft)]/50 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
                         {resolveStatusLabel(table.status)}
                       </span>
                       {table.visibility && (
-                        <span className="inline-flex h-6 items-center rounded-full bg-slate-200 px-3 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:bg-gray-700 dark:text-gray-200">
+                        <span className="inline-flex h-7 items-center rounded-full bg-white/10 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
                           {t(`lobby.labels.visibility.${table.visibility}` as const)}
                         </span>
                       )}
-                      {highlight && (
-                        <span className="inline-flex h-6 items-center rounded-full bg-emerald-100 px-3 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                      {isSeated && (
+                        <span className="inline-flex h-7 items-center rounded-full bg-white/10 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
                           {t('lobby.labels.seated')}
                         </span>
                       )}
                       {isCreator && (
-                        <span className="inline-flex h-6 items-center rounded-full bg-amber-100 px-3 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                        <span className="inline-flex h-7 items-center rounded-full bg-white/10 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
                           {t('lobby.labels.youHost')}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-1 gap-3 text-xs text-gray-600 dark:text-gray-300 sm:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-3 text-xs text-[color:var(--text-muted)] sm:grid-cols-4">
                     <div>
-                      <span className="block font-semibold">
+                      <span className="block font-semibold text-[color:var(--text-primary)]">
                         {table.player_count} / {table.max_players}
                       </span>
                       <span>{t('lobby.fields.players')}</span>
                     </div>
                     <div>
-                      <span className="block font-semibold">
+                      <span className="block font-semibold text-[color:var(--text-primary)]">
                         {table.small_blind}/{table.big_blind}
                       </span>
                       <span>{t('lobby.fields.blinds')}</span>
                     </div>
                     <div>
-                      <span className="block font-semibold">
+                      <span className="block font-semibold text-[color:var(--text-primary)]">
                         {table.is_full
                           ? t('lobby.labels.full')
                           : isSeated
@@ -516,28 +443,31 @@ export default function LobbyPage() {
                       <span>{t('lobby.labels.seating')}</span>
                     </div>
                     <div>
-                      <span className="block font-semibold">{createdAtText || '—'}</span>
+                      <span className="block font-semibold text-[color:var(--text-primary)]">{createdAtText || '—'}</span>
                       <span>{t('lobby.fields.created')}</span>
                     </div>
                   </div>
 
-                  <Link
-                    to={`/table/${table.table_id}`}
-                    state={{ from: '/lobby' }}
-                    className={`mt-4 inline-flex w-full items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto ${
-                      cardMuted
-                        ? 'bg-gray-300 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                    }`}
-                  >
-                    {isSeated ? t('lobby.actions.view') : t('lobby.actions.join')}
-                  </Link>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Link
+                      to={`/table/${table.table_id}`}
+                      state={{ from: '/lobby' }}
+                      className={`app-button app-button--primary app-button--md text-center sm:w-auto ${cardMuted ? 'opacity-60' : ''}`}
+                    >
+                      {isSeated ? t('lobby.actions.view') : t('lobby.actions.join')}
+                    </Link>
+                    {isSeated && (
+                      <span className="text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
+                        {t('lobby.labels.youAreSeated')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )
             })
           )}
         </div>
-      </section>
+      </Card>
     </div>
   )
 }
