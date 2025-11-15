@@ -1,172 +1,309 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
-interface CreateGameFormState {
-  name: string
-  variant: 'holdem' | 'shortDeck' | 'plo'
-  buyIn: number
+import Card from '../components/ui/Card'
+import Button from '../components/ui/Button'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { useTelegram } from '../hooks/useTelegram'
+import { createTable, type TableSummary, type TableVisibility } from '../services/tables'
+
+interface CreateTableFormState {
+  tableName: string
+  smallBlind: number
+  bigBlind: number
+  startingStack: number
   maxPlayers: number
-  privacy: 'private' | 'public'
-  autoStart: boolean
+  visibility: TableVisibility
+  autoSeatHost: boolean
 }
 
-const variantOptions: Array<CreateGameFormState['variant']> = ['holdem', 'shortDeck', 'plo']
-const privacyOptions: Array<CreateGameFormState['privacy']> = ['private', 'public']
+type ViewState = 'idle' | 'loading' | 'success' | 'error'
+
+const visibilityOptions: Array<TableVisibility> = ['public', 'private']
 
 export default function CreateGamePage() {
   const { t } = useTranslation()
-  const [formState, setFormState] = useState<CreateGameFormState>({
-    name: '',
-    variant: 'holdem',
-    buyIn: 500,
-    maxPlayers: 6,
-    privacy: 'private',
-    autoStart: true,
-  })
-  const [submitted, setSubmitted] = useState(false)
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { initData, ready } = useTelegram()
   const tips = t('createGame.tips', { returnObjects: true }) as string[]
 
-  const handleChange = (field: keyof CreateGameFormState, value: string | number | boolean) => {
-    setFormState((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
+  const visibilityParam = (searchParams.get('visibility') || '').toLowerCase()
+  const defaultVisibility: TableVisibility = visibilityParam === 'private' ? 'private' : 'public'
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSubmitted(true)
-  }
+  const [formState, setFormState] = useState<CreateTableFormState>({
+    tableName: '',
+    smallBlind: 25,
+    bigBlind: 50,
+    startingStack: 10000,
+    maxPlayers: 6,
+    visibility: defaultVisibility,
+    autoSeatHost: defaultVisibility === 'public',
+  })
+  const [status, setStatus] = useState<ViewState>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [tableResult, setTableResult] = useState<TableSummary | null>(null)
+
+  const handleFieldChange = useCallback(
+    (field: keyof CreateTableFormState, value: string | number | boolean) => {
+      setFormState((prev) => {
+        if (field === 'visibility') {
+          const nextVisibility = value as TableVisibility
+          const autoSeatHost = nextVisibility === 'public' ? prev.autoSeatHost || true : false
+          return {
+            ...prev,
+            visibility: nextVisibility,
+            autoSeatHost,
+          }
+        }
+        return {
+          ...prev,
+          [field]: value,
+        }
+      })
+    },
+    [],
+  )
+
+  const submitDisabled = status === 'loading' || !ready
+
+  const handleSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!initData) {
+        setStatus('error')
+        setErrorMessage(t('createGame.errors.missingAuth'))
+        return
+      }
+
+      setStatus('loading')
+      setErrorMessage(null)
+
+      try {
+        const response = await createTable(
+          {
+            tableName: formState.tableName.trim() || undefined,
+            smallBlind: formState.smallBlind,
+            bigBlind: Math.max(formState.bigBlind, formState.smallBlind * 2),
+            startingStack: formState.startingStack,
+            maxPlayers: formState.maxPlayers,
+            visibility: formState.visibility,
+            autoSeatHost: formState.autoSeatHost,
+          },
+          initData,
+        )
+        setTableResult(response)
+        setStatus('success')
+      } catch (error) {
+        console.error('Failed to create table', error)
+        setErrorMessage(t('createGame.errors.requestFailed'))
+        setStatus('error')
+      }
+    },
+    [formState, initData, t],
+  )
+
+  const resolvedVisibility = useMemo(() => {
+    if (!tableResult) {
+      return formState.visibility
+    }
+    if (typeof tableResult.visibility === 'string') {
+      return tableResult.visibility as TableVisibility
+    }
+    if (tableResult.is_public != null) {
+      return tableResult.is_public ? 'public' : 'private'
+    }
+    if (tableResult.is_private != null) {
+      return tableResult.is_private ? 'private' : 'public'
+    }
+    return formState.visibility
+  }, [formState.visibility, tableResult])
+
+  const visibilitySummary = resolvedVisibility === 'public'
+    ? t('createGame.summary.public')
+    : t('createGame.summary.private')
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">{t('createGame.title')}</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{t('createGame.description')}</p>
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold text-[color:var(--text-primary)]">{t('createGame.title')}</h1>
+        <p className="text-sm text-[color:var(--text-muted)]">{t('createGame.description')}</p>
       </header>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800"
-      >
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="table-name">
-            {t('createGame.form.name')}
+      <Card>
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="table-name">
+              {t('createGame.form.name')}
+            </label>
+            <input
+              id="table-name"
+              type="text"
+              value={formState.tableName}
+              onChange={(event) => handleFieldChange('tableName', event.target.value)}
+              placeholder={t('createGame.form.namePlaceholder') ?? ''}
+              className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <span className="text-sm font-medium text-[color:var(--text-muted)]">{t('createGame.form.visibility')}</span>
+            <SegmentedControl
+              value={formState.visibility}
+              onChange={(next) =>
+                handleFieldChange('visibility', next)
+              }
+              options={visibilityOptions.map((option) => ({
+                value: option,
+                label: t(`createGame.form.visibilityOptions.${option}.label`),
+                description: t(`createGame.form.visibilityOptions.${option}.description`),
+              }))}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="small-blind">
+                {t('createGame.form.smallBlind')}
+              </label>
+              <input
+                id="small-blind"
+                type="number"
+                min={5}
+                value={formState.smallBlind}
+                onChange={(event) => handleFieldChange('smallBlind', Number(event.target.value))}
+                className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="big-blind">
+                {t('createGame.form.bigBlind')}
+              </label>
+              <input
+                id="big-blind"
+                type="number"
+                min={formState.smallBlind * 2}
+                value={formState.bigBlind}
+                onChange={(event) => handleFieldChange('bigBlind', Number(event.target.value))}
+                className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="starting-stack">
+                {t('createGame.form.startingStack')}
+              </label>
+              <input
+                id="starting-stack"
+                type="number"
+                min={1000}
+                step={500}
+                value={formState.startingStack}
+                onChange={(event) => handleFieldChange('startingStack', Number(event.target.value))}
+                className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="max-players">
+                {t('createGame.form.maxPlayers')}
+              </label>
+              <input
+                id="max-players"
+                type="number"
+                min={2}
+                max={9}
+                value={formState.maxPlayers}
+                onChange={(event) => handleFieldChange('maxPlayers', Number(event.target.value))}
+                className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+              />
+            </div>
+          </div>
+
+          <label className="flex items-center justify-between rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)]">
+            <span>{t('createGame.form.autoSeatHost')}</span>
+            <input
+              type="checkbox"
+              checked={formState.autoSeatHost}
+              onChange={(event) => handleFieldChange('autoSeatHost', event.target.checked)}
+              className="h-4 w-4 rounded border-[color:var(--surface-border)] text-[color:var(--accent-start)] focus:ring-[color:var(--accent-start)]"
+            />
           </label>
-          <input
-            id="table-name"
-            type="text"
-            value={formState.name}
-            onChange={(event) => handleChange('name', event.target.value)}
-            placeholder={t('createGame.form.namePlaceholder') ?? ''}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-          />
-        </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="variant">
-              {t('createGame.form.variant')}
-            </label>
-            <select
-              id="variant"
-              value={formState.variant}
-              onChange={(event) =>
-                handleChange('variant', event.target.value as CreateGameFormState['variant'])
-              }
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
-              {variantOptions.map((variant) => (
-                <option key={variant} value={variant}>
-                  {t(`createGame.form.variantOptions.${variant}`)}
-                </option>
-              ))}
-            </select>
-          </div>
+          {status === 'error' && errorMessage && (
+            <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {errorMessage}
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="buy-in">
-              {t('createGame.form.buyIn')}
-            </label>
-            <input
-              id="buy-in"
-              type="number"
-              min={0}
-              value={formState.buyIn}
-              onChange={(event) => handleChange('buyIn', Number(event.target.value))}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-300 dark:bg-gray-900 dark:text-gray-100"
-            />
-          </div>
-        </div>
+          <Button type="submit" block size="lg" disabled={submitDisabled}>
+            {status === 'loading' ? t('common.loading') : t('createGame.form.button')}
+          </Button>
+        </form>
+      </Card>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="max-players">
-              {t('createGame.form.maxPlayers')}
-            </label>
-            <input
-              id="max-players"
-              type="number"
-              min={2}
-              max={9}
-              value={formState.maxPlayers}
-              onChange={(event) => handleChange('maxPlayers', Number(event.target.value))}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-300 dark:bg-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="privacy">
-              {t('createGame.form.privacy')}
-            </label>
-            <select
-              id="privacy"
-              value={formState.privacy}
-              onChange={(event) =>
-                handleChange('privacy', event.target.value as CreateGameFormState['privacy'])
-              }
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
-              {privacyOptions.map((privacy) => (
-                <option key={privacy} value={privacy}>
-                  {t(`createGame.form.privacyOptions.${privacy}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={formState.autoStart}
-            onChange={(event) => handleChange('autoStart', event.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900"
-          />
-          {t('createGame.form.autoStart')}
-        </label>
-
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          {t('createGame.form.button')}
-        </button>
-      </form>
-
-      <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <h2 className="text-lg font-semibold">{t('createGame.tipsTitle')}</h2>
-        <ul className="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+      <Card>
+        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">{t('createGame.tipsTitle')}</h2>
+        <ul className="mt-3 space-y-2 text-sm text-[color:var(--text-muted)]">
           {tips.map((tip, index) => (
             <li key={index}>• {tip}</li>
           ))}
         </ul>
-      </section>
+      </Card>
 
-      {submitted && (
-        <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50 p-5 text-sm text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200">
-          {t('createGame.success')}
-        </div>
+      {status === 'success' && tableResult && (
+        <Card className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-[color:var(--text-primary)]">{t('createGame.successTitle')}</h2>
+            <p className="mt-1 text-sm text-[color:var(--text-muted)]">{visibilitySummary}</p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <span className="text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
+                {t('createGame.summary.tableId')}
+              </span>
+              <p className="text-lg font-semibold text-[color:var(--text-primary)]">#{tableResult.table_id}</p>
+            </div>
+            <div>
+              <span className="text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
+                {t('createGame.summary.tableName')}
+              </span>
+              <p className="text-lg font-semibold text-[color:var(--text-primary)]">
+                {tableResult.table_name || t('createGame.summary.defaultTableName')}
+              </p>
+            </div>
+          </div>
+
+          {resolvedVisibility === 'private' ? (
+            <p className="rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-muted)]">
+              {t('createGame.summary.inviteHint', { code: tableResult.table_id })}
+            </p>
+          ) : (
+            <p className="rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-muted)]">
+              {t('createGame.summary.publicHint')}
+            </p>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              size="lg"
+              variant="primary"
+              className="sm:w-auto"
+              onClick={() => navigate(`/table/${tableResult.table_id}`)}
+            >
+              {t('createGame.summary.openTable')}
+            </Button>
+            <Link
+              to="/lobby"
+              className="app-button app-button--ghost app-button--md text-center sm:w-auto"
+            >
+              {t('createGame.summary.backToLobby')}
+            </Link>
+          </div>
+        </Card>
       )}
     </div>
   )

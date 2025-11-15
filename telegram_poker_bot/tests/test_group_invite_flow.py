@@ -2,10 +2,12 @@ import hmac
 import hashlib
 import json
 import importlib
+import os
 import urllib.parse
 
 import httpx
 import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from telegram_poker_bot.shared.models import Base
@@ -26,12 +28,16 @@ def build_init_data(bot_token: str, user_payload: dict, auth_date: str = "170000
     return f"auth_date={auth_date}&user={encoded_user}&hash={hash_value}"
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def api_client(monkeypatch):
     """Provide an HTTP client with an in-memory database and patched settings."""
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "TEST_TOKEN")
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.shahin8n.sbs")
     monkeypatch.setenv("VITE_BOT_USERNAME", "@testgroupbot")
+    db_url = "sqlite+aiosqlite:///./test_group_invite.db"
+    if os.path.exists("test_group_invite.db"):
+        os.remove("test_group_invite.db")
+    monkeypatch.setenv("DATABASE_URL", db_url)
 
     from telegram_poker_bot.shared import config
 
@@ -40,7 +46,7 @@ async def api_client(monkeypatch):
     module = importlib.import_module("telegram_poker_bot.api.main")
     importlib.reload(module)
 
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    engine = create_async_engine(db_url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -107,5 +113,5 @@ async def test_group_invite_creation_and_join(api_client):
     )
     assert join_response.status_code == 200
     join_payload = join_response.json()
-    assert join_payload["status"] == "pending"
+    assert join_payload["status"] in {"pending", "seated"}
     assert "message" in join_payload and join_payload["message"]

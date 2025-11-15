@@ -23,15 +23,8 @@ function applyThemeClass(mode: ThemeMode) {
     return
   }
   const root = document.documentElement
-  if (mode === 'dark') {
-    root.classList.add('dark')
-  } else {
-    root.classList.remove('dark')
-  }
-  if (document.body) {
-    document.body.style.backgroundColor = mode === 'dark' ? '#121212' : '#FFFFFF'
-    document.body.style.color = mode === 'dark' ? '#E0E0E0' : '#333333'
-  }
+  root.setAttribute('data-theme', mode)
+  root.classList.toggle('dark', mode === 'dark')
 }
 
 function loadStoredTheme(): ThemeMode | null {

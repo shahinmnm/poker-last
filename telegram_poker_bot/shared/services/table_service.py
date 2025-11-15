@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, List, TYPE_CHECKING, Tuple
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from telegram_poker_bot.game_core import runtime as game_runtime
 from telegram_poker_bot.shared.models import (
     User,
     Table,
@@ -121,6 +122,8 @@ async def create_table_with_config(
         is_public=is_public,
         mode=mode.value,
     )
+
+    await game_runtime.refresh_table_runtime(db, table.id)
 
     if auto_seat_creator:
         try:
@@ -306,7 +309,9 @@ async def seat_user_at_table(
         position=position,
         chips=starting_stack,
     )
-    
+
+    await game_runtime.refresh_table_runtime(db, table_id)
+
     return seat
 
 
@@ -339,6 +344,8 @@ async def leave_table(
         user_id=user_id,
         seat_id=seat.id,
     )
+
+    await game_runtime.refresh_table_runtime(db, table_id)
 
     return seat
 
@@ -430,14 +437,18 @@ async def get_table_info(
         for invite in invite_result.scalars():
             if invite.status not in {GroupGameInviteStatus.PENDING, GroupGameInviteStatus.READY}:
                 continue
-            if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
-                continue
+            expires_at = invite.expires_at
+            if expires_at:
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+                if expires_at < datetime.now(timezone.utc):
+                    continue
             table_hint = invite.metadata_json.get("table_id") if invite.metadata_json else None
             if table_hint == table.id:
                 invite_info = {
                     "game_id": invite.game_id,
                     "status": invite.status.value,
-                    "expires_at": invite.expires_at.isoformat() if invite.expires_at else None,
+                    "expires_at": expires_at.isoformat() if expires_at else None,
                 }
                 break
 

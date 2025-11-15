@@ -3,6 +3,7 @@
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import declarative_base
 
 from telegram_poker_bot.shared.config import get_settings
@@ -10,12 +11,19 @@ from telegram_poker_bot.shared.config import get_settings
 settings = get_settings()
 
 # Create async engine
-engine = create_async_engine(
-    settings.database_url,
-    pool_size=settings.database_pool_min_size,
-    max_overflow=settings.database_pool_max_size - settings.database_pool_min_size,
-    echo=settings.trace_sql,
-)
+engine_kwargs = {
+    "echo": settings.trace_sql,
+}
+
+if settings.database_url.startswith("sqlite"):
+    engine_kwargs["poolclass"] = NullPool
+else:
+    engine_kwargs["pool_size"] = settings.database_pool_min_size
+    engine_kwargs["max_overflow"] = (
+        settings.database_pool_max_size - settings.database_pool_min_size
+    )
+
+engine = create_async_engine(settings.database_url, **engine_kwargs)
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(

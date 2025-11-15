@@ -124,8 +124,8 @@ class PokerEngineAdapter:
             "stacks": list(self.state.stacks),
             "street": self.state.street.value if hasattr(self.state.street, "value") else str(self.state.street),
             "status": self.state.status.value if hasattr(self.state.status, "value") else str(self.state.status),
-            "button": self.state.button,
-            "opener": self.state.opener,
+            "button": getattr(self.state, "button", None),
+            "opener": getattr(self.state, "opener", None),
             "board_cards": [str(card) for card in self.state.board_cards] if self.state.board_cards else [],
             "pots": [
                 {

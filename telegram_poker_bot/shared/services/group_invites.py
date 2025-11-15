@@ -107,9 +107,13 @@ async def fetch_invite_by_game_id(
         select(GroupGameInvite).where(GroupGameInvite.game_id == game_id)
     )
     invite = result.scalar_one_or_none()
-    if invite and invite.expires_at < datetime.now(timezone.utc):
-        invite.status = GroupGameInviteStatus.EXPIRED
-        await db.flush()
+    if invite and invite.expires_at:
+        expires_at = invite.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            invite.status = GroupGameInviteStatus.EXPIRED
+            await db.flush()
     return invite
 
 

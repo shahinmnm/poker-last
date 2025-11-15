@@ -91,18 +91,25 @@
   },
   "home": {
     "welcome": "Welcome back{{name, select, undefined {} other {, {{name}}}}}",
-    "tagline": "Choose how you want to play today",
-    "quickActions": {
-      "anonymous": {
-        "title": "Quick seat",
-        "description": "Jump into the next available anonymous table.",
-        "action": "Play now"
+    "tagline": "Set the stakes, choose your audience, and start playing.",
+    "hero": {
+      "badge": "Mini app dashboard",
+      "stats": [
+        { "label": "Hands this week", "value": "0" },
+        { "label": "Active tables", "value": "0" },
+        { "label": "Invites sent", "value": "0" }
+      ]
+    },
+    "actions": {
+      "public": {
+        "label": "Host a public table",
+        "description": "Create a lobby-visible game and let anyone join."
       },
-      "group": {
-        "title": "Play with friends",
-        "description": "Create a private table and share the invite link.",
-        "action": "Create table"
-      }
+      "private": {
+        "label": "Play with friends",
+        "description": "Spin up an invite-only table for your crew."
+      },
+      "viewLobby": "View lobby"
     },
     "primaryMenuTitle": "Main menu",
     "secondaryMenuTitle": "Explore more",
@@ -110,9 +117,9 @@
     "howItWorks": {
       "title": "How it works",
       "steps": [
-        "Choose a mode (Quick seat, Lobby, or Create Game).",
-        "Invite friends or join teammates using the shareable links.",
-        "Make your moves in real time with instant updates."
+        "Pick the table type that matches your vibe.",
+        "Share a link or join from the lobby in one tap.",
+        "Get real-time updates as the game progresses."
       ]
     }
   },
@@ -120,12 +127,12 @@
     "title": "Lobby",
     "myTables": {
       "title": "Your active tables",
-      "empty": "You’re not seated at any tables right now.",
-      "ctaCreate": "Create a table",
-      "ctaBrowse": "Browse public tables"
+      "subtitle": "Tables where you already have a seat.",
+      "empty": "You’re not seated at any tables right now."
     },
-    "activeTables": {
-      "title": "Active tables",
+    "availableTables": {
+      "title": "Public tables",
+      "subtitle": "Hosted by the community and visible to everyone.",
       "empty": "No public tables are open right now."
     },
     "tournaments": {
@@ -145,7 +152,8 @@
       "retry": "Try again"
     },
     "empty": {
-      "public": "No public tables available right now."
+      "public": "No public tables available right now.",
+      "createPublic": "Create a public table"
     },
     "errors": {
       "loadFailed": "We couldn't load the latest tables. Please try again."
@@ -166,6 +174,7 @@
       "open": "Seats open",
       "seated": "You're seated",
       "youHost": "You’re the host",
+      "youAreSeated": "You already have a seat",
       "visibility": {
         "public": "Public",
         "private": "Private"
@@ -179,32 +188,49 @@
   },
   "createGame": {
     "title": "Create Game",
-    "description": "Set up a new table and share the invite with your friends.",
+    "description": "Configure blinds, stack, and visibility in a single flow.",
     "tipsTitle": "Tips",
-    "success": "Table draft saved locally. Share the invite once it's created on the server.",
     "form": {
       "name": "Table name",
       "namePlaceholder": "Friday Night Poker",
-      "variant": "Variant",
-      "variantOptions": {
-        "holdem": "No-Limit Hold'em",
-        "shortDeck": "Short Deck",
-        "plo": "Pot-Limit Omaha"
+      "visibility": "Visibility",
+      "visibilityOptions": {
+        "public": {
+          "label": "Public",
+          "description": "Show in the lobby so anyone can join."
+        },
+        "private": {
+          "label": "Private",
+          "description": "Only players with the invite code can join."
+        }
       },
-      "buyIn": "Buy-in (chips)",
+      "smallBlind": "Small blind",
+      "bigBlind": "Big blind",
+      "startingStack": "Starting stack",
       "maxPlayers": "Maximum players",
-      "privacy": "Privacy",
-      "privacyOptions": {
-        "private": "Private (code required)",
-        "public": "Public (visible in lobby)"
-      },
-      "autoStart": "Auto-start when table is full",
+      "autoSeatHost": "Seat me automatically",
       "button": "Create table"
     },
     "tips": [
-      "Share the invite code directly from the confirmation step.",
-      "Toggle lobby visibility to control who can find your table."
-    ]
+      "You can share the invite code directly from the confirmation screen.",
+      "Public tables instantly appear in the lobby when they're created."
+    ],
+    "errors": {
+      "missingAuth": "We couldn't verify your Telegram session. Try re-opening the mini app.",
+      "requestFailed": "We couldn't create the table. Please try again in a moment."
+    },
+    "successTitle": "Your table is live",
+    "summary": {
+      "public": "Your table is now visible in the public lobby.",
+      "private": "Share the code below with friends to invite them.",
+      "tableId": "Table ID",
+      "tableName": "Display name",
+      "defaultTableName": "Untitled table",
+      "inviteHint": "Share this table ID: {{code}}",
+      "publicHint": "Players can now find this table in the public lobby.",
+      "openTable": "Open table",
+      "backToLobby": "Back to lobby"
+    }
   },
   "joinGame": {
     "title": "Join Game",
