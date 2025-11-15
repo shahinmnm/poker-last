@@ -5,7 +5,6 @@ from enum import Enum as PyEnum
 from typing import Optional
 
 from sqlalchemy import (
-    JSON,
     BigInteger,
     Boolean,
     Column,
@@ -18,6 +17,7 @@ from sqlalchemy import (
     Index,
     event,
 )
+from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -83,7 +83,7 @@ class User(Base):
     username = Column(String(255), nullable=True)
     first_seen_at = Column(DateTime(timezone=True), server_default=func.now())
     last_seen_at = Column(DateTime(timezone=True), onupdate=func.now())
-    stats_blob = Column(JSON, default=dict)
+    stats_blob = Column(JSONB, default=dict)
 
     # Relationships
     seats = relationship("Seat", back_populates="user", cascade="all, delete-orphan")
@@ -112,7 +112,7 @@ class Group(Base):
     tg_chat_id = Column(BigInteger, unique=True, nullable=False, index=True)
     title = Column(String(255), nullable=True)
     type = Column(String(50), nullable=False)  # 'group', 'supergroup', 'channel'
-    settings_json = Column(JSON, default=dict)
+    settings_json = Column(JSONB, default=dict)
 
     # Relationships
     tables = relationship("Table", back_populates="group")
@@ -137,7 +137,7 @@ class Table(Base):
     status = Column(Enum(TableStatus), nullable=False, default=TableStatus.WAITING)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    config_json = Column(JSON, default=dict)
+    config_json = Column(JSONB, default=dict)
     creator_user_id = Column(
         Integer,
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -197,7 +197,7 @@ class Hand(Base):
     table_id = Column(Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True)
     hand_no = Column(Integer, nullable=False)  # Sequential hand number per table
     status = Column(Enum(HandStatus), nullable=False, default=HandStatus.PREFLOP)
-    engine_state_json = Column(JSON, nullable=False)  # Serialized PokerKit State
+    engine_state_json = Column(JSONB, nullable=False)  # Serialized PokerKit State
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     ended_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -294,7 +294,7 @@ class GroupGameInvite(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)
     consumed_at = Column(DateTime(timezone=True), nullable=True)
-    metadata_json = Column(JSON, default=dict)
+    metadata_json = Column(JSONB, default=dict)
 
     creator = relationship("User", back_populates="group_game_invites")
     group = relationship("Group", back_populates="invites")
@@ -345,7 +345,7 @@ class Transaction(Base):
     type = Column(String(50), nullable=False)  # 'deposit', 'withdrawal', 'game_payout', etc.
     amount = Column(Integer, nullable=False)
     status = Column(String(50), nullable=False, default="pending")
-    metadata_json = Column(JSON, default=dict)
+    metadata_json = Column(JSONB, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (Index("idx_transactions_user_created", "user_id", "created_at"),)
