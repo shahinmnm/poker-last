@@ -238,6 +238,7 @@ main() {
   stop_services
   prune_docker_resources
   build_images
+  run_migrations
   start_services
   show_summary
 }
