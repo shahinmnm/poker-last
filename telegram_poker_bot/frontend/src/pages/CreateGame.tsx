@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -25,12 +25,10 @@ const visibilityOptions: Array<TableVisibility> = ['public', 'private']
 export default function CreateGamePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { initData, ready } = useTelegram()
   const tips = t('createGame.tips', { returnObjects: true }) as string[]
 
-  const visibilityParam = (searchParams.get('visibility') || '').toLowerCase()
-  const defaultVisibility: TableVisibility = visibilityParam === 'private' ? 'private' : 'public'
+  const defaultVisibility: TableVisibility = 'private'
 
   const [formState, setFormState] = useState<CreateTableFormState>({
     tableName: '',
@@ -39,7 +37,7 @@ export default function CreateGamePage() {
     startingStack: 10000,
     maxPlayers: 6,
     visibility: defaultVisibility,
-    autoSeatHost: defaultVisibility === 'public',
+    autoSeatHost: false,
   })
   const [status, setStatus] = useState<ViewState>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -127,7 +125,9 @@ export default function CreateGamePage() {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-[color:var(--text-primary)]">{t('createGame.title')}</h1>
+        <h1 className="text-xl font-semibold text-[color:var(--text-primary)] sm:text-2xl">
+          {t('createGame.title')}
+        </h1>
         <p className="text-sm text-[color:var(--text-muted)]">{t('createGame.description')}</p>
       </header>
 
@@ -238,7 +238,7 @@ export default function CreateGamePage() {
             </div>
           )}
 
-          <Button type="submit" block size="lg" disabled={submitDisabled}>
+          <Button type="submit" block size="lg" disabled={submitDisabled} glow>
             {status === 'loading' ? t('common.loading') : t('createGame.form.button')}
           </Button>
         </form>
@@ -291,6 +291,7 @@ export default function CreateGamePage() {
             <Button
               size="lg"
               variant="primary"
+              glow
               className="sm:w-auto"
               onClick={() => navigate(`/table/${tableResult.table_id}`)}
             >

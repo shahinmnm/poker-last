@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
+import Badge from '../components/ui/Badge'
 import SectionHeader from '../components/ui/SectionHeader'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, buildApiUrl, resolveApiUrl, type ApiFetchOptions } from '../utils/apiClient'
@@ -257,7 +258,7 @@ export default function LobbyPage() {
         </div>
         <p className="text-sm text-[color:var(--text-muted)]">{t('lobby.empty.public')}</p>
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          <Link to="/games/create?visibility=public" className="app-button app-button--primary app-button--lg">
+          <Link to="/games/create" className="app-button app-button--primary app-button--lg app-button--glow">
             {t('lobby.empty.createPublic')}
           </Link>
           <Button variant="secondary" onClick={handleRefresh} disabled={isRefreshing}>
@@ -271,7 +272,9 @@ export default function LobbyPage() {
   return (
     <div className="space-y-6 sm:space-y-7">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-[color:var(--text-primary)]">{t('lobby.title')}</h1>
+        <h1 className="text-xl font-semibold text-[color:var(--text-primary)] sm:text-2xl">
+          {t('lobby.title')}
+        </h1>
         <p className="text-sm text-[color:var(--text-muted)]">{t('menu.lobby.description')}</p>
       </header>
 
@@ -312,18 +315,18 @@ export default function LobbyPage() {
                     <div>
                       <span className="block font-semibold text-[color:var(--text-primary)]">{tableName}</span>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--text-muted)]">
-                        <span className="inline-flex items-center rounded-full bg-[color:var(--accent-soft)]/40 px-3 py-1 font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
+                        <Badge variant="success" size="md">
                           {statusLabel}
-                        </span>
+                        </Badge>
                         {isCreator && (
-                          <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
+                          <Badge variant="info" size="md">
                             {t('lobby.labels.youHost')}
-                          </span>
+                          </Badge>
                         )}
                         {seatPosition !== null && (
-                          <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
+                          <Badge variant="muted" size="md">
                             {t('lobby.labels.seated')}
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     </div>
@@ -398,23 +401,23 @@ export default function LobbyPage() {
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex h-7 items-center rounded-full bg-[color:var(--accent-soft)]/50 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
+                      <Badge variant="success" size="md">
                         {resolveStatusLabel(table.status)}
-                      </span>
+                      </Badge>
                       {table.visibility && (
-                        <span className="inline-flex h-7 items-center rounded-full bg-white/10 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
+                        <Badge variant="muted" size="md">
                           {t(`lobby.labels.visibility.${table.visibility}` as const)}
-                        </span>
+                        </Badge>
                       )}
                       {isSeated && (
-                        <span className="inline-flex h-7 items-center rounded-full bg-white/10 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
+                        <Badge variant="info" size="md">
                           {t('lobby.labels.seated')}
-                        </span>
+                        </Badge>
                       )}
                       {isCreator && (
-                        <span className="inline-flex h-7 items-center rounded-full bg-white/10 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-primary)]">
+                        <Badge variant="info" size="md">
                           {t('lobby.labels.youHost')}
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   </div>

@@ -11,14 +11,10 @@ const menuCards = menuTree.filter((item) => item.key !== 'home')
 
 const primaryActions = [
   {
-    key: 'public',
-    to: '/games/create?visibility=public',
-    icon: '🌐',
-  },
-  {
-    key: 'private',
-    to: '/games/create?visibility=private',
+    key: 'create',
+    to: '/games/create',
     icon: '🃏',
+    glow: true,
   },
 ]
 
@@ -45,7 +41,7 @@ export default function HomePage() {
             <p className="text-sm uppercase tracking-[0.3em] text-[color:var(--text-muted)]">
               {t('home.hero.badge')}
             </p>
-            <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
+            <h1 className="mt-2 text-xl font-semibold sm:text-2xl">
               {t('home.welcome', { name: user?.first_name || user?.username })}
             </h1>
             <p className="mt-3 text-sm text-[color:var(--text-muted)]">{t('home.tagline')}</p>
@@ -68,7 +64,7 @@ export default function HomePage() {
           <div className="flex w-full flex-col gap-3 sm:max-w-xs">
             {primaryActions.map((action) => (
               <Link key={action.key} to={action.to} className="w-full">
-                <Button block size="lg" variant={action.key === 'public' ? 'primary' : 'secondary'}>
+                <Button block size="lg" variant="primary" glow={action.glow}>
                   <span className="mr-2 text-xl">{action.icon}</span>
                   {t(`home.actions.${action.key}.label`)}
                 </Button>

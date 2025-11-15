@@ -9,6 +9,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: ButtonSize
   block?: boolean
+  glow?: boolean
 }
 
 const baseClasses =
@@ -26,13 +27,20 @@ const sizeMap: Record<ButtonSize, string> = {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, children, variant = 'primary', size = 'md', block = false, ...rest },
+  { className, children, variant = 'primary', size = 'md', block = false, glow = false, ...rest },
   ref,
 ) {
   return (
     <button
       ref={ref}
-      className={cn(baseClasses, variantMap[variant], sizeMap[size], block && 'w-full', className)}
+      className={cn(
+        baseClasses,
+        variantMap[variant],
+        sizeMap[size],
+        block && 'w-full',
+        glow && variant === 'primary' && 'app-button--glow',
+        className,
+      )}
       {...rest}
     >
       {children}

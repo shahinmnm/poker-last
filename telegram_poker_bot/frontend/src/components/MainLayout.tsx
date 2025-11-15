@@ -27,7 +27,7 @@ export default function MainLayout() {
               <LanguageSelector />
               <Link
                 to="/settings"
-                className="app-button app-button--secondary app-button--md h-9 w-9 items-center justify-center !px-0 text-lg"
+                className="app-button app-button--secondary app-button--md flex h-9 w-9 items-center justify-center !px-0 text-lg"
                 aria-label={t('menu.settings.label')}
               >
                 ⚙️

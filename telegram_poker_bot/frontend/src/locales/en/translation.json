@@ -95,9 +95,18 @@
     "hero": {
       "badge": "Mini app dashboard",
       "stats": [
-        { "label": "Hands this week", "value": "0" },
-        { "label": "Active tables", "value": "0" },
-        { "label": "Invites sent", "value": "0" }
+        {
+          "label": "Hands this week",
+          "value": "0"
+        },
+        {
+          "label": "Active tables",
+          "value": "0"
+        },
+        {
+          "label": "Invites sent",
+          "value": "0"
+        }
       ]
     },
     "actions": {
@@ -109,7 +118,11 @@
         "label": "Play with friends",
         "description": "Spin up an invite-only table for your crew."
       },
-      "viewLobby": "View lobby"
+      "viewLobby": "View lobby",
+      "create": {
+        "label": "Create a table",
+        "description": "Set up a new game - public or private - and start playing."
+      }
     },
     "primaryMenuTitle": "Main menu",
     "secondaryMenuTitle": "Explore more",
@@ -234,27 +247,27 @@
   },
   "joinGame": {
     "title": "Join Game",
-      "description": "Enter an invite code or scan a QR shared by the host.",
-      "success": "Invite accepted. We’ll seat you as soon as the host starts the game.",
+    "description": "Enter an invite code or scan a QR shared by the host.",
+    "success": "Invite accepted. We’ll seat you as soon as the host starts the game.",
     "form": {
       "codeLabel": "Invite code",
-        "codePlaceholder": "Enter invite code",
+      "codePlaceholder": "Enter invite code",
       "joinButton": "Join table",
       "scanButton": "Scan QR",
-        "invalidCode": "Enter a valid invite code (at least 8 characters)."
+      "invalidCode": "Enter a valid invite code (at least 8 characters)."
     },
     "recent": {
-        "title": "Recent invites",
-        "empty": "No recent invites.",
-        "clear": "Clear history",
-        "unknownGroup": "Unknown group",
-        "updated": "Updated {{value}}",
-        "status": {
-          "pending": "Pending",
-          "ready": "Ready",
-          "consumed": "Completed",
-          "expired": "Expired"
-        }
+      "title": "Recent invites",
+      "empty": "No recent invites.",
+      "clear": "Clear history",
+      "unknownGroup": "Unknown group",
+      "updated": "Updated {{value}}",
+      "status": {
+        "pending": "Pending",
+        "ready": "Ready",
+        "consumed": "Completed",
+        "expired": "Expired"
+      }
     }
   },
   "profile": {
@@ -341,104 +354,104 @@
       "save": "Save preferences"
     }
   },
-    "help": {
-      "title": "Help & Support",
-      "howToPlay": {
-        "title": "How to play",
-        "steps": [
-          "Pick a game mode and join a table.",
-          "Follow the dealer actions shown in the table view.",
-          "Make your move using the action buttons."
-        ]
-      },
-      "faq": {
-        "title": "Frequently asked questions",
-        "items": [
-          {
-            "question": "How do I invite friends?",
-            "answer": "Create a table and share the invite code or link."
-          },
-          {
-            "question": "Can I play on desktop?",
-            "answer": "Yes, open the mini app in Telegram Desktop or Web."
-          }
-        ]
-      },
-      "support": {
-        "title": "Need more help?",
-        "description": "Contact support via the bot or email support@poker.shahin8n.sbs."
-      }
+  "help": {
+    "title": "Help & Support",
+    "howToPlay": {
+      "title": "How to play",
+      "steps": [
+        "Pick a game mode and join a table.",
+        "Follow the dealer actions shown in the table view.",
+        "Make your move using the action buttons."
+      ]
     },
-    "groupInvite": {
-      "title": "Invite your group",
-      "subtitle": "Share the link below so everyone can add the bot to your group, {{name, defaultValue=player}}.",
-      "status": {
-        "generating": "Creating your group link..."
-      },
-      "fields": {
-        "linkLabel": "Group invite link",
-        "miniAppLinkLabel": "Mini app link"
-      },
-      "meta": {
-        "expires": "Expires on {{value}}"
-      },
-      "instructions": {
-        "title": "How to start the group game",
-        "forward": "Forward the link to your Telegram group and add the bot.",
-        "telegramMessage": "We also sent you a Telegram message with a share button.",
-        "addBot": "After the bot joins, open the mini app to launch the table."
-      },
-      "actions": {
-        "copy": "Copy link",
-        "share": "Share link",
-        "regenerate": "Generate new link",
-        "openMiniApp": "Open mini app",
-        "retry": "Try again"
-      },
-      "toast": {
-        "copied": "Link copied!",
-        "copiedGroupLink": "Group link copied!",
-        "copiedMiniAppLink": "Mini app link copied!"
-      },
-      "errors": {
-        "missingInit": "We could not verify your Telegram session. Open the mini app from the bot to try again.",
-        "unauthorized": "We were unable to authenticate you. Please reopen the mini app from Telegram.",
-        "requestFailed": "We couldn't generate the link. Please try again in a moment.",
-        "copyFailed": "Copy failed. Please copy the link manually.",
-        "shareFailed": "We couldn't open the share sheet. Copy the link instead."
-      },
-      "share": {
-        "title": "Join my poker game",
-        "text": "Add the bot to our group and open the table: {{link}}"
-      }
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "question": "How do I invite friends?",
+          "answer": "Create a table and share the invite code or link."
+        },
+        {
+          "question": "Can I play on desktop?",
+          "answer": "Yes, open the mini app in Telegram Desktop or Web."
+        }
+      ]
     },
-    "groupJoin": {
-      "title": "Joining your group game",
-      "subtitle": "We’re validating the invitation and getting your seat ready.",
-      "status": {
-        "loading": "Checking the group invite...",
-        "joining": "Linking you to the group table..."
-      },
-      "register": {
-        "message": "You need to register with the bot before joining the group game.",
-        "action": "Register now"
-      },
-      "meta": {
-        "groupLabel": "Group: {{title}}"
-      },
-      "actions": {
-        "openTable": "Open group table",
-        "backHome": "Return home",
-        "retry": "Retry"
-      },
-      "errors": {
-        "missingInit": "We couldn't authenticate your session. Please reopen the mini app from Telegram.",
-        "notFound": "This group invite was not found. Ask the host for a new link.",
-        "expired": "This group invite has expired. Request a fresh link from the host.",
-        "requestFailed": "We couldn't join the group right now. Please try again."
-      },
-      "missingParam": "We couldn't determine which group invite to open. Follow the link shared in Telegram again."
+    "support": {
+      "title": "Need more help?",
+      "description": "Contact support via the bot or email support@poker.shahin8n.sbs."
+    }
+  },
+  "groupInvite": {
+    "title": "Invite your group",
+    "subtitle": "Share the link below so everyone can add the bot to your group, {{name, defaultValue=player}}.",
+    "status": {
+      "generating": "Creating your group link..."
     },
+    "fields": {
+      "linkLabel": "Group invite link",
+      "miniAppLinkLabel": "Mini app link"
+    },
+    "meta": {
+      "expires": "Expires on {{value}}"
+    },
+    "instructions": {
+      "title": "How to start the group game",
+      "forward": "Forward the link to your Telegram group and add the bot.",
+      "telegramMessage": "We also sent you a Telegram message with a share button.",
+      "addBot": "After the bot joins, open the mini app to launch the table."
+    },
+    "actions": {
+      "copy": "Copy link",
+      "share": "Share link",
+      "regenerate": "Generate new link",
+      "openMiniApp": "Open mini app",
+      "retry": "Try again"
+    },
+    "toast": {
+      "copied": "Link copied!",
+      "copiedGroupLink": "Group link copied!",
+      "copiedMiniAppLink": "Mini app link copied!"
+    },
+    "errors": {
+      "missingInit": "We could not verify your Telegram session. Open the mini app from the bot to try again.",
+      "unauthorized": "We were unable to authenticate you. Please reopen the mini app from Telegram.",
+      "requestFailed": "We couldn't generate the link. Please try again in a moment.",
+      "copyFailed": "Copy failed. Please copy the link manually.",
+      "shareFailed": "We couldn't open the share sheet. Copy the link instead."
+    },
+    "share": {
+      "title": "Join my poker game",
+      "text": "Add the bot to our group and open the table: {{link}}"
+    }
+  },
+  "groupJoin": {
+    "title": "Joining your group game",
+    "subtitle": "We’re validating the invitation and getting your seat ready.",
+    "status": {
+      "loading": "Checking the group invite...",
+      "joining": "Linking you to the group table..."
+    },
+    "register": {
+      "message": "You need to register with the bot before joining the group game.",
+      "action": "Register now"
+    },
+    "meta": {
+      "groupLabel": "Group: {{title}}"
+    },
+    "actions": {
+      "openTable": "Open group table",
+      "backHome": "Return home",
+      "retry": "Retry"
+    },
+    "errors": {
+      "missingInit": "We couldn't authenticate your session. Please reopen the mini app from Telegram.",
+      "notFound": "This group invite was not found. Ask the host for a new link.",
+      "expired": "This group invite has expired. Request a fresh link from the host.",
+      "requestFailed": "We couldn't join the group right now. Please try again."
+    },
+    "missingParam": "We couldn't determine which group invite to open. Follow the link shared in Telegram again."
+  },
   "table": {
     "loading": "Loading table...",
     "notFound": "Table not found",
@@ -487,7 +500,8 @@
       "leaving": "Leaving...",
       "starting": "Starting...",
       "refresh": "Refresh",
-      "retry": "Try again"
+      "retry": "Try again",
+      "delete": "Delete table"
     },
     "messages": {
       "readyToStart": "Ready to shuffle up.",
@@ -509,14 +523,26 @@
     "toast": {
       "seated": "Seat reserved.",
       "started": "Game starting now!",
-      "left": "You left the table."
+      "left": "You left the table.",
+      "deleted": "Table deleted successfully."
     },
     "errors": {
       "loadFailed": "We couldn’t load the table. Please try again.",
       "actionFailed": "We couldn’t complete that action. Please try again.",
       "unauthorized": "We couldn’t verify your session. Reopen the mini app from Telegram.",
       "notFound": "We couldn’t find this table. Ask the host for a fresh link.",
-      "startNotAllowed": "Only the table host can start the game."
+      "startNotAllowed": "Only the table host can start the game.",
+      "deleteFailed": "Failed to delete table. Please try again."
+    },
+    "labels": {
+      "youHost": "You're the host",
+      "seated": "Seated"
+    },
+    "confirmDelete": {
+      "message": "Are you sure you want to delete this table?",
+      "warning": "This action cannot be undone. All players will be removed.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
     }
   }
 }
