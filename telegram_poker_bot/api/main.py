@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 import json
 import hmac
 import hashlib
-from urllib.parse import parse_qsl
+from urllib.parse import parse_qsl, urlparse
 
 from fastapi import (
     FastAPI,
@@ -53,14 +53,33 @@ settings = get_settings()
 configure_logging()
 logger = get_logger(__name__)
 
-app = FastAPI(
+
+def _derive_api_path_prefix(api_url: Optional[str]) -> str:
+    """Extract a normalized path prefix from the configured API URL."""
+
+    if not api_url:
+        return ""
+
+    parsed = urlparse(api_url)
+    if parsed.scheme or parsed.netloc:
+        candidate = parsed.path or ""
+    else:
+        candidate = api_url
+
+    normalized = "/" + candidate.strip("/") if candidate.strip("/") else ""
+    if normalized == "/":
+        return ""
+    return normalized
+
+
+api_app = FastAPI(
     title="Telegram Poker Bot API",
     description="REST and WebSocket API for Telegram Poker Bot Mini App",
     version="1.0.0",
 )
 
 # CORS middleware
-app.add_middleware(
+api_app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins.split(",") if "," in settings.cors_origins else [settings.cors_origins],
     allow_credentials=True,
@@ -323,13 +342,13 @@ async def send_invite_share_message(
         )
 
 
-@app.get("/health")
+@api_app.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok", "service": "api"}
 
 
-@app.get("/users/me", response_model=UserProfileResponse)
+@api_app.get("/users/me", response_model=UserProfileResponse)
 async def get_current_user_profile(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -365,7 +384,7 @@ async def get_current_user_profile(
     )
 
 
-@app.post("/users/register", response_model=UserProfileResponse)
+@api_app.post("/users/register", response_model=UserProfileResponse)
 async def register_current_user(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -391,7 +410,7 @@ async def register_current_user(
     )
 
 
-@app.post(
+@api_app.post(
     "/group-games/invites",
     response_model=GroupInviteResponse,
     status_code=status.HTTP_201_CREATED,
@@ -477,7 +496,7 @@ async def create_group_game_invite(
     )
 
 
-@app.get(
+@api_app.get(
     "/group-games/invites/{game_id}",
     response_model=GroupInviteStatusResponse,
 )
@@ -520,7 +539,7 @@ async def get_group_game_invite(
     )
 
 
-@app.post(
+@api_app.post(
     "/group-games/invites/{game_id}/attend",
     response_model=GroupInviteJoinResponse,
 )
@@ -603,7 +622,7 @@ async def attend_group_game_invite(
         )
 
 
-@app.get("/tables/{table_id}")
+@api_app.get("/tables/{table_id}")
 async def get_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -629,7 +648,7 @@ async def get_table(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@app.get("/tables")
+@api_app.get("/tables")
 async def list_tables(
     mode: Optional[str] = None,
     limit: int = 20,
@@ -680,7 +699,7 @@ async def list_tables(
     return {"tables": tables}
 
 
-@app.post("/tables", status_code=status.HTTP_201_CREATED)
+@api_app.post("/tables", status_code=status.HTTP_201_CREATED)
 async def create_table(
     small_blind: int = 25,
     big_blind: int = 50,
@@ -746,7 +765,7 @@ async def create_table(
     return table_info
 
 
-@app.post("/tables/{table_id}/sit")
+@api_app.post("/tables/{table_id}/sit")
 async def sit_at_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -782,7 +801,7 @@ async def sit_at_table(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/tables/{table_id}/leave")
+@api_app.post("/tables/{table_id}/leave")
 async def leave_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -812,7 +831,7 @@ async def leave_table(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/tables/{table_id}/start")
+@api_app.post("/tables/{table_id}/start")
 async def start_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -850,7 +869,7 @@ async def start_table(
     )
 
 
-@app.get("/users/me/stats")
+@api_app.get("/users/me/stats")
 async def get_my_stats(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -869,7 +888,7 @@ async def get_my_stats(
     return stats
 
 
-@app.get("/users/me/balance")
+@api_app.get("/users/me/balance")
 async def get_my_balance(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -893,7 +912,7 @@ async def get_my_balance(
     return {"balance": balance}
 
 
-@app.get("/users/me/tables")
+@api_app.get("/users/me/tables")
 async def get_my_tables(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -912,7 +931,7 @@ async def get_my_tables(
     return {"tables": tables}
 
 
-@app.get("/users/me/history")
+@api_app.get("/users/me/history")
 async def get_my_history(
     limit: int = 10,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -932,7 +951,7 @@ async def get_my_history(
     return {"games": games}
 
 
-@app.post("/tables/{table_id}/actions")
+@api_app.post("/tables/{table_id}/actions")
 async def submit_action(
     table_id: int,
     action: ActionRequest,
@@ -977,7 +996,7 @@ async def submit_action(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.websocket("/ws/{table_id}")
+@api_app.websocket("/ws/{table_id}")
 async def websocket_endpoint(websocket: WebSocket, table_id: int):
     """
     WebSocket endpoint for real-time table updates.
@@ -1002,6 +1021,17 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
         manager.disconnect(websocket, table_id)
 
 
+_api_path_prefix = _derive_api_path_prefix(settings.vite_api_url)
+if _api_path_prefix:
+    logger.info("Mounting API under prefix", prefix=_api_path_prefix)
+    container_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    container_app.mount(_api_path_prefix, api_app)
+    app = container_app
+else:
+    app = api_app
+
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
