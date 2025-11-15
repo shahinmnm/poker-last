@@ -102,6 +102,11 @@ stop_services() {
   fi
 }
 
+start_data_services() {
+  log_step "Starting data services (postgres, redis)"
+  compose up -d postgres redis
+}
+
 prune_docker_resources() {
   if [[ "${SKIP_PRUNE}" == "true" ]]; then
     log_info "Skipping Docker prune (--skip-prune)"
@@ -238,6 +243,7 @@ main() {
   stop_services
   prune_docker_resources
   build_images
+  start_data_services
   run_migrations
   start_services
   show_summary
