@@ -2,7 +2,14 @@ const DEFAULT_HEADERS: HeadersInit = {
   Accept: 'application/json',
 }
 
-const API_BASE_CACHE: { api?: string; ws?: string } = {}
+type ApiBaseKind = 'none' | 'relative' | 'absolute'
+
+interface ApiBaseInfo {
+  kind: ApiBaseKind
+  value: string
+}
+
+const API_BASE_CACHE: { api?: ApiBaseInfo; ws?: string } = {}
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, '')
@@ -12,65 +19,100 @@ function ensureLeadingSlash(path: string) {
   return path.startsWith('/') ? path : `/${path}`
 }
 
-export function getApiBaseUrl(): string {
-  if (API_BASE_CACHE.api !== undefined) {
+function getApiBaseInfo(): ApiBaseInfo {
+  if (API_BASE_CACHE.api) {
     return API_BASE_CACHE.api
   }
 
   const raw = typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_URL : undefined
   const trimmed = typeof raw === 'string' ? raw.trim() : ''
 
-  if (trimmed) {
-    API_BASE_CACHE.api = normalizeBaseUrl(trimmed)
-    return API_BASE_CACHE.api
+  if (!trimmed) {
+    const info: ApiBaseInfo = { kind: 'none', value: '' }
+    API_BASE_CACHE.api = info
+    return info
   }
 
-  // Default to /api for production behind Nginx
-  API_BASE_CACHE.api = '/api'
-  return API_BASE_CACHE.api
+  if (/^https?:\/\//i.test(trimmed)) {
+    const info: ApiBaseInfo = { kind: 'absolute', value: normalizeBaseUrl(trimmed) }
+    API_BASE_CACHE.api = info
+    return info
+  }
+
+  if (trimmed.startsWith('/')) {
+    const info: ApiBaseInfo = { kind: 'relative', value: normalizeBaseUrl(trimmed) }
+    API_BASE_CACHE.api = info
+    return info
+  }
+
+  const fallback: ApiBaseInfo = { kind: 'absolute', value: normalizeBaseUrl(trimmed) }
+  API_BASE_CACHE.api = fallback
+  return fallback
+}
+
+export function getApiBaseUrl(): string {
+  return getApiBaseInfo().value
+}
+
+export function buildApiUrl(endpoint: string): string {
+  if (/^https?:\/\//i.test(endpoint)) {
+    return endpoint
+  }
+
+  const { kind, value } = getApiBaseInfo()
+  const path = ensureLeadingSlash(endpoint)
+
+  if (kind === 'none') {
+    return path
+  }
+
+  if (kind === 'relative') {
+    return `${value}${path}`
+  }
+
+  try {
+    return new URL(path, value).toString()
+  } catch {
+    return `${value}${path}`
+  }
 }
 
 export function resolveApiUrl(endpoint: string, query?: Record<string, unknown>): string {
-  if (/^https?:\/\//i.test(endpoint)) {
-    const absolute = new URL(endpoint)
-    if (query) {
-      Object.entries(query).forEach(([key, value]) => {
-        if (value === undefined || value === null) {
-          return
-        }
-        absolute.searchParams.set(key, String(value))
-      })
-    }
-    return absolute.toString()
-  }
+  const target = buildApiUrl(endpoint)
 
-  const baseUrl = getApiBaseUrl()
-  const target = baseUrl ? `${baseUrl}${ensureLeadingSlash(endpoint)}` : ensureLeadingSlash(endpoint)
   if (!query || Object.keys(query).length === 0) {
     return target
   }
 
-  const baseForUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : undefined)
-  if (!baseForUrl) {
-    const searchParams = new URLSearchParams()
-    Object.entries(query).forEach(([key, value]) => {
-      if (value === undefined || value === null) {
-        return
-      }
-      searchParams.set(key, String(value))
-    })
-    const suffix = searchParams.toString()
-    return suffix ? `${target}?${suffix}` : target
+  const isAbsolute = /^https?:\/\//i.test(target)
+
+  if (isAbsolute) {
+    try {
+      const url = new URL(target)
+      Object.entries(query).forEach(([key, value]) => {
+        if (value === undefined || value === null) {
+          return
+        }
+        url.searchParams.set(key, String(value))
+      })
+      return url.toString()
+    } catch {
+      // fall through to string-based handling below
+    }
   }
 
-  const url = new URL(target, baseForUrl)
+  const searchParams = new URLSearchParams()
   Object.entries(query).forEach(([key, value]) => {
     if (value === undefined || value === null) {
       return
     }
-    url.searchParams.set(key, String(value))
+    searchParams.set(key, String(value))
   })
-  return url.toString()
+  const suffix = searchParams.toString()
+  if (!suffix) {
+    return target
+  }
+  return `${target}${target.includes('?') ? '&' : '?'}${suffix}`
 }
 
 export function getWebSocketBaseUrl(): string {
@@ -78,23 +120,29 @@ export function getWebSocketBaseUrl(): string {
     return API_BASE_CACHE.ws
   }
 
-  const apiBase = getApiBaseUrl()
-  if (!apiBase) {
+  const { kind, value } = getApiBaseInfo()
+
+  if (!value) {
     API_BASE_CACHE.ws = ''
     return API_BASE_CACHE.ws
   }
 
-  if (apiBase.startsWith('https://')) {
-    API_BASE_CACHE.ws = `wss://${apiBase.slice('https://'.length)}`
+  if (kind === 'absolute') {
+    if (value.startsWith('https://')) {
+      API_BASE_CACHE.ws = `wss://${value.slice('https://'.length)}`
+      return API_BASE_CACHE.ws
+    }
+
+    if (value.startsWith('http://')) {
+      API_BASE_CACHE.ws = `ws://${value.slice('http://'.length)}`
+      return API_BASE_CACHE.ws
+    }
+
+    API_BASE_CACHE.ws = value
     return API_BASE_CACHE.ws
   }
 
-  if (apiBase.startsWith('http://')) {
-    API_BASE_CACHE.ws = `ws://${apiBase.slice('http://'.length)}`
-    return API_BASE_CACHE.ws
-  }
-
-  API_BASE_CACHE.ws = apiBase
+  API_BASE_CACHE.ws = value
   return API_BASE_CACHE.ws
 }
 
