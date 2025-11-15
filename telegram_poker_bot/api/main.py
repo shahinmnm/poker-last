@@ -39,6 +39,7 @@ from telegram_poker_bot.shared.models import (
     Group,
     GroupGameInviteStatus,
 )
+from telegram_poker_bot.shared.types import GameMode
 from telegram_poker_bot.shared.services.group_invites import (
     create_invite,
     fetch_invite_by_game_id,
@@ -52,6 +53,8 @@ from telegram_poker_bot.game_core import TableManager, get_matchmaking_pool
 settings = get_settings()
 configure_logging()
 logger = get_logger(__name__)
+
+DEFAULT_API_PREFIX = "/api"
 
 
 def _derive_api_path_prefix(api_url: Optional[str]) -> str:
@@ -1022,13 +1025,25 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
 
 
 _api_path_prefix = _derive_api_path_prefix(settings.vite_api_url)
+mount_targets = {"/"}
+
 if _api_path_prefix:
-    logger.info("Mounting API under prefix", prefix=_api_path_prefix)
-    container_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-    container_app.mount(_api_path_prefix, api_app)
-    app = container_app
+    mount_targets.add(_api_path_prefix)
 else:
+    mount_targets.add(DEFAULT_API_PREFIX)
+
+if len(mount_targets) == 1:
     app = api_app
+else:
+    logger.info(
+        "Mounting API under multiple prefixes",
+        prefixes=sorted(mount_targets),
+    )
+    container_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    # Mount longer paths first so more specific prefixes take precedence.
+    for prefix in sorted(mount_targets, key=len, reverse=True):
+        container_app.mount(prefix, api_app)
+    app = container_app
 
 
 if __name__ == "__main__":
