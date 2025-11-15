@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import Card from '../components/ui/Card'
+import Button from '../components/ui/Button'
 import LanguageSelector from '../components/LanguageSelector'
 import { useTheme } from '../providers/ThemeProvider'
 
@@ -12,58 +14,63 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">{t('settings.title')}</h1>
+      <header className="space-y-2">
+        <h1 className="text-xl font-semibold text-[color:var(--text-primary)] sm:text-2xl">
+          {t('settings.title')}
+        </h1>
       </header>
 
-      <section id="language" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <h2 className="text-lg font-semibold">{t('settings.sections.language.title')}</h2>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+      <Card>
+        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+          {t('settings.sections.language.title')}
+        </h2>
+        <p className="mt-1 text-sm text-[color:var(--text-muted)]">
           {t('settings.sections.language.description')}
         </p>
         <div className="mt-4">
           <LanguageSelector />
         </div>
-      </section>
+      </Card>
 
-      <section id="preferences" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <h2 className="text-lg font-semibold">{t('settings.sections.appearance.title')}</h2>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+      <Card>
+        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+          {t('settings.sections.appearance.title')}
+        </h2>
+        <p className="mt-1 text-sm text-[color:var(--text-muted)]">
           {t('settings.sections.appearance.description')}
         </p>
-        <label className="mt-4 flex items-center gap-3 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={darkMode}
-              onChange={(event) => setMode(event.target.checked ? 'dark' : 'light')}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900"
-            />
+        <label className="mt-4 flex items-center gap-3 text-sm font-medium text-[color:var(--text-primary)]">
+          <input
+            type="checkbox"
+            checked={darkMode}
+            onChange={(event) => setMode(event.target.checked ? 'dark' : 'light')}
+            className="h-4 w-4 rounded border-[color:var(--surface-border)] text-[color:var(--accent-start)] focus:ring-[color:var(--accent-start)]"
+          />
           {t('settings.toggles.darkMode')}
         </label>
-      </section>
+      </Card>
 
-      <section id="notifications" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <h2 className="text-lg font-semibold">{t('settings.sections.notifications.title')}</h2>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+      <Card>
+        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+          {t('settings.sections.notifications.title')}
+        </h2>
+        <p className="mt-1 text-sm text-[color:var(--text-muted)]">
           {t('settings.sections.notifications.description')}
         </p>
-        <label className="mt-4 flex items-center gap-3 text-sm font-medium">
+        <label className="mt-4 flex items-center gap-3 text-sm font-medium text-[color:var(--text-primary)]">
           <input
             type="checkbox"
             checked={notifications}
             onChange={(event) => setNotifications(event.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900"
+            className="h-4 w-4 rounded border-[color:var(--surface-border)] text-[color:var(--accent-start)] focus:ring-[color:var(--accent-start)]"
           />
           {t('settings.toggles.notifications')}
         </label>
-      </section>
+      </Card>
 
-      <button
-        type="button"
-        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-      >
+      <Button block size="lg">
         {t('settings.actions.save')}
-      </button>
+      </Button>
     </div>
   )
 }
