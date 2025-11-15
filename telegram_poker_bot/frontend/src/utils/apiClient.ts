@@ -28,9 +28,9 @@ function getApiBaseInfo(): ApiBaseInfo {
   const trimmed = typeof raw === 'string' ? raw.trim() : ''
 
   if (!trimmed) {
-    const info: ApiBaseInfo = { kind: 'none', value: '' }
-    API_BASE_CACHE.api = info
-    return info
+    const fallback: ApiBaseInfo = { kind: 'relative', value: '/api' }
+    API_BASE_CACHE.api = fallback
+    return fallback
   }
 
   if (/^https?:\/\//i.test(trimmed)) {
