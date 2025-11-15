@@ -500,7 +500,8 @@
       "leaving": "Leaving...",
       "starting": "Starting...",
       "refresh": "Refresh",
-      "retry": "Try again"
+      "retry": "Try again",
+      "delete": "Delete table"
     },
     "messages": {
       "readyToStart": "Ready to shuffle up.",
@@ -522,14 +523,26 @@
     "toast": {
       "seated": "Seat reserved.",
       "started": "Game starting now!",
-      "left": "You left the table."
+      "left": "You left the table.",
+      "deleted": "Table deleted successfully."
     },
     "errors": {
       "loadFailed": "We couldn’t load the table. Please try again.",
       "actionFailed": "We couldn’t complete that action. Please try again.",
       "unauthorized": "We couldn’t verify your session. Reopen the mini app from Telegram.",
       "notFound": "We couldn’t find this table. Ask the host for a fresh link.",
-      "startNotAllowed": "Only the table host can start the game."
+      "startNotAllowed": "Only the table host can start the game.",
+      "deleteFailed": "Failed to delete table. Please try again."
+    },
+    "labels": {
+      "youHost": "You're the host",
+      "seated": "Seated"
+    },
+    "confirmDelete": {
+      "message": "Are you sure you want to delete this table?",
+      "warning": "This action cannot be undone. All players will be removed.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
     }
   }
 }
