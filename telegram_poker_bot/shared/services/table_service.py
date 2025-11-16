@@ -32,15 +32,23 @@ if TYPE_CHECKING:  # pragma: no cover - import for typing only
 PUBLIC_TABLE_CACHE_PREFIX = "lobby:public_tables"
 PUBLIC_TABLE_CACHE_KEYS = f"{PUBLIC_TABLE_CACHE_PREFIX}:keys"
 TABLE_EXPIRATION_MINUTES = 10
+INVITE_CODE_LENGTH = 6
+INVITE_CODE_FALLBACK_LENGTH = 8
 
 
-def _generate_invite_code(length: int = 6) -> str:
+def _generate_invite_code(length: int = INVITE_CODE_LENGTH) -> str:
     """Generate a random invite code for private tables."""
     # Use uppercase letters and digits for readability
     alphabet = string.ascii_uppercase + string.digits
     # Exclude similar-looking characters: O, 0, I, 1
     alphabet = alphabet.replace('O', '').replace('I', '').replace('0', '').replace('1', '')
     return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+def normalize_invite_code(raw: str) -> str:
+    """Normalize an invite code for comparisons."""
+
+    return raw.strip().upper()
 
 
 def _is_table_private(config: Dict[str, Any]) -> bool:
@@ -119,7 +127,7 @@ async def create_table_with_config(
                 break
         if invite_code is None:
             # Fallback to longer code
-            invite_code = _generate_invite_code(length=8)
+            invite_code = _generate_invite_code(length=INVITE_CODE_FALLBACK_LENGTH)
     
     # Set expiration time (10 minutes from now)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=TABLE_EXPIRATION_MINUTES)
@@ -350,6 +358,53 @@ async def seat_user_at_table(
     return seat
 
 
+async def get_table_by_invite_code(db: AsyncSession, invite_code: str) -> Table:
+    """Fetch a non-expired private table by invite code."""
+
+    normalized = normalize_invite_code(invite_code)
+    if not normalized:
+        raise ValueError("Invalid invite code")
+
+    result = await db.execute(select(Table).where(Table.invite_code == normalized))
+    table = result.scalar_one_or_none()
+
+    if not table:
+        raise ValueError("Invite code not found")
+
+    now = datetime.now(timezone.utc)
+    if table.expires_at and table.expires_at <= now:
+        raise ValueError("Table has expired")
+
+    if table.is_public:
+        raise ValueError("Invite code is not linked to a private table")
+
+    return table
+
+
+async def seat_user_by_invite_code(
+    db: AsyncSession,
+    invite_code: str,
+    user_id: int,
+) -> Tuple[Table, Optional[Seat], Optional[str]]:
+    """Seat a user using an invite code, returning the table, seat, and any error."""
+
+    table = await get_table_by_invite_code(db, invite_code)
+
+    try:
+        seat = await seat_user_at_table(db, table.id, user_id)
+    except ValueError as exc:
+        # Allow caller to handle cases where the user is already seated or table is full
+        logger.info(
+            "Join by invite failed to seat user",
+            table_id=table.id,
+            user_id=user_id,
+            error=str(exc),
+        )
+        return table, None, str(exc)
+
+    return table, seat, None
+
+
 async def leave_table(
     db: AsyncSession,
     table_id: int,
@@ -400,14 +455,16 @@ async def get_table_info(
         select(Table).where(Table.id == table_id)
     )
     table = result.scalar_one_or_none()
-    
+
     if not table:
         raise ValueError(f"Table {table_id} not found")
-    
+
+    now = datetime.now(timezone.utc)
     config = table.config_json or {}
     creator_user_id = table.creator_user_id or config.get("creator_user_id")
     is_public = table.is_public if table.is_public is not None else not _is_table_private(config)
     is_private = not is_public
+    is_expired = bool(table.expires_at and table.expires_at <= now)
 
     # Fetch host user if available
     host_user = None
@@ -507,7 +564,7 @@ async def get_table_info(
         "can_join": (
             (not viewer_is_seated)
             and player_count < max_players
-            and (not is_private or viewer_is_creator)
+            and (not is_private or viewer_is_creator or viewer_user_id is not None)
         ),
         "can_leave": viewer_is_seated,
     }
@@ -540,7 +597,10 @@ async def get_table_info(
         "created_at": table.created_at.isoformat() if table.created_at else None,
         "updated_at": table.updated_at.isoformat() if table.updated_at else None,
         "expires_at": table.expires_at.isoformat() if table.expires_at else None,
-        "invite_code": table.invite_code if is_private and viewer_is_creator else None,
+        "is_expired": is_expired,
+        "invite_code": (
+            table.invite_code if is_private and (viewer_is_creator or viewer_is_seated) else None
+        ),
         "players": players,
         "host": host_info,
         "viewer": viewer_info,

@@ -10,6 +10,8 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
+import TableSummary from '../components/tables/TableSummary'
+import type { TableStatusTone } from '../components/lobby/types'
 
 interface TablePlayer {
   user_id: number
@@ -59,6 +61,7 @@ interface TableDetails {
   created_at?: string | null
   updated_at?: string | null
   expires_at?: string | null
+  is_expired?: boolean
   invite_code?: string | null
   host?: TableHostInfo | null
   players?: TablePlayer[]
@@ -354,6 +357,12 @@ export default function TablePage() {
   const statusLabel = t(`table.status.${tableDetails.status.toLowerCase()}` as const, {
     defaultValue: tableDetails.status,
   })
+  const statusTone: TableStatusTone =
+    tableDetails.status.toLowerCase() === 'active'
+      ? 'running'
+      : tableDetails.status.toLowerCase() === 'ended'
+      ? 'finished'
+      : 'waiting'
 
   return (
     <div className="space-y-6">
@@ -371,89 +380,53 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <Card>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="success" size="md">
-                {statusLabel}
-              </Badge>
-              {tableDetails.visibility && (
-                <Badge variant="muted" size="md">
-                  {t(`table.visibility.${tableDetails.visibility}` as const, {
-                    defaultValue: tableDetails.visibility,
-                  })}
-                </Badge>
-              )}
-              {viewerIsCreator && (
-                <Badge variant="info" size="md">
-                  {t('table.labels.youHost')}
-                </Badge>
-              )}
-              {viewerIsSeated && !viewerIsCreator && (
-                <Badge variant="muted" size="md">
-                  {t('table.labels.seated')}
-                </Badge>
-              )}
-            </div>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
-              {t('table.headerLabel')}
-            </p>
-            <h1 className="mt-1 text-xl font-semibold text-[color:var(--text-primary)] sm:text-2xl">
-              {tableName}
-            </h1>
-            {tableDetails.group_title && (
-              <p className="text-xs text-[color:var(--text-muted)]">
-                {t('table.groupTag', { value: tableDetails.group_title })}
-              </p>
-            )}
-          </div>
-        </div>
-        <dl className="mt-4 grid grid-cols-1 gap-3 text-sm text-[color:var(--text-muted)] sm:grid-cols-2">
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-[0.2em]">
-              {t('table.meta.host')}
-            </dt>
-            <dd className="mt-1 text-base font-medium text-[color:var(--text-primary)]">
-              {hostName || t('table.meta.unknown')}
-              {tableDetails.mode && (
-                <span className="mt-1 block text-xs font-normal text-[color:var(--text-muted)]">
-                  {t(`table.modes.${tableDetails.mode.toLowerCase()}` as const, {
-                    defaultValue: tableDetails.mode,
-                  })}
-                </span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-[0.2em]">
-              {t('table.meta.created')}
-            </dt>
-            <dd className="mt-1">{createdAtText || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-[0.2em]">
-              {t('table.meta.stakes')}
-            </dt>
-            <dd className="mt-1 font-medium">
-              {tableDetails.small_blind}/{tableDetails.big_blind} • {t('table.stacks', { amount: tableDetails.starting_stack })}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-[0.2em]">
-              {t('table.meta.players')}
-            </dt>
-            <dd className="mt-1 font-medium">
-              {tableDetails.player_count} / {tableDetails.max_players}
-            </dd>
-          </div>
-        </dl>
-      </Card>
+      <TableSummary
+        tableName={tableName}
+        chipLabel={`${tableDetails.small_blind}/${tableDetails.big_blind}`}
+        statusBadge={{ label: statusLabel, tone: statusTone }}
+        meta={[
+          {
+            icon: '👤',
+            label: t('table.meta.host'),
+            value: hostName || t('table.meta.unknown'),
+          },
+          {
+            icon: '🪙',
+            label: t('table.meta.stakes'),
+            value: `${tableDetails.small_blind}/${tableDetails.big_blind} • ${t('table.stacks', { amount: tableDetails.starting_stack })}`,
+          },
+          {
+            icon: '👥',
+            label: t('table.meta.players'),
+            value: `${tableDetails.player_count} / ${tableDetails.max_players}`,
+          },
+          {
+            icon: '🕒',
+            label: t('table.meta.created'),
+            value: createdAtText || '—',
+          },
+        ]}
+        badges={[
+          tableDetails.visibility
+            ? {
+                label: t(`table.visibility.${tableDetails.visibility}` as const, {
+                  defaultValue: tableDetails.visibility,
+                }),
+                tone: 'visibility',
+              }
+            : undefined,
+          viewerIsCreator
+            ? { label: t('table.labels.youHost'), tone: 'host' }
+            : viewerIsSeated
+            ? { label: t('table.labels.seated'), tone: 'seated' }
+            : undefined,
+        ].filter(Boolean) as { label: string; tone: 'visibility' | 'host' | 'seated' }[]}
+        subtext={tableDetails.group_title ? t('table.groupTag', { value: tableDetails.group_title }) : undefined}
+        expiresAt={tableDetails.expires_at ?? null}
+      />
 
       {/* Invite Code Section (for private tables) */}
-      {tableDetails.visibility === 'private' && viewerIsCreator && tableDetails.invite_code && (
+      {tableDetails.visibility === 'private' && tableDetails.invite_code && (viewerIsCreator || viewerIsSeated) && (
         <Card>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -465,7 +438,7 @@ export default function TablePage() {
               </span>
             </div>
             <div className="rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] p-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs uppercase tracking-wider text-[color:var(--text-muted)]">
                     {t('table.invite.codeLabel', { defaultValue: 'Invite Code' })}
@@ -474,16 +447,30 @@ export default function TablePage() {
                     {tableDetails.invite_code}
                   </p>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(tableDetails.invite_code || '')
-                    showToast(t('table.invite.copied', { defaultValue: 'Invite code copied!' }))
-                  }}
-                >
-                  {t('table.invite.copy', { defaultValue: 'Copy' })}
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(tableDetails.invite_code || '')
+                      showToast(t('table.invite.copied', { defaultValue: 'Invite code copied!' }))
+                    }}
+                  >
+                    {t('table.invite.copy', { defaultValue: 'Copy' })}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(t('table.invite.shareText', {
+                        defaultValue: 'Join my private table with code',
+                      }))}&url=${encodeURIComponent(tableDetails.invite_code || '')}`
+                      window.open(shareUrl, '_blank')
+                    }}
+                  >
+                    {t('table.invite.share', { defaultValue: 'Share' })}
+                  </Button>
+                </div>
               </div>
             </div>
             <p className="text-xs text-[color:var(--text-muted)]">

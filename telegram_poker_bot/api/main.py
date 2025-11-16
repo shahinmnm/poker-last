@@ -21,7 +21,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -146,6 +146,18 @@ class GroupInviteJoinResponse(BaseModel):
     status: str
     message: str
     group_title: Optional[str] = None
+
+
+class JoinByInviteRequest(BaseModel):
+    """Validated payload for joining a private table by invite code."""
+
+    invite_code: str = Field(
+        ...,
+        min_length=table_service.INVITE_CODE_LENGTH,
+        max_length=table_service.INVITE_CODE_FALLBACK_LENGTH,
+        regex=r"^[A-Za-z0-9]+$",
+        description="Invite code shared by the table host.",
+    )
 
 
 class ActionRequest(BaseModel):
@@ -721,6 +733,63 @@ async def list_tables(
         raise HTTPException(status_code=400, detail=str(exc))
 
     return {"tables": tables}
+
+
+@api_app.post("/tables/join-by-invite")
+async def join_table_by_invite(
+    payload: JoinByInviteRequest,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Join a private table using an invite code."""
+
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, auth)
+    normalized_code = table_service.normalize_invite_code(payload.invite_code)
+
+    try:
+        table, seat, seat_error = await table_service.seat_user_by_invite_code(
+            db,
+            normalized_code,
+            user.id,
+        )
+        table_info = await table_service.get_table_info(
+            db,
+            table.id,
+            viewer_user_id=user.id,
+        )
+        await db.commit()
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    status_value = "seated" if seat else "joined"
+    message = (
+        seat_error
+        or f"Joined {table_info.get('table_name', f'Table #{table.id}') or f'Table #{table.id}'}"
+    )
+
+    if seat_error:
+        lower_error = seat_error.lower()
+        if "already seated" in lower_error:
+            status_value = "already_seated"
+        elif "full" in lower_error:
+            status_value = "full"
+        else:
+            status_value = "pending"
+
+    return {
+        "table_id": table.id,
+        "status": status_value,
+        "message": message,
+        "table": table_info,
+    }
 
 
 @api_app.post("/tables", status_code=status.HTTP_201_CREATED)

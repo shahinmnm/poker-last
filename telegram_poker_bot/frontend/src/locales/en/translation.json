@@ -256,7 +256,12 @@
       "codePlaceholder": "Enter invite code",
       "joinButton": "Join table",
       "scanButton": "Scan QR",
-      "invalidCode": "Enter a valid invite code (at least 8 characters)."
+      "invalidCode": "Enter a valid invite code (at least {{min}} characters).",
+      "authRequired": "Sign in with Telegram to join a private table.",
+      "joinFailed": "Unable to join this table right now."
+    },
+    "preview": {
+      "title": "Table found"
     },
     "recent": {
       "title": "Recent invites",
@@ -462,6 +467,7 @@
     "meta": {
       "host": "Host",
       "created": "Created",
+      "expires": "Expires",
       "stakes": "Stakes",
       "players": "Players",
       "unknown": "Unknown player"
@@ -517,6 +523,8 @@
       "codeLabel": "Invite Code",
       "copy": "Copy",
       "copied": "Invite code copied!",
+      "share": "Share",
+      "shareText": "Join my private table with code",
       "hint": "Share this code with friends to invite them to this private table.",
       "expires": "Invite expires {{value}}",
       "status": {
