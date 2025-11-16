@@ -60,22 +60,22 @@ export function Modal({
   if (!isOpen) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-[var(--space-lg)]">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         ref={modalRef}
         className={cn(
-          'app-card relative z-10 w-full max-w-md p-6 sm:p-7',
+          'app-card relative z-10 w-full max-w-md p-[var(--space-xl)] sm:p-[calc(var(--space-xl)+var(--space-md))]',
           className
         )}
       >
-        <h2 className="text-section-title text-[color:var(--text-primary)]">{title}</h2>
+        <h2 className="text-section-title text-[color:var(--color-text)]">{title}</h2>
         {description && (
-          <p className="mt-2 text-body text-[color:var(--text-muted)]">{description}</p>
+          <p className="mt-[var(--space-sm)] text-body text-[color:var(--color-text-muted)]">{description}</p>
         )}
-        {children && <div className="mt-4">{children}</div>}
+        {children && <div className="mt-[var(--space-lg)]">{children}</div>}
         {(confirmLabel || cancelLabel) && (
-          <div className="mt-6 flex gap-3">
+          <div className="mt-[var(--space-xl)] flex gap-[var(--space-md)]">
             {cancelLabel && (
               <Button variant="secondary" size="md" onClick={onClose} block>
                 {cancelLabel}

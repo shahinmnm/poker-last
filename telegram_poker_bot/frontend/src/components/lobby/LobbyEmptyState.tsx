@@ -8,10 +8,10 @@ interface LobbyEmptyStateProps {
 
 export function LobbyEmptyState({ title, description, action }: LobbyEmptyStateProps) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[color:var(--surface-border)] px-4 py-6 text-center text-sm text-[color:var(--text-muted)]">
-      <div className="space-y-1">
-        <p className="text-[color:var(--text-primary)]">{title}</p>
-        {description && <p className="text-xs text-[color:var(--text-muted)]">{description}</p>}
+    <div className="flex flex-col items-center gap-[var(--space-md)] rounded-[var(--radius-xl)] border border-dashed border-[color:var(--color-border)] px-[var(--space-lg)] py-[var(--space-xl)] text-center text-[var(--font-size-base)] text-[color:var(--color-text-muted)]">
+      <div className="space-y-[var(--space-xs)]">
+        <p className="text-[color:var(--color-text)]">{title}</p>
+        {description && <p className="text-[var(--font-size-sm)] text-[color:var(--color-text-muted)]">{description}</p>}
       </div>
       {action}
     </div>

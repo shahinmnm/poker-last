@@ -67,7 +67,7 @@ export default function Avatar({ size = 'md', className }: AvatarProps) {
     return (
       <div
         className={cn(
-          'animate-pulse rounded-full bg-[color:var(--surface-overlay)]',
+          'animate-pulse rounded-[var(--radius-pill)] bg-[color:var(--color-surface-overlay)]',
           sizeClasses[size],
           className
         )}
@@ -80,14 +80,14 @@ export default function Avatar({ size = 'md', className }: AvatarProps) {
     return (
       <div
         className={cn(
-          'flex items-center justify-center rounded-full bg-gradient-to-br from-[color:var(--accent-start)] to-[color:var(--accent-end)] text-white font-semibold',
+          'flex items-center justify-center rounded-[var(--radius-pill)] bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] text-white font-semibold',
           sizeClasses[size],
           className
         )}
       >
         {size === 'sm' && '🎲'}
-        {size === 'md' && <span className="text-xl">🎲</span>}
-        {size === 'lg' && <span className="text-2xl">🎲</span>}
+        {size === 'md' && <span className="text-[var(--font-size-2xl)]">🎲</span>}
+        {size === 'lg' && <span className="text-[var(--font-size-3xl)]">🎲</span>}
         {size === 'xl' && <span className="text-4xl">🎲</span>}
       </div>
     )
@@ -98,7 +98,7 @@ export default function Avatar({ size = 'md', className }: AvatarProps) {
       src={avatarUrl}
       alt="User avatar"
       className={cn(
-        'rounded-full border-2 border-[color:var(--surface-border)] object-cover',
+        'rounded-[var(--radius-pill)] border-2 border-[color:var(--color-border)] object-cover',
         sizeClasses[size],
         className
       )}

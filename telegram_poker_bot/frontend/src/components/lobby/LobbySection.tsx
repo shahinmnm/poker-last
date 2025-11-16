@@ -15,7 +15,7 @@ export function LobbySection({ id, title, subtitle, action, children }: LobbySec
   return (
     <Card id={id} padding="md">
       <SectionHeader title={title} subtitle={subtitle} action={action} />
-      <div className="mt-4 space-y-2">{children}</div>
+      <div className="mt-[var(--space-lg)] space-y-[var(--space-sm)]">{children}</div>
     </Card>
   )
 }
