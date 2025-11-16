@@ -932,6 +932,14 @@ async def sit_at_table(
         seat = await table_service.seat_user_at_table(db, table_id, user.id)
         await db.commit()
 
+        # Broadcast player joined event to all connected clients
+        await manager.broadcast(table_id, {
+            "type": "player_joined",
+            "user_id": user.id,
+            "position": seat.position,
+            "chips": seat.chips,
+        })
+
         try:
             matchmaking_pool = await get_matchmaking_pool()
             await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
@@ -968,6 +976,12 @@ async def leave_table(
         await table_service.leave_table(db, table_id, user.id)
         await db.commit()
 
+        # Broadcast player left event to all connected clients
+        await manager.broadcast(table_id, {
+            "type": "player_left",
+            "user_id": user.id,
+        })
+
         try:
             matchmaking_pool = await get_matchmaking_pool()
             await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
@@ -995,13 +1009,29 @@ async def start_table(
     user = await ensure_user(db, auth)
 
     try:
+        # Update table status to ACTIVE
         await table_service.start_table(db, table_id, user_id=user.id)
+        await db.commit()
+        
+        # Get table info to broadcast to clients
+        table_info = await table_service.get_table_info(
+            db,
+            table_id,
+            viewer_user_id=user.id,
+        )
+        
+        # Broadcast table state update to all connected clients
+        await manager.broadcast(table_id, {
+            "type": "table_started",
+            "table": table_info,
+        })
+        
+        logger.info("Game started and broadcasted", table_id=table_id, started_by=user.id)
+        
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-
-    await db.commit()
 
     try:
         matchmaking_pool = await get_matchmaking_pool()
@@ -1009,11 +1039,7 @@ async def start_table(
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.warning("Failed to invalidate public table cache after start", error=str(exc))
 
-    return await table_service.get_table_info(
-        db,
-        table_id,
-        viewer_user_id=user.id,
-    )
+    return table_info
 
 
 @api_app.delete("/tables/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1302,6 +1328,14 @@ else:
     # Mount longer paths first so more specific prefixes take precedence.
     for prefix in sorted(mount_targets, key=len, reverse=True):
         container_app.mount(prefix, api_app)
+    
+    # Register WebSocket endpoint directly on container app to ensure it's accessible
+    # WebSocket connections don't work properly when only registered in mounted sub-apps
+    @container_app.websocket("/ws/{table_id}")
+    async def container_websocket_endpoint(websocket: WebSocket, table_id: int):
+        """WebSocket endpoint registered on container app for proper routing."""
+        await websocket_endpoint(websocket, table_id)
+    
     app = container_app
 
 

@@ -160,7 +160,11 @@ export default function TablePage() {
       socket.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data)
-          if (payload?.type === 'action') {
+          // Refresh table data when receiving game events
+          if (payload?.type === 'action' || 
+              payload?.type === 'table_started' || 
+              payload?.type === 'player_joined' || 
+              payload?.type === 'player_left') {
             fetchTable()
           }
         } catch {
