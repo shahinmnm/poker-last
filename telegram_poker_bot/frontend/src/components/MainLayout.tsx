@@ -57,7 +57,7 @@ export default function MainLayout() {
             <div className="flex items-center gap-2">
               {hasActiveTables && (
                 <Link
-                  to={`/table/${activeTables[0].id}`}
+                  to={`/table/${activeTables[0].table_id}`}
                   className="app-button app-button--primary app-button--sm flex items-center gap-1.5 text-xs"
                   title={t('home.actions.resumeGame')}
                 >
