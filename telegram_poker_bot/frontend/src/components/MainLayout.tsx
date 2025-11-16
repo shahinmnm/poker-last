@@ -16,18 +16,18 @@ export default function MainLayout() {
 
   return (
     <div className="relative flex min-h-screen flex-col text-[color:var(--text-primary)]">
-      <header className="sticky top-0 z-30 px-4 pt-3 sm:px-6">
+      <header className="sticky top-0 z-30 px-4 pt-2 sm:px-6">
         <div className="mx-auto w-full max-w-4xl">
-          <div className="app-card app-card--overlay flex items-center justify-between rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3">
-            <Link to="/" className="flex flex-col gap-0.5">
-              <span className="text-sm font-semibold sm:text-base">{t('app.title')}</span>
-              <span className="text-[10px] text-[color:var(--text-muted)] sm:text-xs">{t('app.subtitle')}</span>
+          <div className="app-card app-card--overlay flex items-center justify-between rounded-2xl px-4 py-2 sm:px-5 sm:py-2.5">
+            <Link to="/" className="flex flex-col gap-0.5 leading-tight">
+              <span className="text-[13px] font-semibold sm:text-sm">{t('app.title')}</span>
+              <span className="text-[10px] text-[color:var(--text-muted)] sm:text-[11px]">{t('app.subtitle')}</span>
             </Link>
             <div className="flex items-center gap-2">
               <LanguageSelector />
               <Link
                 to="/settings"
-                className="app-button app-button--secondary app-button--md flex h-8 w-8 items-center justify-center !px-0 text-base"
+                className="app-button app-button--secondary app-button--md flex h-8 w-8 items-center justify-center !px-0 text-sm"
                 aria-label={t('menu.settings.label')}
               >
                 ⚙️
@@ -50,8 +50,8 @@ export default function MainLayout() {
                 cn('app-bottom-nav__link text-[11px] sm:text-xs', isActive && 'is-active')
               }
             >
-              <span className="text-base">{item.icon}</span>
-              <span>{t(item.labelKey)}</span>
+              <span className="text-sm sm:text-base">{item.icon}</span>
+              <span className="leading-tight">{t(item.labelKey)}</span>
             </NavLink>
           ))}
         </div>
