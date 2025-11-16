@@ -163,7 +163,8 @@
         "title": "Settings",
         "subtitle": "Preferences and language"
       },
-      "hint": "Tap any tile to quickly access that feature. Your active tables will show badges."
+      "hint": "Tap any tile to quickly access that feature. Your active tables will show badges.",
+      "activeTablesHint": "You have active games! Tap My Tables to continue playing or start a new one."
     }
   },
   "lobby": {

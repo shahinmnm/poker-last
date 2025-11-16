@@ -1,12 +1,26 @@
 import { useTranslation } from 'react-i18next'
+import { useEffect, useState } from 'react'
 
 import { useTelegram } from '../hooks/useTelegram'
+import { apiFetch } from '../utils/apiClient'
 import Card from '../components/ui/Card'
 import HomeMosaicTile from '../components/ui/HomeMosaicTile'
 
 export default function HomePage() {
-  const { ready } = useTelegram()
+  const { ready, initData } = useTelegram()
   const { t } = useTranslation()
+  const [activeTables, setActiveTables] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!initData) return
+
+    // Fetch active tables to show contextual recommendations
+    apiFetch<{ tables: any[] }>('/users/me/tables', { initData })
+      .then((data) => setActiveTables(data.tables || []))
+      .catch(() => setActiveTables([]))
+  }, [initData])
+
+  const hasActiveTables = activeTables.length > 0
 
   if (!ready) {
     return (
@@ -22,37 +36,43 @@ export default function HomePage() {
       key: 'playPublic',
       icon: '🎲',
       to: '/lobby',
-      badge: undefined, // Could be dynamic: active public table count
+      badge: undefined,
+      highlighted: !hasActiveTables, // Highlight if user has no active tables
     },
     {
       key: 'createPrivate',
       icon: '🃏',
       to: '/games/create?mode=private',
       badge: undefined,
+      highlighted: !hasActiveTables, // Highlight if user has no active tables
     },
     {
       key: 'joinWithCode',
       icon: '➕',
       to: '/games/join',
       badge: undefined,
+      highlighted: false,
     },
     {
       key: 'myTables',
       icon: '📊',
       to: '/profile/stats',
-      badge: undefined, // Could be dynamic: active tables count
+      badge: activeTables.length > 0 ? activeTables.length : undefined,
+      highlighted: hasActiveTables, // Highlight if user has active tables
     },
     {
       key: 'profile',
       icon: '👤',
       to: '/profile',
       badge: undefined,
+      highlighted: false,
     },
     {
       key: 'settings',
       icon: '⚙️',
       to: '/settings',
       badge: undefined,
+      highlighted: false,
     },
   ]
 
@@ -75,6 +95,7 @@ export default function HomePage() {
             subtitle={t(`home.mosaic.${tile.key}.subtitle`)}
             badge={tile.badge}
             to={tile.to}
+            highlighted={tile.highlighted}
           />
         ))}
       </div>
@@ -82,7 +103,9 @@ export default function HomePage() {
       {/* Contextual hint */}
       <Card padding="md">
         <p className="text-center text-xs text-[color:var(--text-muted)]">
-          {t('home.mosaic.hint')}
+          {hasActiveTables 
+            ? t('home.mosaic.activeTablesHint') 
+            : t('home.mosaic.hint')}
         </p>
       </Card>
     </div>
