@@ -1302,6 +1302,14 @@ else:
     # Mount longer paths first so more specific prefixes take precedence.
     for prefix in sorted(mount_targets, key=len, reverse=True):
         container_app.mount(prefix, api_app)
+    
+    # Register WebSocket endpoint directly on container app to ensure it's accessible
+    # WebSocket connections don't work properly when only registered in mounted sub-apps
+    @container_app.websocket("/ws/{table_id}")
+    async def container_websocket_endpoint(websocket: WebSocket, table_id: int):
+        """WebSocket endpoint registered on container app for proper routing."""
+        await websocket_endpoint(websocket, table_id)
+    
     app = container_app
 
 
