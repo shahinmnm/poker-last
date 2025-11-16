@@ -7,6 +7,7 @@ import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import PageHeader from '../components/ui/PageHeader'
 import TableSummary from '../components/tables/TableSummary'
+import QRScanner from '../components/qr/QRScanner'
 import type { TableStatusTone } from '../components/lobby/types'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, ApiError } from '../utils/apiClient'
@@ -58,6 +59,7 @@ export default function JoinGamePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [joinResult, setJoinResult] = useState<JoinByInviteResponse | null>(null)
   const [recentInvites, setRecentInvites] = useState<RecentInviteEntry[]>([])
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false)
 
   useEffect(() => {
     setRecentInvites(loadRecentInvites())
@@ -158,6 +160,21 @@ export default function JoinGamePage() {
     setJoinResult(null)
   }
 
+  const handleQRScan = useCallback((scannedCode: string) => {
+    // Extract invite code from scanned data
+    // Could be just the code, or a URL containing the code
+    const normalized = normalizeInviteCode(scannedCode)
+    if (normalized) {
+      setCode(normalized)
+      setError(null)
+      setJoinResult(null)
+      // Optionally auto-submit
+      if (normalized.length >= INVITE_CODE_LENGTH && INVITE_CODE_PATTERN.test(normalized)) {
+        void submitInvite(normalized)
+      }
+    }
+  }, [submitInvite])
+
   const activeTable = joinResult?.table
   const statusBadge = activeTable ? resolveStatus(activeTable.status) : null
 
@@ -190,12 +207,18 @@ export default function JoinGamePage() {
             <Button type="submit" variant="primary" size="lg" block disabled={isSubmitting}>
               {isSubmitting ? t('common.loading') : t('joinGame.form.joinButton')}
             </Button>
-            <Button type="button" variant="secondary" size="lg" block>
+            <Button type="button" variant="secondary" size="lg" block onClick={() => setIsQRScannerOpen(true)}>
               {t('joinGame.form.scanButton')}
             </Button>
           </div>
         </form>
       </Card>
+
+      <QRScanner 
+        isOpen={isQRScannerOpen} 
+        onClose={() => setIsQRScannerOpen(false)} 
+        onScan={handleQRScan}
+      />
 
       {joinResult && (
         <Card className="space-y-3">

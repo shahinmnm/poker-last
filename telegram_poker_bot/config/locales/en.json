@@ -71,5 +71,10 @@
   "already_seated": "You're already seated at this table.",
   "wallet_title": "💰 Wallet",
   "wallet_balance": "Your balance: {balance} chips",
-  "wallet_no_transactions": "No transaction history yet."
+  "wallet_no_transactions": "No transaction history yet.",
+  "table_expired": "This table has expired",
+  "table_not_found": "Table not found",
+  "invite_code_invalid": "Invalid invite code format",
+  "invite_code_not_found": "Invite code not found",
+  "invite_code_expired": "This invite code has expired"
 }

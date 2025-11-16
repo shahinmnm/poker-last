@@ -36,9 +36,10 @@ class TableStatus(PyEnum):
     """Table status enumeration."""
 
     WAITING = "waiting"
-    ACTIVE = "active"
+    ACTIVE = "active"  # Game started and running
     PAUSED = "paused"
     ENDED = "ended"
+    EXPIRED = "expired"  # Table expired due to inactivity or time limit
 
 
 class HandStatus(PyEnum):
@@ -147,6 +148,7 @@ class Table(Base):
     is_public = Column(Boolean, nullable=False, server_default="true", default=True)
     expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
     invite_code = Column(String(16), nullable=True, unique=True, index=True)
+    last_action_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     # Relationships
     group = relationship("Group", back_populates="tables")

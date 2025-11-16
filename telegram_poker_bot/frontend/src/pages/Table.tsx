@@ -11,6 +11,8 @@ import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import TableSummary from '../components/tables/TableSummary'
+import ExpiredTableView from '../components/tables/ExpiredTableView'
+import InviteSection from '../components/tables/InviteSection'
 import type { TableStatusTone } from '../components/lobby/types'
 
 interface TablePlayer {
@@ -342,6 +344,20 @@ export default function TablePage() {
     )
   }
 
+  // Check if table is expired
+  if (tableDetails.is_expired || tableDetails.status?.toLowerCase() === 'expired') {
+    return (
+      <ExpiredTableView
+        tableName={tableDetails.table_name}
+        smallBlind={tableDetails.small_blind}
+        bigBlind={tableDetails.big_blind}
+        startingStack={tableDetails.starting_stack}
+        maxPlayers={tableDetails.max_players}
+        isPrivate={tableDetails.visibility === 'private' || tableDetails.is_private}
+      />
+    )
+  }
+
   const createdAtText = tableDetails.created_at
     ? dateFormatter.format(new Date(tableDetails.created_at))
     : null
@@ -427,57 +443,12 @@ export default function TablePage() {
 
       {/* Invite Code Section (for private tables) */}
       {tableDetails.visibility === 'private' && tableDetails.invite_code && (viewerIsCreator || viewerIsSeated) && (
-        <Card>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[color:var(--text-primary)]">
-                {t('table.invite.title', { defaultValue: 'Invite Friends' })}
-              </h2>
-              <span className="text-xs text-[color:var(--text-muted)]">
-                🔒 {t('table.visibility.private', { defaultValue: 'Private' })}
-              </span>
-            </div>
-            <div className="rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs uppercase tracking-wider text-[color:var(--text-muted)]">
-                    {t('table.invite.codeLabel', { defaultValue: 'Invite Code' })}
-                  </p>
-                  <p className="mt-1 font-mono text-lg font-bold text-[color:var(--text-primary)]">
-                    {tableDetails.invite_code}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(tableDetails.invite_code || '')
-                      showToast(t('table.invite.copied', { defaultValue: 'Invite code copied!' }))
-                    }}
-                  >
-                    {t('table.invite.copy', { defaultValue: 'Copy' })}
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(t('table.invite.shareText', {
-                        defaultValue: 'Join my private table with code',
-                      }))}&url=${encodeURIComponent(tableDetails.invite_code || '')}`
-                      window.open(shareUrl, '_blank')
-                    }}
-                  >
-                    {t('table.invite.share', { defaultValue: 'Share' })}
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-[color:var(--text-muted)]">
-              {t('table.invite.hint', { defaultValue: 'Share this code with friends to invite them to this private table.' })}
-            </p>
-          </div>
-        </Card>
+        <InviteSection
+          inviteCode={tableDetails.invite_code}
+          expiresAt={tableDetails.expires_at}
+          onCopySuccess={() => showToast(t('table.invite.copied'))}
+          onCopyError={() => showToast(t('table.errors.actionFailed'))}
+        />
       )}
 
       {/* Countdown Timer (for all tables) */}

@@ -260,6 +260,12 @@
       "authRequired": "Sign in with Telegram to join a private table.",
       "joinFailed": "Unable to join this table right now."
     },
+    "qr": {
+      "title": "Scan QR Code",
+      "description": "Point your camera at the QR code shared by the host",
+      "openScanner": "Open QR Scanner",
+      "manualEntry": "Enter code manually"
+    },
     "preview": {
       "title": "Table found"
     },
@@ -537,7 +543,10 @@
     "expiration": {
       "title": "Table Expires In",
       "hint": "This table will automatically close when time runs out.",
-      "expired": "Table has expired"
+      "expired": "Table has expired",
+      "expiredMessage": "This table has expired and is no longer available.",
+      "expiredBackToLobby": "Back to lobby",
+      "expiredCreateNew": "Create similar table"
     },
     "toast": {
       "seated": "Seat reserved.",
