@@ -303,6 +303,14 @@ export default function LobbyPage() {
                   tone: statusDescriptor.tone,
                 }}
                 badges={[
+                  ...(table.visibility
+                    ? ([
+                        {
+                          label: table.visibility === 'private' ? '🔒 ' + t('lobby.labels.visibility.private') : t('lobby.labels.visibility.public'),
+                          tone: 'visibility',
+                        },
+                      ] as const)
+                    : []),
                   ...(isCreator
                     ? ([{ label: t('lobby.labels.youHost'), tone: 'host' }] as const)
                     : []),
@@ -328,6 +336,7 @@ export default function LobbyPage() {
                   },
                 ]}
                 actionLabel={t('lobby.actions.view')}
+                expiresAt={table.expires_at}
               />
             )
           })
@@ -368,7 +377,7 @@ export default function LobbyPage() {
                   ...(table.visibility
                     ? ([
                         {
-                          label: t(`lobby.labels.visibility.${table.visibility}` as const),
+                          label: table.visibility === 'private' ? '🔒 ' + t(`lobby.labels.visibility.${table.visibility}` as const) : t(`lobby.labels.visibility.${table.visibility}` as const),
                           tone: 'visibility',
                         },
                       ] as const)
@@ -395,6 +404,7 @@ export default function LobbyPage() {
                   },
                 ]}
                 actionLabel={isSeated ? t('lobby.actions.view') : t('lobby.actions.join')}
+                expiresAt={table.expires_at}
               />
             )
           })

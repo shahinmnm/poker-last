@@ -513,7 +513,11 @@
       "tableFull": "Table is full at the moment."
     },
     "invite": {
-      "title": "Invite link",
+      "title": "Invite Friends",
+      "codeLabel": "Invite Code",
+      "copy": "Copy",
+      "copied": "Invite code copied!",
+      "hint": "Share this code with friends to invite them to this private table.",
       "expires": "Invite expires {{value}}",
       "status": {
         "pending": "Pending",
@@ -521,6 +525,11 @@
         "consumed": "Used",
         "expired": "Expired"
       }
+    },
+    "expiration": {
+      "title": "Table Expires In",
+      "hint": "This table will automatically close when time runs out.",
+      "expired": "Table has expired"
     },
     "toast": {
       "seated": "Seat reserved.",

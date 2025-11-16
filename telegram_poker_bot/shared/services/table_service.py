@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import secrets
+import string
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, TYPE_CHECKING, Tuple
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +31,16 @@ if TYPE_CHECKING:  # pragma: no cover - import for typing only
 
 PUBLIC_TABLE_CACHE_PREFIX = "lobby:public_tables"
 PUBLIC_TABLE_CACHE_KEYS = f"{PUBLIC_TABLE_CACHE_PREFIX}:keys"
+TABLE_EXPIRATION_MINUTES = 10
+
+
+def _generate_invite_code(length: int = 6) -> str:
+    """Generate a random invite code for private tables."""
+    # Use uppercase letters and digits for readability
+    alphabet = string.ascii_uppercase + string.digits
+    # Exclude similar-looking characters: O, 0, I, 1
+    alphabet = alphabet.replace('O', '').replace('I', '').replace('0', '').replace('1', '')
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
 def _is_table_private(config: Dict[str, Any]) -> bool:
@@ -92,6 +104,25 @@ async def create_table_with_config(
     """Create a table with explicit configuration options."""
 
     is_public = not is_private
+    
+    # Generate invite code for private tables
+    invite_code = None
+    if is_private:
+        # Keep trying until we get a unique code (very unlikely to collide)
+        for _ in range(10):
+            candidate_code = _generate_invite_code()
+            result = await db.execute(
+                select(Table).where(Table.invite_code == candidate_code)
+            )
+            if result.scalar_one_or_none() is None:
+                invite_code = candidate_code
+                break
+        if invite_code is None:
+            # Fallback to longer code
+            invite_code = _generate_invite_code(length=8)
+    
+    # Set expiration time (10 minutes from now)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=TABLE_EXPIRATION_MINUTES)
 
     table = Table(
         mode=mode,
@@ -99,6 +130,8 @@ async def create_table_with_config(
         status=TableStatus.WAITING,
         creator_user_id=creator_user_id,
         is_public=is_public,
+        invite_code=invite_code,
+        expires_at=expires_at,
         config_json={
             "small_blind": small_blind,
             "big_blind": big_blind,
@@ -121,6 +154,8 @@ async def create_table_with_config(
         is_private=not is_public,
         is_public=is_public,
         mode=mode.value,
+        invite_code=invite_code,
+        expires_at=expires_at.isoformat(),
     )
 
     await game_runtime.refresh_table_runtime(db, table.id)
@@ -504,6 +539,8 @@ async def get_table_info(
         "group_title": group_title,
         "created_at": table.created_at.isoformat() if table.created_at else None,
         "updated_at": table.updated_at.isoformat() if table.updated_at else None,
+        "expires_at": table.expires_at.isoformat() if table.expires_at else None,
+        "invite_code": table.invite_code if is_private and viewer_is_creator else None,
         "players": players,
         "host": host_info,
         "viewer": viewer_info,
@@ -547,8 +584,17 @@ async def list_available_tables(
                     cached_payload = None
 
     if cached_payload is None:
+        now = datetime.now(timezone.utc)
         query = select(Table).where(
             Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
+        )
+        
+        # Filter out expired tables
+        query = query.where(
+            or_(
+                Table.expires_at.is_(None),
+                Table.expires_at > now
+            )
         )
 
         if mode:
@@ -571,7 +617,8 @@ async def list_available_tables(
             else:
                 query = query.where(Table.is_public.is_(True))
 
-        query = query.order_by(Table.created_at.desc(), Table.id.desc()).limit(limit)
+        # Order by expiration (soonest first), then by created_at
+        query = query.order_by(Table.expires_at.asc().nullslast(), Table.created_at.desc(), Table.id.desc()).limit(limit)
 
         result = await db.execute(query)
         tables = result.scalars().all()
@@ -642,6 +689,7 @@ async def list_available_tables(
                     "host": host_info,
                     "created_at": table.created_at.isoformat() if table.created_at else None,
                     "updated_at": table.updated_at.isoformat() if table.updated_at else None,
+                    "expires_at": table.expires_at.isoformat() if table.expires_at else None,
                     "is_full": player_count >= max_players,
                     "is_private": is_private,
                     "is_public": is_public,
