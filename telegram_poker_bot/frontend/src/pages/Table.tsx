@@ -160,7 +160,8 @@ export default function TablePage() {
       socket.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data)
-          if (payload?.type === 'action') {
+          if (payload?.type === 'action' || payload?.type === 'table_started') {
+            // Refresh table data when receiving action or table started events
             fetchTable()
           }
         } catch {
