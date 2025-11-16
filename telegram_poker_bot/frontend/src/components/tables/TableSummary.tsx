@@ -32,12 +32,12 @@ export interface TableSummaryProps {
 }
 
 const toneClassMap: Record<SummaryBadgeTone, string> = {
-  running: 'bg-[color:var(--status-running-bg)] text-[color:var(--status-running-text)]',
-  waiting: 'bg-[color:var(--status-waiting-bg)] text-[color:var(--status-waiting-text)]',
-  finished: 'bg-[color:var(--status-finished-bg)] text-[color:var(--status-finished-text)]',
-  host: 'bg-[color:var(--role-host-bg)] text-[color:var(--role-host-text)]',
-  seated: 'bg-[color:var(--role-seated-bg)] text-[color:var(--role-seated-text)]',
-  visibility: 'bg-[color:var(--surface-border)]/40 text-[color:var(--text-primary)]',
+  running: 'bg-[color:var(--color-status-running-bg)] text-[color:var(--color-status-running-text)]',
+  waiting: 'bg-[color:var(--color-status-waiting-bg)] text-[color:var(--color-status-waiting-text)]',
+  finished: 'bg-[color:var(--color-status-finished-bg)] text-[color:var(--color-status-finished-text)]',
+  host: 'bg-[color:var(--color-role-host-bg)] text-[color:var(--color-role-host-text)]',
+  seated: 'bg-[color:var(--color-role-seated-bg)] text-[color:var(--color-role-seated-text)]',
+  visibility: 'bg-[color:var(--color-border)]/40 text-[color:var(--color-text)]',
 }
 
 export function TableSummary({
@@ -69,47 +69,48 @@ export function TableSummary({
 
   const isExpiringSoon = timeRemaining.isExpiringSoon
   const className = cn(
-    'block rounded-xl border p-3 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent-start)]',
+    'block rounded-[var(--radius-lg)] border p-[var(--space-md)] shadow-sm transition',
+    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent-start)]',
     isExpiringSoon
-      ? 'border-[color:var(--danger-glass-border)] bg-[color:var(--danger-glass)] hover:border-[color:var(--danger)]'
-      : 'border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)]/80 hover:border-[color:var(--accent-soft)]',
+      ? 'border-[color:var(--color-danger-glass-border)] bg-[color:var(--color-danger-glass)] hover:border-[color:var(--color-danger)]'
+      : 'border-[color:var(--color-border)] bg-[color:var(--color-surface-overlay)]/80 hover:border-[color:var(--color-accent-soft)]',
     muted && 'opacity-70',
   )
 
   const content = (
     <>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1 space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                {leadingIcon && <span className="text-base text-[color:var(--text-muted)]">{leadingIcon}</span>}
-                <h3 className="truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]">
+      <div className="flex items-start justify-between gap-[var(--space-sm)]">
+        <div className="min-w-0 flex-1 space-y-[calc(var(--space-md)+var(--space-xs))]">
+          <div className="flex items-start justify-between gap-[var(--space-sm)]">
+            <div className="min-w-0 flex-1 space-y-[var(--space-xs)]">
+              <div className="flex items-center gap-[calc(var(--space-xs)+var(--space-xs))]">
+                {leadingIcon && <span className="text-base text-[color:var(--color-text-muted)]">{leadingIcon}</span>}
+                <h3 className="truncate text-[var(--font-size-base)] font-semibold leading-tight text-[color:var(--color-text)]">
                   {tableName}
                 </h3>
                 <span
                   className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-primary)]',
-                    'bg-[color:var(--surface-base)]/80 border border-[color:var(--surface-border)]',
+                    'inline-flex items-center rounded-[var(--radius-pill)] px-[var(--space-sm)] py-[var(--space-xs)] text-[var(--font-size-xs)] font-semibold uppercase tracking-wider text-[color:var(--color-text)]',
+                    'bg-[color:var(--color-surface)]/80 border border-[color:var(--color-border)]',
                   )}
                 >
                   {chipLabel}
                 </span>
               </div>
-              {subtext && <p className="truncate text-[11px] text-[color:var(--text-muted)]">{subtext}</p>}
+              {subtext && <p className="truncate text-[11px] text-[color:var(--color-text-muted)]">{subtext}</p>}
             </div>
             {actionLabel && (
-              <div className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">
+              <div className="flex shrink-0 items-center gap-[calc(var(--space-xs)+var(--space-xs))] text-[11px] font-semibold uppercase tracking-wider text-[color:var(--color-text-muted)]">
                 {actionLabel}
                 {href && <span aria-hidden>›</span>}
               </div>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-[calc(var(--space-xs)+var(--space-xs))]">
             <span
               className={cn(
-                'inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider',
+                'inline-flex items-center rounded-[var(--radius-pill)] px-[var(--space-sm)] py-[var(--space-xs)] text-[9px] font-semibold uppercase tracking-wider',
                 toneClassMap[statusBadge.tone],
               )}
             >
@@ -119,7 +120,7 @@ export function TableSummary({
               <span
                 key={`${badge.label}-${badge.tone}`}
                 className={cn(
-                  'inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider',
+                  'inline-flex items-center rounded-[var(--radius-pill)] px-[var(--space-sm)] py-[var(--space-xs)] text-[9px] font-semibold uppercase tracking-wider',
                   toneClassMap[badge.tone],
                 )}
               >
@@ -129,10 +130,10 @@ export function TableSummary({
             {expiresAt && !timeRemaining.isExpired && (
               <span
                 className={cn(
-                  'inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold',
+                  'inline-flex items-center rounded-[var(--radius-pill)] px-[var(--space-sm)] py-[var(--space-xs)] text-[9px] font-semibold',
                   isExpiringSoon
-                    ? 'bg-[color:var(--danger)] text-white'
-                    : 'bg-[color:var(--surface-base)]/60 text-[color:var(--text-muted)]',
+                    ? 'bg-[color:var(--color-danger)] text-white'
+                    : 'bg-[color:var(--color-surface)]/60 text-[color:var(--color-text-muted)]',
                 )}
               >
                 ⏱ {timeRemaining.minutes}:{String(timeRemaining.seconds).padStart(2, '0')}
@@ -142,15 +143,15 @@ export function TableSummary({
         </div>
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-[color:var(--text-muted)] sm:grid-cols-3">
+      <div className="mt-[var(--space-sm)] grid grid-cols-2 gap-x-[var(--space-md)] gap-y-[calc(var(--space-xs)+var(--space-xs))] text-[var(--font-size-sm)] text-[color:var(--color-text-muted)] sm:grid-cols-3">
         {meta.map((item) => (
-          <div key={`${item.label}-${item.value}`} className="flex items-center gap-1.5">
-            <span className="text-sm leading-none">{item.icon}</span>
+          <div key={`${item.label}-${item.value}`} className="flex items-center gap-[calc(var(--space-xs)+var(--space-xs))]">
+            <span className="text-[var(--font-size-base)] leading-none">{item.icon}</span>
             <div className="min-w-0 leading-tight">
-              <div className="truncate text-[12px] font-semibold text-[color:var(--text-primary)]">
+              <div className="truncate text-[12px] font-semibold text-[color:var(--color-text)]">
                 {item.value}
               </div>
-              <div className="text-[10px] uppercase tracking-wider">{item.label}</div>
+              <div className="text-[var(--font-size-xs)] uppercase tracking-wider">{item.label}</div>
             </div>
           </div>
         ))}

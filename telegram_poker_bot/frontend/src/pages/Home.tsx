@@ -107,16 +107,16 @@ export default function HomePage() {
   }))
 
   return (
-    <div className="space-y-6 pt-2">
+    <div className="space-y-[var(--space-xl)] pt-[var(--space-sm)]">
       <Card padding="md" className="app-card--overlay text-center">
-        <div className="space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--accent-end)]">
+        <div className="space-y-[var(--space-xs)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[var(--letter-spacing-widest)] text-[color:var(--color-accent-end)]">
             {t('home.mosaic.heroKicker', 'Premium poker hub')}
           </p>
-          <p className="text-sm font-medium text-[color:var(--text-primary)]">
+          <p className="text-[var(--font-size-base)] font-medium text-[color:var(--color-text)]">
             {t('home.tagline')}
           </p>
-          <p className="text-xs text-[color:var(--text-muted)] line-clamp-2">
+          <p className="text-[var(--font-size-sm)] text-[color:var(--color-text-muted)] line-clamp-2">
             {t('home.mosaic.hint')}
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function HomePage() {
       <HomeMenuGrid items={menuItems} />
 
       <Card padding="md" className="app-card--overlay text-center">
-        <p className="text-xs text-[color:var(--text-muted)] leading-relaxed">
+        <p className="text-[var(--font-size-sm)] text-[color:var(--color-text-muted)] leading-relaxed">
           {hasActiveTables ? t('home.mosaic.activeTablesHint') : t('home.mosaic.hint')}
         </p>
       </Card>
