@@ -57,7 +57,6 @@ function safeParseJson<T>(value: string | null | undefined): T | null {
     return JSON.parse(value) as T
   } catch {
     if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
       console.warn('[useTelegram] Failed to parse mock JSON payload.', value)
     }
     return null

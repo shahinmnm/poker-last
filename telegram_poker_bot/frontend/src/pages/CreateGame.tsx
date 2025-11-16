@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
+import PageHeader from '../components/ui/PageHeader'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { useTelegram } from '../hooks/useTelegram'
 import { createTable, type TableSummary, type TableVisibility } from '../services/tables'
@@ -124,12 +125,10 @@ export default function CreateGamePage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-xl font-semibold text-[color:var(--text-primary)] sm:text-2xl">
-          {t('createGame.title')}
-        </h1>
-        <p className="text-sm text-[color:var(--text-muted)]">{t('createGame.description')}</p>
-      </header>
+      <PageHeader
+        title={t('createGame.title')}
+        subtitle={t('createGame.description')}
+      />
 
       <Card>
         <form className="space-y-5" onSubmit={handleSubmit}>

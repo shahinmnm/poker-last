@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { useTelegram } from '../hooks/useTelegram'
@@ -8,6 +8,7 @@ import Toast from '../components/Toast'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
+import Modal from '../components/ui/Modal'
 
 interface TablePlayer {
   user_id: number
@@ -72,7 +73,6 @@ const DEFAULT_TOAST = { message: '', visible: false }
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
-  const location = useLocation()
   const { initData } = useTelegram()
   const { t } = useTranslation()
 
@@ -85,11 +85,6 @@ export default function TablePage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [toast, setToast] = useState(DEFAULT_TOAST)
-
-  const fromRoute = useMemo(() => {
-    const state = location.state as { from?: string } | null
-    return typeof state?.from === 'string' ? state.from : null
-  }, [location.state])
 
   const dateFormatter = useMemo(
     () =>
@@ -106,18 +101,6 @@ export default function TablePage() {
       setToast((prev) => ({ ...prev, visible: false }))
     }, 2400)
   }, [])
-
-  const handleBack = useCallback(() => {
-    if (fromRoute) {
-      navigate(fromRoute)
-      return
-    }
-    if (window.history.length > 1) {
-      navigate(-1)
-    } else {
-      navigate('/lobby', { replace: true })
-    }
-  }, [fromRoute, navigate])
 
   const fetchTable = useCallback(async () => {
     if (!tableId) {
@@ -373,17 +356,21 @@ export default function TablePage() {
     <div className="space-y-6">
       <Toast message={toast.message} visible={toast.visible} />
       
+      <Modal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title={t('table.confirmDelete.message')}
+        description={t('table.confirmDelete.warning')}
+        confirmLabel={isDeleting ? t('common.loading') : t('table.confirmDelete.confirm')}
+        cancelLabel={t('table.confirmDelete.cancel')}
+        onConfirm={handleDeleteTable}
+        confirmVariant="danger"
+        confirmDisabled={isDeleting}
+      />
+      
       <Card>
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
-            <Button
-              variant="ghost"
-              size="md"
-              onClick={handleBack}
-            >
-              <span aria-hidden="true">←</span>
-              <span className="ml-1">{t('table.actions.back')}</span>
-            </Button>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="success" size="md">
                 {statusLabel}
@@ -564,60 +551,34 @@ export default function TablePage() {
                   variant="primary"
                   size="lg"
                   block
-                  glow
+                  glow={canStart}
                   onClick={handleStart}
                   disabled={!canStart || isStarting}
                 >
                   {isStarting ? t('table.actions.starting') : t('table.actions.start')}
                 </Button>
                 {!canStart && missingPlayers > 0 && (
-                  <p className="text-xs text-[color:var(--text-muted)]">
-                    {t('table.messages.waitForPlayers', { count: missingPlayers })}
+                  <p className="text-caption text-amber-400">
+                    ⚠️ {t('table.messages.waitForPlayers', { count: missingPlayers })}
+                  </p>
+                )}
+                {canStart && (
+                  <p className="text-caption text-emerald-400">
+                    ✓ {t('table.messages.readyToStart')}
                   </p>
                 )}
               </div>
 
               {/* Delete table section */}
-              {!showDeleteConfirm ? (
-                <Button
-                  variant="ghost"
-                  size="md"
-                  block
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="text-red-400 hover:text-red-300"
-                >
-                  {t('table.actions.delete')}
-                </Button>
-              ) : (
-                <div className="space-y-2 rounded-xl border border-red-400/40 bg-red-500/10 p-3">
-                  <p className="text-sm font-medium text-red-200">
-                    {t('table.confirmDelete.message')}
-                  </p>
-                  <p className="text-xs text-red-300">
-                    {t('table.confirmDelete.warning')}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      onClick={() => setShowDeleteConfirm(false)}
-                      disabled={isDeleting}
-                      className="flex-1"
-                    >
-                      {t('table.confirmDelete.cancel')}
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      onClick={handleDeleteTable}
-                      disabled={isDeleting}
-                      className="flex-1 bg-red-600 hover:bg-red-700"
-                    >
-                      {isDeleting ? t('common.loading') : t('table.confirmDelete.confirm')}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Button
+                variant="danger"
+                size="md"
+                block
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isDeleting}
+              >
+                {t('table.actions.delete')}
+              </Button>
             </>
           )}
         </div>

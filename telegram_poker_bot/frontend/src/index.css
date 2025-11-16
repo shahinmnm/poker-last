@@ -15,6 +15,9 @@
   --accent-start: #5b8dff;
   --accent-end: #a855f7;
   --accent-soft: rgba(91, 141, 255, 0.45);
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --danger-soft: rgba(239, 68, 68, 0.2);
   --shadow-elevated: 0 25px 60px rgba(5, 7, 15, 0.55);
   --shadow-button: 0 16px 32px rgba(91, 141, 255, 0.35);
   --shadow-glow: 0 20px 50px rgba(91, 141, 255, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
@@ -37,6 +40,9 @@
   --accent-start: #2563eb;
   --accent-end: #9333ea;
   --accent-soft: rgba(37, 99, 235, 0.18);
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-soft: rgba(220, 38, 38, 0.15);
   --shadow-elevated: 0 24px 45px rgba(15, 23, 42, 0.15);
   --shadow-button: 0 14px 28px rgba(37, 99, 235, 0.25);
   --shadow-glow: 0 18px 45px rgba(37, 99, 235, 0.4), 0 0 0 1px rgba(15, 23, 42, 0.08) inset;
@@ -73,6 +79,24 @@ a {
 }
 
 @layer components {
+  /* Typography scale */
+  .text-page-title {
+    @apply text-xl font-semibold sm:text-2xl;
+  }
+
+  .text-section-title {
+    @apply text-lg font-semibold sm:text-xl;
+  }
+
+  .text-body {
+    @apply text-sm sm:text-base;
+  }
+
+  .text-caption {
+    @apply text-xs sm:text-sm;
+  }
+
+  /* Card components */
   .app-card {
     position: relative;
     border-radius: 26px;
@@ -97,6 +121,7 @@ a {
     background: var(--surface-overlay);
   }
 
+  /* Button components */
   .app-button {
     border-radius: 9999px;
     border: none;
@@ -142,6 +167,21 @@ a {
   .app-button--ghost {
     background: transparent;
     color: var(--text-primary);
+  }
+
+  .app-button--danger {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  .app-button--danger:hover:not(:disabled) {
+    background: var(--danger-hover);
+    transform: translateY(-1px);
+  }
+
+  .app-button--sm {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.875rem;
   }
 
   .app-button--md {

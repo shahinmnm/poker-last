@@ -63,7 +63,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     applyThemeClass(mode)
-  }, [])
+  }, [mode])
 
   const setMode = (next: ThemeMode) => {
     setModeState(next)

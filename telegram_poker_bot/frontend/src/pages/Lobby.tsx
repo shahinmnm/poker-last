@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
+import PageHeader from '../components/ui/PageHeader'
 import SectionHeader from '../components/ui/SectionHeader'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, buildApiUrl, resolveApiUrl, type ApiFetchOptions } from '../utils/apiClient'
@@ -271,12 +272,10 @@ export default function LobbyPage() {
 
   return (
     <div className="space-y-6 sm:space-y-7">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold text-[color:var(--text-primary)] sm:text-2xl">
-          {t('lobby.title')}
-        </h1>
-        <p className="text-sm text-[color:var(--text-muted)]">{t('menu.lobby.description')}</p>
-      </header>
+      <PageHeader
+        title={t('lobby.title')}
+        subtitle={t('menu.lobby.description')}
+      />
 
       <Card>
         <SectionHeader

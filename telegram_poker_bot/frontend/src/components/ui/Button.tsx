@@ -2,8 +2,8 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react'
 
 import { cn } from '../../utils/cn'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost'
-export type ButtonSize = 'md' | 'lg'
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+export type ButtonSize = 'sm' | 'md' | 'lg'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
@@ -19,9 +19,11 @@ const variantMap: Record<ButtonVariant, string> = {
   primary: 'app-button--primary',
   secondary: 'app-button--secondary',
   ghost: 'app-button--ghost',
+  danger: 'app-button--danger',
 }
 
 const sizeMap: Record<ButtonSize, string> = {
+  sm: 'app-button--sm',
   md: 'app-button--md',
   lg: 'app-button--lg',
 }
