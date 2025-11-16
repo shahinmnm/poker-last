@@ -24,6 +24,10 @@ export default function HomePage() {
   const howItWorksSteps = t('home.howItWorks.steps', {
     returnObjects: true,
   }) as string[]
+  const displayName = user?.first_name || user?.username
+  const welcomeMessage = displayName
+    ? t('home.welcomeWithName', { name: displayName })
+    : t('home.welcome')
 
   if (!ready) {
     return (
@@ -41,9 +45,7 @@ export default function HomePage() {
             <p className="text-sm uppercase tracking-[0.3em] text-[color:var(--text-muted)]">
               {t('home.hero.badge')}
             </p>
-            <h1 className="mt-2 text-xl font-semibold sm:text-2xl">
-              {t('home.welcome', { name: user?.first_name || user?.username })}
-            </h1>
+            <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{welcomeMessage}</h1>
             <p className="mt-3 text-sm text-[color:var(--text-muted)]">{t('home.tagline')}</p>
             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
               {(

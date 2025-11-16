@@ -90,7 +90,8 @@
     }
   },
   "home": {
-    "welcome": "به مینی‌اپ پوکر خوش آمدی{{name, select, undefined {} other {، {{name}}}}}",
+    "welcome": "به مینی‌اپ پوکر خوش آمدی",
+    "welcomeWithName": "به مینی‌اپ پوکر خوش آمدی، {{name}}",
     "tagline": "بلایندها را مشخص کن، مخاطبت را انتخاب کن و بازی را شروع کن.",
     "hero": {
       "badge": "داشبورد مینی‌اپ",
@@ -196,7 +197,8 @@
     "status": {
       "running": "در حال اجرا",
       "waiting": "در انتظار بازیکن",
-      "starting": "به زودی"
+      "starting": "به زودی",
+      "finished": "به پایان رسیده"
     }
   },
   "createGame": {
