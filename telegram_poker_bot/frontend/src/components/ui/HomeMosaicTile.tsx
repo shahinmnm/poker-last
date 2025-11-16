@@ -10,11 +10,12 @@ export interface HomeMosaicTileProps extends Omit<HTMLAttributes<HTMLDivElement>
   subtitle?: string
   badge?: string | number
   to: string
+  highlighted?: boolean
 }
 
 export const HomeMosaicTile = forwardRef<HTMLDivElement, HomeMosaicTileProps>(
   function HomeMosaicTile(
-    { className, icon, title, subtitle, badge, to, ...rest },
+    { className, icon, title, subtitle, badge, to, highlighted = false, ...rest },
     ref,
   ) {
     return (
@@ -27,6 +28,8 @@ export const HomeMosaicTile = forwardRef<HTMLDivElement, HomeMosaicTileProps>(
             'border border-[color:var(--surface-border)]',
             'hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(34,197,94,0.2)]',
             'active:translate-y-0',
+            'min-h-[160px] flex flex-col',
+            highlighted && 'ring-2 ring-[color:var(--accent-end)] ring-opacity-50 shadow-[0_0_20px_rgba(34,197,94,0.3)]',
             className,
           )}
           {...rest}
@@ -36,17 +39,24 @@ export const HomeMosaicTile = forwardRef<HTMLDivElement, HomeMosaicTileProps>(
             className={cn(
               'absolute inset-x-0 top-0 h-[2px]',
               'bg-gradient-to-r from-transparent via-[color:var(--accent-start)] to-transparent',
-              'opacity-60 group-hover:opacity-100 transition-opacity',
+              highlighted ? 'opacity-100' : 'opacity-60 group-hover:opacity-100',
+              'transition-opacity',
             )}
           />
 
-          {/* Icon container */}
+          {/* Icon container - glassy iOS style */}
           <div className="mb-3 flex items-start justify-between">
             <div
               className={cn(
-                'flex h-12 w-12 items-center justify-center rounded-2xl text-2xl',
-                'bg-[color:var(--accent-soft)] transition-transform duration-200',
+                'flex h-14 w-14 items-center justify-center rounded-2xl text-2xl',
+                'bg-gradient-to-br from-[color:var(--accent-soft)] to-transparent',
+                'backdrop-blur-md border border-[color:var(--surface-border)]',
+                highlighted 
+                  ? 'shadow-[0_6px_20px_rgba(34,197,94,0.25)]'
+                  : 'shadow-[0_4px_12px_rgba(34,197,94,0.15)]',
+                'transition-all duration-200',
                 'group-hover:scale-110',
+                highlighted && 'scale-105',
               )}
             >
               {icon}
@@ -58,9 +68,14 @@ export const HomeMosaicTile = forwardRef<HTMLDivElement, HomeMosaicTileProps>(
             )}
           </div>
 
-          {/* Text content */}
-          <div>
-            <h3 className="text-base font-semibold text-[color:var(--text-primary)] group-hover:text-[color:var(--accent-end)] transition-colors">
+          {/* Text content - flex-grow to fill remaining space */}
+          <div className="flex-grow flex flex-col justify-center">
+            <h3 className={cn(
+              'text-base font-semibold transition-colors',
+              highlighted 
+                ? 'text-[color:var(--accent-end)]'
+                : 'text-[color:var(--text-primary)] group-hover:text-[color:var(--accent-end)]'
+            )}>
               {title}
             </h3>
             {subtitle && (
@@ -70,12 +85,12 @@ export const HomeMosaicTile = forwardRef<HTMLDivElement, HomeMosaicTileProps>(
             )}
           </div>
 
-          {/* Hover glow effect */}
+          {/* Hover/highlight glow effect */}
           <div
             className={cn(
-              'absolute inset-0 rounded-3xl opacity-0 transition-opacity pointer-events-none',
-              'group-hover:opacity-100',
+              'absolute inset-0 rounded-3xl transition-opacity pointer-events-none',
               'bg-gradient-to-br from-[color:var(--accent-soft)] to-transparent',
+              highlighted ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
             )}
           />
         </div>
