@@ -4,7 +4,16 @@ import { useEffect, useState } from 'react'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
 import Card from '../components/ui/Card'
-import HomeMosaicTile from '../components/ui/HomeMosaicTile'
+import HomeMenuGrid from '../components/home/HomeMenuGrid'
+import {
+  JoinIcon,
+  LiveIcon,
+  PlayIcon,
+  PrivateIcon,
+  ProfileIcon,
+  SettingsIcon,
+  TablesIcon,
+} from '../components/ui/icons'
 
 export default function HomePage() {
   const { ready, initData } = useTelegram()
@@ -30,82 +39,94 @@ export default function HomePage() {
     )
   }
 
-  // Mosaic tiles configuration
   const mosaicTiles = [
     {
       key: 'playPublic',
-      icon: '🎲',
+      icon: PlayIcon,
       to: '/lobby',
-      badge: undefined,
-      highlighted: !hasActiveTables, // Highlight if user has no active tables
+      quickTag: t('home.mosaic.playPublic.badge', 'HOT'),
+      subtitle: t('home.mosaic.playPublic.subtitle'),
+      recommended: !hasActiveTables,
+      shine: true,
+      depth: true,
     },
     {
       key: 'createPrivate',
-      icon: '🃏',
+      icon: PrivateIcon,
       to: '/games/create?mode=private',
-      badge: undefined,
-      highlighted: !hasActiveTables, // Highlight if user has no active tables
+      quickTag: t('home.mosaic.createPrivate.badge', 'NEW'),
+      subtitle: t('home.mosaic.createPrivate.subtitle'),
+      recommended: !hasActiveTables,
+      badge: hasActiveTables ? undefined : t('home.mosaic.createPrivate.cta', 'Invite-only'),
     },
     {
       key: 'joinWithCode',
-      icon: '➕',
+      icon: JoinIcon,
       to: '/games/join',
-      badge: undefined,
-      highlighted: false,
+      subtitle: t('home.mosaic.joinWithCode.subtitle'),
+      pulse: false,
     },
     {
       key: 'myTables',
-      icon: '📊',
+      icon: TablesIcon,
       to: '/profile/stats',
       badge: activeTables.length > 0 ? activeTables.length : undefined,
-      highlighted: hasActiveTables, // Highlight if user has active tables
+      subtitle: t('home.mosaic.myTables.subtitle'),
+      recommended: hasActiveTables,
+      pulse: hasActiveTables,
+      depth: true,
     },
     {
       key: 'profile',
-      icon: '👤',
+      icon: ProfileIcon,
       to: '/profile',
-      badge: undefined,
-      highlighted: false,
+      subtitle: t('home.mosaic.profile.subtitle'),
     },
     {
       key: 'settings',
-      icon: '⚙️',
+      icon: SettingsIcon,
       to: '/settings',
-      badge: undefined,
-      highlighted: false,
+      subtitle: t('home.mosaic.settings.subtitle'),
+    },
+    {
+      key: 'liveNow',
+      icon: LiveIcon,
+      to: '/lobby',
+      subtitle: t('home.mosaic.liveNow.subtitle', 'Track live tournaments'),
+      quickTag: t('home.mosaic.liveNow.badge', 'LIVE'),
+      pulse: true,
+      badge: hasActiveTables ? t('home.mosaic.liveNow.active', 'Now') : undefined,
+      shine: true,
     },
   ]
 
+  const menuItems = mosaicTiles.map((tile) => ({
+    ...tile,
+    title: t(`home.mosaic.${tile.key}.title`),
+    subtitle: tile.subtitle ?? t(`home.mosaic.${tile.key}.subtitle`),
+  }))
+
   return (
-    <div className="space-y-6">
-      {/* Welcome Section - Simplified */}
-      <Card padding="md">
-        <p className="text-sm text-[color:var(--text-muted)] text-center">
-          {t('home.tagline')}
-        </p>
+    <div className="space-y-6 pt-2">
+      <Card padding="md" className="app-card--overlay text-center">
+        <div className="space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--accent-end)]">
+            {t('home.mosaic.heroKicker', 'Premium poker hub')}
+          </p>
+          <p className="text-sm font-medium text-[color:var(--text-primary)]">
+            {t('home.tagline')}
+          </p>
+          <p className="text-xs text-[color:var(--text-muted)] line-clamp-2">
+            {t('home.mosaic.hint')}
+          </p>
+        </div>
       </Card>
 
-      {/* Mosaic Tiles Section */}
-      <div className="grid grid-cols-2 gap-4">
-        {mosaicTiles.map((tile) => (
-          <HomeMosaicTile
-            key={tile.key}
-            icon={tile.icon}
-            title={t(`home.mosaic.${tile.key}.title`)}
-            subtitle={t(`home.mosaic.${tile.key}.subtitle`)}
-            badge={tile.badge}
-            to={tile.to}
-            highlighted={tile.highlighted}
-          />
-        ))}
-      </div>
+      <HomeMenuGrid items={menuItems} />
 
-      {/* Contextual hint */}
-      <Card padding="md">
-        <p className="text-center text-xs text-[color:var(--text-muted)]">
-          {hasActiveTables 
-            ? t('home.mosaic.activeTablesHint') 
-            : t('home.mosaic.hint')}
+      <Card padding="md" className="app-card--overlay text-center">
+        <p className="text-xs text-[color:var(--text-muted)] leading-relaxed">
+          {hasActiveTables ? t('home.mosaic.activeTablesHint') : t('home.mosaic.hint')}
         </p>
       </Card>
     </div>
