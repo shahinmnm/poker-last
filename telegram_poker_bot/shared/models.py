@@ -145,6 +145,8 @@ class Table(Base):
         index=True,
     )
     is_public = Column(Boolean, nullable=False, server_default="true", default=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    invite_code = Column(String(16), nullable=True, unique=True, index=True)
 
     # Relationships
     group = relationship("Group", back_populates="tables")
