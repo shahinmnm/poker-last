@@ -61,14 +61,14 @@ def upgrade() -> None:
     )
     
     # Backfill expires_at for existing tables (created_at + 10 minutes)
-    # Only for non-ENDED tables
+    # Only for non-ENDED tables (status enum values are uppercase)
     bind.execute(
         text(
             """
             UPDATE tables
             SET expires_at = created_at + INTERVAL '10 minutes'
             WHERE expires_at IS NULL
-            AND status != 'ended'
+            AND status != 'ENDED'
             """
         )
     )
