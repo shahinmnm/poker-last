@@ -1,29 +1,13 @@
-import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { useTelegram } from '../hooks/useTelegram'
-import { menuTree } from '../config/menu'
 import Card from '../components/ui/Card'
-import Button from '../components/ui/Button'
-import SectionHeader from '../components/ui/SectionHeader'
-
-const menuCards = menuTree.filter((item) => item.key !== 'home')
-
-const primaryActions = [
-  {
-    key: 'create',
-    to: '/games/create',
-    icon: '🃏',
-    glow: true,
-  },
-]
+import HomeMosaicTile from '../components/ui/HomeMosaicTile'
 
 export default function HomePage() {
   const { ready, user } = useTelegram()
   const { t } = useTranslation()
-  const howItWorksSteps = t('home.howItWorks.steps', {
-    returnObjects: true,
-  }) as string[]
+
   const displayName = user?.first_name || user?.username
   const welcomeMessage = displayName
     ? t('home.welcomeWithName', { name: displayName })
@@ -37,95 +21,100 @@ export default function HomePage() {
     )
   }
 
+  // Mosaic tiles configuration
+  const mosaicTiles = [
+    {
+      key: 'playPublic',
+      icon: '🎲',
+      to: '/lobby',
+      badge: undefined, // Could be dynamic: active public table count
+    },
+    {
+      key: 'createPrivate',
+      icon: '🃏',
+      to: '/games/create',
+      badge: undefined,
+    },
+    {
+      key: 'joinWithCode',
+      icon: '➕',
+      to: '/games/join',
+      badge: undefined,
+    },
+    {
+      key: 'myTables',
+      icon: '📊',
+      to: '/profile/stats',
+      badge: undefined, // Could be dynamic: active tables count
+    },
+    {
+      key: 'profile',
+      icon: '👤',
+      to: '/profile',
+      badge: undefined,
+    },
+    {
+      key: 'settings',
+      icon: '⚙️',
+      to: '/settings',
+      badge: undefined,
+    },
+  ]
+
   return (
-    <div className="space-y-6 sm:space-y-7">
-      <Card padding="lg" className="overflow-hidden">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="max-w-sm">
-            <p className="text-sm uppercase tracking-[0.3em] text-[color:var(--text-muted)]">
+    <div className="space-y-6">
+      {/* Greeting Section */}
+      <Card padding="lg">
+        <div className="space-y-4">
+          {/* Welcome message */}
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--text-muted)]">
               {t('home.hero.badge')}
             </p>
-            <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{welcomeMessage}</h1>
-            <p className="mt-3 text-sm text-[color:var(--text-muted)]">{t('home.tagline')}</p>
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {(
-                t('home.hero.stats', { returnObjects: true }) as Array<{
-                  label: string
-                  value: string
-                }>
-              ).map((metric) => (
-                <div key={metric.label} className="flex flex-col">
-                  <span className="text-lg font-semibold">{metric.value}</span>
-                  <span className="text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
-                    {metric.label}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">{welcomeMessage}</h1>
+            <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t('home.tagline')}</p>
           </div>
-          <div className="flex w-full flex-col gap-3 sm:max-w-xs">
-            {primaryActions.map((action) => (
-              <Link key={action.key} to={action.to} className="w-full">
-                <Button block size="lg" variant="primary" glow={action.glow}>
-                  <span className="mr-2 text-xl">{action.icon}</span>
-                  {t(`home.actions.${action.key}.label`)}
-                </Button>
-                <p className="mt-2 text-xs text-[color:var(--text-muted)]">
-                  {t(`home.actions.${action.key}.description`)}
-                </p>
-              </Link>
+
+          {/* Compact stats row */}
+          <div className="grid grid-cols-3 gap-4 pt-2">
+            {(
+              t('home.hero.stats', { returnObjects: true }) as Array<{
+                label: string
+                value: string
+              }>
+            ).map((metric) => (
+              <div key={metric.label} className="flex flex-col">
+                <span className="text-lg font-semibold text-[color:var(--accent-end)]">
+                  {metric.value}
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.15em] text-[color:var(--text-muted)]">
+                  {metric.label}
+                </span>
+              </div>
             ))}
           </div>
         </div>
       </Card>
 
-      <Card>
-        <SectionHeader
-          title={t('home.primaryMenuTitle')}
-          subtitle={t('home.lobbyCallout')}
-          action={
-            <Link to="/lobby" className="app-button app-button--ghost app-button--md">
-              {t('home.actions.viewLobby')}
-            </Link>
-          }
-        />
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {menuCards.map((item) => (
-            <Link key={item.key} to={item.path} className="app-card app-card--overlay block rounded-3xl p-5 transition hover:-translate-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-2xl">{item.icon}</span>
-                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
-                  {t('common.actions.open')}
-                </span>
-              </div>
-              <h3 className="mt-3 text-lg font-semibold">{t(item.labelKey)}</h3>
-              {item.descriptionKey && (
-                <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t(item.descriptionKey)}</p>
-              )}
-              {item.children && (
-                <ul className="mt-4 space-y-1 text-sm text-[color:var(--text-muted)]">
-                  {item.children.map((child) => (
-                    <li key={child.key}>• {t(child.labelKey)}</li>
-                  ))}
-                </ul>
-              )}
-            </Link>
-          ))}
-        </div>
-      </Card>
+      {/* Mosaic Tiles Section */}
+      <div className="grid grid-cols-2 gap-4">
+        {mosaicTiles.map((tile) => (
+          <HomeMosaicTile
+            key={tile.key}
+            icon={tile.icon}
+            title={t(`home.mosaic.${tile.key}.title`)}
+            subtitle={t(`home.mosaic.${tile.key}.subtitle`)}
+            badge={tile.badge}
+            to={tile.to}
+          />
+        ))}
+      </div>
 
-      <Card>
-        <SectionHeader title={t('home.howItWorks.title')} />
-        <ol className="mt-4 space-y-3 text-sm text-[color:var(--text-muted)]">
-          {howItWorksSteps.map((step, index) => (
-            <li key={index} className="flex gap-3">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--accent-soft)] text-sm font-semibold text-white">
-                {index + 1}
-              </span>
-              <span className="self-center text-[color:var(--text-primary)]">{step}</span>
-            </li>
-          ))}
-        </ol>
+      {/* Contextual hint */}
+      <Card padding="md">
+        <p className="text-center text-xs text-[color:var(--text-muted)]">
+          {t('home.mosaic.hint')}
+        </p>
       </Card>
     </div>
   )
