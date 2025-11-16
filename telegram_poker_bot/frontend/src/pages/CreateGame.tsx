@@ -94,13 +94,14 @@ export default function CreateGamePage() {
         )
         setTableResult(response)
         setStatus('success')
+        navigate(`/table/${response.table_id}`, { replace: true })
       } catch (error) {
         console.error('Failed to create table', error)
         setErrorMessage(t('createGame.errors.requestFailed'))
         setStatus('error')
       }
     },
-    [formState, initData, t],
+    [formState, initData, navigate, t],
   )
 
   const resolvedVisibility = useMemo(() => {

@@ -65,7 +65,7 @@ export default function InviteSection({
       console.error('Error sharing:', error)
       handleCopy()
     }
-  }, [inviteCode, t, handleCopy])
+  }, [handleCopy, inviteUrl, t])
 
   const expiresDate = expiresAt ? new Date(expiresAt) : null
   const isExpired = expiresDate && expiresDate.getTime() < Date.now()
