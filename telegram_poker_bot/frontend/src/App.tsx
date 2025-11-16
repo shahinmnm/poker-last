@@ -66,8 +66,8 @@ function App() {
                 <Route path="wallet" element={<WalletPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="help" element={<HelpPage />} />
+                <Route path="table/:tableId" element={<TablePage />} />
               </Route>
-              <Route path="/table/:tableId" element={<TablePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>

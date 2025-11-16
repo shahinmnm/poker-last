@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
+import PageHeader from '../components/ui/PageHeader'
 import LanguageSelector from '../components/LanguageSelector'
 import { useTheme } from '../providers/ThemeProvider'
 
@@ -14,17 +15,16 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-xl font-semibold text-[color:var(--text-primary)] sm:text-2xl">
-          {t('settings.title')}
-        </h1>
-      </header>
+      <PageHeader
+        title={t('settings.title')}
+        icon="⚙️"
+      />
 
       <Card>
-        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+        <h2 className="text-section-title text-[color:var(--text-primary)]">
           {t('settings.sections.language.title')}
         </h2>
-        <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+        <p className="mt-1 text-caption text-[color:var(--text-muted)]">
           {t('settings.sections.language.description')}
         </p>
         <div className="mt-4">
@@ -33,13 +33,13 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+        <h2 className="text-section-title text-[color:var(--text-primary)]">
           {t('settings.sections.appearance.title')}
         </h2>
-        <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+        <p className="mt-1 text-caption text-[color:var(--text-muted)]">
           {t('settings.sections.appearance.description')}
         </p>
-        <label className="mt-4 flex items-center gap-3 text-sm font-medium text-[color:var(--text-primary)]">
+        <label className="mt-4 flex items-center gap-3 text-body font-medium text-[color:var(--text-primary)]">
           <input
             type="checkbox"
             checked={darkMode}
@@ -51,13 +51,13 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+        <h2 className="text-section-title text-[color:var(--text-primary)]">
           {t('settings.sections.notifications.title')}
         </h2>
-        <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+        <p className="mt-1 text-caption text-[color:var(--text-muted)]">
           {t('settings.sections.notifications.description')}
         </p>
-        <label className="mt-4 flex items-center gap-3 text-sm font-medium text-[color:var(--text-primary)]">
+        <label className="mt-4 flex items-center gap-3 text-body font-medium text-[color:var(--text-primary)]">
           <input
             type="checkbox"
             checked={notifications}
