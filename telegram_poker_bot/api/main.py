@@ -20,6 +20,7 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from sqlalchemy import select
@@ -39,6 +40,7 @@ from telegram_poker_bot.shared.models import (
     User,
     Group,
     GroupGameInviteStatus,
+    TableStatus,
 )
 from telegram_poker_bot.shared.types import GameMode, TableCreateRequest, TableVisibility
 from telegram_poker_bot.shared.services.group_invites import (
@@ -190,6 +192,24 @@ class ConnectionManager:
             # Remove disconnected connections
             for conn in disconnected:
                 self.disconnect(conn, table_id)
+    
+    async def close_all_connections(self, table_id: int):
+        """Close all WebSocket connections for a table (e.g., when table is deleted)."""
+        if table_id not in self.active_connections:
+            return
+        
+        connections = self.active_connections[table_id].copy()
+        for connection in connections:
+            try:
+                await connection.close()
+            except Exception as e:
+                logger.warning("Error closing WebSocket connection", table_id=table_id, error=str(e))
+        
+        # Clear all connections for this table
+        if table_id in self.active_connections:
+            del self.active_connections[table_id]
+        
+        logger.info("Closed all WebSocket connections", table_id=table_id, count=len(connections))
 
 
 manager = ConnectionManager()
@@ -905,6 +925,82 @@ async def start_table(
     )
 
 
+@api_app.delete("/tables/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_table(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete a table (host only).
+    
+    Behavior:
+    - Only the table creator (host) can delete the table
+    - Closes all WebSocket connections for this table
+    - Marks the table as ENDED (soft-delete)
+    - Invalidates the public table cache
+    - Returns 204 No Content on success
+    
+    Status codes:
+    - 204: Table deleted successfully
+    - 401: Missing or invalid authentication
+    - 403: User is not the table creator
+    - 404: Table not found
+    """
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Telegram init data")
+    
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    
+    # Load table from database
+    result = await db.execute(select(Table).where(Table.id == table_id))
+    table = result.scalar_one_or_none()
+    
+    if not table:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found")
+    
+    # Check permissions: only the creator (host) can delete
+    config = table.config_json or {}
+    creator_user_id = table.creator_user_id or config.get("creator_user_id")
+    
+    if creator_user_id is None or creator_user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the table creator can delete this table"
+        )
+    
+    # Close all WebSocket connections for this table
+    await manager.close_all_connections(table_id)
+    
+    # Mark table as ENDED (soft-delete) instead of hard deletion
+    # This preserves historical data while making the table inactive
+    table.status = TableStatus.ENDED
+    table.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    
+    logger.info(
+        "Table deleted",
+        table_id=table_id,
+        deleted_by=user.id,
+        creator_user_id=creator_user_id,
+    )
+    
+    await db.commit()
+    
+    # Invalidate public table cache
+    try:
+        matchmaking_pool = await get_matchmaking_pool()
+        await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Failed to invalidate public table cache after delete", error=str(exc))
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @api_app.get("/users/me/stats")
 async def get_my_stats(
     x_telegram_init_data: Optional[str] = Header(None),
@@ -1037,10 +1133,16 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
     """
     WebSocket endpoint for real-time table updates.
     
+    Path: /ws/{table_id}
+    - Frontend connects to this endpoint for live table updates
+    - Example: /ws/5 connects to table ID 5
+    - Upgrades HTTP GET request to WebSocket connection (101 Switching Protocols)
+    
     Design Note:
     - Maintains persistent connection for live updates
     - Broadcasts state changes to all connected clients
     - Handles disconnections gracefully
+    - Connections are automatically closed when table is deleted
     """
     await manager.connect(websocket, table_id)
     
