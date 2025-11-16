@@ -20,7 +20,7 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 from sqlalchemy import select
@@ -733,6 +733,27 @@ async def list_tables(
         raise HTTPException(status_code=400, detail=str(exc))
 
     return {"tables": tables}
+
+
+@api_app.get("/games/join", include_in_schema=False)
+async def redirect_games_join(code: Optional[str] = Query(default=None)):
+    """Redirect legacy join links to the mini app frontend.
+
+    Players often share invite links that point directly at the API service
+    (e.g. ``/games/join?code=ABCD12``). When accessed via the public domain the
+    Nginx proxy routes the request to the frontend, but direct hits to the API
+    container return 404. This redirect keeps those links working by sending
+    visitors to the mini app URL, preserving the invite code when present.
+    """
+
+    target = f"{settings.mini_app_url.rstrip('/')}/games/join"
+
+    if code:
+        normalized = table_service.normalize_invite_code(code)
+        if normalized:
+            target = f"{target}?code={normalized}"
+
+    return RedirectResponse(url=target, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 
 @api_app.post("/tables/join-by-invite")
