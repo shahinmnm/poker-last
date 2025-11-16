@@ -38,27 +38,27 @@ export default function MainLayout() {
   const hasActiveTables = activeTables.length > 0
 
   return (
-    <div className="relative flex min-h-screen flex-col text-[color:var(--text-primary)]">
-      <header className="sticky top-0 z-30 px-4 pt-2 sm:px-6">
+    <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
+      <header className="sticky top-0 z-30 px-[var(--space-lg)] pt-[var(--space-sm)] sm:px-[var(--space-xl)]">
         <div className="mx-auto w-full max-w-4xl">
-          <div className="app-card app-card--overlay flex items-center justify-between rounded-2xl px-4 py-2 sm:px-5 sm:py-2.5">
+          <div className="app-card app-card--overlay flex items-center justify-between rounded-[var(--radius-xl)] px-[var(--space-lg)] py-[var(--space-sm)] sm:px-[calc(var(--space-lg)+var(--space-xs))] sm:py-[calc(var(--space-sm)+var(--space-xs))]">
             {/* Left: Player Info */}
-            <Link to="/profile" className="flex items-center gap-3">
+            <Link to="/profile" className="flex items-center gap-[var(--space-md)]">
               <Avatar size="sm" />
-              <div className="flex flex-col gap-0.5 leading-tight">
-                <span className="text-[13px] font-semibold sm:text-sm">{displayName}</span>
-                <span className="text-[10px] text-[color:var(--text-muted)] sm:text-[11px]">
+              <div className="flex flex-col gap-[var(--space-xs)] leading-tight">
+                <span className="text-[13px] font-semibold sm:text-[var(--font-size-base)]">{displayName}</span>
+                <span className="text-[var(--font-size-xs)] text-[color:var(--color-text-muted)] sm:text-[11px]">
                   {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
                 </span>
               </div>
             </Link>
 
             {/* Right: Actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-[var(--space-sm)]">
               {hasActiveTables && (
                 <Link
                   to={`/table/${activeTables[0].table_id}`}
-                  className="app-button app-button--primary app-button--sm flex items-center gap-1.5 text-xs"
+                  className="app-button app-button--primary app-button--sm flex items-center gap-[calc(var(--space-xs)+var(--space-xs))] text-[var(--font-size-sm)]"
                   title={t('home.actions.resumeGame')}
                 >
                   <span>▶</span>
@@ -68,7 +68,7 @@ export default function MainLayout() {
               <LanguageSelector />
               <Link
                 to="/settings"
-                className="app-button app-button--secondary app-button--md flex h-8 w-8 items-center justify-center !px-0 text-sm"
+                className="app-button app-button--secondary app-button--md flex h-8 w-8 items-center justify-center !px-0 text-[var(--font-size-base)]"
                 aria-label={t('menu.settings.label')}
               >
                 ⚙️
@@ -77,21 +77,21 @@ export default function MainLayout() {
           </div>
         </div>
       </header>
-      <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 pb-24 pt-4 sm:px-6 sm:pt-6">
+      <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-[var(--space-lg)] pb-24 pt-[var(--space-lg)] sm:px-[var(--space-xl)] sm:pt-[var(--space-xl)]">
         <Outlet />
       </main>
-      <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 z-40 px-3 pb-2.5 pt-1.5 sm:px-4">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-around gap-1">
+      <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 z-40 px-[var(--space-md)] pb-[calc(var(--space-sm)+var(--space-xs))] pt-[calc(var(--space-xs)+var(--space-xs))] sm:px-[var(--space-lg)]">
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-around gap-[var(--space-xs)]">
           {bottomNavItems.map((item) => (
             <NavLink
               key={item.key}
               to={item.path}
               end={item.key === 'home'}
               className={({ isActive }) =>
-                cn('app-bottom-nav__link text-[11px] sm:text-xs', isActive && 'is-active')
+                cn('app-bottom-nav__link text-[11px] sm:text-[var(--font-size-sm)]', isActive && 'is-active')
               }
             >
-              <span className="text-sm sm:text-base">{item.icon}</span>
+              <span className="text-[var(--font-size-base)] sm:text-base">{item.icon}</span>
               <span className="leading-tight">{t(item.labelKey)}</span>
             </NavLink>
           ))}

@@ -11,11 +11,11 @@ interface SectionHeaderProps {
 
 export function SectionHeader({ title, subtitle, action, className }: SectionHeaderProps) {
   return (
-    <div className={cn('flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between', className)}>
+    <div className={cn('flex flex-col gap-[var(--space-xs)] sm:flex-row sm:items-center sm:justify-between', className)}>
       <div>
-        <h2 className="text-lg font-semibold text-[color:var(--text-primary)] sm:text-xl">{title}</h2>
+        <h2 className="text-[var(--font-size-xl)] font-semibold text-[color:var(--color-text)] sm:text-[var(--font-size-2xl)]">{title}</h2>
         {subtitle && (
-          <p className="text-sm text-[color:var(--text-muted)] sm:text-base">{subtitle}</p>
+          <p className="text-[var(--font-size-base)] text-[color:var(--color-text-muted)] sm:text-base">{subtitle}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}

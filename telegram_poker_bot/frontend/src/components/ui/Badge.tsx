@@ -11,17 +11,17 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantMap: Record<BadgeVariant, string> = {
-  primary: 'bg-gradient-to-r from-[color:var(--accent-start)] to-[color:var(--accent-end)] text-white',
-  secondary: 'bg-[color:var(--accent-soft)] text-[color:var(--text-primary)]',
-  success: 'bg-emerald-500/20 text-emerald-300 dark:bg-emerald-500/30 dark:text-emerald-200',
-  warning: 'bg-amber-500/20 text-amber-300 dark:bg-amber-500/30 dark:text-amber-200',
-  info: 'bg-blue-500/20 text-blue-300 dark:bg-blue-500/30 dark:text-blue-200',
-  muted: 'bg-white/10 text-[color:var(--text-primary)]',
+  primary: 'bg-gradient-to-r from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] text-white',
+  secondary: 'bg-[color:var(--color-accent-soft)] text-[color:var(--color-text)]',
+  success: 'bg-[color:var(--color-success-bg)] text-[color:var(--color-success-text)]',
+  warning: 'bg-[color:var(--color-warning-bg)] text-[color:var(--color-warning-text)]',
+  info: 'bg-[color:var(--color-info-bg)] text-[color:var(--color-info-text)]',
+  muted: 'bg-white/10 text-[color:var(--color-text)]',
 }
 
 const sizeMap: Record<BadgeSize, string> = {
-  sm: 'px-2 py-0.5 text-[10px]',
-  md: 'px-3 py-1 text-xs',
+  sm: 'px-[var(--space-sm)] py-[var(--space-xs)] text-[var(--font-size-xs)]',
+  md: 'px-[var(--space-md)] py-[var(--space-xs)] text-[var(--font-size-sm)]',
 }
 
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(function Badge(
@@ -32,7 +32,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(function Badge(
     <span
       ref={ref}
       className={cn(
-        'inline-flex items-center rounded-full font-semibold uppercase tracking-[0.2em]',
+        'inline-flex items-center rounded-[var(--radius-pill)] font-semibold uppercase tracking-[var(--letter-spacing-widest)]',
         variantMap[variant],
         sizeMap[size],
         className,
