@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
+import Avatar from '../components/ui/Avatar'
+import Card from '../components/ui/Card'
 
 interface UserStats {
   hands_played: number
@@ -74,67 +76,57 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">{t('profile.title')}</h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('profile.subtitle')}</p>
-      </header>
-
-      <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">
-              {user?.first_name} {user?.last_name}
-            </h2>
-            {user?.username && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">@{user.username}</p>
-            )}
-          </div>
-          <Link
-            to="/profile/stats"
-            className="rounded-lg border border-blue-500 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-950/40"
-          >
-            {t('profile.actions.viewStats')}
-          </Link>
-        </div>
-        <div className="mt-4 flex items-center gap-2">
-          <span className="text-2xl">💰</span>
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Balance</p>
-            <p className="text-xl font-bold">{balance.toLocaleString()} chips</p>
+      {/* Avatar & Profile Header */}
+      <Card padding="lg">
+        <div className="flex flex-col items-center text-center">
+          <Avatar size="xl" className="mb-4" />
+          <h1 className="text-2xl font-semibold">
+            {user?.first_name} {user?.last_name}
+          </h1>
+          {user?.username && (
+            <p className="mt-1 text-sm text-[color:var(--text-muted)]">@{user.username}</p>
+          )}
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-3xl">💰</span>
+            <div>
+              <p className="text-sm text-[color:var(--text-muted)]">{t('profile.balance')}</p>
+              <p className="text-2xl font-bold text-[color:var(--accent-end)]">
+                {balance.toLocaleString()}
+              </p>
+              <p className="text-xs text-[color:var(--text-muted)]">{t('profile.chips')}</p>
+            </div>
           </div>
         </div>
-        {stats?.first_game_date && (
-          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-            {t('profile.playerSince', {
-              date: new Date(stats.first_game_date).getFullYear(),
-            })}
-          </p>
-        )}
-      </section>
+      </Card>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <h2 className="text-lg font-semibold">{t('profile.highlights.title')}</h2>
+      {/* Stats Card */}
+      <Card padding="lg">
+        <h2 className="text-lg font-semibold mb-4">{t('profile.highlights.title')}</h2>
         {hasPlayedGames ? (
-          <div className="mt-3 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 p-4 dark:border-gray-700">
-              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl bg-[color:var(--surface-overlay)] p-4 border border-[color:var(--surface-border)]">
+              <p className="text-xs uppercase text-[color:var(--text-muted)]">
                 {t('profile.highlights.handsPlayed')}
               </p>
-              <p className="mt-2 text-xl font-semibold">{stats!.hands_played}</p>
+              <p className="mt-2 text-2xl font-semibold text-[color:var(--text-primary)]">
+                {stats!.hands_played}
+              </p>
             </div>
-            <div className="rounded-xl border border-slate-200 p-4 dark:border-gray-700">
-              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+            <div className="rounded-xl bg-[color:var(--surface-overlay)] p-4 border border-[color:var(--surface-border)]">
+              <p className="text-xs uppercase text-[color:var(--text-muted)]">
                 {t('profile.highlights.winRate')}
               </p>
-              <p className="mt-2 text-xl font-semibold">{stats!.win_rate.toFixed(1)}%</p>
+              <p className="mt-2 text-2xl font-semibold text-[color:var(--accent-end)]">
+                {stats!.win_rate.toFixed(1)}%
+              </p>
             </div>
-            <div className="rounded-xl border border-slate-200 p-4 dark:border-gray-700">
-              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+            <div className="rounded-xl bg-[color:var(--surface-overlay)] p-4 border border-[color:var(--surface-border)]">
+              <p className="text-xs uppercase text-[color:var(--text-muted)]">
                 {t('profile.highlights.totalProfit')}
               </p>
               <p
-                className={`mt-2 text-xl font-semibold ${
-                  stats!.total_profit >= 0 ? 'text-green-600' : 'text-red-600'
+                className={`mt-2 text-2xl font-semibold ${
+                  stats!.total_profit >= 0 ? 'text-[color:var(--accent-end)]' : 'text-[color:var(--danger)]'
                 }`}
               >
                 {stats!.total_profit >= 0 ? '+' : ''}
@@ -143,24 +135,36 @@ export default function ProfilePage() {
             </div>
           </div>
         ) : (
-          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-            Play some games to see your stats!
+          <p className="text-sm text-[color:var(--text-muted)]">
+            {t('profile.noGamesYet')}
           </p>
         )}
-      </section>
+        {stats?.first_game_date && (
+          <p className="mt-4 text-xs text-[color:var(--text-muted)] text-center">
+            {t('profile.playerSince', {
+              date: new Date(stats.first_game_date).getFullYear(),
+            })}
+          </p>
+        )}
+      </Card>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <h2 className="text-lg font-semibold">{t('menu.wallet.label')}</h2>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-          {t('menu.wallet.description')}
-        </p>
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-4">
+        <Link
+          to="/profile/stats"
+          className="app-button app-button--secondary app-button--lg flex items-center justify-center gap-2"
+        >
+          <span>📊</span>
+          <span>{t('profile.actions.viewStats')}</span>
+        </Link>
         <Link
           to="/wallet"
-          className="mt-4 inline-flex items-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
+          className="app-button app-button--primary app-button--lg flex items-center justify-center gap-2"
         >
-          {t('common.actions.view')}
+          <span>💰</span>
+          <span>{t('menu.wallet.label')}</span>
         </Link>
-      </section>
+      </div>
     </div>
   )
 }

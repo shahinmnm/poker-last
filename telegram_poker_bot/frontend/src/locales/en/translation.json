@@ -123,7 +123,9 @@
       "create": {
         "label": "Create a table",
         "description": "Set up a new game - public or private - and start playing."
-      }
+      },
+      "resume": "Resume",
+      "resumeGame": "Resume your active game"
     },
     "primaryMenuTitle": "Main menu",
     "secondaryMenuTitle": "Explore more",
@@ -315,11 +317,15 @@
   "profile": {
     "title": "Profile",
     "subtitle": "Your poker identity across modes",
+    "balance": "Balance",
+    "chips": "chips",
+    "noGamesYet": "Play some games to see your stats!",
     "playerSince": "Player since {{date}}",
     "highlights": {
       "title": "Highlights",
       "handsPlayed": "Hands played",
       "winRate": "Win rate",
+      "totalProfit": "Total profit",
       "bestFinish": "Best tournament finish",
       "trends": {
         "handsPlayed": "+12 this week",

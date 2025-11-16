@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -27,9 +27,12 @@ export default function CreateGamePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { initData, ready } = useTelegram()
+  const [searchParams] = useSearchParams()
   const tips = t('createGame.tips', { returnObjects: true }) as string[]
 
-  const defaultVisibility: TableVisibility = 'private'
+  // Get initial mode from URL parameter
+  const initialMode = searchParams.get('mode') as TableVisibility | null
+  const defaultVisibility: TableVisibility = initialMode === 'public' ? 'public' : 'private'
 
   const [formState, setFormState] = useState<CreateTableFormState>({
     tableName: '',
@@ -38,7 +41,7 @@ export default function CreateGamePage() {
     startingStack: 10000,
     maxPlayers: 6,
     visibility: defaultVisibility,
-    autoSeatHost: false,
+    autoSeatHost: defaultVisibility === 'public',
   })
   const [status, setStatus] = useState<ViewState>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)

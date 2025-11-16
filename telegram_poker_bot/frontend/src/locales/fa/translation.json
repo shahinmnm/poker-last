@@ -123,7 +123,9 @@
       "create": {
         "label": "ایجاد میز",
         "description": "یک بازی جدید ایجاد کنید - عمومی یا خصوصی - و شروع به بازی کنید."
-      }
+      },
+      "resume": "ادامه",
+      "resumeGame": "ادامه بازی فعال"
     },
     "primaryMenuTitle": "منوی اصلی",
     "secondaryMenuTitle": "بخش‌های دیگر",
@@ -315,11 +317,15 @@
   "profile": {
     "title": "پروفایل",
     "subtitle": "هویت پوکر تو در همه حالت‌ها",
+    "balance": "موجودی",
+    "chips": "ژتون",
+    "noGamesYet": "برای مشاهده آمار خود بازی کنید!",
     "playerSince": "بازیکن از {{date}}",
     "highlights": {
       "title": "نکات برجسته",
       "handsPlayed": "دست‌های بازی‌شده",
       "winRate": "نرخ برد",
+      "totalProfit": "سود کل",
       "bestFinish": "بهترین نتیجه تورمنت",
       "trends": {
         "handsPlayed": "۱۲+ دست در این هفته",

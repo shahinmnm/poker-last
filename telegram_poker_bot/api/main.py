@@ -50,6 +50,7 @@ from telegram_poker_bot.shared.services.group_invites import (
     token_length_for_ttl,
 )
 from telegram_poker_bot.shared.services import user_service, table_service
+from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import TableManager, get_matchmaking_pool
 
@@ -1132,6 +1133,39 @@ async def get_my_balance(
     balance = await user_service.get_user_balance(db, user.id)
     
     return {"balance": balance}
+
+
+@api_app.get("/users/me/avatar")
+async def get_my_avatar(
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate and return the current user's avatar image."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    
+    # Generate avatar
+    avatar_bytes = generate_avatar(
+        user_id=user.id,
+        username=user.username or auth.username or auth.first_name,
+        size=256
+    )
+    
+    # Return as PNG image with caching headers
+    return Response(
+        content=avatar_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "public, max-age=86400",  # Cache for 24 hours
+            "ETag": f"avatar-{user.id}-v1",
+        }
+    )
 
 
 @api_app.get("/users/me/tables")

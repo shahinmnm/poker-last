@@ -5,13 +5,8 @@ import Card from '../components/ui/Card'
 import HomeMosaicTile from '../components/ui/HomeMosaicTile'
 
 export default function HomePage() {
-  const { ready, user } = useTelegram()
+  const { ready } = useTelegram()
   const { t } = useTranslation()
-
-  const displayName = user?.first_name || user?.username
-  const welcomeMessage = displayName
-    ? t('home.welcomeWithName', { name: displayName })
-    : t('home.welcome')
 
   if (!ready) {
     return (
@@ -32,7 +27,7 @@ export default function HomePage() {
     {
       key: 'createPrivate',
       icon: '🃏',
-      to: '/games/create',
+      to: '/games/create?mode=private',
       badge: undefined,
     },
     {
@@ -63,37 +58,11 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Greeting Section */}
-      <Card padding="lg">
-        <div className="space-y-4">
-          {/* Welcome message */}
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--text-muted)]">
-              {t('home.hero.badge')}
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">{welcomeMessage}</h1>
-            <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t('home.tagline')}</p>
-          </div>
-
-          {/* Compact stats row */}
-          <div className="grid grid-cols-3 gap-4 pt-2">
-            {(
-              t('home.hero.stats', { returnObjects: true }) as Array<{
-                label: string
-                value: string
-              }>
-            ).map((metric) => (
-              <div key={metric.label} className="flex flex-col">
-                <span className="text-lg font-semibold text-[color:var(--accent-end)]">
-                  {metric.value}
-                </span>
-                <span className="text-[10px] uppercase tracking-[0.15em] text-[color:var(--text-muted)]">
-                  {metric.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Welcome Section - Simplified */}
+      <Card padding="md">
+        <p className="text-sm text-[color:var(--text-muted)] text-center">
+          {t('home.tagline')}
+        </p>
       </Card>
 
       {/* Mosaic Tiles Section */}

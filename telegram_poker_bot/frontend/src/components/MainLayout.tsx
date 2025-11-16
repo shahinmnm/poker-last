@@ -1,9 +1,13 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useEffect, useState } from 'react'
 
 import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
+import Avatar from './ui/Avatar'
 import { cn } from '../utils/cn'
+import { useTelegram } from '../hooks/useTelegram'
+import { apiFetch } from '../utils/apiClient'
 
 const bottomNavKeys = ['home', 'lobby', 'createGame', 'wallet', 'profile'] as const
 
@@ -13,17 +17,54 @@ const bottomNavItems = bottomNavKeys
 
 export default function MainLayout() {
   const { t } = useTranslation()
+  const { user, initData } = useTelegram()
+  const [balance, setBalance] = useState<number | null>(null)
+  const [activeTables, setActiveTables] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!initData) return
+
+    // Fetch balance and active tables
+    Promise.all([
+      apiFetch<{ balance: number }>('/users/me/balance', { initData }).catch(() => ({ balance: 0 })),
+      apiFetch<{ tables: any[] }>('/users/me/tables', { initData }).catch(() => ({ tables: [] })),
+    ]).then(([balanceData, tablesData]) => {
+      setBalance(balanceData.balance)
+      setActiveTables(tablesData.tables || [])
+    })
+  }, [initData])
+
+  const displayName = user?.first_name || user?.username || 'Player'
+  const hasActiveTables = activeTables.length > 0
 
   return (
     <div className="relative flex min-h-screen flex-col text-[color:var(--text-primary)]">
       <header className="sticky top-0 z-30 px-4 pt-2 sm:px-6">
         <div className="mx-auto w-full max-w-4xl">
           <div className="app-card app-card--overlay flex items-center justify-between rounded-2xl px-4 py-2 sm:px-5 sm:py-2.5">
-            <Link to="/" className="flex flex-col gap-0.5 leading-tight">
-              <span className="text-[13px] font-semibold sm:text-sm">{t('app.title')}</span>
-              <span className="text-[10px] text-[color:var(--text-muted)] sm:text-[11px]">{t('app.subtitle')}</span>
+            {/* Left: Player Info */}
+            <Link to="/profile" className="flex items-center gap-3">
+              <Avatar size="sm" />
+              <div className="flex flex-col gap-0.5 leading-tight">
+                <span className="text-[13px] font-semibold sm:text-sm">{displayName}</span>
+                <span className="text-[10px] text-[color:var(--text-muted)] sm:text-[11px]">
+                  {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
+                </span>
+              </div>
             </Link>
+
+            {/* Right: Actions */}
             <div className="flex items-center gap-2">
+              {hasActiveTables && (
+                <Link
+                  to={`/table/${activeTables[0].id}`}
+                  className="app-button app-button--primary app-button--sm flex items-center gap-1.5 text-xs"
+                  title={t('home.actions.resumeGame')}
+                >
+                  <span>▶</span>
+                  <span className="hidden sm:inline">{t('home.actions.resume')}</span>
+                </Link>
+              )}
               <LanguageSelector />
               <Link
                 to="/settings"

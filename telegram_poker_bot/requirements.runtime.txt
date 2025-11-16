@@ -29,3 +29,6 @@ pytz==2024.1
 
 # Logging
 structlog==24.1.0
+
+# Image generation
+Pillow==10.2.0

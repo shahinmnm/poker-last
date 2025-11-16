@@ -27,6 +27,7 @@ export const HomeMosaicTile = forwardRef<HTMLDivElement, HomeMosaicTileProps>(
             'border border-[color:var(--surface-border)]',
             'hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(34,197,94,0.2)]',
             'active:translate-y-0',
+            'min-h-[160px] flex flex-col',
             className,
           )}
           {...rest}
@@ -40,13 +41,16 @@ export const HomeMosaicTile = forwardRef<HTMLDivElement, HomeMosaicTileProps>(
             )}
           />
 
-          {/* Icon container */}
+          {/* Icon container - glassy iOS style */}
           <div className="mb-3 flex items-start justify-between">
             <div
               className={cn(
-                'flex h-12 w-12 items-center justify-center rounded-2xl text-2xl',
-                'bg-[color:var(--accent-soft)] transition-transform duration-200',
-                'group-hover:scale-110',
+                'flex h-14 w-14 items-center justify-center rounded-2xl text-2xl',
+                'bg-gradient-to-br from-[color:var(--accent-soft)] to-transparent',
+                'backdrop-blur-md border border-[color:var(--surface-border)]',
+                'shadow-[0_4px_12px_rgba(34,197,94,0.15)]',
+                'transition-all duration-200',
+                'group-hover:scale-110 group-hover:shadow-[0_6px_20px_rgba(34,197,94,0.25)]',
               )}
             >
               {icon}
@@ -58,8 +62,8 @@ export const HomeMosaicTile = forwardRef<HTMLDivElement, HomeMosaicTileProps>(
             )}
           </div>
 
-          {/* Text content */}
-          <div>
+          {/* Text content - flex-grow to fill remaining space */}
+          <div className="flex-grow flex flex-col justify-center">
             <h3 className="text-base font-semibold text-[color:var(--text-primary)] group-hover:text-[color:var(--accent-end)] transition-colors">
               {title}
             </h3>
