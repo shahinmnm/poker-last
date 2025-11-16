@@ -128,21 +128,34 @@ export function getWebSocketBaseUrl(): string {
   }
 
   if (kind === 'absolute') {
-    if (value.startsWith('https://')) {
-      API_BASE_CACHE.ws = `wss://${value.slice('https://'.length)}`
+    // Strip /api suffix if present for absolute URLs
+    // This allows WebSocket connections to work with nginx routing
+    // where /api/* routes to API but /ws/* routes to WebSocket endpoint
+    let baseUrl = value
+    if (baseUrl.endsWith('/api')) {
+      baseUrl = baseUrl.slice(0, -4) // Remove '/api' suffix
+    }
+
+    if (baseUrl.startsWith('https://')) {
+      API_BASE_CACHE.ws = `wss://${baseUrl.slice('https://'.length)}`
       return API_BASE_CACHE.ws
     }
 
-    if (value.startsWith('http://')) {
-      API_BASE_CACHE.ws = `ws://${value.slice('http://'.length)}`
+    if (baseUrl.startsWith('http://')) {
+      API_BASE_CACHE.ws = `ws://${baseUrl.slice('http://'.length)}`
       return API_BASE_CACHE.ws
     }
 
-    API_BASE_CACHE.ws = value
+    API_BASE_CACHE.ws = baseUrl
     return API_BASE_CACHE.ws
   }
 
-  API_BASE_CACHE.ws = value
+  // For relative paths, strip /api suffix if present
+  let relativePath = value
+  if (relativePath.endsWith('/api')) {
+    relativePath = relativePath.slice(0, -4)
+  }
+  API_BASE_CACHE.ws = relativePath
   return API_BASE_CACHE.ws
 }
 
