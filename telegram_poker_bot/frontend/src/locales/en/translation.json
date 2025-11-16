@@ -135,6 +135,33 @@
         "Share a link or join from the lobby in one tap.",
         "Get real-time updates as the game progresses."
       ]
+    },
+    "mosaic": {
+      "playPublic": {
+        "title": "Play Public Game",
+        "subtitle": "Browse and join lobby tables"
+      },
+      "createPrivate": {
+        "title": "Create Private Table",
+        "subtitle": "Invite friends to play"
+      },
+      "joinWithCode": {
+        "title": "Join with Code",
+        "subtitle": "Enter code or scan QR"
+      },
+      "myTables": {
+        "title": "My Tables & Stats",
+        "subtitle": "Active games and history"
+      },
+      "profile": {
+        "title": "Profile & Avatar",
+        "subtitle": "View your poker identity"
+      },
+      "settings": {
+        "title": "Settings",
+        "subtitle": "Preferences and language"
+      },
+      "hint": "Tap any tile to quickly access that feature. Your active tables will show badges."
     }
   },
   "lobby": {
