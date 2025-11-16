@@ -932,6 +932,14 @@ async def sit_at_table(
         seat = await table_service.seat_user_at_table(db, table_id, user.id)
         await db.commit()
 
+        # Broadcast player joined event to all connected clients
+        await manager.broadcast(table_id, {
+            "type": "player_joined",
+            "user_id": user.id,
+            "position": seat.position,
+            "chips": seat.chips,
+        })
+
         try:
             matchmaking_pool = await get_matchmaking_pool()
             await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
@@ -967,6 +975,12 @@ async def leave_table(
     try:
         await table_service.leave_table(db, table_id, user.id)
         await db.commit()
+
+        # Broadcast player left event to all connected clients
+        await manager.broadcast(table_id, {
+            "type": "player_left",
+            "user_id": user.id,
+        })
 
         try:
             matchmaking_pool = await get_matchmaking_pool()
