@@ -33,7 +33,21 @@ class GameMode(PyEnum):
 
 
 class TableStatus(PyEnum):
-    """Table status enumeration."""
+    """Table status enumeration.
+
+    NOTE:
+        The underlying PostgreSQL enum type is defined with *lowercase* values
+        ('waiting', 'active', 'paused', 'ended', 'expired').  SQLAlchemy's
+        default behaviour for `Enum(PyEnum)` is to use the *name* of the enum
+        member (e.g. 'WAITING'), which caused runtime errors like:
+
+            invalid input value for enum tablestatus: "WAITING"
+
+        To avoid this, the `Table.status` column below is configured with
+        `values_callable` so that the database values come from
+        `TableStatus.<member>.value` (lowercase strings), matching the
+        migration in `008_add_expired_table_status.py`.
+    """
 
     WAITING = "waiting"
     ACTIVE = "active"  # Game started and running
@@ -135,7 +149,15 @@ class Table(Base):
     id = Column(Integer, primary_key=True, index=True)
     mode = Column(Enum(GameMode), nullable=False, index=True)
     group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=True)
-    status = Column(Enum(TableStatus), nullable=False, default=TableStatus.WAITING)
+    status = Column(
+        Enum(
+            TableStatus,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="tablestatus",
+        ),
+        nullable=False,
+        default=TableStatus.WAITING,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     config_json = Column(JSONB, default=dict)
