@@ -12,7 +12,7 @@ RUN apt-get update \
         libpq-dev \
         libjpeg62-turbo-dev \
         libopenjp2-7-dev \
-        libtiff6-dev \
+        libtiff-dev \
         libwebp-dev \
         zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
