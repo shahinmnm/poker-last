@@ -59,7 +59,6 @@ export default function GroupInvitePage() {
       return
     }
     // Start in configuring mode - user needs to set table parameters
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, initData])
 
   const creatorName = useMemo(() => {
