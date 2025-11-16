@@ -537,7 +537,10 @@
     "expiration": {
       "title": "Table Expires In",
       "hint": "This table will automatically close when time runs out.",
-      "expired": "Table has expired"
+      "expired": "Table has expired",
+      "expiredMessage": "This table has expired and is no longer available.",
+      "expiredBackToLobby": "Back to lobby",
+      "expiredCreateNew": "Create similar table"
     },
     "toast": {
       "seated": "Seat reserved.",

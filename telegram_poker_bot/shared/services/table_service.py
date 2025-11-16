@@ -36,6 +36,33 @@ INVITE_CODE_LENGTH = 6
 INVITE_CODE_FALLBACK_LENGTH = 8
 
 
+async def check_and_mark_expired_table(db: AsyncSession, table: Table) -> bool:
+    """
+    Check if a table should be marked as expired and update its status.
+    
+    Returns True if table was expired, False otherwise.
+    """
+    now = datetime.now(timezone.utc)
+    
+    # Skip tables that are already ended or expired
+    if table.status in {TableStatus.ENDED, TableStatus.EXPIRED}:
+        return table.status == TableStatus.EXPIRED
+    
+    # Check time-based expiration
+    if table.expires_at and table.expires_at <= now:
+        table.status = TableStatus.EXPIRED
+        table.updated_at = now
+        await db.flush()
+        logger.info(
+            "Table marked as expired (time limit)",
+            table_id=table.id,
+            expires_at=table.expires_at.isoformat(),
+        )
+        return True
+    
+    return False
+
+
 def _generate_invite_code(length: int = INVITE_CODE_LENGTH) -> str:
     """Generate a random invite code for private tables."""
     # Use uppercase letters and digits for readability
@@ -373,6 +400,11 @@ async def get_table_by_invite_code(db: AsyncSession, invite_code: str) -> Table:
 
     now = datetime.now(timezone.utc)
     if table.expires_at and table.expires_at <= now:
+        # Mark as expired if not already
+        if table.status not in {TableStatus.ENDED, TableStatus.EXPIRED}:
+            table.status = TableStatus.EXPIRED
+            table.updated_at = now
+            await db.flush()
         raise ValueError("Table has expired")
 
     if table.is_public:
@@ -459,12 +491,14 @@ async def get_table_info(
     if not table:
         raise ValueError(f"Table {table_id} not found")
 
+    # Check if table should be marked as expired
+    is_expired = await check_and_mark_expired_table(db, table)
+
     now = datetime.now(timezone.utc)
     config = table.config_json or {}
     creator_user_id = table.creator_user_id or config.get("creator_user_id")
     is_public = table.is_public if table.is_public is not None else not _is_table_private(config)
     is_private = not is_public
-    is_expired = bool(table.expires_at and table.expires_at <= now)
 
     # Fetch host user if available
     host_user = None
