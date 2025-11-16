@@ -1,8 +1,8 @@
 """Add expired status and normalize table status enum to lowercase."""
 
 # revision identifiers, used by Alembic.
-revision = "004_add_expired_table_status"
-down_revision = "003_lowercase_invite_status"
+revision = "008_add_expired_table_status"
+down_revision = "007_table_last_action_timestamp"
 branch_labels = None
 depends_on = None
 
