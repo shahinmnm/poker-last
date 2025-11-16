@@ -155,7 +155,7 @@ class JoinByInviteRequest(BaseModel):
         ...,
         min_length=table_service.INVITE_CODE_LENGTH,
         max_length=table_service.INVITE_CODE_FALLBACK_LENGTH,
-        regex=r"^[A-Za-z0-9]+$",
+        pattern=r"^[A-Za-z0-9]+$",
         description="Invite code shared by the table host.",
     )
 
