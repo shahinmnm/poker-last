@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, ApiError, resolveWebSocketUrl } from '../utils/apiClient'
 import Toast from '../components/Toast'
+import Countdown from '../components/Countdown'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
@@ -57,6 +58,8 @@ interface TableDetails {
   max_players: number
   created_at?: string | null
   updated_at?: string | null
+  expires_at?: string | null
+  invite_code?: string | null
   host?: TableHostInfo | null
   players?: TablePlayer[]
   viewer?: TableViewerInfo | null
@@ -448,6 +451,73 @@ export default function TablePage() {
           </div>
         </dl>
       </Card>
+
+      {/* Invite Code Section (for private tables) */}
+      {tableDetails.visibility === 'private' && viewerIsCreator && tableDetails.invite_code && (
+        <Card>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-[color:var(--text-primary)]">
+                {t('table.invite.title', { defaultValue: 'Invite Friends' })}
+              </h2>
+              <span className="text-xs text-[color:var(--text-muted)]">
+                🔒 {t('table.visibility.private', { defaultValue: 'Private' })}
+              </span>
+            </div>
+            <div className="rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs uppercase tracking-wider text-[color:var(--text-muted)]">
+                    {t('table.invite.codeLabel', { defaultValue: 'Invite Code' })}
+                  </p>
+                  <p className="mt-1 font-mono text-lg font-bold text-[color:var(--text-primary)]">
+                    {tableDetails.invite_code}
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(tableDetails.invite_code || '')
+                    showToast(t('table.invite.copied', { defaultValue: 'Invite code copied!' }))
+                  }}
+                >
+                  {t('table.invite.copy', { defaultValue: 'Copy' })}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-[color:var(--text-muted)]">
+              {t('table.invite.hint', { defaultValue: 'Share this code with friends to invite them to this private table.' })}
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Countdown Timer (for all tables) */}
+      {tableDetails.expires_at && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">
+                {t('table.expiration.title', { defaultValue: 'Table Expires In' })}
+              </h3>
+              <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                {t('table.expiration.hint', { defaultValue: 'This table will automatically close when time runs out.' })}
+              </p>
+            </div>
+            <div className="text-right">
+              <Countdown 
+                expiresAt={tableDetails.expires_at} 
+                className="text-2xl font-bold text-[color:var(--text-primary)]"
+                onExpire={() => {
+                  showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
+                  setTimeout(() => navigate('/lobby'), 2000)
+                }}
+              />
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <div className="flex items-center justify-between">

@@ -26,6 +26,7 @@ export interface TableInfo {
   host?: TableHostInfo | null
   created_at?: string | null
   updated_at?: string | null
+  expires_at?: string | null
   starting_stack?: number
   is_full?: boolean
   is_private?: boolean
