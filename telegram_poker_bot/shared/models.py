@@ -135,7 +135,15 @@ class Table(Base):
     id = Column(Integer, primary_key=True, index=True)
     mode = Column(Enum(GameMode), nullable=False, index=True)
     group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=True)
-    status = Column(Enum(TableStatus), nullable=False, default=TableStatus.WAITING)
+    status = Column(
+        Enum(
+            TableStatus,
+            values_callable=lambda enum: [status.value for status in enum],
+            name="tablestatus",
+        ),
+        nullable=False,
+        default=TableStatus.WAITING,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     config_json = Column(JSONB, default=dict)
