@@ -90,7 +90,8 @@
     }
   },
   "home": {
-    "welcome": "Welcome back{{name, select, undefined {} other {, {{name}}}}}",
+    "welcome": "Welcome back",
+    "welcomeWithName": "Welcome back, {{name}}",
     "tagline": "Set the stakes, choose your audience, and start playing.",
     "hero": {
       "badge": "Mini app dashboard",
@@ -196,7 +197,8 @@
     "status": {
       "running": "Running",
       "waiting": "Waiting",
-      "starting": "Starting soon"
+      "starting": "Starting soon",
+      "finished": "Finished"
     }
   },
   "createGame": {
