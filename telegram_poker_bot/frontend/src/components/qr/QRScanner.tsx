@@ -25,9 +25,10 @@ export default function QRScanner({ isOpen, onClose, onScan }: QRScannerProps) {
 
   const handleTelegramQRScan = useCallback(() => {
     // Check if Telegram WebApp QR scanner is available
-    if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.showScanQrPopup) {
-      try {
-        ;(window as any).Telegram.WebApp.showScanQrPopup(
+    try {
+      const telegram = (window as unknown as { Telegram?: { WebApp?: { showScanQrPopup?: (params: { text: string }, callback: (result: string) => void) => void } } }).Telegram
+      if (telegram?.WebApp?.showScanQrPopup) {
+        telegram.WebApp.showScanQrPopup(
           {
             text: t('joinGame.form.scanButton'),
           },
@@ -39,12 +40,12 @@ export default function QRScanner({ isOpen, onClose, onScan }: QRScannerProps) {
             }
           }
         )
-      } catch (error) {
-        console.error('Error opening Telegram QR scanner:', error)
-        setScanError('QR scanner not available')
+      } else {
+        setScanError('QR scanner not available in this environment')
       }
-    } else {
-      setScanError('QR scanner not available in this environment')
+    } catch (error) {
+      console.error('Error opening Telegram QR scanner:', error)
+      setScanError('QR scanner not available')
     }
   }, [onScan, onClose, t])
 

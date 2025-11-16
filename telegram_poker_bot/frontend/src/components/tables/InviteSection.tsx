@@ -38,20 +38,26 @@ export default function InviteSection({
     const fullText = `${shareText}: ${inviteCode}`
     
     // Use Telegram WebApp share if available
-    if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.openTelegramLink) {
-      const encodedText = encodeURIComponent(fullText)
-      ;(window as any).Telegram.WebApp.openTelegramLink(`https://t.me/share/url?text=${encodedText}`)
-    } else if (navigator.share) {
-      // Fallback to Web Share API
-      navigator
-        .share({
-          text: fullText,
-        })
-        .catch((error) => {
-          console.error('Error sharing:', error)
-        })
-    } else {
-      // Fallback to copy
+    try {
+      const telegram = (window as unknown as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } }).Telegram
+      if (telegram?.WebApp?.openTelegramLink) {
+        const encodedText = encodeURIComponent(fullText)
+        telegram.WebApp.openTelegramLink(`https://t.me/share/url?text=${encodedText}`)
+      } else if (navigator.share) {
+        // Fallback to Web Share API
+        navigator
+          .share({
+            text: fullText,
+          })
+          .catch((error) => {
+            console.error('Error sharing:', error)
+          })
+      } else {
+        // Fallback to copy
+        handleCopy()
+      }
+    } catch (error) {
+      console.error('Error sharing:', error)
       handleCopy()
     }
   }, [inviteCode, t, handleCopy])
