@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import Modal from '../ui/Modal'
@@ -7,7 +7,7 @@ import Card from '../ui/Card'
 export interface QRScannerProps {
   isOpen: boolean
   onClose: () => void
-  onScan: (code: string) => void
+  onScan: (code: string) => boolean | void
 }
 
 /**
@@ -22,6 +22,14 @@ export interface QRScannerProps {
 export default function QRScanner({ isOpen, onClose, onScan }: QRScannerProps) {
   const { t } = useTranslation()
   const [scanError, setScanError] = useState<string | null>(null)
+  const [hasCaptured, setHasCaptured] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      setHasCaptured(false)
+      setScanError(null)
+    }
+  }, [isOpen])
 
   const handleTelegramQRScan = useCallback(() => {
     // Check if Telegram WebApp QR scanner is available
@@ -33,10 +41,13 @@ export default function QRScanner({ isOpen, onClose, onScan }: QRScannerProps) {
             text: t('joinGame.form.scanButton'),
           },
           (result: string) => {
+            if (hasCaptured) return
             if (result) {
-              // QR code scanned successfully
-              onScan(result)
-              onClose()
+              const success = onScan(result)
+              if (success !== false) {
+                setHasCaptured(true)
+                onClose()
+              }
             }
           }
         )
@@ -47,7 +58,7 @@ export default function QRScanner({ isOpen, onClose, onScan }: QRScannerProps) {
       console.error('Error opening Telegram QR scanner:', error)
       setScanError('QR scanner not available')
     }
-  }, [onScan, onClose, t])
+  }, [hasCaptured, onScan, onClose, t])
 
   const handleManualEntry = useCallback(() => {
     onClose()

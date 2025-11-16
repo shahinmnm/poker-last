@@ -264,7 +264,9 @@
       "title": "Scan QR Code",
       "description": "Point your camera at the QR code shared by the host",
       "openScanner": "Open QR Scanner",
-      "manualEntry": "Enter code manually"
+      "manualEntry": "Enter code manually",
+      "invalid": "This QR doesn’t include a valid invite code.",
+      "scanned": "Code captured from QR. Joining now..."
     },
     "preview": {
       "title": "Table found"
@@ -531,6 +533,8 @@
       "copied": "Invite code copied!",
       "share": "Share",
       "shareText": "Join my private table with code",
+      "qrLabel": "QR invite",
+      "qrHint": "Friends can scan this or open the link to join faster.",
       "hint": "Share this code with friends to invite them to this private table.",
       "expires": "Invite expires {{value}}",
       "status": {

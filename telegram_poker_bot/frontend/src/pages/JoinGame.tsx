@@ -8,6 +8,7 @@ import Badge from '../components/ui/Badge'
 import PageHeader from '../components/ui/PageHeader'
 import TableSummary from '../components/tables/TableSummary'
 import QRScanner from '../components/qr/QRScanner'
+import Toast from '../components/Toast'
 import type { TableStatusTone } from '../components/lobby/types'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, ApiError } from '../utils/apiClient'
@@ -17,7 +18,13 @@ import {
   RecentInviteEntry,
   upsertRecentInvite,
 } from '../utils/recentInvites'
-import { INVITE_CODE_LENGTH, INVITE_CODE_MAX_LENGTH, INVITE_CODE_PATTERN, normalizeInviteCode } from '../utils/invite'
+import {
+  INVITE_CODE_LENGTH,
+  INVITE_CODE_MAX_LENGTH,
+  INVITE_CODE_PATTERN,
+  extractInviteCodeFromPayload,
+  normalizeInviteCode,
+} from '../utils/invite'
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
   pending: 'joinGame.recent.status.pending',
@@ -60,6 +67,7 @@ export default function JoinGamePage() {
   const [joinResult, setJoinResult] = useState<JoinByInviteResponse | null>(null)
   const [recentInvites, setRecentInvites] = useState<RecentInviteEntry[]>([])
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false)
+  const [toast, setToast] = useState({ message: '', visible: false })
 
   useEffect(() => {
     setRecentInvites(loadRecentInvites())
@@ -160,20 +168,33 @@ export default function JoinGamePage() {
     setJoinResult(null)
   }
 
-  const handleQRScan = useCallback((scannedCode: string) => {
-    // Extract invite code from scanned data
-    // Could be just the code, or a URL containing the code
-    const normalized = normalizeInviteCode(scannedCode)
-    if (normalized) {
+  const showToast = useCallback((message: string) => {
+    setToast({ message, visible: true })
+    window.setTimeout(() => setToast((prev) => ({ ...prev, visible: false })), 2200)
+  }, [])
+
+  const handleQRScan = useCallback(
+    (scannedCode: string) => {
+      const normalized = extractInviteCodeFromPayload(scannedCode) || normalizeInviteCode(scannedCode)
+
+      if (!normalized || !INVITE_CODE_PATTERN.test(normalized)) {
+        setError(t('joinGame.qr.invalid'))
+        return false
+      }
+
       setCode(normalized)
       setError(null)
       setJoinResult(null)
-      // Optionally auto-submit
+      setIsQRScannerOpen(false)
+      showToast(t('joinGame.qr.scanned'))
+
       if (normalized.length >= INVITE_CODE_LENGTH && INVITE_CODE_PATTERN.test(normalized)) {
         void submitInvite(normalized)
       }
-    }
-  }, [submitInvite])
+      return true
+    },
+    [showToast, submitInvite, t],
+  )
 
   const activeTable = joinResult?.table
   const statusBadge = activeTable ? resolveStatus(activeTable.status) : null
@@ -214,11 +235,13 @@ export default function JoinGamePage() {
         </form>
       </Card>
 
-      <QRScanner 
-        isOpen={isQRScannerOpen} 
-        onClose={() => setIsQRScannerOpen(false)} 
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
         onScan={handleQRScan}
       />
+
+      <Toast message={toast.message} visible={toast.visible} />
 
       {joinResult && (
         <Card className="space-y-3">
