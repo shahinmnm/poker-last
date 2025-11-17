@@ -122,14 +122,14 @@ export default function HomePage() {
 
   return (
     <div className="space-y-[var(--space-xl)] pt-[var(--space-sm)]">
-      <div className="glass-panel relative mx-auto w-full rounded-[30px] px-5 py-5 text-center shadow-[0_18px_48px_rgba(0,0,0,0.5)]">
-        <div className="mx-auto inline-flex items-center justify-center rounded-full border border-[color:var(--color-accent-soft)] bg-[color:var(--color-accent-soft)]/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--color-accent-start)]">
+      <div className="glass-panel relative mx-auto w-full px-5 py-5 text-center shadow-[0_18px_48px_rgba(0,0,0,0.5)]" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <div className="mx-auto inline-flex items-center justify-center rounded-full border border-[color:var(--color-accent-soft)] bg-[color:var(--color-accent-soft)]/50 px-3 py-1 font-semibold uppercase tracking-[0.16em] text-[color:var(--color-accent-start)]" style={{ fontSize: 'var(--fs-caption)' }}>
           {t('home.mosaic.heroKicker', 'Premium poker hub')}
         </div>
         <div className="mt-2 space-y-2">
-          <p className="text-[16px] font-bold text-[color:var(--color-text)]">{t('home.tagline')}</p>
+          <p className="font-bold text-[color:var(--color-text)]" style={{ fontSize: 'var(--fs-large)' }}>{t('home.tagline')}</p>
           <div className="mx-auto h-px w-16 bg-white/15" />
-          <p className="text-[12px] leading-relaxed text-[color:var(--color-text-muted)] line-clamp-2">
+          <p className="leading-relaxed text-[color:var(--color-text-muted)] line-clamp-2" style={{ fontSize: 'var(--fs-label)' }}>
             {t('home.mosaic.hint')}
           </p>
         </div>
@@ -137,8 +137,8 @@ export default function HomePage() {
 
       <HomeMenuGrid items={menuItems} />
 
-      <div className="glass-panel rounded-[24px] px-5 py-4 text-center">
-        <p className="text-[var(--font-size-sm)] text-[color:var(--color-text-muted)] leading-relaxed">
+      <div className="glass-panel px-5 py-4 text-center" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <p className="leading-relaxed text-[color:var(--color-text-muted)]" style={{ fontSize: 'var(--fs-label)' }}>
           {hasActiveTables ? t('home.mosaic.activeTablesHint') : t('home.mosaic.hint')}
         </p>
       </div>
