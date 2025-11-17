@@ -234,11 +234,15 @@ class TableRuntime:
         logger.info("Hand started", table_id=self.table.id, hand_no=self.hand_no)
         return hand
 
-    def handle_action(self, user_id: int, action: ActionType, amount: Optional[int] = None) -> Dict:
+    def handle_action(
+        self, user_id: int, action: ActionType, amount: Optional[int] = None
+    ) -> Dict:
         if not self.hand_state:
             raise ValueError("No active hand")
         hand = self.hand_state
-        actor_index = next((i for i, p in enumerate(hand.players) if p.user_id == user_id), None)
+        actor_index = next(
+            (i for i, p in enumerate(hand.players) if p.user_id == user_id), None
+        )
         if actor_index is None:
             raise ValueError("Player not seated")
         if hand.current_actor is not None and actor_index != hand.current_actor:
@@ -315,8 +319,14 @@ class TableRuntime:
             "pot": hand.pot if hand else 0,
             "current_bet": hand.current_bet if hand else 0,
             "min_raise": hand.min_raise if hand else 0,
-            "current_actor": hand.players[hand.current_actor].user_id if hand and hand.current_actor is not None else None,
-            "action_deadline": hand.deadline.isoformat() if hand and hand.deadline else None,
+            "current_actor": (
+                hand.players[hand.current_actor].user_id
+                if hand and hand.current_actor is not None
+                else None
+            ),
+            "action_deadline": (
+                hand.deadline.isoformat() if hand and hand.deadline else None
+            ),
             "players": [
                 {
                     "user_id": p.user_id,
@@ -332,12 +342,17 @@ class TableRuntime:
                 }
                 for p in (hand.players if hand else [])
             ],
-            "hero": None
-            if not hand or viewer_user_id is None
-            else {
-                "user_id": viewer_user_id,
-                "cards": next((p.cards for p in hand.players if p.user_id == viewer_user_id), []),
-            },
+            "hero": (
+                None
+                if not hand or viewer_user_id is None
+                else {
+                    "user_id": viewer_user_id,
+                    "cards": next(
+                        (p.cards for p in hand.players if p.user_id == viewer_user_id),
+                        [],
+                    ),
+                }
+            ),
             "last_action": hand.last_action if hand else None,
         }
 
@@ -359,7 +374,9 @@ class TableRuntimeManager:
             if not table:
                 raise ValueError("Table not found")
             seats_result = await db.execute(
-                select(Seat).where(Seat.table_id == table_id, Seat.left_at.is_(None)).order_by(Seat.position)
+                select(Seat)
+                .where(Seat.table_id == table_id, Seat.left_at.is_(None))
+                .order_by(Seat.position)
             )
             seats = seats_result.scalars().all()
             runtime = TableRuntime(table, seats)
@@ -374,7 +391,14 @@ class TableRuntimeManager:
         hand = runtime.start_hand(small_blind, big_blind)
         return runtime.to_payload()
 
-    async def handle_action(self, db: AsyncSession, table_id: int, user_id: int, action: ActionType, amount: Optional[int]) -> Dict:
+    async def handle_action(
+        self,
+        db: AsyncSession,
+        table_id: int,
+        user_id: int,
+        action: ActionType,
+        amount: Optional[int],
+    ) -> Dict:
         runtime = await self.ensure_table(db, table_id)
         result = runtime.handle_action(user_id, action, amount)
         payload = runtime.to_payload(user_id)
@@ -382,7 +406,9 @@ class TableRuntimeManager:
             payload["hand_result"] = result["result"]
         return payload
 
-    async def get_state(self, db: AsyncSession, table_id: int, viewer_user_id: Optional[int]) -> Dict:
+    async def get_state(
+        self, db: AsyncSession, table_id: int, viewer_user_id: Optional[int]
+    ) -> Dict:
         runtime = await self.ensure_table(db, table_id)
         return runtime.to_payload(viewer_user_id)
 
@@ -397,6 +423,7 @@ def get_runtime_manager() -> TableRuntimeManager:
 @dataclass
 class TableRuntimeSnapshot:
     """Snapshot of table runtime state for testing and inspection."""
+
     table_id: int
     visibility: str
     engine: Optional[Any] = None
@@ -407,7 +434,7 @@ class TableRuntimeSnapshot:
 async def get_table_runtime(db: AsyncSession, table_id: int) -> TableRuntimeSnapshot:
     """
     Get a snapshot of table runtime state.
-    
+
     This function retrieves table information and creates a snapshot object
     with visibility, seats, and engine information (if applicable).
     """
@@ -416,32 +443,34 @@ async def get_table_runtime(db: AsyncSession, table_id: int) -> TableRuntimeSnap
     table = result.scalar_one_or_none()
     if not table:
         raise ValueError(f"Table {table_id} not found")
-    
+
     # Fetch seats
     seats_result = await db.execute(
-        select(Seat).where(Seat.table_id == table_id, Seat.left_at.is_(None)).order_by(Seat.position)
+        select(Seat)
+        .where(Seat.table_id == table_id, Seat.left_at.is_(None))
+        .order_by(Seat.position)
     )
     seats = list(seats_result.scalars().all())
-    
+
     # Determine visibility
     visibility = "private" if table.is_private else "public"
-    
+
     # Get config
     config = table.config_json or {}
     max_players = config.get("max_players", 8)
-    
+
     # Check if we should create an engine (2+ players)
     engine = None
     if len(seats) >= 2:
         # Import here to avoid circular dependency
         from telegram_poker_bot.engine_adapter import PokerEngineAdapter
         from pokerkit import Mode
-        
+
         # Create engine adapter
         starting_stacks = [seat.chips for seat in seats]
         small_blind = config.get("small_blind", 25)
         big_blind = config.get("big_blind", 50)
-        
+
         engine = PokerEngineAdapter(
             player_count=len(seats),
             starting_stacks=starting_stacks,
@@ -449,7 +478,7 @@ async def get_table_runtime(db: AsyncSession, table_id: int) -> TableRuntimeSnap
             big_blind=big_blind,
             mode=Mode.TOURNAMENT,
         )
-    
+
     return TableRuntimeSnapshot(
         table_id=table.id,
         visibility=visibility,
@@ -462,7 +491,7 @@ async def get_table_runtime(db: AsyncSession, table_id: int) -> TableRuntimeSnap
 async def refresh_table_runtime(db: AsyncSession, table_id: int) -> None:
     """
     Refresh table runtime by ensuring it exists in the runtime manager.
-    
+
     This function ensures that a table runtime is loaded and cached
     in the TableRuntimeManager.
     """
@@ -472,9 +501,8 @@ async def refresh_table_runtime(db: AsyncSession, table_id: int) -> None:
 def reset_runtime_cache() -> None:
     """
     Reset the runtime cache by clearing all cached table runtimes.
-    
+
     This is primarily used in tests to ensure a clean state between test runs.
     """
     global _runtime_manager
     _runtime_manager = TableRuntimeManager()
-
