@@ -52,7 +52,8 @@ from telegram_poker_bot.shared.services.group_invites import (
 from telegram_poker_bot.shared.services import user_service, table_service
 from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.bot.i18n import get_translation
-from telegram_poker_bot.game_core import TableManager, get_matchmaking_pool
+from telegram_poker_bot.game_core import get_matchmaking_pool
+from telegram_poker_bot.game_core.runtime import get_runtime_manager
 
 settings = get_settings()
 configure_logging()
@@ -1009,25 +1010,14 @@ async def start_table(
     user = await ensure_user(db, auth)
 
     try:
-        # Update table status to ACTIVE
         await table_service.start_table(db, table_id, user_id=user.id)
+        state = await get_runtime_manager().start_game(db, table_id)
         await db.commit()
-        
-        # Get table info to broadcast to clients
-        table_info = await table_service.get_table_info(
-            db,
-            table_id,
-            viewer_user_id=user.id,
-        )
-        
-        # Broadcast table state update to all connected clients
-        await manager.broadcast(table_id, {
-            "type": "table_started",
-            "table": table_info,
-        })
-        
+
+        await manager.broadcast(table_id, state)
+
         logger.info("Game started and broadcasted", table_id=table_id, started_by=user.id)
-        
+
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except ValueError as exc:
@@ -1039,7 +1029,26 @@ async def start_table(
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.warning("Failed to invalidate public table cache after start", error=str(exc))
 
-    return table_info
+    return state
+
+
+@api_app.get("/tables/{table_id}/state")
+async def get_table_state(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    viewer_id: Optional[int] = None
+    if x_telegram_init_data:
+        auth = verify_telegram_init_data(x_telegram_init_data)
+        if auth:
+            user = await ensure_user(db, auth)
+            viewer_id = user.id
+    try:
+        state = await get_runtime_manager().get_state(db, table_id, viewer_id)
+        return state
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @api_app.delete("/tables/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1250,29 +1259,19 @@ async def submit_action(
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
     
     # Process action
-    table_manager = TableManager(db, await get_matchmaking_pool().redis)
     action_type = ActionType(action.action_type)
-    
+
     try:
-        action_obj = await table_manager.process_action(
+        state = await get_runtime_manager().handle_action(
+            db,
             table_id=table_id,
             user_id=user_auth.user_id,
-            action_type=action_type,
+            action=action_type,
             amount=action.amount,
         )
-        
-        # Broadcast update to all connected clients
-        await manager.broadcast(table_id, {
-            "type": "action",
-            "action": {
-                "id": action_obj.id,
-                "user_id": action_obj.user_id,
-                "type": action_obj.type.value,
-                "amount": action_obj.amount,
-            },
-        })
-        
-        return {"success": True, "action_id": action_obj.id}
+
+        await manager.broadcast(table_id, state)
+        return state
     except Exception as e:
         logger.error("Error processing action", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))

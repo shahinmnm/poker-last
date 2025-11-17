@@ -76,6 +76,42 @@ interface TableDetails {
   group_title?: string | null
 }
 
+interface LivePlayerState {
+  user_id: number
+  seat: number
+  stack: number
+  bet: number
+  in_hand: boolean
+  is_button: boolean
+  is_small_blind: boolean
+  is_big_blind: boolean
+  acted?: boolean
+  display_name?: string | null
+}
+
+interface LiveHeroState {
+  user_id: number
+  cards: string[]
+}
+
+interface LiveTableState {
+  type: 'table_state'
+  table_id: number
+  hand_id: number | null
+  status: string
+  street: string | null
+  board: string[]
+  pot: number
+  current_bet: number
+  min_raise: number
+  current_actor: number | null
+  action_deadline?: string | null
+  players: LivePlayerState[]
+  hero: LiveHeroState | null
+  last_action?: Record<string, unknown> | null
+  hand_result?: { winners: { user_id: number; amount: number; hand_score: number }[] }
+}
+
 const DEFAULT_TOAST = { message: '', visible: false }
 
 export default function TablePage() {
@@ -93,6 +129,9 @@ export default function TablePage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [toast, setToast] = useState(DEFAULT_TOAST)
+  const [liveState, setLiveState] = useState<LiveTableState | null>(null)
+  const [handResult, setHandResult] = useState<LiveTableState['hand_result'] | null>(null)
+  const [actionPending, setActionPending] = useState(false)
 
   const dateFormatter = useMemo(
     () =>
@@ -141,12 +180,29 @@ export default function TablePage() {
     }
   }, [initData, tableId, t])
 
+  const fetchLiveState = useCallback(async () => {
+    if (!tableId) {
+      return
+    }
+    try {
+      const data = await apiFetch<LiveTableState>(`/tables/${tableId}/state`, {
+        method: 'GET',
+        initData: initData ?? undefined,
+      })
+      setLiveState(data)
+      setHandResult(data.hand_result ?? null)
+    } catch (err) {
+      console.warn('Unable to fetch live state', err)
+    }
+  }, [initData, tableId])
+
   useEffect(() => {
     if (!tableId) {
       return
     }
     fetchTable()
-  }, [fetchTable, tableId])
+    fetchLiveState()
+  }, [fetchTable, fetchLiveState, tableId])
 
   useEffect(() => {
     if (!tableId) {
@@ -160,12 +216,18 @@ export default function TablePage() {
       socket.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data)
-          // Refresh table data when receiving game events
-          if (payload?.type === 'action' || 
-              payload?.type === 'table_started' || 
-              payload?.type === 'player_joined' || 
-              payload?.type === 'player_left') {
+          if (payload?.type === 'table_state') {
+            setLiveState(payload as LiveTableState)
+            setHandResult((payload as LiveTableState).hand_result ?? null)
+          }
+          if (
+            payload?.type === 'action' ||
+            payload?.type === 'table_started' ||
+            payload?.type === 'player_joined' ||
+            payload?.type === 'player_left'
+          ) {
             fetchTable()
+            fetchLiveState()
           }
         } catch {
           // Ignore malformed messages
@@ -175,7 +237,7 @@ export default function TablePage() {
       console.warn('Unable to establish table WebSocket connection:', wsError)
     }
     return () => socket?.close()
-  }, [fetchTable, tableId])
+  }, [fetchLiveState, fetchTable, tableId])
 
   const handleSeat = async () => {
     if (!tableId) {
@@ -251,11 +313,13 @@ export default function TablePage() {
     }
     try {
       setIsStarting(true)
-      const updated = await apiFetch<TableDetails>(`/tables/${tableId}/start`, {
+      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/start`, {
         method: 'POST',
         initData,
       })
-      setTableDetails(updated)
+      setLiveState(state)
+      setHandResult(state.hand_result ?? null)
+      await fetchTable()
       showToast(t('table.toast.started'))
     } catch (err) {
       console.error('Error starting table:', err)
@@ -276,6 +340,58 @@ export default function TablePage() {
       setIsStarting(false)
     }
   }
+
+  const sendAction = async (actionType: 'fold' | 'check' | 'call' | 'bet' | 'raise', amount?: number) => {
+    if (!tableId || !initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      setActionPending(true)
+      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/action`, {
+        method: 'POST',
+        initData,
+        body: {
+          action_type: actionType,
+          amount,
+        },
+      })
+      setLiveState(state)
+      setHandResult(state.hand_result ?? null)
+    } catch (err) {
+      console.error('Error sending action', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    } finally {
+      setActionPending(false)
+    }
+  }
+
+  const renderCard = useCallback((card: string, size: 'sm' | 'lg' = 'sm') => {
+    const rank = card?.[0]
+    const suit = card?.[1]
+    const color = suit === 'h' || suit === 'd' ? 'text-rose-300' : 'text-sky-200'
+    const base =
+      size === 'lg'
+        ? 'w-14 h-20 text-xl'
+        : 'w-10 h-14 text-base'
+
+    return (
+      <div
+        key={`${card}-${size}`}
+        className={`${base} rounded-xl bg-white/10 backdrop-blur-md border border-white/15 shadow-glow flex items-center justify-center font-black tracking-tight ${color}`}
+      >
+        <span>{`${rank ?? '?'}`}{suit ?? ''}</span>
+      </div>
+    )
+  }, [])
 
   const handleDeleteTable = async () => {
     if (!tableId) {
@@ -383,6 +499,10 @@ export default function TablePage() {
       : tableDetails.status.toLowerCase() === 'ended'
       ? 'finished'
       : 'waiting'
+  const heroId = liveState?.hero?.user_id ?? null
+  const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
+  const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
+  const heroCards = liveState?.hero?.cards ?? []
 
   return (
     <div className="space-y-6">
@@ -444,6 +564,134 @@ export default function TablePage() {
         subtext={tableDetails.group_title ? t('table.groupTag', { value: tableDetails.group_title }) : undefined}
         expiresAt={tableDetails.expires_at ?? null}
       />
+
+      {liveState && (
+        <Card className="glass-panel border border-white/10 bg-white/5 shadow-xl">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">{t('table.statusLabel')}</p>
+              <p className="text-xl font-semibold text-[color:var(--text-primary)]">{liveState.street?.toUpperCase() || t('table.status.waiting')}</p>
+              <p className="text-sm text-[color:var(--text-muted)]">{t('table.pot', { amount: liveState.pot })}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-[color:var(--text-muted)]">{t('table.blinds')}</p>
+              <p className="text-lg font-semibold text-[color:var(--text-primary)]">{`${tableDetails.small_blind}/${tableDetails.big_blind}`}</p>
+              {liveState.action_deadline && (
+                <p className="text-xs text-emerald-300">{t('table.turnCountdown')}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-4">
+            <div className="flex items-center justify-center gap-2">
+              {liveState.board && liveState.board.length > 0 ? (
+                liveState.board.map((card) => renderCard(card))
+              ) : (
+                <div className="rounded-xl bg-black/20 px-4 py-3 text-xs text-[color:var(--text-muted)]">
+                  {t('table.waitingForBoard')}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {liveState.players.map((player) => {
+                const isActor = player.user_id === liveState.current_actor
+                return (
+                  <div
+                    key={`${player.user_id}-${player.seat}`}
+                    className={`rounded-2xl border px-3 py-3 backdrop-blur-md ${
+                      isActor ? 'border-emerald-400/60 shadow-lg shadow-emerald-500/20' : 'border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-sm text-[color:var(--text-primary)]">
+                      <span className="font-semibold">
+                        {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
+                      </span>
+                      <div className="flex gap-1 text-[10px] uppercase tracking-wide">
+                        {player.is_button && <span className="rounded-full bg-white/10 px-2 py-0.5">D</span>}
+                        {player.is_small_blind && <span className="rounded-full bg-white/10 px-2 py-0.5">SB</span>}
+                        {player.is_big_blind && <span className="rounded-full bg-white/10 px-2 py-0.5">BB</span>}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-[color:var(--text-muted)]">
+                      <span>{t('table.chips', { amount: player.stack })}</span>
+                      {player.bet > 0 && <span className="text-amber-300">{t('table.betAmount', { amount: player.bet })}</span>}
+                    </div>
+                    {!player.in_hand && <p className="mt-2 text-[11px] text-rose-300">{t('table.folded')}</p>}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-center">
+              <p className="text-xs uppercase tracking-[0.25em] text-[color:var(--text-muted)]">{t('table.yourHand')}</p>
+              <div className="flex gap-2">
+                {heroCards.length ? heroCards.map((card) => renderCard(card, 'lg')) : <span className="text-sm text-[color:var(--text-muted)]">{t('table.waitingForHand')}</span>}
+              </div>
+              {handResult && handResult.winners && handResult.winners.length > 0 && (
+                <div className="text-xs text-emerald-300">
+                  {handResult.winners.some((w) => w.user_id === heroId)
+                    ? t('table.result.won', { amount: handResult.winners.find((w) => w.user_id === heroId)?.amount })
+                    : t('table.result.lost')}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {liveState && viewerIsSeated && (
+        <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t('table.actions.play')}</p>
+              <p className="text-xs text-[color:var(--text-muted)]">
+                {liveState.current_actor === heroId ? t('table.actions.yourTurn') : t('table.actions.wait')}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <Button
+                variant="ghost"
+                onClick={() => sendAction('fold')}
+                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
+              >
+                {t('table.actions.fold')}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
+                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
+              >
+                {amountToCall > 0 ? t('table.actions.call', { amount: amountToCall }) : t('table.actions.check')}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => sendAction('bet', liveState.min_raise || tableDetails.big_blind)}
+                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
+                glow
+              >
+                {t('table.actions.bet')}
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
+                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
+              >
+                {t('table.actions.raise')}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
+                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
+              >
+                {t('table.actions.allIn')}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Invite Code Section (for private tables) */}
       {tableDetails.visibility === 'private' && tableDetails.invite_code && (viewerIsCreator || viewerIsSeated) && (
