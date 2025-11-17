@@ -453,7 +453,7 @@ async def get_table_runtime(db: AsyncSession, table_id: int) -> TableRuntimeSnap
     seats = list(seats_result.scalars().all())
 
     # Determine visibility
-    visibility = "private" if table.is_private else "public"
+    visibility = "public" if table.is_public else "private"
 
     # Get config
     config = table.config_json or {}
