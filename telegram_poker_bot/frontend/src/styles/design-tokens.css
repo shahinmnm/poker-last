@@ -18,11 +18,11 @@
   --space-3xl: 2.5rem;    /* 40px */
 
   /* ==================== BORDER RADIUS SCALE ==================== */
-  --radius-sm: 0.375rem;  /* 6px */
-  --radius-md: 0.625rem;  /* 10px */
-  --radius-lg: 0.9rem;    /* 14px */
-  --radius-xl: 1.25rem;   /* 20px */
-  --radius-2xl: 1.45rem;  /* 23px */
+  --radius-sm: 0.25rem;   /* 4px - chips, small badges */
+  --radius-md: 0.5rem;    /* 8px - buttons, inputs */
+  --radius-lg: 0.75rem;   /* 12px - cards, tiles */
+  --radius-xl: 1rem;      /* 16px - large cards */
+  --radius-2xl: 1.625rem; /* 26px - app cards */
   --radius-pill: 9999px;  /* full rounded - pills, segmented controls */
 
   /* ==================== TYPOGRAPHY SCALE ==================== */
@@ -76,59 +76,56 @@
   color-scheme: dark;
   
   /* Background colors */
-  --bg-app: #020715;
+  --bg-app: #020617;
   --bg-app-soft: #020b1f;
-  --color-bg: #020715;
-  --color-bg-muted: #020b1f;
-  --color-bg-gradient:
-    radial-gradient(120% 70% at 50% 82%, rgba(34, 242, 239, 0.18), rgba(73, 220, 122, 0.12), transparent 60%),
-    linear-gradient(180deg, #020715 0%, #020b1f 48%, #020915 100%);
+  --color-bg: #020617;
+  --color-bg-muted: #020b1b;
+  --color-bg-gradient: linear-gradient(180deg, #020617 0%, #020b1b 100%);
 
   /* Surface colors */
-  --surface-elevated: rgba(6, 12, 24, 0.96);
-  --surface-muted: rgba(8, 16, 30, 0.9);
-  --color-surface: rgba(6, 12, 24, 0.92);
-  --color-surface-soft: rgba(8, 16, 30, 0.76);
-  --color-surface-overlay: rgba(6, 12, 24, 0.9);
-  --color-surface-muted: rgba(10, 18, 32, 0.72);
+  --surface-elevated: rgba(15, 23, 42, 0.96);
+  --surface-muted: rgba(15, 23, 42, 0.88);
+  --color-surface: rgba(15, 23, 42, 0.75);
+  --color-surface-soft: rgba(18, 26, 46, 0.68);
+  --color-surface-overlay: rgba(15, 23, 42, 0.7);
+  --color-surface-muted: rgba(15, 23, 42, 0.6);
 
   /* Border colors */
-  --border-soft: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(2, 7, 21, 0.96);
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-subtle: rgba(255, 255, 255, 0.14);
-  --color-border-glass: rgba(255, 255, 255, 0.1);
+  --border-soft: rgba(148, 163, 184, 0.35);
+  --border-strong: rgba(15, 23, 42, 0.9);
+  --color-border: rgba(255, 255, 255, 0.18);
+  --color-border-subtle: rgba(255, 255, 255, 0.24);
+  --color-border-glass: rgba(255, 255, 255, 0.18);
 
   /* Glass effect colors */
-  --color-glass-chip: rgba(255, 255, 255, 0.08);
-  --color-glass-highlight: rgba(73, 220, 122, 0.16);
+  --color-glass-chip: rgba(255, 255, 255, 0.1);
+  --color-glass-highlight: rgba(255, 255, 255, 0.18);
 
   /* Text colors */
-  --text-main: #f9fafb;
-  --text-muted: #8b93a5;
+  --text-main: #e5e7eb;
+  --text-muted: #9ca3af;
   --text-strong: #f9fafb;
-  --text-inverse: #020915;
+  --text-inverse: #020617;
   --color-text: #f9fafb;
-  --color-text-muted: #8b93a5;
-  --color-text-inverse: #020915;
+  --color-text-muted: #9ca3af;
+  --color-text-inverse: #020617;
 
   /* Accent colors (poker green) */
-  --accent-main: #22f2ef;
-  --accent-soft: rgba(73, 220, 122, 0.16);
-  --color-accent: #22f2ef;
-  --color-accent-start: #22f2ef;
-  --color-accent-end: #49dc7a;
-  --color-accent-soft: rgba(73, 220, 122, 0.14);
-  --color-accent-hover: #49dc7a;
-  --color-accent-secondary: #fc923f;
+  --accent-main: #2cc57a;
+  --accent-soft: rgba(44, 197, 122, 0.16);
+  --color-accent: #2cc57a;
+  --color-accent-start: #2cc57a;
+  --color-accent-end: #0ea968;
+  --color-accent-soft: rgba(44, 197, 122, 0.18);
+  --color-accent-hover: #23b56f;
 
   /* Solid glossy tile colors */
   --tile-red: #ff6b6b;
-  --tile-orange: #fc923f;
+  --tile-orange: #ffa94d;
   --tile-yellow: #ffd43b;
-  --tile-green: #49dc7a;
-  --tile-purple: #6b8cff;
-  --tile-blue: #22f2ef;
+  --tile-green: #40c057;
+  --tile-purple: #845ef7;
+  --tile-blue: #4dabf7;
 
   /* Status colors */
   --color-success: #22c55e;
@@ -164,18 +161,18 @@
   --color-role-seated-text: #f3e8ff;
 
   /* Component-specific shadows */
-  --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.55);
-  --shadow-nav: 0 -12px 40px rgba(0, 0, 0, 0.75);
-  --shadow-card: 0 18px 46px rgba(0, 0, 0, 0.85);
-  --shadow-elevated: 0 26px 62px rgba(0, 0, 0, 0.8);
-  --shadow-button: 0 12px 32px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 18px 48px rgba(73, 220, 122, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
-  --shadow-strong: 0 14px 38px rgba(0, 0, 0, 0.55);
-  --shadow-accent-glow: 0 0 24px rgba(34, 242, 239, 0.6);
+  --shadow-soft: 0 8px 22px rgba(0, 0, 0, 0.35);
+  --shadow-nav: 0 -4px 18px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 25px 60px rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 25px 60px rgba(0, 0, 0, 0.55);
+  --shadow-button: 0 14px 40px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 20px 50px rgba(44, 197, 122, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+  --shadow-strong: 0 12px 32px rgba(0, 0, 0, 0.34);
+  --shadow-accent-glow: 0 0 18px rgba(44, 197, 122, 0.5);
 
   /* Navigation colors */
-  --color-nav-bg: rgba(6, 12, 24, 0.95);
-  --color-nav-border: rgba(255, 255, 255, 0.08);
+  --color-nav-bg: rgba(15, 23, 42, 0.78);
+  --color-nav-border: rgba(255, 255, 255, 0.14);
 }
 
 /* ==================== LIGHT THEME ==================== */
