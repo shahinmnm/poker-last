@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import PageHeader from '../components/ui/PageHeader'
-import { SegmentedControl } from '../components/ui/SegmentedControl'
+import Toggle from '../components/ui/Toggle'
 import { useTelegram } from '../hooks/useTelegram'
 import { createTable, type TableSummary, type TableVisibility } from '../services/tables'
 
@@ -20,8 +20,6 @@ interface CreateTableFormState {
 }
 
 type ViewState = 'idle' | 'loading' | 'success' | 'error'
-
-const visibilityOptions: Array<TableVisibility> = ['public', 'private']
 
 export default function CreateGamePage() {
   const { t } = useTranslation()
@@ -150,19 +148,20 @@ export default function CreateGamePage() {
             />
           </div>
 
-          <div className="space-y-3">
-            <span className="text-sm font-medium text-[color:var(--text-muted)]">{t('createGame.form.visibility')}</span>
-            <SegmentedControl
-              value={formState.visibility}
-              onChange={(next) =>
-                handleFieldChange('visibility', next)
-              }
-              options={visibilityOptions.map((option) => ({
-                value: option,
-                label: t(`createGame.form.visibilityOptions.${option}.label`),
-                description: t(`createGame.form.visibilityOptions.${option}.description`),
-              }))}
-              className="w-full max-w-[220px]"
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col">
+              <span className="text-[color:var(--text-main)] font-medium" style={{ fontSize: 'var(--fs-label)' }}>
+                {t('createGame.form.visibility')}
+              </span>
+              <span className="text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-caption)' }}>
+                {formState.visibility === 'public'
+                  ? t('createGame.form.visibilityOptions.public.description', 'Anyone can join')
+                  : t('createGame.form.visibilityOptions.private.description', 'Invite code only')}
+              </span>
+            </div>
+            <Toggle
+              checked={formState.visibility === 'public'}
+              onChange={(checked) => handleFieldChange('visibility', checked ? 'public' : 'private')}
             />
           </div>
 

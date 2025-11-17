@@ -49,6 +49,8 @@ export default function HomePage() {
       recommended: !hasActiveTables,
       shine: true,
       depth: true,
+      emoji: '🔥',
+      tileColor: 'var(--tile-green)',
     },
     {
       key: 'createPrivate',
@@ -58,6 +60,8 @@ export default function HomePage() {
       subtitle: t('home.mosaic.createPrivate.subtitle'),
       recommended: !hasActiveTables,
       badge: hasActiveTables ? undefined : t('home.mosaic.createPrivate.cta', 'Invite-only'),
+      emoji: '🔐',
+      tileColor: 'var(--tile-purple)',
     },
     {
       key: 'joinWithCode',
@@ -65,6 +69,8 @@ export default function HomePage() {
       to: '/games/join',
       subtitle: t('home.mosaic.joinWithCode.subtitle'),
       pulse: false,
+      emoji: '📥',
+      tileColor: 'var(--tile-blue)',
     },
     {
       key: 'myTables',
@@ -75,18 +81,24 @@ export default function HomePage() {
       recommended: hasActiveTables,
       pulse: hasActiveTables,
       depth: true,
+      emoji: '🎯',
+      tileColor: 'var(--tile-orange)',
     },
     {
       key: 'profile',
       icon: ProfileIcon,
       to: '/profile',
       subtitle: t('home.mosaic.profile.subtitle'),
+      emoji: '👤',
+      tileColor: 'var(--tile-red)',
     },
     {
       key: 'settings',
       icon: SettingsIcon,
       to: '/settings',
       subtitle: t('home.mosaic.settings.subtitle'),
+      emoji: '⚙️',
+      tileColor: 'var(--tile-yellow)',
     },
     {
       key: 'liveNow',
@@ -97,6 +109,8 @@ export default function HomePage() {
       pulse: true,
       badge: hasActiveTables ? t('home.mosaic.liveNow.active', 'Now') : undefined,
       shine: true,
+      emoji: '💰',
+      tileColor: 'var(--tile-green)',
     },
   ]
 
