@@ -41,38 +41,37 @@ export default function MainLayout() {
     <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
       <header className="sticky top-0 z-30 px-[var(--space-lg)] pt-[var(--space-sm)] sm:px-[var(--space-xl)]">
         <div className="mx-auto w-full max-w-4xl">
-          <div className="app-card app-card--overlay flex items-center justify-between rounded-[var(--radius-xl)] px-[var(--space-lg)] py-[var(--space-sm)] sm:px-[calc(var(--space-lg)+var(--space-xs))] sm:py-[calc(var(--space-sm)+var(--space-xs))]">
-            {/* Left: Player Info */}
-            <Link to="/profile" className="flex items-center gap-[var(--space-md)]">
-              <Avatar size="sm" />
-              <div className="flex flex-col gap-[var(--space-xs)] leading-tight">
-                <span className="text-[13px] font-semibold sm:text-[var(--font-size-base)]">{displayName}</span>
-                <span className="text-[var(--font-size-xs)] text-[color:var(--color-text-muted)] sm:text-[11px]">
-                  {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
-                </span>
-              </div>
+          <div className="glass-panel flex h-[64px] items-center gap-3 rounded-[30px] px-4 shadow-[0_18px_46px_rgba(0,0,0,0.55)]">
+            <Link to="/profile" className="relative flex items-center gap-3">
+              <span className="absolute inset-[-4px] rounded-full bg-[rgba(44,197,122,0.45)] blur-md" aria-hidden />
+              <Avatar size="sm" className="relative h-9 w-9 border border-white/30" />
             </Link>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-[var(--space-sm)]">
-              {hasActiveTables && (
-                <Link
-                  to={`/table/${activeTables[0].table_id}`}
-                  className="app-button app-button--primary app-button--sm flex items-center gap-[calc(var(--space-xs)+var(--space-xs))] text-[var(--font-size-sm)]"
-                  title={t('home.actions.resumeGame')}
-                >
-                  <span>▶</span>
-                  <span className="hidden sm:inline">{t('home.actions.resume')}</span>
-                </Link>
-              )}
-              <LanguageSelector />
-              <Link
-                to="/settings"
-                className="app-button app-button--secondary app-button--md flex h-8 w-8 items-center justify-center !px-0 text-[var(--font-size-base)]"
-                aria-label={t('menu.settings.label')}
-              >
-                ⚙️
+            <div className="flex flex-1 items-center justify-between gap-3">
+              <Link to="/profile" className="flex flex-1 flex-col leading-tight">
+                <span className="text-[15px] font-semibold text-[color:var(--color-text)]">{displayName}</span>
+                <span className="text-[12px] font-medium text-[color:var(--color-text-muted)]">
+                  {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
+                </span>
               </Link>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  to={hasActiveTables ? `/table/${activeTables[0].table_id}` : '/lobby'}
+                  className="glass-icon-circle h-10 w-10 bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] text-white shadow-[0_0_18px_rgba(44,197,122,0.55)] transition-transform duration-150 ease-out active:scale-95"
+                  aria-label={hasActiveTables ? t('home.actions.resumeGame') : t('menu.lobby.label')}
+                >
+                  ▶
+                </Link>
+                <LanguageSelector variant="icon" />
+                <Link
+                  to="/settings"
+                  className="glass-icon-circle h-10 w-10 text-[color:var(--color-text)] transition-transform duration-150 ease-out active:scale-95"
+                  aria-label={t('menu.settings.label')}
+                >
+                  ⚙️
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -80,19 +79,36 @@ export default function MainLayout() {
       <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-[var(--space-lg)] pb-24 pt-[var(--space-lg)] sm:px-[var(--space-xl)] sm:pt-[var(--space-xl)]">
         <Outlet />
       </main>
-      <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 z-40 px-[var(--space-md)] pb-[calc(var(--space-sm)+var(--space-xs))] pt-[calc(var(--space-xs)+var(--space-xs))] sm:px-[var(--space-lg)]">
+      <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 z-40 min-h-[64px] px-[var(--space-md)] pb-[calc(var(--space-sm)+var(--space-xs))] pt-[calc(var(--space-xs)+var(--space-xs))] sm:px-[var(--space-lg)]">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-around gap-[var(--space-xs)]">
           {bottomNavItems.map((item) => (
             <NavLink
               key={item.key}
               to={item.path}
               end={item.key === 'home'}
-              className={({ isActive }) =>
-                cn('app-bottom-nav__link text-[11px] sm:text-[var(--font-size-sm)]', isActive && 'is-active')
-              }
+              className={({ isActive }) => cn('app-bottom-nav__link text-[11px] sm:text-[var(--font-size-sm)]', isActive && 'is-active')}
             >
-              <span className="text-[var(--font-size-base)] sm:text-base">{item.icon}</span>
-              <span className="leading-tight">{t(item.labelKey)}</span>
+              {({ isActive }) => (
+                <div className="flex flex-col items-center gap-1">
+                  <div
+                    className={cn(
+                      'glass-icon-circle h-10 w-10 text-base shadow-[0_6px_18px_rgba(0,0,0,0.35)] transition-transform duration-150 ease-out active:scale-95',
+                      isActive &&
+                        'bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] text-white ring-1 ring-white/70 shadow-[0_0_18px_rgba(44,197,122,0.55)]',
+                    )}
+                  >
+                    {item.icon}
+                  </div>
+                  <span
+                    className={cn(
+                      'leading-tight text-[11px]',
+                      isActive ? 'text-[color:var(--color-accent)] drop-shadow-[0_0_12px_rgba(44,197,122,0.35)]' : 'text-[color:var(--color-text-muted)]',
+                    )}
+                  >
+                    {t(item.labelKey)}
+                  </span>
+                </div>
+              )}
             </NavLink>
           ))}
         </div>

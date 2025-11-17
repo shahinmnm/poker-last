@@ -14,7 +14,7 @@ interface HomeMenuGridProps {
 
 export function HomeMenuGrid({ items }: HomeMenuGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4" dir="auto">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 sm:gap-4" dir="auto">
       {items.map((item, index) => {
         const { key, style, className, ...rest } = item
 
