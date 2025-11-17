@@ -374,10 +374,18 @@ class TableRuntimeManager:
         hand = runtime.start_hand(small_blind, big_blind)
         return runtime.to_payload()
 
-    async def handle_action(self, db: AsyncSession, table_id: int, user_id: int, action: ActionType, amount: Optional[int]) -> Dict:
+    async def handle_action(
+        self,
+        db: AsyncSession,
+        table_id: int,
+        user_id: int,
+        action: ActionType,
+        amount: Optional[int],
+        viewer_user_id: Optional[int] = None,
+    ) -> Dict:
         runtime = await self.ensure_table(db, table_id)
         result = runtime.handle_action(user_id, action, amount)
-        payload = runtime.to_payload(user_id)
+        payload = runtime.to_payload(viewer_user_id)
         if result.get("result"):
             payload["hand_result"] = result["result"]
         return payload

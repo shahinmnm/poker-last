@@ -1262,16 +1262,21 @@ async def submit_action(
     action_type = ActionType(action.action_type)
 
     try:
-        state = await get_runtime_manager().handle_action(
+        manager_instance = get_runtime_manager()
+
+        state_for_actor = await manager_instance.handle_action(
             db,
             table_id=table_id,
             user_id=user_auth.user_id,
             action=action_type,
             amount=action.amount,
+            viewer_user_id=user_auth.user_id,
         )
 
-        await manager.broadcast(table_id, state)
-        return state
+        public_state = await manager_instance.get_state(db, table_id, viewer_user_id=None)
+
+        await manager.broadcast(table_id, public_state)
+        return state_for_actor
     except Exception as e:
         logger.error("Error processing action", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))

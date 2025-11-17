@@ -348,7 +348,7 @@ export default function TablePage() {
     }
     try {
       setActionPending(true)
-      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/action`, {
+      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/actions`, {
         method: 'POST',
         initData,
         body: {
