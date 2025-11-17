@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import PageHeader from '../components/ui/PageHeader'
-import { SegmentedControl } from '../components/ui/SegmentedControl'
+import Toggle from '../components/ui/Toggle'
 import { useTelegram } from '../hooks/useTelegram'
 import { createTable, type TableSummary, type TableVisibility } from '../services/tables'
 
@@ -20,8 +20,6 @@ interface CreateTableFormState {
 }
 
 type ViewState = 'idle' | 'loading' | 'success' | 'error'
-
-const visibilityOptions: Array<TableVisibility> = ['public', 'private']
 
 export default function CreateGamePage() {
   const { t } = useTranslation()
@@ -135,9 +133,9 @@ export default function CreateGamePage() {
       />
 
       <Card>
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form className="space-y-[var(--space-lg)]" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="table-name">
+            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="table-name">
               {t('createGame.form.name')}
             </label>
             <input
@@ -146,29 +144,31 @@ export default function CreateGamePage() {
               value={formState.tableName}
               onChange={(event) => handleFieldChange('tableName', event.target.value)}
               placeholder={t('createGame.form.namePlaceholder') ?? ''}
-              className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+              className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+              style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
             />
           </div>
 
-          <div className="space-y-3">
-            <span className="text-sm font-medium text-[color:var(--text-muted)]">{t('createGame.form.visibility')}</span>
-            <SegmentedControl
-              value={formState.visibility}
-              onChange={(next) =>
-                handleFieldChange('visibility', next)
-              }
-              options={visibilityOptions.map((option) => ({
-                value: option,
-                label: t(`createGame.form.visibilityOptions.${option}.label`),
-                description: t(`createGame.form.visibilityOptions.${option}.description`),
-              }))}
-              className="w-full max-w-[220px]"
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col">
+              <span className="text-[color:var(--text-main)] font-medium" style={{ fontSize: 'var(--fs-label)' }}>
+                {t('createGame.form.visibility')}
+              </span>
+              <span className="text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-caption)' }}>
+                {formState.visibility === 'public'
+                  ? t('createGame.form.visibilityOptions.public.description', 'Anyone can join')
+                  : t('createGame.form.visibilityOptions.private.description', 'Invite code only')}
+              </span>
+            </div>
+            <Toggle
+              checked={formState.visibility === 'public'}
+              onChange={(checked) => handleFieldChange('visibility', checked ? 'public' : 'private')}
             />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="small-blind">
+              <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="small-blind">
                 {t('createGame.form.smallBlind')}
               </label>
               <input
@@ -177,11 +177,12 @@ export default function CreateGamePage() {
                 min={5}
                 value={formState.smallBlind}
                 onChange={(event) => handleFieldChange('smallBlind', Number(event.target.value))}
-                className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="big-blind">
+              <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="big-blind">
                 {t('createGame.form.bigBlind')}
               </label>
               <input
@@ -190,14 +191,15 @@ export default function CreateGamePage() {
                 min={formState.smallBlind * 2}
                 value={formState.bigBlind}
                 onChange={(event) => handleFieldChange('bigBlind', Number(event.target.value))}
-                className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
               />
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="starting-stack">
+              <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="starting-stack">
                 {t('createGame.form.startingStack')}
               </label>
               <input
@@ -207,11 +209,12 @@ export default function CreateGamePage() {
                 step={500}
                 value={formState.startingStack}
                 onChange={(event) => handleFieldChange('startingStack', Number(event.target.value))}
-                className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-[color:var(--text-muted)]" htmlFor="max-players">
+              <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="max-players">
                 {t('createGame.form.maxPlayers')}
               </label>
               <input
@@ -221,12 +224,13 @@ export default function CreateGamePage() {
                 max={9}
                 value={formState.maxPlayers}
                 onChange={(event) => handleFieldChange('maxPlayers', Number(event.target.value))}
-                className="w-full rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+                style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
               />
             </div>
           </div>
 
-          <label className="flex items-center justify-between rounded-2xl border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-sm text-[color:var(--text-primary)]">
+          <label className="flex items-center justify-between border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)]" style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}>
             <span>{t('createGame.form.autoSeatHost')}</span>
             <input
               type="checkbox"
@@ -237,7 +241,7 @@ export default function CreateGamePage() {
           </label>
 
           {status === 'error' && errorMessage && (
-            <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="border border-red-400/40 bg-red-500/10 px-4 py-3 text-red-200" style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}>
               {errorMessage}
             </div>
           )}
