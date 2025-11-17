@@ -1,4 +1,4 @@
-import { forwardRef, type ComponentType, type HTMLAttributes, type PointerEvent, useState } from 'react'
+import { forwardRef, type ComponentType, type HTMLAttributes } from 'react'
 import { Link } from 'react-router-dom'
 
 import { cn } from '../../utils/cn'
@@ -22,80 +22,56 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
   { className, icon: Icon, title, subtitle, badge, to, recommended = false, quickTag, pulse, shine, depth, ...rest },
   ref,
 ) {
-  const [ripple, setRipple] = useState<{ x: number; y: number; id: number } | null>(null)
-
-  const handlePress = (event: PointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    setRipple({
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-      id: Date.now(),
-    })
-  }
-
   return (
     <Link to={to} className="block">
       <div
         ref={ref}
-        onPointerDown={handlePress}
         className={cn(
-          'relative isolate flex h-[172px] w-full flex-col justify-between overflow-hidden',
-          'rounded-[calc(var(--radius-xl)+var(--space-sm))]',
-          'bg-[color:var(--color-surface-overlay)] text-[color:var(--color-text)]',
-          'border border-[color:var(--color-border-glass)] shadow-[var(--shadow-strong)] backdrop-blur-[18px]',
-          'transition-transform duration-150 ease-out active:scale-[0.96]',
-          depth && 'shadow-[0_22px_52px_rgba(0,0,0,0.4)]',
+          'relative isolate flex h-[128px] w-full flex-col overflow-hidden rounded-[22px]',
+          'bg-[rgba(15,23,42,0.55)] text-[color:var(--color-text)]',
+          'border border-[color:var(--color-border-glass)] shadow-[0_12px_28px_rgba(0,0,0,0.4)] backdrop-blur-[18px]',
+          'transition-[transform,box-shadow] duration-150 ease-out active:scale-95 active:shadow-[0_0_18px_rgba(44,197,122,0.55)]',
+          depth && 'shadow-[0_22px_52px_rgba(0,0,0,0.45)]',
           recommended &&
-            'after:absolute after:-inset-px after:-z-10 after:rounded-[calc(var(--radius-xl)+var(--space-md))] after:bg-[conic-gradient(at_50%_50%,var(--color-accent-end),rgba(44,197,122,0.12),var(--color-accent-soft),var(--color-accent-end))] after:opacity-90 after:blur-[1.2px]',
+            'after:absolute after:inset-px after:-z-10 after:rounded-[22px] after:bg-[conic-gradient(at_50%_50%,rgba(44,197,122,0.35),rgba(44,197,122,0.08),transparent,rgba(44,197,122,0.35))] after:blur-[1px]',
           className,
         )}
         {...rest}
       >
-        <div className="pointer-events-none absolute inset-[1px] rounded-[calc(var(--radius-xl)+var(--space-sm)-1px)] border border-[color:var(--color-border-glass)]" aria-hidden />
-        <div className="pointer-events-none absolute inset-0 rounded-[calc(var(--radius-xl)+var(--space-sm))] bg-[radial-gradient(circle_at_20%_15%,var(--color-glass-highlight),transparent_40%),radial-gradient(circle_at_80%_0%,var(--color-accent-soft),transparent_38%)]" aria-hidden />
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(circle_at_50%_120%,rgba(44,197,122,0.22),transparent_70%)]"
+          aria-hidden
+        />
+        <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(circle_at_18%_12%,var(--color-glass-highlight),transparent_35%)]" aria-hidden />
         {shine && <span className="pointer-events-none absolute inset-0 -skew-x-12 bg-[linear-gradient(120deg,rgba(255,255,255,0)_10%,var(--color-glass-highlight)_48%,rgba(255,255,255,0)_72%)] animate-tile-shine" aria-hidden />}
-        {ripple && (
-          <span
-            key={ripple.id}
-            className="pointer-events-none absolute h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color:var(--color-accent-soft)] opacity-70 animate-menu-ripple"
-            style={{ left: ripple.x, top: ripple.y }}
-            aria-hidden
-          />
-        )}
 
-        {quickTag && (
-          <div className="absolute inset-inline-end-[var(--space-md)] inset-block-start-[var(--space-md)] z-20">
-            <Badge
-              variant="primary"
-              size="sm"
-              className="bg-[color:var(--color-accent-soft)] px-[var(--space-sm)] py-[calc(var(--space-xs)+1px)] text-[var(--font-size-xs)] font-semibold uppercase tracking-[var(--letter-spacing-widest)] text-[color:var(--color-text)]"
-            >
-              {quickTag}
-            </Badge>
-          </div>
-        )}
-
-        <div className="relative z-10 flex items-start justify-between">
-          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-pill)] border border-[color:var(--color-border-glass)] bg-[color:var(--color-glass-chip)] text-[color:var(--color-accent-end)] backdrop-blur-xl shadow-[0_10px_28px_rgba(44,197,122,0.32)]">
-            <Icon className="h-[26px] w-[26px]" />
+        <div className="relative z-10 flex items-start justify-between px-3 pt-3">
+          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[rgba(255,255,255,0.08)] text-[color:var(--color-text)] shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="glass-icon-circle h-[42px] w-[42px] border border-white/30 bg-white/10 text-[color:var(--color-text)]">
+              <Icon className="h-[24px] w-[24px]" />
+            </div>
             {pulse && (
-              <span className="absolute -inset-1 rounded-[var(--radius-pill)] bg-[color:var(--color-accent-soft)] opacity-60 blur-[2px] animate-pulse-beacon" aria-hidden />
+              <span className="absolute inset-0 rounded-[16px] bg-[color:var(--color-accent-soft)] opacity-60 blur-[2px] animate-pulse-beacon" aria-hidden />
             )}
           </div>
 
-          {badge !== undefined && (
+          {(quickTag || badge !== undefined) && (
             <div className="shrink-0">
-              <Badge variant="primary" size="sm">
-                {badge}
+              <Badge
+                variant="primary"
+                size="sm"
+                className="glass-pill border border-white/30 bg-[rgba(44,197,122,0.18)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white"
+              >
+                {quickTag ?? badge}
               </Badge>
             </div>
           )}
         </div>
 
-        <div className="relative z-10 flex flex-1 flex-col justify-end gap-1">
+        <div className="relative z-10 mt-auto flex flex-col gap-1 px-3 pb-3 text-start" dir="auto">
           <h3
             className={cn(
-              'text-[var(--font-size-md)] font-medium leading-tight text-[color:var(--color-text)]',
+              'text-[15px] font-semibold leading-tight text-[color:var(--color-text)]',
               'truncate drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)]',
               recommended && 'text-[color:var(--color-accent-end)] drop-shadow-[0_0_10px_rgba(44,197,122,0.6)]',
             )}
@@ -103,14 +79,9 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
             {title}
           </h3>
           {subtitle && (
-            <p className="text-[11.5px] leading-snug text-[color:var(--color-text-muted)]/85 line-clamp-2">
-              {subtitle}
-            </p>
+            <p className="text-[11px] leading-snug text-[color:var(--color-text-muted)] line-clamp-2">{subtitle}</p>
           )}
         </div>
-
-        <div className="pointer-events-none absolute inset-0 rounded-[calc(var(--radius-xl)+var(--space-sm))] border border-[color:var(--color-border-glass)]" aria-hidden />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[color:var(--color-surface-overlay)]/55 via-[color:var(--color-surface-overlay)]/28 to-transparent" aria-hidden />
       </div>
     </Link>
   )

@@ -32,7 +32,7 @@ export default function CreateGamePage() {
 
   // Get initial mode from URL parameter
   const initialMode = searchParams.get('mode') as TableVisibility | null
-  const defaultVisibility: TableVisibility = initialMode === 'public' ? 'public' : 'private'
+  const defaultVisibility: TableVisibility = initialMode === 'public' ? 'public' : initialMode === 'private' ? 'private' : 'public'
 
   const [formState, setFormState] = useState<CreateTableFormState>({
     tableName: '',
@@ -162,6 +162,7 @@ export default function CreateGamePage() {
                 label: t(`createGame.form.visibilityOptions.${option}.label`),
                 description: t(`createGame.form.visibilityOptions.${option}.description`),
               }))}
+              className="w-full max-w-[220px]"
             />
           </div>
 

@@ -2,7 +2,11 @@ import { useTranslation } from 'react-i18next'
 
 import { useLocalization } from '../providers/LocalizationProvider'
 
-export default function LanguageSelector() {
+interface LanguageSelectorProps {
+  variant?: 'pill' | 'icon'
+}
+
+export default function LanguageSelector({ variant = 'pill' }: LanguageSelectorProps) {
   const { language, supported, changeLanguage } = useLocalization()
   const { t } = useTranslation()
 
@@ -13,13 +17,30 @@ export default function LanguageSelector() {
     changeLanguage(nextLanguage.code)
   }
 
+  const baseClasses =
+    'transition-transform duration-150 ease-out active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent)]'
+
+  if (variant === 'icon') {
+    return (
+      <button
+        type="button"
+        onClick={handleToggle}
+        title={t('settings.sections.language.title')}
+        aria-label={t('settings.sections.language.title')}
+        className={`${baseClasses} glass-icon-circle text-[13px] font-semibold text-[color:var(--color-text)]`}
+      >
+        {language.toUpperCase()}
+      </button>
+    )
+  }
+
   return (
     <button
       type="button"
       onClick={handleToggle}
       title={t('settings.sections.language.title')}
       aria-label={t('settings.sections.language.title')}
-      className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+      className={`${baseClasses} glass-pill flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[color:var(--color-text)] shadow-[0_10px_24px_rgba(0,0,0,0.35)]`}
     >
       <span role="img" aria-hidden="true">
         🌐

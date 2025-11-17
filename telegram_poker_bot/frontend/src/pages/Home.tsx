@@ -108,27 +108,26 @@ export default function HomePage() {
 
   return (
     <div className="space-y-[var(--space-xl)] pt-[var(--space-sm)]">
-      <Card padding="md" className="app-card--overlay text-center">
-        <div className="space-y-[var(--space-xs)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[var(--letter-spacing-widest)] text-[color:var(--color-accent-end)]">
-            {t('home.mosaic.heroKicker', 'Premium poker hub')}
-          </p>
-          <p className="text-[var(--font-size-base)] font-medium text-[color:var(--color-text)]">
-            {t('home.tagline')}
-          </p>
-          <p className="text-[var(--font-size-sm)] text-[color:var(--color-text-muted)] line-clamp-2">
+      <div className="glass-panel relative mx-auto w-full rounded-[30px] px-5 py-5 text-center shadow-[0_18px_48px_rgba(0,0,0,0.5)]">
+        <div className="mx-auto inline-flex items-center justify-center rounded-full border border-[color:var(--color-accent-soft)] bg-[color:var(--color-accent-soft)]/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--color-accent-start)]">
+          {t('home.mosaic.heroKicker', 'Premium poker hub')}
+        </div>
+        <div className="mt-2 space-y-2">
+          <p className="text-[16px] font-bold text-[color:var(--color-text)]">{t('home.tagline')}</p>
+          <div className="mx-auto h-px w-16 bg-white/15" />
+          <p className="text-[12px] leading-relaxed text-[color:var(--color-text-muted)] line-clamp-2">
             {t('home.mosaic.hint')}
           </p>
         </div>
-      </Card>
+      </div>
 
       <HomeMenuGrid items={menuItems} />
 
-      <Card padding="md" className="app-card--overlay text-center">
+      <div className="glass-panel rounded-[24px] px-5 py-4 text-center">
         <p className="text-[var(--font-size-sm)] text-[color:var(--color-text-muted)] leading-relaxed">
           {hasActiveTables ? t('home.mosaic.activeTablesHint') : t('home.mosaic.hint')}
         </p>
-      </Card>
+      </div>
     </div>
   )
 }
