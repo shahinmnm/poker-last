@@ -7,7 +7,7 @@ import random
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -392,4 +392,89 @@ _runtime_manager = TableRuntimeManager()
 
 def get_runtime_manager() -> TableRuntimeManager:
     return _runtime_manager
+
+
+@dataclass
+class TableRuntimeSnapshot:
+    """Snapshot of table runtime state for testing and inspection."""
+    table_id: int
+    visibility: str
+    engine: Optional[Any] = None
+    seats: List[Seat] = field(default_factory=list)
+    max_players: int = 8
+
+
+async def get_table_runtime(db: AsyncSession, table_id: int) -> TableRuntimeSnapshot:
+    """
+    Get a snapshot of table runtime state.
+    
+    This function retrieves table information and creates a snapshot object
+    with visibility, seats, and engine information (if applicable).
+    """
+    # Fetch table
+    result = await db.execute(select(Table).where(Table.id == table_id))
+    table = result.scalar_one_or_none()
+    if not table:
+        raise ValueError(f"Table {table_id} not found")
+    
+    # Fetch seats
+    seats_result = await db.execute(
+        select(Seat).where(Seat.table_id == table_id, Seat.left_at.is_(None)).order_by(Seat.position)
+    )
+    seats = list(seats_result.scalars().all())
+    
+    # Determine visibility
+    visibility = "private" if table.is_private else "public"
+    
+    # Get config
+    config = table.config_json or {}
+    max_players = config.get("max_players", 8)
+    
+    # Check if we should create an engine (2+ players)
+    engine = None
+    if len(seats) >= 2:
+        # Import here to avoid circular dependency
+        from telegram_poker_bot.engine_adapter import PokerEngineAdapter
+        from pokerkit import Mode
+        
+        # Create engine adapter
+        starting_stacks = [seat.chips for seat in seats]
+        small_blind = config.get("small_blind", 25)
+        big_blind = config.get("big_blind", 50)
+        
+        engine = PokerEngineAdapter(
+            player_count=len(seats),
+            starting_stacks=starting_stacks,
+            small_blind=small_blind,
+            big_blind=big_blind,
+            mode=Mode.TOURNAMENT,
+        )
+    
+    return TableRuntimeSnapshot(
+        table_id=table.id,
+        visibility=visibility,
+        engine=engine,
+        seats=seats,
+        max_players=max_players,
+    )
+
+
+async def refresh_table_runtime(db: AsyncSession, table_id: int) -> None:
+    """
+    Refresh table runtime by ensuring it exists in the runtime manager.
+    
+    This function ensures that a table runtime is loaded and cached
+    in the TableRuntimeManager.
+    """
+    await get_runtime_manager().ensure_table(db, table_id)
+
+
+def reset_runtime_cache() -> None:
+    """
+    Reset the runtime cache by clearing all cached table runtimes.
+    
+    This is primarily used in tests to ensure a clean state between test runs.
+    """
+    global _runtime_manager
+    _runtime_manager = TableRuntimeManager()
 
