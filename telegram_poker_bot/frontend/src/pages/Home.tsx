@@ -1,146 +1,110 @@
 import { useTranslation } from 'react-i18next'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
-import Card from '../components/ui/Card'
-import HomeMenuGrid from '../components/home/HomeMenuGrid'
-import {
-  JoinIcon,
-  LiveIcon,
-  PlayIcon,
-  PrivateIcon,
-  ProfileIcon,
-  SettingsIcon,
-  TablesIcon,
-} from '../components/ui/icons'
+import HeroHeader from '../components/home/HeroHeader'
+import GlassCard from '../components/ui/GlassCard'
+import ActionCard from '../components/ui/ActionCard'
+import { JoinIcon, PlayIcon, PrivateIcon, TablesIcon, WalletIcon } from '../components/ui/icons'
 
 export default function HomePage() {
-  const { ready, initData } = useTelegram()
+  const { ready, initData, user } = useTelegram()
   const { t } = useTranslation()
   const [activeTables, setActiveTables] = useState<any[]>([])
+  const [balance, setBalance] = useState<number | null>(null)
 
   useEffect(() => {
     if (!initData) return
 
-    // Fetch active tables to show contextual recommendations
     apiFetch<{ tables: any[] }>('/users/me/tables', { initData })
       .then((data) => setActiveTables(data.tables || []))
       .catch(() => setActiveTables([]))
+
+    apiFetch<{ balance: number }>('/users/me/balance', { initData })
+      .then((data) => setBalance(data.balance))
+      .catch(() => setBalance(null))
   }, [initData])
 
   const hasActiveTables = activeTables.length > 0
+  const displayName = useMemo(
+    () => user?.first_name || user?.username || 'Player',
+    [user],
+  )
+  const balanceLabel = balance !== null ? `${balance.toLocaleString()} chips` : t('common.loading')
+  const activeTableId = hasActiveTables ? activeTables[0].table_id : undefined
 
   if (!ready) {
     return (
-      <Card className="flex min-h-[40vh] items-center justify-center text-sm text-[color:var(--text-muted)]">
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-[color:var(--text-muted)]">
         {t('common.loading')}
-      </Card>
+      </div>
     )
   }
 
-  const mosaicTiles = [
+  const actions = [
     {
       key: 'playPublic',
       icon: PlayIcon,
       to: '/lobby',
-      quickTag: t('home.mosaic.playPublic.badge', 'HOT'),
+      title: t('home.mosaic.playPublic.title'),
       subtitle: t('home.mosaic.playPublic.subtitle'),
-      recommended: !hasActiveTables,
-      shine: true,
-      depth: true,
-      emoji: '🔥',
-      tileColor: 'var(--tile-green)',
+      accent: 'primary' as const,
     },
     {
       key: 'createPrivate',
       icon: PrivateIcon,
       to: '/games/create?mode=private',
-      quickTag: t('home.mosaic.createPrivate.badge', 'NEW'),
+      title: t('home.mosaic.createPrivate.title'),
       subtitle: t('home.mosaic.createPrivate.subtitle'),
-      recommended: !hasActiveTables,
-      badge: hasActiveTables ? undefined : t('home.mosaic.createPrivate.cta', 'Invite-only'),
-      emoji: '🔐',
-      tileColor: 'var(--tile-purple)',
+      accent: 'primary' as const,
     },
     {
       key: 'joinWithCode',
       icon: JoinIcon,
       to: '/games/join',
+      title: t('home.mosaic.joinWithCode.title'),
       subtitle: t('home.mosaic.joinWithCode.subtitle'),
-      pulse: false,
-      emoji: '📥',
-      tileColor: 'var(--tile-blue)',
+      accent: 'secondary' as const,
     },
     {
       key: 'myTables',
       icon: TablesIcon,
-      to: '/profile/stats',
-      badge: activeTables.length > 0 ? activeTables.length : undefined,
-      subtitle: t('home.mosaic.myTables.subtitle'),
-      recommended: hasActiveTables,
-      pulse: hasActiveTables,
-      depth: true,
-      emoji: '🎯',
-      tileColor: 'var(--tile-orange)',
-    },
-    {
-      key: 'profile',
-      icon: ProfileIcon,
-      to: '/profile',
-      subtitle: t('home.mosaic.profile.subtitle'),
-      emoji: '👤',
-      tileColor: 'var(--tile-red)',
-    },
-    {
-      key: 'settings',
-      icon: SettingsIcon,
-      to: '/settings',
-      subtitle: t('home.mosaic.settings.subtitle'),
-      emoji: '⚙️',
-      tileColor: 'var(--tile-yellow)',
-    },
-    {
-      key: 'liveNow',
-      icon: LiveIcon,
-      to: '/lobby',
-      subtitle: t('home.mosaic.liveNow.subtitle', 'Track live tournaments'),
-      quickTag: t('home.mosaic.liveNow.badge', 'LIVE'),
-      pulse: true,
-      badge: hasActiveTables ? t('home.mosaic.liveNow.active', 'Now') : undefined,
-      shine: true,
-      emoji: '💰',
-      tileColor: 'var(--tile-green)',
+      to: hasActiveTables ? `/table/${activeTables[0].table_id}` : '/profile/stats',
+      title: hasActiveTables ? t('home.actions.resumeGame') : t('home.mosaic.myTables.title'),
+      subtitle: hasActiveTables ? t('home.mosaic.liveNow.subtitle', 'Jump back in') : t('home.mosaic.myTables.subtitle'),
+      accent: 'secondary' as const,
     },
   ]
 
-  const menuItems = mosaicTiles.map((tile) => ({
-    ...tile,
-    title: t(`home.mosaic.${tile.key}.title`),
-    subtitle: tile.subtitle ?? t(`home.mosaic.${tile.key}.subtitle`),
-  }))
-
   return (
-    <div className="space-y-[var(--space-xl)] pt-[var(--space-sm)]">
-      <div className="glass-panel relative mx-auto w-full px-5 py-5 text-center shadow-[0_18px_48px_rgba(0,0,0,0.5)]" style={{ borderRadius: 'var(--radius-xl)' }}>
-        <div className="mx-auto inline-flex items-center justify-center rounded-full border border-[color:var(--color-accent-soft)] bg-[color:var(--color-accent-soft)]/50 px-3 py-1 font-semibold uppercase tracking-[0.16em] text-[color:var(--color-accent-start)]" style={{ fontSize: 'var(--fs-caption)' }}>
-          {t('home.mosaic.heroKicker', 'Premium poker hub')}
-        </div>
-        <div className="mt-2 space-y-2">
-          <p className="font-bold text-[color:var(--color-text)]" style={{ fontSize: 'var(--fs-large)' }}>{t('home.tagline')}</p>
-          <div className="mx-auto h-px w-16 bg-white/15" />
-          <p className="leading-relaxed text-[color:var(--color-text-muted)] line-clamp-2" style={{ fontSize: 'var(--fs-label)' }}>
-            {t('home.mosaic.hint')}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6 pb-6">
+      <HeroHeader name={displayName} balanceLabel={balanceLabel} activeTableId={activeTableId} />
 
-      <HomeMenuGrid items={menuItems} />
+      <GlassCard glow className="border-white/8 bg-[rgba(6,12,24,0.9)] px-5 py-5 shadow-[0_20px_52px_rgba(0,0,0,0.78)]">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-text-muted)]">{t('home.mosaic.heroKicker', 'Premium poker hub')}</span>
+            <h2 className="text-2xl font-semibold leading-tight text-[color:var(--color-text)]">{t('home.tagline')}</h2>
+            <p className="text-sm text-[color:var(--color-text-muted)]">{t('home.mosaic.hint')}</p>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-[rgba(34,242,239,0.1)] text-[color:var(--color-accent)] shadow-[0_12px_30px_rgba(0,0,0,0.55)]">
+            <WalletIcon className="h-6 w-6" />
+          </div>
+        </div>
+      </GlassCard>
 
-      <div className="glass-panel px-5 py-4 text-center" style={{ borderRadius: 'var(--radius-xl)' }}>
-        <p className="leading-relaxed text-[color:var(--color-text-muted)]" style={{ fontSize: 'var(--fs-label)' }}>
-          {hasActiveTables ? t('home.mosaic.activeTablesHint') : t('home.mosaic.hint')}
-        </p>
+      <div className="grid grid-cols-2 gap-3">
+        {actions.map((action) => (
+          <ActionCard
+            key={action.key}
+            icon={action.icon}
+            title={action.title}
+            subtitle={action.subtitle}
+            to={action.to}
+            accent={action.accent}
+          />
+        ))}
       </div>
     </div>
   )
