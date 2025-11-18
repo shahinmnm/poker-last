@@ -1,29 +1,21 @@
 import { useTranslation } from 'react-i18next'
-import { useEffect, useState } from 'react'
-import { faPlay, faChartLine } from '@fortawesome/free-solid-svg-icons'
+import { useNavigate } from 'react-router-dom'
+import {
+  faPlay,
+  faUserGroup,
+  faTrophy,
+  faGraduationCap,
+} from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch } from '../utils/apiClient'
 import Card from '../components/ui/Card'
-import FilterPills from '../components/ui/FilterPills'
-import RecommendationCard from '../components/ui/RecommendationCard'
+import MainTile from '../components/ui/MainTile'
+import MainTilesGrid from '../components/ui/MainTilesGrid'
 
 export default function HomePage() {
-  const { ready, initData } = useTelegram()
+  const { ready } = useTelegram()
   const { t } = useTranslation()
-  const [activeTables, setActiveTables] = useState<any[]>([])
-  const [activeFilter, setActiveFilter] = useState('all')
-
-  useEffect(() => {
-    if (!initData) return
-
-    // Fetch active tables to show contextual recommendations
-    apiFetch<{ tables: any[] }>('/users/me/tables', { initData })
-      .then((data) => setActiveTables(data.tables || []))
-      .catch(() => setActiveTables([]))
-  }, [initData])
-
-  const hasActiveTables = activeTables.length > 0
+  const navigate = useNavigate()
 
   if (!ready) {
     return (
@@ -33,33 +25,58 @@ export default function HomePage() {
     )
   }
 
-  const filterOptions = [
-    { id: 'all', label: t('home.filters.all', 'All') },
-    { id: 'cash', label: t('home.filters.cash', 'Cash') },
-    { id: 'tournaments', label: t('home.filters.tournaments', 'Tournaments') },
-    { id: 'private', label: t('home.filters.private', 'Private') },
+  // Define the 4 main menu tiles with their unique accent gradients
+  const menuTiles = [
+    {
+      label: t('home.tiles.quickMatch.label', 'CASH GAME'),
+      title: t('home.tiles.quickMatch.title', 'Quick Match'),
+      subtitle: t('home.tiles.quickMatch.subtitle', 'Fast seat at best table'),
+      icon: faPlay,
+      accentGradient: 'rgb(139, 92, 246) rgb(236, 72, 153)', // violet → pink
+      action: () => navigate('/lobby'),
+    },
+    {
+      label: t('home.tiles.privateTable.label', 'PRIVATE'),
+      title: t('home.tiles.privateTable.title', 'Private Table'),
+      subtitle: t('home.tiles.privateTable.subtitle', 'Create your own game'),
+      icon: faUserGroup,
+      accentGradient: 'rgb(239, 68, 68) rgb(249, 115, 22)', // red → orange
+      action: () => navigate('/games/create'),
+    },
+    {
+      label: t('home.tiles.tournaments.label', 'COMPETE'),
+      title: t('home.tiles.tournaments.title', 'Tournaments'),
+      subtitle: t('home.tiles.tournaments.subtitle', 'Join competitive events'),
+      icon: faTrophy,
+      accentGradient: 'rgb(251, 191, 36) rgb(217, 119, 6)', // gold → copper
+      action: () => navigate('/lobby'), // TODO: tournaments route when ready
+    },
+    {
+      label: t('home.tiles.practice.label', 'LEARN'),
+      title: t('home.tiles.practice.title', 'Practice Mode'),
+      subtitle: t('home.tiles.practice.subtitle', 'Improve your skills'),
+      icon: faGraduationCap,
+      accentGradient: 'rgb(59, 130, 246) rgb(139, 92, 246)', // blue → violet
+      action: () => navigate('/help'),
+    },
   ]
 
   return (
-    <div className="space-y-6 pt-4">
-      {/* Filter Pills */}
-      <div className="px-4">
-        <FilterPills
-          options={filterOptions}
-          activeId={activeFilter}
-          onChange={setActiveFilter}
-        />
-      </div>
-
-      {/* Recommendation Card */}
-      <div className="px-4">
-        <RecommendationCard
-          title={hasActiveTables ? t('home.recommendation.continueTitle', 'Continue playing') : t('home.recommendation.nextTitle', 'Start your first game')}
-          subtitle={hasActiveTables ? t('home.recommendation.continueSubtitle', 'You have active tables waiting') : t('home.recommendation.nextSubtitle', 'Join a public table or create your own')}
-          icon={hasActiveTables ? faChartLine : faPlay}
-          to={hasActiveTables ? '/profile/stats' : '/lobby'}
-        />
-      </div>
+    <div className="space-y-6 px-4 pt-6 pb-8">
+      {/* Main Menu Tiles Grid */}
+      <MainTilesGrid>
+        {menuTiles.map((tile, index) => (
+          <MainTile
+            key={index}
+            label={tile.label}
+            title={tile.title}
+            subtitle={tile.subtitle}
+            icon={tile.icon}
+            accentGradient={tile.accentGradient}
+            onClick={tile.action}
+          />
+        ))}
+      </MainTilesGrid>
     </div>
   )
 }
