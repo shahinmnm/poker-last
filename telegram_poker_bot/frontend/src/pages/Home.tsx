@@ -62,8 +62,8 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4 px-4 pt-6 pb-8">
-      {/* Main Menu Square Tiles - 2x2 Grid */}
-      <div className="main-tiles-grid">
+      {/* Main Menu Square Tiles */}
+      <div className="space-y-3">
         {menuActions.map((action, index) => (
           <button
             key={index}
