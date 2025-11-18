@@ -23,7 +23,6 @@
   --radius-lg: 0.75rem;   /* 12px - cards, tiles */
   --radius-xl: 1rem;      /* 16px - large cards */
   --radius-2xl: 1.625rem; /* 26px - app cards */
-  --radius-tile: 1.125rem; /* 18px - menu tiles (glassmorphism rounded corners) */
   --radius-pill: 9999px;  /* full rounded - pills, segmented controls */
 
   /* ==================== TYPOGRAPHY SCALE ==================== */
@@ -96,7 +95,6 @@
   --color-surface-muted: rgba(15, 23, 42, 0.30);
   --bg-glass: rgba(17, 25, 40, 0.40);
   --bg-elevated-glass: rgba(17, 25, 40, 0.50);
-  --tile-glass: rgba(17, 25, 40, 0.40);
 
   /* Border colors - Glass borders */
   --border-soft: rgba(148, 163, 184, 0.35);
@@ -131,43 +129,6 @@
   --accent-green: #22C55E;
   --accent-red: #EF4444;
   --glow-primary: rgba(44, 197, 122, 0.6);
-
-  /* Solid glossy tile colors */
-  --tile-red: #ff6b6b;
-  --tile-orange: #ffa94d;
-  --tile-yellow: #ffd43b;
-  --tile-green: #40c057;
-  --tile-purple: #845ef7;
-  --tile-blue: #4dabf7;
-
-  /* Glassmorphism tile system - Dark mode */
-  --tile-glass-bg: rgba(15, 23, 42, 0.45);
-  --tile-glass-border: rgba(148, 163, 184, 0.40);
-  --tile-glass-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent);
-  
-  /* Category-based color tints for tiles - Dark mode */
-  --tile-tint-violet-pink: linear-gradient(135deg, rgba(109, 40, 217, 0.25) 0%, rgba(236, 72, 153, 0.25) 100%);
-  --tile-tint-pink-orange: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(251, 146, 60, 0.25) 100%);
-  --tile-tint-gold-orange: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(251, 146, 60, 0.25) 100%);
-  --tile-tint-blue-violet: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(109, 40, 217, 0.25) 100%);
-  
-  /* Spotlight blobs for depth */
-  --tile-spotlight-violet-pink: radial-gradient(ellipse at top right, rgba(109, 40, 217, 0.12), transparent 60%);
-  --tile-spotlight-pink-orange: radial-gradient(ellipse at top right, rgba(239, 68, 68, 0.12), transparent 60%);
-  --tile-spotlight-gold-orange: radial-gradient(ellipse at top right, rgba(245, 158, 11, 0.12), transparent 60%);
-  --tile-spotlight-blue-violet: radial-gradient(ellipse at top right, rgba(14, 165, 233, 0.12), transparent 60%);
-  
-  /* Hover glow colors */
-  --tile-glow-violet-pink: rgba(109, 40, 217, 0.40);
-  --tile-glow-pink-orange: rgba(239, 68, 68, 0.40);
-  --tile-glow-gold-orange: rgba(245, 158, 11, 0.40);
-  --tile-glow-blue-violet: rgba(14, 165, 233, 0.40);
-  
-  /* Legacy gradient tile backgrounds for backward compatibility */
-  --tile-gradient-violet-pink: linear-gradient(135deg, rgba(109, 40, 217, 0.5) 0%, rgba(236, 72, 153, 0.5) 100%);
-  --tile-gradient-pink-orange: linear-gradient(135deg, rgba(239, 68, 68, 0.5) 0%, rgba(251, 146, 60, 0.5) 100%);
-  --tile-gradient-gold-orange: linear-gradient(135deg, rgba(245, 158, 11, 0.5) 0%, rgba(251, 146, 60, 0.5) 100%);
-  --tile-gradient-blue-violet: linear-gradient(135deg, rgba(14, 165, 233, 0.5) 0%, rgba(109, 40, 217, 0.5) 100%);
 
   /* Status colors */
   --color-success: #22c55e;
@@ -211,8 +172,6 @@
   --shadow-glow: 0 20px 50px rgba(44, 197, 122, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
   --shadow-strong: 0 12px 32px rgba(0, 0, 0, 0.34);
   --shadow-accent-glow: 0 0 24px rgba(44, 197, 122, 0.6);
-  --shadow-tile-glow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-tile-hover: 0 12px 40px rgba(0, 0, 0, 0.5);
 
   /* Navigation colors - Enhanced glass effect */
   --color-nav-bg: rgba(17, 25, 40, 0.45);
@@ -239,7 +198,6 @@
   --color-surface-muted: rgba(255, 255, 255, 0.18);
   --bg-glass: rgba(255, 255, 255, 0.20);
   --bg-elevated-glass: rgba(255, 255, 255, 0.30);
-  --tile-glass: rgba(255, 255, 255, 0.20);
 
   /* Border colors */
   --color-border: rgba(0, 0, 0, 0.08);
@@ -308,39 +266,8 @@
   --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.06);
   --shadow-strong: 0 10px 32px rgba(0, 0, 0, 0.12);
   --shadow-accent-glow: 0 0 20px rgba(44, 197, 122, 0.3);
-  --shadow-tile-glow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --shadow-tile-hover: 0 12px 32px rgba(0, 0, 0, 0.12);
 
   /* Navigation colors - Light mode glass */
   --color-nav-bg: rgba(255, 255, 255, 0.25);
   --color-nav-border: rgba(0, 0, 0, 0.08);
-
-  /* Glassmorphism tile system - Light mode */
-  --tile-glass-bg: rgba(255, 255, 255, 0.80);
-  --tile-glass-border: rgba(148, 163, 184, 0.25);
-  --tile-glass-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent);
-  
-  /* Category-based color tints for tiles - Light mode */
-  --tile-tint-violet-pink: linear-gradient(135deg, rgba(124, 58, 237, 0.20) 0%, rgba(236, 72, 153, 0.20) 100%);
-  --tile-tint-pink-orange: linear-gradient(135deg, rgba(220, 38, 38, 0.20) 0%, rgba(251, 146, 60, 0.20) 100%);
-  --tile-tint-gold-orange: linear-gradient(135deg, rgba(245, 158, 11, 0.20) 0%, rgba(251, 146, 60, 0.20) 100%);
-  --tile-tint-blue-violet: linear-gradient(135deg, rgba(2, 132, 199, 0.20) 0%, rgba(124, 58, 237, 0.20) 100%);
-  
-  /* Spotlight blobs for depth - Light mode */
-  --tile-spotlight-violet-pink: radial-gradient(ellipse at top right, rgba(124, 58, 237, 0.08), transparent 60%);
-  --tile-spotlight-pink-orange: radial-gradient(ellipse at top right, rgba(220, 38, 38, 0.08), transparent 60%);
-  --tile-spotlight-gold-orange: radial-gradient(ellipse at top right, rgba(245, 158, 11, 0.08), transparent 60%);
-  --tile-spotlight-blue-violet: radial-gradient(ellipse at top right, rgba(2, 132, 199, 0.08), transparent 60%);
-  
-  /* Hover glow colors - Light mode */
-  --tile-glow-violet-pink: rgba(124, 58, 237, 0.35);
-  --tile-glow-pink-orange: rgba(220, 38, 38, 0.35);
-  --tile-glow-gold-orange: rgba(245, 158, 11, 0.35);
-  --tile-glow-blue-violet: rgba(2, 132, 199, 0.35);
-  
-  /* Legacy gradient tile backgrounds for backward compatibility */
-  --tile-gradient-violet-pink: linear-gradient(135deg, rgba(124, 58, 237, 0.45) 0%, rgba(236, 72, 153, 0.45) 100%);
-  --tile-gradient-pink-orange: linear-gradient(135deg, rgba(220, 38, 38, 0.45) 0%, rgba(251, 146, 60, 0.45) 100%);
-  --tile-gradient-gold-orange: linear-gradient(135deg, rgba(245, 158, 11, 0.45) 0%, rgba(251, 146, 60, 0.45) 100%);
-  --tile-gradient-blue-violet: linear-gradient(135deg, rgba(2, 132, 199, 0.45) 0%, rgba(124, 58, 237, 0.45) 100%);
 }

@@ -318,19 +318,4 @@ a {
   }
 }
 
-@layer utilities {
-  @keyframes tile-in {
-    0% {
-      opacity: 0;
-      transform: translateY(14px) scale(0.96);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
 
-  .animate-tile-in {
-    animation: tile-in 0.55s cubic-bezier(0.2, 0.75, 0.25, 1.08) both;
-  }
-}
