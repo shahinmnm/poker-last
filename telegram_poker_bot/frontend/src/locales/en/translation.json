@@ -125,7 +125,7 @@
         "description": "Set up a new game - public or private - and start playing."
       },
       "resume": "Resume",
-      "resumeGame": "Resume your active game"
+      "resumeGame": "Resume game"
     },
     "primaryMenuTitle": "Main menu",
     "secondaryMenuTitle": "Explore more",
