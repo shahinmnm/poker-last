@@ -56,7 +56,7 @@ export default function MainTile({
 }: MainTileProps) {
   return (
     <GlassCard
-      radius="lg"
+      radius="md"
       blur={18}
       accentGradient={accentGradient}
       hover={true}
