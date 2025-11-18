@@ -81,10 +81,11 @@
   --color-bg: #020617;
   --color-bg-muted: #020b1b;
   --color-bg-gradient: 
-    radial-gradient(ellipse 1100px 800px at 10% 20%, rgba(109, 40, 217, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse 900px 700px at 90% 80%, rgba(14, 165, 233, 0.10) 0%, transparent 50%),
-    radial-gradient(ellipse 800px 600px at 50% 50%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
-    linear-gradient(135deg, #020617 0%, #0c1a35 50%, #020b1f 100%);
+    radial-gradient(circle 600px at 15% 15%, rgba(139, 92, 246, 0.20) 0%, transparent 50%),
+    radial-gradient(circle 550px at 85% 20%, rgba(236, 72, 153, 0.18) 0%, transparent 50%),
+    radial-gradient(circle 500px at 20% 85%, rgba(251, 191, 36, 0.16) 0%, transparent 50%),
+    radial-gradient(circle 520px at 80% 80%, rgba(59, 130, 246, 0.18) 0%, transparent 50%),
+    linear-gradient(135deg, #020617 0%, #0c1a35 40%, #1a0f2e 70%, #020b1f 100%);
 
   /* Surface colors - Glass surfaces with backdrop blur */
   --surface-elevated: rgba(15, 23, 42, 0.96);
@@ -186,10 +187,11 @@
   --color-bg: #F6F4FF;
   --color-bg-muted: #F9FAFF;
   --color-bg-gradient: 
-    radial-gradient(ellipse 1200px 900px at 20% 15%, rgba(230, 220, 255, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 1000px 800px at 80% 85%, rgba(255, 220, 235, 0.05) 0%, transparent 50%),
-    radial-gradient(ellipse 900px 700px at 50% 50%, rgba(220, 255, 240, 0.04) 0%, transparent 50%),
-    linear-gradient(135deg, #F6F4FF 0%, #F9FAFF 50%, #FAFAFE 100%);
+    radial-gradient(circle 700px at 25% 20%, rgba(230, 220, 255, 0.12) 0%, transparent 50%),
+    radial-gradient(circle 650px at 75% 25%, rgba(255, 220, 235, 0.10) 0%, transparent 50%),
+    radial-gradient(circle 600px at 30% 80%, rgba(255, 235, 205, 0.08) 0%, transparent 50%),
+    radial-gradient(circle 620px at 70% 75%, rgba(220, 240, 255, 0.10) 0%, transparent 50%),
+    linear-gradient(135deg, #F6F4FF 0%, #F9FAFF 40%, #FFF8F0 70%, #FAFAFE 100%);
 
   /* Surface colors - Glass surfaces for light mode */
   --color-surface: rgba(255, 255, 255, 0.20);
