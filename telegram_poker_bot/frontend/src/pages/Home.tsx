@@ -6,11 +6,10 @@ import {
   faTrophy,
   faGraduationCap,
 } from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 import { useTelegram } from '../hooks/useTelegram'
 import Card from '../components/ui/Card'
-import MainTile from '../components/ui/MainTile'
-import MainTilesGrid from '../components/ui/MainTilesGrid'
 
 export default function HomePage() {
   const { ready } = useTelegram()
@@ -25,14 +24,14 @@ export default function HomePage() {
     )
   }
 
-  // Define the 4 main menu tiles with their unique accent gradients
-  const menuTiles = [
+  // Define the 4 main menu actions with their unique styles
+  const menuActions = [
     {
       label: t('home.tiles.quickMatch.label', 'CASH GAME'),
       title: t('home.tiles.quickMatch.title', 'Quick Match'),
       subtitle: t('home.tiles.quickMatch.subtitle', 'Fast seat at best table'),
       icon: faPlay,
-      accentGradient: 'rgb(139, 92, 246) rgb(236, 72, 153)', // violet → pink
+      variant: 'quickMatch',
       action: () => navigate('/lobby'),
     },
     {
@@ -40,7 +39,7 @@ export default function HomePage() {
       title: t('home.tiles.privateTable.title', 'Private Table'),
       subtitle: t('home.tiles.privateTable.subtitle', 'Create your own game'),
       icon: faUserGroup,
-      accentGradient: 'rgb(239, 68, 68) rgb(249, 115, 22)', // red → orange
+      variant: 'privateTable',
       action: () => navigate('/games/create'),
     },
     {
@@ -48,7 +47,7 @@ export default function HomePage() {
       title: t('home.tiles.tournaments.title', 'Tournaments'),
       subtitle: t('home.tiles.tournaments.subtitle', 'Join competitive events'),
       icon: faTrophy,
-      accentGradient: 'rgb(251, 191, 36) rgb(217, 119, 6)', // gold → copper
+      variant: 'tournaments',
       action: () => navigate('/lobby'), // TODO: tournaments route when ready
     },
     {
@@ -56,27 +55,44 @@ export default function HomePage() {
       title: t('home.tiles.practice.title', 'Practice Mode'),
       subtitle: t('home.tiles.practice.subtitle', 'Improve your skills'),
       icon: faGraduationCap,
-      accentGradient: 'rgb(59, 130, 246) rgb(139, 92, 246)', // blue → violet
+      variant: 'practice',
       action: () => navigate('/help'),
     },
   ]
 
   return (
-    <div className="space-y-6 px-4 pt-6 pb-8">
-      {/* Main Menu Tiles Grid */}
-      <MainTilesGrid>
-        {menuTiles.map((tile, index) => (
-          <MainTile
+    <div className="space-y-4 px-4 pt-6 pb-8">
+      {/* Main Menu Square Tiles */}
+      <div className="space-y-3">
+        {menuActions.map((action, index) => (
+          <button
             key={index}
-            label={tile.label}
-            title={tile.title}
-            subtitle={tile.subtitle}
-            icon={tile.icon}
-            accentGradient={tile.accentGradient}
-            onClick={tile.action}
-          />
+            onClick={action.action}
+            className={`menu-square-tile menu-square-tile--${action.variant} w-full`}
+          >
+            {/* Diagonal highlight layer */}
+            <span className="menu-square-tile__highlight" aria-hidden="true" />
+            
+            {/* Button content */}
+            <div className="menu-square-tile__content">
+              <div className="menu-square-tile__text">
+                <div className="menu-square-tile__label">
+                  {action.label}
+                </div>
+                <div className="menu-square-tile__title">
+                  {action.title}
+                </div>
+                <div className="menu-square-tile__subtitle">
+                  {action.subtitle}
+                </div>
+              </div>
+              <div className="menu-square-tile__icon">
+                <FontAwesomeIcon icon={action.icon} />
+              </div>
+            </div>
+          </button>
         ))}
-      </MainTilesGrid>
+      </div>
     </div>
   )
 }
