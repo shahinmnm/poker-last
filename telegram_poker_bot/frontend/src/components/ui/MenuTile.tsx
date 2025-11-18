@@ -6,178 +6,149 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { cn } from '../../utils/cn'
 import type { IconProps } from './icons'
 
+type AccentKey = 'violet-pink' | 'pink-orange' | 'gold-orange' | 'blue-violet'
+
 export interface MenuTileProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   icon?: ComponentType<IconProps> | IconDefinition
   title: string
   subtitle?: string
   label?: string
-  badge?: string | number
   to: string
-  recommended?: boolean
-  quickTag?: string
-  pulse?: boolean
-  shine?: boolean
-  depth?: boolean
   emoji?: string
-  tileColor?: string
   gradientBg?: string
+  accentKey?: AccentKey
+}
+
+const ACCENT_MAP: Record<AccentKey, { tint: string; spotlight: string; glow: string; icon: string }> = {
+  'violet-pink': {
+    tint: 'var(--tile-tint-violet-pink)',
+    spotlight: 'var(--tile-spotlight-violet-pink)',
+    glow: 'var(--tile-glow-violet-pink)',
+    icon: 'rgba(255, 255, 255, 0.82)',
+  },
+  'pink-orange': {
+    tint: 'var(--tile-tint-pink-orange)',
+    spotlight: 'var(--tile-spotlight-pink-orange)',
+    glow: 'var(--tile-glow-pink-orange)',
+    icon: 'rgba(255, 255, 255, 0.82)',
+  },
+  'gold-orange': {
+    tint: 'var(--tile-tint-gold-orange)',
+    spotlight: 'var(--tile-spotlight-gold-orange)',
+    glow: 'var(--tile-glow-gold-orange)',
+    icon: 'rgba(255, 255, 255, 0.82)',
+  },
+  'blue-violet': {
+    tint: 'var(--tile-tint-blue-violet)',
+    spotlight: 'var(--tile-spotlight-blue-violet)',
+    glow: 'var(--tile-glow-blue-violet)',
+    icon: 'rgba(255, 255, 255, 0.82)',
+  },
+}
+
+function resolveAccent(accentKey?: AccentKey, gradientBg?: string) {
+  if (accentKey && ACCENT_MAP[accentKey]) return ACCENT_MAP[accentKey]
+
+  const gradient = gradientBg ?? ''
+  if (gradient.includes('violet-pink')) return ACCENT_MAP['violet-pink']
+  if (gradient.includes('pink-orange')) return ACCENT_MAP['pink-orange']
+  if (gradient.includes('gold-orange')) return ACCENT_MAP['gold-orange']
+  if (gradient.includes('blue-violet')) return ACCENT_MAP['blue-violet']
+
+  return null
 }
 
 export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuTile(
-  { className, icon, title, subtitle, label, to, emoji, gradientBg, ...rest },
+  { className, icon, title, subtitle, label, to, emoji, gradientBg, accentKey, ...rest },
   ref,
 ) {
-  // Check if icon is a Font Awesome icon definition
+  const accent = useMemo(() => resolveAccent(accentKey, gradientBg), [accentKey, gradientBg])
   const isFontAwesomeIcon = icon && typeof icon === 'object' && 'iconName' in icon
 
-  // Map gradientBg to tint and glow colors
-  const { tintVar, spotlightVar, glowVar } = useMemo(() => {
-    if (!gradientBg) return { tintVar: null, spotlightVar: null, glowVar: null }
-    
-    if (gradientBg.includes('violet-pink')) {
-      return {
-        tintVar: 'var(--tile-tint-violet-pink)',
-        spotlightVar: 'var(--tile-spotlight-violet-pink)',
-        glowVar: 'var(--tile-glow-violet-pink)',
-      }
-    } else if (gradientBg.includes('pink-orange')) {
-      return {
-        tintVar: 'var(--tile-tint-pink-orange)',
-        spotlightVar: 'var(--tile-spotlight-pink-orange)',
-        glowVar: 'var(--tile-glow-pink-orange)',
-      }
-    } else if (gradientBg.includes('gold-orange')) {
-      return {
-        tintVar: 'var(--tile-tint-gold-orange)',
-        spotlightVar: 'var(--tile-spotlight-gold-orange)',
-        glowVar: 'var(--tile-glow-gold-orange)',
-      }
-    } else if (gradientBg.includes('blue-violet')) {
-      return {
-        tintVar: 'var(--tile-tint-blue-violet)',
-        spotlightVar: 'var(--tile-spotlight-blue-violet)',
-        glowVar: 'var(--tile-glow-blue-violet)',
-      }
-    }
-    
-    return { tintVar: null, spotlightVar: null, glowVar: null }
-  }, [gradientBg])
-
   return (
-    <Link to={to} className="block group">
+    <Link to={to} className="group block">
       <div
         ref={ref}
         className={cn(
-          'relative isolate flex h-[140px] w-full flex-col overflow-hidden',
-          'border',
-          'transition-[transform,box-shadow] duration-[140ms] ease-out',
+          'relative isolate flex h-[140px] w-full flex-col justify-between overflow-hidden',
+          'border transition-[transform,box-shadow] duration-[150ms] ease-out',
           'active:scale-[0.97]',
           className,
         )}
         style={{
           borderRadius: 'var(--radius-tile)',
           borderColor: 'var(--tile-glass-border)',
-          boxShadow: 'var(--shadow-tile-glow)',
+          background: 'var(--tile-glass-bg)',
           padding: '18px',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
-          background: 'var(--tile-glass-bg)',
+          boxShadow: accent ? `0 12px 32px ${accent.glow}` : 'var(--shadow-tile-glow)',
         }}
         {...rest}
       >
-        {/* Color tint layer */}
-        {tintVar && (
+        {accent && (
           <div
             className="absolute inset-0 z-0 rounded-[inherit]"
-            style={{
-              background: tintVar,
-            }}
+            style={{ background: accent.tint }}
+            aria-hidden
           />
         )}
 
-        {/* Spotlight blob for depth */}
-        {spotlightVar && (
+        {accent && (
           <div
-            className="absolute inset-0 z-[1] pointer-events-none rounded-[inherit]"
-            style={{
-              background: spotlightVar,
-            }}
+            className="absolute inset-0 z-[1] rounded-[inherit]"
+            style={{ background: accent.spotlight }}
+            aria-hidden
           />
         )}
 
-        {/* Glass highlight sheen */}
         <div
-          className="absolute inset-0 z-[2] pointer-events-none rounded-[inherit]"
-          style={{
-            background: 'var(--tile-glass-highlight)',
-          }}
+          className="absolute inset-0 z-[2] rounded-[inherit]"
+          style={{ background: 'var(--tile-glass-highlight)' }}
+          aria-hidden
         />
 
-        {/* Hover glow effect */}
-        {glowVar && (
+        {accent && (
           <div
-            className="absolute inset-[-2px] z-[-1] opacity-0 transition-opacity duration-[140ms] ease-out group-hover:opacity-100 group-active:opacity-100 rounded-[inherit] blur-[16px] pointer-events-none"
-            style={{
-              background: glowVar,
-            }}
+            className="absolute inset-[-10%] z-[-1] opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-60 group-active:opacity-100 rounded-[inherit] blur-[22px]"
+            style={{ background: accent.glow }}
+            aria-hidden
           />
         )}
 
-        {/* Label at top */}
-        <div className="relative z-10 flex items-start justify-between mb-2.5">
+        <div className="relative z-10 flex flex-col gap-3 text-left" dir="auto">
           {label && (
-            <span 
-              className="text-[10.5px] font-semibold uppercase tracking-[0.6px]"
-              style={{ 
-                color: 'var(--color-text)',
-                opacity: 0.6,
-              }}
-            >
+            <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[color:var(--color-text-muted)] opacity-80">
               {label}
             </span>
           )}
-        </div>
 
-        {/* Title and subtitle at bottom */}
-        <div className="relative z-10 mt-auto flex flex-col gap-1 text-start" dir="auto">
-          <h3 
-            className="text-[19px] font-bold leading-tight"
-            style={{ color: 'var(--color-text)' }}
-          >
-            {title}
-          </h3>
-          {subtitle && (
-            <p 
-              className="text-[12.5px] leading-snug line-clamp-2"
-              style={{ 
-                color: 'var(--color-text-muted)',
-                opacity: 0.85,
-              }}
-            >
-              {subtitle}
-            </p>
-          )}
-        </div>
-
-        {/* Icon in bottom-right */}
-        {(icon || emoji) && (
-          <div className="absolute bottom-[14px] right-[14px] z-10">
-            {emoji && (
-              <span className="text-[22px] opacity-50">{emoji}</span>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-lg font-bold leading-tight text-[color:var(--color-text)]">{title}</h3>
+            {subtitle && (
+              <p className="text-xs leading-snug text-[color:var(--color-text-muted)] opacity-90 line-clamp-2">{subtitle}</p>
             )}
+          </div>
+        </div>
+
+        {(icon || emoji) && (
+          <div className="absolute bottom-4 right-4 z-10 flex items-center justify-center text-2xl">
+            {emoji && <span className="opacity-70">{emoji}</span>}
             {icon && !emoji && isFontAwesomeIcon && (
-              <FontAwesomeIcon 
-                icon={icon as IconDefinition} 
-                className="text-[22px]"
-                style={{ 
-                  color: 'var(--color-text)',
-                  opacity: 0.35,
-                }}
+              <FontAwesomeIcon
+                icon={icon as IconDefinition}
+                className="transition-opacity duration-150 ease-out"
+                style={{ color: accent?.icon ?? 'var(--color-text)', opacity: 0.55 }}
               />
             )}
             {icon && !emoji && !isFontAwesomeIcon && typeof icon === 'function' && (() => {
               const IconComponent = icon as ComponentType<IconProps>
-              return <IconComponent className="h-[22px] w-[22px] opacity-30" />
+              return (
+                <IconComponent
+                  className="h-[24px] w-[24px] transition-opacity duration-150 ease-out"
+                  style={{ color: accent?.icon ?? 'var(--color-text)', opacity: 0.65 }}
+                />
+              )
             })()}
           </div>
         )}
