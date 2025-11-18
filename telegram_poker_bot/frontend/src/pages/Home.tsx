@@ -49,7 +49,7 @@ export default function HomePage() {
       label: t('home.mosaic.quickMatch.label', 'Cash Game'),
       title: t('home.mosaic.quickMatch.title', 'Quick Match'),
       subtitle: t('home.mosaic.quickMatch.subtitle', 'Fast seat at best table'),
-      gradientBg: 'var(--tile-gradient-violet-pink)',
+      accentKey: 'violet-pink',
     },
     {
       key: 'privateTable',
@@ -58,7 +58,7 @@ export default function HomePage() {
       label: t('home.mosaic.privateTable.label', 'Friends'),
       title: t('home.mosaic.privateTable.title', 'Private Table'),
       subtitle: t('home.mosaic.privateTable.subtitle', 'Invite & play with friends'),
-      gradientBg: 'var(--tile-gradient-pink-orange)',
+      accentKey: 'pink-orange',
     },
     {
       key: 'tournaments',
@@ -67,7 +67,7 @@ export default function HomePage() {
       label: t('home.mosaic.tournaments.label', 'Events'),
       title: t('home.mosaic.tournaments.title', 'Tournaments'),
       subtitle: t('home.mosaic.tournaments.subtitle', 'Sit & Go · MTT'),
-      gradientBg: 'var(--tile-gradient-gold-orange)',
+      accentKey: 'gold-orange',
     },
     {
       key: 'practiceMode',
@@ -76,7 +76,7 @@ export default function HomePage() {
       label: t('home.mosaic.practiceMode.label', 'Training'),
       title: t('home.mosaic.practiceMode.title', 'Practice Mode'),
       subtitle: t('home.mosaic.practiceMode.subtitle', 'Play with fake chips'),
-      gradientBg: 'var(--tile-gradient-blue-violet)',
+      accentKey: 'blue-violet',
     },
   ]
 

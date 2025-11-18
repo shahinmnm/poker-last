@@ -141,8 +141,8 @@
   --tile-blue: #4dabf7;
 
   /* Glassmorphism tile system - Dark mode */
-  --tile-glass-bg: rgba(17, 25, 40, 0.40);
-  --tile-glass-border: rgba(255, 255, 255, 0.08);
+  --tile-glass-bg: rgba(15, 23, 42, 0.45);
+  --tile-glass-border: rgba(148, 163, 184, 0.40);
   --tile-glass-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent);
   
   /* Category-based color tints for tiles - Dark mode */
@@ -316,8 +316,8 @@
   --color-nav-border: rgba(0, 0, 0, 0.08);
 
   /* Glassmorphism tile system - Light mode */
-  --tile-glass-bg: rgba(255, 255, 255, 0.20);
-  --tile-glass-border: rgba(0, 0, 0, 0.12);
+  --tile-glass-bg: rgba(255, 255, 255, 0.80);
+  --tile-glass-border: rgba(148, 163, 184, 0.25);
   --tile-glass-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent);
   
   /* Category-based color tints for tiles - Light mode */
