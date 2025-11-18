@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
@@ -14,6 +14,30 @@ const bottomNavKeys = ['home', 'lobby', 'createGame', 'wallet', 'profile'] as co
 const bottomNavItems = bottomNavKeys
   .map((key) => menuTree.find((item) => item.key === key))
   .filter((value): value is NonNullable<typeof value> => Boolean(value))
+
+const activeStatuses = ['active', 'waiting', 'paused']
+
+function pickActiveTable(tables: any[]) {
+  const now = Date.now()
+  const filtered = tables
+    .filter((table) => {
+      const status = (table?.status || '').toString().toLowerCase()
+      if (!activeStatuses.includes(status)) return false
+      const expiresAt = table?.expires_at || table?.expiresAt
+      if (expiresAt) {
+        const expiry = new Date(expiresAt).getTime()
+        if (!Number.isNaN(expiry) && expiry < now) return false
+      }
+      return true
+    })
+    .sort((a, b) => {
+      const aTime = new Date(a?.updated_at || a?.updatedAt || 0).getTime()
+      const bTime = new Date(b?.updated_at || b?.updatedAt || 0).getTime()
+      return bTime - aTime
+    })
+
+  return filtered[0] || null
+}
 
 export default function MainLayout() {
   const { t } = useTranslation()
@@ -35,38 +59,41 @@ export default function MainLayout() {
   }, [initData])
 
   const displayName = user?.first_name || user?.username || 'Player'
-  const hasActiveTables = activeTables.length > 0
+  const currentActiveTable = useMemo(() => pickActiveTable(activeTables), [activeTables])
 
   return (
     <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
-      <header className="sticky top-0 z-30 px-[var(--space-lg)] pt-[var(--space-sm)] sm:px-[var(--space-xl)]">
+      <header className="sticky top-0 z-30 px-[var(--space-lg)] py-[var(--space-xs)] sm:px-[var(--space-xl)]">
         <div className="mx-auto w-full max-w-4xl">
-          <div className="glass-panel flex h-[56px] items-center gap-3 px-4 shadow-[0_18px_46px_rgba(0,0,0,0.55)]" style={{ borderRadius: 'var(--radius-xl)', padding: 'var(--space-sm) var(--space-md)' }}>
-            <Link to="/profile" className="relative flex items-center gap-3">
-              <span className="absolute inset-[-4px] rounded-full bg-[rgba(44,197,122,0.45)] blur-md" aria-hidden />
-              <Avatar size="sm" className="relative h-9 w-9 border border-white/30" />
+          <div className="glass-panel flex items-center gap-2.5 px-3 py-2 shadow-[0_16px_40px_rgba(0,0,0,0.55)]" style={{ borderRadius: 'var(--radius-xl)' }}>
+            <Link to="/profile" className="relative flex items-center gap-2.5">
+              <span className="absolute inset-[-3px] rounded-full bg-[rgba(44,197,122,0.35)] blur-md" aria-hidden />
+              <Avatar size="sm" className="relative border border-white/30" />
             </Link>
 
             <div className="flex flex-1 items-center justify-between gap-3">
               <Link to="/profile" className="flex flex-1 flex-col leading-tight">
-                <span className="font-semibold" style={{ fontSize: 'var(--fs-large)', color: 'var(--text-strong)' }}>{displayName}</span>
-                <span className="font-medium" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+                <span className="font-semibold" style={{ fontSize: 'var(--fs-medium)', color: 'var(--text-strong)' }}>{displayName}</span>
+                <span className="font-medium" style={{ fontSize: 'var(--fs-small)', color: 'var(--text-muted)' }}>
                   {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
                 </span>
               </Link>
 
               <div className="flex items-center gap-2">
-                <Link
-                  to={hasActiveTables ? `/table/${activeTables[0].table_id}` : '/lobby'}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] text-white shadow-[0_0_18px_rgba(44,197,122,0.55)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
-                  aria-label={hasActiveTables ? t('home.actions.resumeGame') : t('menu.lobby.label')}
-                >
-                  ▶
-                </Link>
+                {currentActiveTable && (
+                  <Link
+                    to={`/table/${currentActiveTable.table_id || currentActiveTable.id}`}
+                    className="flex h-10 items-center gap-2 rounded-full bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] px-3 text-sm font-semibold text-white shadow-[0_0_16px_rgba(44,197,122,0.55)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
+                    aria-label={t('home.actions.resumeGame')}
+                  >
+                    <span className="text-base leading-none">▶</span>
+                    <span className="leading-none">{t('home.actions.resumeGame')}</span>
+                  </Link>
+                )}
                 <LanguageSelector variant="icon" />
                 <Link
                   to="/settings"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.1)] text-[color:var(--text-strong)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[color:var(--text-strong)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
                   aria-label={t('menu.settings.label')}
                 >
                   ⚙️
