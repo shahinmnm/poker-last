@@ -88,7 +88,7 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
         {/* Color tint layer */}
         {tintVar && (
           <div
-            className="absolute inset-0 z-0"
+            className="absolute inset-0 z-0 rounded-[inherit]"
             style={{
               background: tintVar,
             }}
@@ -98,7 +98,7 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
         {/* Spotlight blob for depth */}
         {spotlightVar && (
           <div
-            className="absolute inset-0 z-[1] pointer-events-none"
+            className="absolute inset-0 z-[1] pointer-events-none rounded-[inherit]"
             style={{
               background: spotlightVar,
             }}
@@ -107,7 +107,7 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
 
         {/* Glass highlight sheen */}
         <div
-          className="absolute inset-0 z-[2] pointer-events-none"
+          className="absolute inset-0 z-[2] pointer-events-none rounded-[inherit]"
           style={{
             background: 'var(--tile-glass-highlight)',
           }}
