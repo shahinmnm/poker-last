@@ -5,7 +5,7 @@ import { faPlay, faUsers, faTrophy, faGraduationCap, faChartLine } from '@fortaw
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
 import Card from '../components/ui/Card'
-import HomeMenuGrid from '../components/home/HomeMenuGrid'
+import HomeMenuGrid, { type MenuTileItem } from '../components/home/HomeMenuGrid'
 import FilterPills from '../components/ui/FilterPills'
 import RecommendationCard from '../components/ui/RecommendationCard'
 
@@ -41,7 +41,7 @@ export default function HomePage() {
     { id: 'private', label: t('home.filters.private', 'Private') },
   ]
 
-  const mosaicTiles = [
+  const mosaicTiles: MenuTileItem[] = [
     {
       key: 'quickMatch',
       icon: faPlay,
