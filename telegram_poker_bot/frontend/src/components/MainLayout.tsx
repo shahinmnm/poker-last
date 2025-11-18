@@ -8,6 +8,7 @@ import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
 import Avatar from './ui/Avatar'
 import SmartActionSlot from './SmartActionSlot'
+import AppBackground from './background/AppBackground'
 import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
@@ -82,8 +83,10 @@ export default function MainLayout() {
   }, [currentActiveTable])
 
   return (
-    <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
-      <header className="sticky top-0 z-30 px-[var(--space-lg)] py-[var(--space-xs)] sm:px-[var(--space-xl)]">
+    <>
+      <AppBackground />
+      <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
+        <header className="sticky top-0 z-30 px-[var(--space-lg)] py-[var(--space-xs)] sm:px-[var(--space-xl)]">
         <div className="mx-auto w-full max-w-4xl">
           <div 
             className="relative flex items-center gap-2.5 px-3 py-2" 
@@ -270,6 +273,7 @@ export default function MainLayout() {
           ))}
         </div>
       </nav>
-    </div>
+      </div>
+    </>
   )
 }

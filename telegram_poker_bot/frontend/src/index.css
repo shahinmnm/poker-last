@@ -47,10 +47,6 @@ body {
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--color-bg-gradient);
-  background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
   color: var(--color-text);
 }
 
