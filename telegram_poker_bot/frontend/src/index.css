@@ -542,6 +542,240 @@ a {
       gap: var(--space-lg); /* 16px gap on larger screens */
     }
   }
+
+  /* ==================== GLASS BUTTON COMPONENT ==================== */
+  /* GlassButton - poker action buttons with glassmorphism inspired by glass_kit */
+  .glass-button {
+    position: relative;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0.06) 100%
+    );
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 
+      0 8px 24px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Diagonal highlight layer inside the button */
+  .glass-button__highlight {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(255, 255, 255, 0.08) 40%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  /* Button content layer */
+  .glass-button__content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Hover state - desktop only */
+  @media (hover: hover) {
+    .glass-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 
+        0 12px 32px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  /* Active state - scale down */
+  .glass-button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* Disabled state */
+  .glass-button--disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* ==================== VARIANT STYLES ==================== */
+  
+  /* Fold - soft slate/gray */
+  .glass-button--fold {
+    background: linear-gradient(
+      135deg,
+      rgba(148, 163, 184, 0.16) 0%,
+      rgba(100, 116, 139, 0.10) 100%
+    );
+    border-color: rgba(148, 163, 184, 0.25);
+  }
+
+  @media (hover: hover) {
+    .glass-button--fold:hover:not(:disabled) {
+      box-shadow: 
+        0 12px 32px rgba(100, 116, 139, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  /* Check - soft slate/light blue */
+  .glass-button--check {
+    background: linear-gradient(
+      135deg,
+      rgba(148, 163, 184, 0.16) 0%,
+      rgba(59, 130, 246, 0.08) 100%
+    );
+    border-color: rgba(148, 163, 184, 0.25);
+  }
+
+  @media (hover: hover) {
+    .glass-button--check:hover:not(:disabled) {
+      box-shadow: 
+        0 12px 32px rgba(59, 130, 246, 0.20),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  /* Bet - soft green */
+  .glass-button--bet {
+    background: linear-gradient(
+      135deg,
+      rgba(34, 197, 94, 0.18) 0%,
+      rgba(22, 163, 74, 0.10) 100%
+    );
+    border-color: rgba(34, 197, 94, 0.30);
+  }
+
+  @media (hover: hover) {
+    .glass-button--bet:hover:not(:disabled) {
+      box-shadow: 
+        0 12px 32px rgba(34, 197, 94, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  /* Raise - soft blue/purple */
+  .glass-button--raise {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.18) 0%,
+      rgba(124, 58, 237, 0.12) 100%
+    );
+    border-color: rgba(59, 130, 246, 0.30);
+  }
+
+  @media (hover: hover) {
+    .glass-button--raise:hover:not(:disabled) {
+      box-shadow: 
+        0 12px 32px rgba(59, 130, 246, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  /* All-In - soft red/orange */
+  .glass-button--all-in {
+    background: linear-gradient(
+      135deg,
+      rgba(239, 68, 68, 0.20) 0%,
+      rgba(249, 115, 22, 0.12) 100%
+    );
+    border-color: rgba(239, 68, 68, 0.35);
+  }
+
+  @media (hover: hover) {
+    .glass-button--all-in:hover:not(:disabled) {
+      box-shadow: 
+        0 12px 32px rgba(239, 68, 68, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  /* ==================== LIGHT MODE ADJUSTMENTS ==================== */
+  
+  :root[data-theme='light'] .glass-button {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.40) 0%,
+      rgba(255, 255, 255, 0.10) 100%
+    );
+    border-color: rgba(0, 0, 0, 0.10);
+    color: #111827;
+    text-shadow: none;
+    box-shadow: 
+      0 6px 20px rgba(0, 0, 0, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  :root[data-theme='light'] .glass-button__highlight {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.32) 0%,
+      rgba(255, 255, 255, 0.16) 40%,
+      transparent 70%
+    );
+  }
+
+  @media (hover: hover) {
+    :root[data-theme='light'] .glass-button:hover:not(:disabled) {
+      box-shadow: 
+        0 10px 28px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+  }
+
+  /* Light mode variant adjustments */
+  :root[data-theme='light'] .glass-button--fold {
+    background: linear-gradient(
+      135deg,
+      rgba(148, 163, 184, 0.25) 0%,
+      rgba(100, 116, 139, 0.12) 100%
+    );
+    border-color: rgba(100, 116, 139, 0.20);
+  }
+
+  :root[data-theme='light'] .glass-button--check {
+    background: linear-gradient(
+      135deg,
+      rgba(148, 163, 184, 0.22) 0%,
+      rgba(59, 130, 246, 0.14) 100%
+    );
+    border-color: rgba(59, 130, 246, 0.20);
+  }
+
+  :root[data-theme='light'] .glass-button--bet {
+    background: linear-gradient(
+      135deg,
+      rgba(34, 197, 94, 0.22) 0%,
+      rgba(22, 163, 74, 0.12) 100%
+    );
+    border-color: rgba(22, 163, 74, 0.25);
+  }
+
+  :root[data-theme='light'] .glass-button--raise {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.22) 0%,
+      rgba(124, 58, 237, 0.14) 100%
+    );
+    border-color: rgba(59, 130, 246, 0.25);
+  }
+
+  :root[data-theme='light'] .glass-button--all-in {
+    background: linear-gradient(
+      135deg,
+      rgba(239, 68, 68, 0.24) 0%,
+      rgba(249, 115, 22, 0.14) 100%
+    );
+    border-color: rgba(239, 68, 68, 0.30);
+  }
 }
 
 

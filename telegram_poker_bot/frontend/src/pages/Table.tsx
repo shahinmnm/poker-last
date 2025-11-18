@@ -14,6 +14,7 @@ import Modal from '../components/ui/Modal'
 import TableSummary from '../components/tables/TableSummary'
 import ExpiredTableView from '../components/tables/ExpiredTableView'
 import InviteSection from '../components/tables/InviteSection'
+import TableActionButtons from '../components/tables/TableActionButtons'
 import type { TableStatusTone } from '../components/lobby/types'
 
 interface TablePlayer {
@@ -643,54 +644,19 @@ export default function TablePage() {
 
       {liveState && viewerIsSeated && (
         <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t('table.actions.play')}</p>
-              <p className="text-xs text-[color:var(--text-muted)]">
-                {liveState.current_actor === heroId ? t('table.actions.yourTurn') : t('table.actions.wait')}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <Button
-                variant="ghost"
-                onClick={() => sendAction('fold')}
-                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
-              >
-                {t('table.actions.fold')}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
-                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
-              >
-                {amountToCall > 0 ? t('table.actions.call', { amount: amountToCall }) : t('table.actions.check')}
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => sendAction('bet', liveState.min_raise || tableDetails.big_blind)}
-                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
-                glow
-              >
-                {t('table.actions.bet')}
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
-                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
-              >
-                {t('table.actions.raise')}
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
-                disabled={!liveState || actionPending || liveState.current_actor !== heroId}
-              >
-                {t('table.actions.allIn')}
-              </Button>
-            </div>
-          </div>
+          <TableActionButtons
+            isPlayerTurn={liveState.current_actor === heroId}
+            amountToCall={amountToCall}
+            minRaise={liveState.min_raise}
+            playerStack={heroPlayer?.stack || 0}
+            playerBet={heroPlayer?.bet || 0}
+            actionPending={actionPending}
+            onFold={() => sendAction('fold')}
+            onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
+            onBet={() => sendAction('bet', liveState.min_raise || tableDetails.big_blind)}
+            onRaise={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
+            onAllIn={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
+          />
         </Card>
       )}
 

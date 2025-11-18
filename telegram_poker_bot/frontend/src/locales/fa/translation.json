@@ -548,6 +548,19 @@
     },
     "stacks": "{{amount}} ژتون شروع",
     "chips": "{{amount}} ژتون",
+    "statusLabel": "وضعیت بازی",
+    "pot": "پات: {{amount}}",
+    "blinds": "بلایند",
+    "turnCountdown": "تایمر اکشن",
+    "waitingForBoard": "در انتظار بورد...",
+    "betAmount": "شرط: {{amount}}",
+    "folded": "فولد کرد",
+    "yourHand": "کارت‌های شما",
+    "waitingForHand": "در انتظار کارت‌ها...",
+    "result": {
+      "won": "شما {{amount}} برنده شدید!",
+      "lost": "شما این دست را باختید"
+    },
     "status": {
       "waiting": "در انتظار",
       "active": "در حال اجرا",
@@ -583,7 +596,16 @@
       "starting": "در حال شروع...",
       "refresh": "به‌روزرسانی",
       "retry": "تلاش دوباره",
-      "delete": "حذف میز"
+      "delete": "حذف میز",
+      "play": "بازی",
+      "yourTurn": "نوبت شماست",
+      "wait": "منتظر نوبت خود باشید",
+      "fold": "فولد",
+      "check": "چک",
+      "call": "کال {{amount}}",
+      "bet": "بت",
+      "raise": "ریز",
+      "allIn": "آل‌این"
     },
     "messages": {
       "readyToStart": "همه‌چیز برای شروع آماده است.",
