@@ -1,4 +1,4 @@
-import { forwardRef, type ComponentType, type HTMLAttributes } from 'react'
+import { forwardRef, type ComponentType, type HTMLAttributes, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -30,77 +30,129 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
   // Check if icon is a Font Awesome icon definition
   const isFontAwesomeIcon = icon && typeof icon === 'object' && 'iconName' in icon
 
+  // Map gradientBg to tint and glow colors
+  const { tintVar, spotlightVar, glowVar } = useMemo(() => {
+    if (!gradientBg) return { tintVar: null, spotlightVar: null, glowVar: null }
+    
+    if (gradientBg.includes('violet-pink')) {
+      return {
+        tintVar: 'var(--tile-tint-violet-pink)',
+        spotlightVar: 'var(--tile-spotlight-violet-pink)',
+        glowVar: 'var(--tile-glow-violet-pink)',
+      }
+    } else if (gradientBg.includes('pink-orange')) {
+      return {
+        tintVar: 'var(--tile-tint-pink-orange)',
+        spotlightVar: 'var(--tile-spotlight-pink-orange)',
+        glowVar: 'var(--tile-glow-pink-orange)',
+      }
+    } else if (gradientBg.includes('gold-orange')) {
+      return {
+        tintVar: 'var(--tile-tint-gold-orange)',
+        spotlightVar: 'var(--tile-spotlight-gold-orange)',
+        glowVar: 'var(--tile-glow-gold-orange)',
+      }
+    } else if (gradientBg.includes('blue-violet')) {
+      return {
+        tintVar: 'var(--tile-tint-blue-violet)',
+        spotlightVar: 'var(--tile-spotlight-blue-violet)',
+        glowVar: 'var(--tile-glow-blue-violet)',
+      }
+    }
+    
+    return { tintVar: null, spotlightVar: null, glowVar: null }
+  }, [gradientBg])
+
   return (
-    <Link to={to} className="block">
+    <Link to={to} className="block group">
       <div
         ref={ref}
         className={cn(
           'relative isolate flex h-[140px] w-full flex-col overflow-hidden',
           'border',
-          'transition-[transform,box-shadow] duration-[120ms] ease-out active:scale-[0.97]',
+          'transition-[transform,box-shadow] duration-[140ms] ease-out',
+          'active:scale-[0.97]',
           className,
         )}
         style={{
           borderRadius: 'var(--radius-tile)',
-          borderColor: 'var(--color-border-glass)',
+          borderColor: 'var(--tile-glass-border)',
           boxShadow: 'var(--shadow-tile-glow)',
-          padding: 'var(--space-lg)',
+          padding: '18px',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
+          background: 'var(--tile-glass-bg)',
         }}
         {...rest}
       >
-        {/* Gradient background overlay with glass effect */}
-        {gradientBg && (
-          <>
-            <div
-              className="absolute inset-0 z-0"
-              style={{
-                background: gradientBg,
-              }}
-            />
-            <div
-              className="absolute inset-0 z-[1]"
-              style={{
-                background: 'var(--tile-glass)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-              }}
-            />
-          </>
+        {/* Color tint layer */}
+        {tintVar && (
+          <div
+            className="absolute inset-0 z-0 rounded-[inherit]"
+            style={{
+              background: tintVar,
+            }}
+          />
         )}
 
-        {/* Diagonal highlight stripe for glass effect */}
+        {/* Spotlight blob for depth */}
+        {spotlightVar && (
+          <div
+            className="absolute inset-0 z-[1] pointer-events-none rounded-[inherit]"
+            style={{
+              background: spotlightVar,
+            }}
+          />
+        )}
+
+        {/* Glass highlight sheen */}
         <div
-          className="absolute top-0 left-[15%] right-[15%] h-[40%] z-[2] pointer-events-none"
+          className="absolute inset-0 z-[2] pointer-events-none rounded-[inherit]"
           style={{
-            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent)',
-            borderRadius: 'var(--radius-tile) var(--radius-tile) 0 0',
+            background: 'var(--tile-glass-highlight)',
           }}
         />
 
-        <div className="relative z-10 flex items-start justify-between">
+        {/* Hover glow effect */}
+        {glowVar && (
+          <div
+            className="absolute inset-[-2px] z-[-1] opacity-0 transition-opacity duration-[140ms] ease-out group-hover:opacity-100 group-active:opacity-100 rounded-[inherit] blur-[16px] pointer-events-none"
+            style={{
+              background: glowVar,
+            }}
+          />
+        )}
+
+        {/* Label at top */}
+        <div className="relative z-10 flex items-start justify-between mb-2.5">
           {label && (
             <span 
-              className="text-xs font-semibold uppercase tracking-wider drop-shadow-sm"
-              style={{ color: 'var(--color-text-inverse)' }}
+              className="text-[10.5px] font-semibold uppercase tracking-[0.6px]"
+              style={{ 
+                color: 'var(--color-text)',
+                opacity: 0.6,
+              }}
             >
               {label}
             </span>
           )}
         </div>
 
-        <div className="relative z-10 mt-auto flex flex-col gap-1.5 text-start" dir="auto">
+        {/* Title and subtitle at bottom */}
+        <div className="relative z-10 mt-auto flex flex-col gap-1 text-start" dir="auto">
           <h3 
-            className="text-lg font-bold leading-tight drop-shadow-md"
-            style={{ color: 'var(--color-text-inverse)' }}
+            className="text-[19px] font-bold leading-tight"
+            style={{ color: 'var(--color-text)' }}
           >
             {title}
           </h3>
           {subtitle && (
             <p 
-              className="text-xs leading-snug line-clamp-2 drop-shadow-sm"
-              style={{ color: 'rgba(255, 255, 255, 0.85)' }}
+              className="text-[12.5px] leading-snug line-clamp-2"
+              style={{ 
+                color: 'var(--color-text-muted)',
+                opacity: 0.85,
+              }}
             >
               {subtitle}
             </p>
@@ -109,20 +161,23 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
 
         {/* Icon in bottom-right */}
         {(icon || emoji) && (
-          <div className="absolute bottom-4 right-4 z-10">
+          <div className="absolute bottom-[14px] right-[14px] z-10">
             {emoji && (
-              <span className="text-2xl opacity-50 drop-shadow">{emoji}</span>
+              <span className="text-[22px] opacity-50">{emoji}</span>
             )}
             {icon && !emoji && isFontAwesomeIcon && (
               <FontAwesomeIcon 
                 icon={icon as IconDefinition} 
-                className="text-2xl drop-shadow"
-                style={{ color: 'rgba(255, 255, 255, 0.35)' }}
+                className="text-[22px]"
+                style={{ 
+                  color: 'var(--color-text)',
+                  opacity: 0.35,
+                }}
               />
             )}
             {icon && !emoji && !isFontAwesomeIcon && typeof icon === 'function' && (() => {
               const IconComponent = icon as ComponentType<IconProps>
-              return <IconComponent className="h-6 w-6 opacity-30 drop-shadow" />
+              return <IconComponent className="h-[22px] w-[22px] opacity-30" />
             })()}
           </div>
         )}
