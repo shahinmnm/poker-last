@@ -32,9 +32,10 @@ export function SmartActionSlot({ mode, to, label, timer, className }: SmartActi
       >
         <div
           className={cn(
-            'relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br shadow-lg border-2 border-white/30',
+            'relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br border-2 border-white/30',
             config.color
           )}
+          style={{ boxShadow: 'var(--shadow-accent-glow)' }}
         >
           <FontAwesomeIcon icon={config.icon} className="text-xl text-white" />
           {timer && (

@@ -47,10 +47,11 @@ body {
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--app-background);
+  background: var(--color-bg-gradient);
   background-attachment: fixed;
   background-size: cover;
-  color: var(--text-primary);
+  background-position: center;
+  color: var(--color-text);
 }
 
 /* Farsi text support */
@@ -71,27 +72,31 @@ a {
 
 @layer components {
   .glass-panel {
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(18px);
-    border-radius: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: var(--radius-2xl);
+    border: 1px solid var(--color-border-glass);
+    box-shadow: var(--shadow-card);
   }
 
   .glass-pill {
-    background: rgba(15, 23, 42, 0.7);
+    background: var(--bg-glass);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--color-border-glass);
+    box-shadow: var(--shadow-soft);
   }
 
   .glass-icon-circle {
     width: 38px;
     height: 38px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-glass);
     backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--color-border-glass);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -118,10 +123,11 @@ a {
   .app-card {
     position: relative;
     border-radius: var(--radius-2xl);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    background: var(--bg-glass);
+    border: 1px solid var(--color-border-glass);
     box-shadow: var(--shadow-card);
-    backdrop-filter: blur(28px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     color: var(--color-text);
   }
 
@@ -131,24 +137,39 @@ a {
     inset-inline: var(--space-xl);
     top: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--color-accent-start), transparent);
-    opacity: 0.8;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    opacity: 0.5;
   }
 
   .app-card--overlay {
     background: var(--color-surface-overlay);
   }
 
-  /* Button components */
+  /* Button components - Enhanced glassmorphism */
   .app-button {
+    position: relative;
     border-radius: var(--radius-pill);
     cursor: pointer;
-    color: inherit;
+    color: var(--color-text);
     letter-spacing: var(--letter-spacing-tight);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid var(--color-border-glass);
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     box-shadow: var(--shadow-button);
     transition: transform 0.14s ease, box-shadow 0.14s ease;
+  }
+
+  .app-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.15), transparent);
+    border-radius: var(--radius-pill) var(--radius-pill) 0 0;
+    pointer-events: none;
   }
 
   .app-button--primary {
@@ -160,20 +181,26 @@ a {
 
   .app-button--secondary {
     color: var(--color-text);
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.16);
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+    background: var(--bg-glass);
+    border-color: var(--color-border-glass);
+    box-shadow: var(--shadow-soft);
   }
 
   :root[data-theme='light'] .app-button--secondary {
-    background: rgba(15, 23, 42, 0.06);
-    border-color: rgba(0, 0, 0, 0.08);
+    background: var(--bg-glass);
+    border-color: var(--color-border-glass);
   }
 
   .app-button--ghost {
     background: transparent;
     color: var(--color-text);
     border-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .app-button--ghost::before {
+    display: none;
   }
 
   .app-button--danger {
@@ -205,7 +232,7 @@ a {
 
   .app-button:active {
     transform: scale(0.97);
-    box-shadow: var(--shadow-glow);
+    box-shadow: var(--shadow-accent-glow);
   }
 
   .app-segmented-control {
@@ -215,10 +242,11 @@ a {
     gap: 0;
     padding: 4px;
     border-radius: var(--radius-pill);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(15, 23, 42, 0.7);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(16px);
+    border: 1px solid var(--color-border-glass);
+    background: var(--bg-glass);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     overflow: hidden;
   }
 

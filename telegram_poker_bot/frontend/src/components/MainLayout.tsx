@@ -86,7 +86,7 @@ export default function MainLayout() {
       <header className="sticky top-0 z-30 px-[var(--space-lg)] py-[var(--space-xs)] sm:px-[var(--space-xl)]">
         <div className="mx-auto w-full max-w-4xl">
           <div 
-            className="flex items-center gap-2.5 px-3 py-2 shadow-[0_16px_40px_rgba(0,0,0,0.55)]" 
+            className="relative flex items-center gap-2.5 px-3 py-2" 
             style={{ 
               borderRadius: 'var(--radius-xl)',
               borderBottomLeftRadius: 'var(--radius-2xl)',
@@ -95,17 +95,31 @@ export default function MainLayout() {
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid var(--color-border-glass)',
+              boxShadow: 'var(--shadow-card)',
             }}
           >
-            <Link to="/profile" className="relative flex items-center gap-2.5">
-              <span className="absolute inset-[-3px] rounded-full bg-[rgba(44,197,122,0.35)] blur-md" aria-hidden />
-              <Avatar size="sm" className="relative border border-white/30" />
+            {/* Diagonal highlight for glass effect */}
+            <div 
+              className="absolute top-0 left-[20%] right-[20%] h-[50%] pointer-events-none"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent)',
+                borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
+              }}
+            />
+            
+            <Link to="/profile" className="relative flex items-center gap-2.5 z-10">
+              <span 
+                className="absolute inset-[-3px] rounded-full blur-md" 
+                style={{ background: 'var(--glow-primary)' }}
+                aria-hidden 
+              />
+              <Avatar size="sm" className="relative" style={{ border: '1px solid rgba(255, 255, 255, 0.3)' }} />
             </Link>
 
-            <div className="flex flex-1 items-center justify-between gap-3">
+            <div className="relative flex flex-1 items-center justify-between gap-3 z-10">
               <Link to="/profile" className="flex flex-1 flex-col leading-tight min-w-0">
                 <span className="truncate max-w-[120px] font-semibold text-[14px]" style={{ color: 'var(--color-text)' }}>{displayName}</span>
-                <span className="font-medium text-[11px] text-text-muted">
+                <span className="font-medium text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                   {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
                 </span>
               </Link>
@@ -114,7 +128,8 @@ export default function MainLayout() {
                 {currentActiveTable && (
                   <Link
                     to={`/table/${currentActiveTable.table_id || currentActiveTable.id}`}
-                    className="flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] px-2.5 text-white shadow-[0_0_16px_rgba(44,197,122,0.55)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
+                    className="flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] px-2.5 text-white transition-transform duration-150 ease-out active:scale-95 border border-white/30"
+                    style={{ boxShadow: 'var(--shadow-accent-glow)' }}
                     aria-label={t('home.actions.resumeGame')}
                   >
                     <FontAwesomeIcon icon={faPlay} className="text-sm" />
@@ -124,7 +139,14 @@ export default function MainLayout() {
                 <LanguageSelector variant="icon" />
                 <Link
                   to="/settings"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[color:var(--text-strong)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
+                  className="flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 ease-out active:scale-95"
+                  style={{ 
+                    background: 'var(--bg-glass)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    border: '1px solid var(--color-border-glass)',
+                    color: 'var(--color-text)',
+                  }}
                   aria-label={t('menu.settings.label')}
                 >
                   <FontAwesomeIcon icon={faGear} className="text-sm" />
@@ -140,17 +162,26 @@ export default function MainLayout() {
       <nav 
         className="fixed bottom-0 left-0 right-0 z-40 px-[var(--space-md)] pb-[calc(var(--space-sm)+var(--space-xs))] pt-[calc(var(--space-xs)+var(--space-xs))] sm:px-[var(--space-lg)]" 
         style={{ 
-          height: '60px', 
+          height: '60px',
           background: 'var(--bg-glass)', 
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(22px)',
+          WebkitBackdropFilter: 'blur(22px)',
           borderTop: '1px solid var(--color-border-glass)', 
           boxShadow: 'var(--shadow-nav)',
           borderTopLeftRadius: 'var(--radius-2xl)',
           borderTopRightRadius: 'var(--radius-2xl)',
         }}
       >
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-around gap-[var(--space-xs)]">
+        {/* Diagonal highlight for glass dock */}
+        <div 
+          className="absolute inset-x-[10%] bottom-[30%] h-[40%] pointer-events-none"
+          style={{
+            background: 'linear-gradient(0deg, transparent, rgba(255, 255, 255, 0.06))',
+            borderRadius: '0 0 var(--radius-2xl) var(--radius-2xl)',
+          }}
+        />
+        
+        <div className="relative z-10 mx-auto flex w-full max-w-4xl items-center justify-around gap-[var(--space-xs)]">
           {bottomNavItems.slice(0, 2).map((item) => (
             <NavLink
               key={item.key}
@@ -164,21 +195,24 @@ export default function MainLayout() {
                     className={cn(
                       'flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 ease-out active:scale-95',
                       isActive 
-                        ? 'bg-accent border border-white/20 shadow-[0_0_12px_rgba(44,197,122,0.6)]' 
+                        ? 'bg-accent border border-white/20' 
                         : 'bg-transparent'
                     )}
-                    style={{ fontSize: 'var(--fs-large)' }}
+                    style={{ 
+                      fontSize: 'var(--fs-large)',
+                      boxShadow: isActive ? 'var(--shadow-accent-glow)' : 'none',
+                    }}
                   >
                     <FontAwesomeIcon 
                       icon={item.icon} 
-                      style={{ color: isActive ? '#ffffff' : 'var(--text-muted)' }}
+                      style={{ color: isActive ? '#ffffff' : 'var(--color-text-muted)' }}
                     />
                   </div>
                   <span
                     className="leading-tight"
                     style={{
                       fontSize: 'var(--fs-caption)',
-                      color: isActive ? 'var(--accent-main)' : 'var(--text-muted)',
+                      color: isActive ? 'var(--accent-main)' : 'var(--color-text-muted)',
                     }}
                   >
                     {t(item.labelKey)}
@@ -208,21 +242,24 @@ export default function MainLayout() {
                     className={cn(
                       'flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 ease-out active:scale-95',
                       isActive 
-                        ? 'bg-accent border border-white/20 shadow-[0_0_12px_rgba(44,197,122,0.6)]' 
+                        ? 'bg-accent border border-white/20' 
                         : 'bg-transparent'
                     )}
-                    style={{ fontSize: 'var(--fs-large)' }}
+                    style={{ 
+                      fontSize: 'var(--fs-large)',
+                      boxShadow: isActive ? 'var(--shadow-accent-glow)' : 'none',
+                    }}
                   >
                     <FontAwesomeIcon 
                       icon={item.icon} 
-                      style={{ color: isActive ? '#ffffff' : 'var(--text-muted)' }}
+                      style={{ color: isActive ? '#ffffff' : 'var(--color-text-muted)' }}
                     />
                   </div>
                   <span
                     className="leading-tight"
                     style={{
                       fontSize: 'var(--fs-caption)',
-                      color: isActive ? 'var(--accent-main)' : 'var(--text-muted)',
+                      color: isActive ? 'var(--accent-main)' : 'var(--color-text-muted)',
                     }}
                   >
                     {t(item.labelKey)}
