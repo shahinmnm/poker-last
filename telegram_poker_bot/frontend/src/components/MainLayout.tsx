@@ -7,11 +7,12 @@ import { faPlay, faGear } from '@fortawesome/free-solid-svg-icons'
 import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
 import Avatar from './ui/Avatar'
+import SmartActionSlot from './SmartActionSlot'
 import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
 
-const bottomNavKeys = ['home', 'lobby', 'createGame', 'wallet', 'profile'] as const
+const bottomNavKeys = ['home', 'lobby', 'wallet', 'profile'] as const
 
 const bottomNavItems = bottomNavKeys
   .map((key) => menuTree.find((item) => item.key === key))
@@ -62,6 +63,23 @@ export default function MainLayout() {
 
   const displayName = user?.first_name || user?.username || 'Player'
   const currentActiveTable = useMemo(() => pickActiveTable(activeTables), [activeTables])
+
+  // Determine smart action slot mode
+  const smartActionMode = useMemo(() => {
+    if (currentActiveTable) {
+      return {
+        mode: 'backToTable' as const,
+        to: `/table/${currentActiveTable.table_id || currentActiveTable.id}`,
+        label: 'Resume',
+      }
+    }
+    // Default to quick seat
+    return {
+      mode: 'quickSeat' as const,
+      to: '/lobby',
+      label: 'Quick Seat',
+    }
+  }, [currentActiveTable])
 
   return (
     <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
@@ -133,7 +151,51 @@ export default function MainLayout() {
         }}
       >
         <div className="mx-auto flex w-full max-w-4xl items-center justify-around gap-[var(--space-xs)]">
-          {bottomNavItems.map((item) => (
+          {bottomNavItems.slice(0, 2).map((item) => (
+            <NavLink
+              key={item.key}
+              to={item.path}
+              end={item.key === 'home'}
+              className={({ isActive }) => cn('flex flex-col items-center gap-1 text-[11px] sm:text-[var(--font-size-sm)]', isActive && 'is-active')}
+            >
+              {({ isActive }) => (
+                <div className="flex flex-col items-center gap-1">
+                  <div
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 ease-out active:scale-95',
+                      isActive 
+                        ? 'bg-accent border border-white/20 shadow-[0_0_12px_rgba(44,197,122,0.6)]' 
+                        : 'bg-transparent'
+                    )}
+                    style={{ fontSize: 'var(--fs-large)' }}
+                  >
+                    <FontAwesomeIcon 
+                      icon={item.icon} 
+                      style={{ color: isActive ? '#ffffff' : 'var(--text-muted)' }}
+                    />
+                  </div>
+                  <span
+                    className="leading-tight"
+                    style={{
+                      fontSize: 'var(--fs-caption)',
+                      color: isActive ? 'var(--accent-main)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {t(item.labelKey)}
+                  </span>
+                </div>
+              )}
+            </NavLink>
+          ))}
+          
+          {/* Smart Action Slot - Dynamic Center Tab */}
+          <SmartActionSlot
+            mode={smartActionMode.mode}
+            to={smartActionMode.to}
+            label={smartActionMode.label}
+          />
+
+          {bottomNavItems.slice(2).map((item) => (
             <NavLink
               key={item.key}
               to={item.path}
