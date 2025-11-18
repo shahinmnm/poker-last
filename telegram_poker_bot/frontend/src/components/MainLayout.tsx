@@ -72,9 +72,9 @@ export default function MainLayout() {
             </Link>
 
             <div className="flex flex-1 items-center justify-between gap-3">
-              <Link to="/profile" className="flex flex-1 flex-col leading-tight">
-                <span className="font-semibold" style={{ fontSize: 'var(--fs-medium)', color: 'var(--text-strong)' }}>{displayName}</span>
-                <span className="font-medium" style={{ fontSize: 'var(--fs-small)', color: 'var(--text-muted)' }}>
+              <Link to="/profile" className="flex flex-1 flex-col leading-tight min-w-0">
+                <span className="truncate max-w-[120px] font-semibold text-[14px] text-slate-50">{displayName}</span>
+                <span className="font-medium text-[11px] text-slate-400">
                   {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
                 </span>
               </Link>
@@ -83,17 +83,17 @@ export default function MainLayout() {
                 {currentActiveTable && (
                   <Link
                     to={`/table/${currentActiveTable.table_id || currentActiveTable.id}`}
-                    className="flex h-10 items-center gap-2 rounded-full bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] px-3 text-sm font-semibold text-white shadow-[0_0_16px_rgba(44,197,122,0.55)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
+                    className="flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] px-2.5 text-white shadow-[0_0_16px_rgba(44,197,122,0.55)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
                     aria-label={t('home.actions.resumeGame')}
                   >
-                    <span className="text-base leading-none">▶</span>
-                    <span className="leading-none">{t('home.actions.resumeGame')}</span>
+                    <span className="text-sm leading-none">▶</span>
+                    <span className="whitespace-nowrap text-[12px] font-medium tracking-wide leading-none">{t('home.actions.resumeGame')}</span>
                   </Link>
                 )}
                 <LanguageSelector variant="icon" />
                 <Link
                   to="/settings"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[color:var(--text-strong)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[color:var(--text-strong)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
                   aria-label={t('menu.settings.label')}
                 >
                   ⚙️
