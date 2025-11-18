@@ -10,6 +10,7 @@ export interface MenuTileProps extends Omit<HTMLAttributes<HTMLDivElement>, 'tit
   icon?: ComponentType<IconProps> | IconDefinition
   title: string
   subtitle?: string
+  label?: string
   badge?: string | number
   to: string
   recommended?: boolean
@@ -19,10 +20,11 @@ export interface MenuTileProps extends Omit<HTMLAttributes<HTMLDivElement>, 'tit
   depth?: boolean
   emoji?: string
   tileColor?: string
+  gradientBg?: string
 }
 
 export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuTile(
-  { className, icon, title, subtitle, to, emoji, tileColor, ...rest },
+  { className, icon, title, subtitle, label, to, emoji, gradientBg, ...rest },
   ref,
 ) {
   // Check if icon is a Font Awesome icon definition
@@ -33,64 +35,65 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
       <div
         ref={ref}
         className={cn(
-          'relative isolate flex h-[128px] w-full flex-col overflow-hidden',
-          'border border-[rgba(15,23,42,0.6)] text-[color:var(--text-strong)]',
+          'relative isolate flex h-[140px] w-full flex-col overflow-hidden',
+          'border border-border bg-surface backdrop-blur-md',
           'transition-[transform,box-shadow] duration-[120ms] ease-out active:scale-95 active:shadow-none',
           className,
         )}
         style={{
-          backgroundColor: tileColor || 'rgba(15,23,42,0.55)',
-          borderRadius: 'var(--radius-xl)',
+          borderRadius: 'var(--radius-2xl)',
           boxShadow: 'var(--shadow-soft)',
-          padding: 'var(--space-md)',
+          padding: 'var(--space-lg)',
         }}
         {...rest}
       >
+        {/* Gradient background overlay */}
+        {gradientBg && (
+          <div
+            className="absolute inset-0 z-0 opacity-100"
+            style={{
+              background: gradientBg,
+            }}
+          />
+        )}
+
         <div className="relative z-10 flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            {emoji && (
-              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/18 border border-white/12">
-                <span className="text-base">{emoji}</span>
-              </div>
-            )}
-            {icon && !emoji && (
-              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/18 border border-white/12">
-                {isFontAwesomeIcon ? (
-                  <FontAwesomeIcon icon={icon as IconDefinition} className="text-base" />
-                ) : (
-                  // Legacy custom SVG icon support
-                  typeof icon === 'function' && (() => {
-                    const IconComponent = icon as ComponentType<IconProps>
-                    return <IconComponent className="w-4 h-4" />
-                  })()
-                )}
-              </div>
-            )}
-          </div>
+          {label && (
+            <span className="text-xs font-semibold uppercase tracking-wider text-text-muted opacity-80">
+              {label}
+            </span>
+          )}
         </div>
 
-        <div className="relative z-10 mt-auto flex flex-col gap-1 text-start" dir="auto">
-          <h3
-            className="font-semibold leading-tight truncate"
-            style={{
-              fontSize: 'var(--fs-title)',
-              color: 'var(--text-strong)',
-            }}
-          >
+        <div className="relative z-10 mt-auto flex flex-col gap-1.5 text-start" dir="auto">
+          <h3 className="text-lg font-bold leading-tight text-text">
             {title}
           </h3>
           {subtitle && (
-            <p
-              className="leading-relaxed line-clamp-2"
-              style={{
-                fontSize: 'var(--fs-body)',
-                color: 'var(--text-muted)',
-              }}
-            >
+            <p className="text-xs leading-snug text-text-muted line-clamp-2">
               {subtitle}
             </p>
           )}
         </div>
+
+        {/* Icon in bottom-right */}
+        {(icon || emoji) && (
+          <div className="absolute bottom-4 right-4 z-10">
+            {emoji && (
+              <span className="text-2xl opacity-60">{emoji}</span>
+            )}
+            {icon && !emoji && isFontAwesomeIcon && (
+              <FontAwesomeIcon 
+                icon={icon as IconDefinition} 
+                className="text-2xl text-text-muted/40"
+              />
+            )}
+            {icon && !emoji && !isFontAwesomeIcon && typeof icon === 'function' && (() => {
+              const IconComponent = icon as ComponentType<IconProps>
+              return <IconComponent className="h-6 w-6 opacity-40" />
+            })()}
+          </div>
+        )}
       </div>
     </Link>
   )

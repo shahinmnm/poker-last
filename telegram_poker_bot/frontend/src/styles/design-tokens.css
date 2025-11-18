@@ -127,6 +127,12 @@
   --tile-purple: #845ef7;
   --tile-blue: #4dabf7;
 
+  /* Gradient tile backgrounds for dark mode */
+  --tile-gradient-violet-pink: linear-gradient(135deg, rgba(132, 94, 247, 0.3) 0%, rgba(236, 72, 153, 0.3) 100%);
+  --tile-gradient-pink-orange: linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(251, 146, 60, 0.3) 100%);
+  --tile-gradient-gold-orange: linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(251, 146, 60, 0.3) 100%);
+  --tile-gradient-blue-violet: linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(132, 94, 247, 0.3) 100%);
+
   /* Status colors */
   --color-success: #22c55e;
   --color-success-bg: rgba(34, 197, 94, 0.18);
@@ -256,4 +262,10 @@
   /* Navigation colors */
   --color-nav-bg: rgba(255, 255, 255, 0.88);
   --color-nav-border: rgba(15, 23, 42, 0.08);
+
+  /* Gradient tile backgrounds for light mode */
+  --tile-gradient-violet-pink: linear-gradient(135deg, rgba(167, 139, 250, 0.25) 0%, rgba(244, 114, 182, 0.25) 100%);
+  --tile-gradient-pink-orange: linear-gradient(135deg, rgba(244, 114, 182, 0.25) 0%, rgba(251, 146, 60, 0.25) 100%);
+  --tile-gradient-gold-orange: linear-gradient(135deg, rgba(252, 211, 77, 0.25) 0%, rgba(251, 146, 60, 0.25) 100%);
+  --tile-gradient-blue-violet: linear-gradient(135deg, rgba(96, 165, 250, 0.25) 0%, rgba(167, 139, 250, 0.25) 100%);
 }
