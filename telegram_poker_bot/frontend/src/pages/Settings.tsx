@@ -23,11 +23,11 @@ export default function SettingsPage() {
       />
 
       <Card>
-        <h2 className="text-section-title text-[color:var(--text-primary)] flex items-center gap-2">
-          <FontAwesomeIcon icon={faLanguage} />
+        <h2 className="text-section-title flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+          <FontAwesomeIcon icon={faLanguage} style={{ color: 'var(--accent-blue)' }} />
           {t('settings.sections.language.title')}
         </h2>
-        <p className="mt-1 text-caption text-[color:var(--text-muted)]">
+        <p className="mt-1 text-caption" style={{ color: 'var(--color-text-muted)' }}>
           {t('settings.sections.language.description')}
         </p>
         <div className="mt-4">
@@ -36,38 +36,49 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="text-section-title text-[color:var(--text-primary)] flex items-center gap-2">
-          <FontAwesomeIcon icon={darkMode ? faMoon : faSun} />
+        <h2 className="text-section-title flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+          <FontAwesomeIcon 
+            icon={darkMode ? faMoon : faSun} 
+            style={{ color: darkMode ? 'var(--accent-purple)' : 'var(--accent-main)' }} 
+          />
           {t('settings.sections.appearance.title')}
         </h2>
-        <p className="mt-1 text-caption text-[color:var(--text-muted)]">
+        <p className="mt-1 text-caption" style={{ color: 'var(--color-text-muted)' }}>
           {t('settings.sections.appearance.description')}
         </p>
-        <label className="mt-4 flex items-center gap-3 text-body font-medium text-[color:var(--text-primary)]">
+        <label className="mt-4 flex items-center gap-3 text-body font-medium cursor-pointer" style={{ color: 'var(--color-text)' }}>
           <input
             type="checkbox"
             checked={darkMode}
             onChange={(event) => setMode(event.target.checked ? 'dark' : 'light')}
-            className="h-4 w-4 rounded border-[color:var(--surface-border)] text-[color:var(--accent-start)] focus:ring-[color:var(--accent-start)]"
+            className="h-4 w-4 rounded"
+            style={{
+              borderColor: 'var(--color-border-glass)',
+              accentColor: 'var(--color-accent)',
+            }}
           />
           {t('settings.toggles.darkMode')}
         </label>
       </Card>
 
       <Card>
-        <h2 className="text-section-title text-[color:var(--text-primary)] flex items-center gap-2">
-          <FontAwesomeIcon icon={faBell} />
+        <h2 className="text-section-title flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+          <FontAwesomeIcon icon={faBell} style={{ color: 'var(--accent-blue)' }} />
           {t('settings.sections.notifications.title')}
         </h2>
-        <p className="mt-1 text-caption text-[color:var(--text-muted)]">
+        <p className="mt-1 text-caption" style={{ color: 'var(--color-text-muted)' }}>
           {t('settings.sections.notifications.description')}
         </p>
-        <label className="mt-4 flex items-center gap-3 text-body font-medium text-[color:var(--text-primary)]">
+        <label className="mt-4 flex items-center gap-3 text-body font-medium cursor-pointer" style={{ color: 'var(--color-text)' }}>
           <input
             type="checkbox"
             checked={notifications}
             onChange={(event) => setNotifications(event.target.checked)}
-            className="h-4 w-4 rounded border-[color:var(--surface-border)] text-[color:var(--accent-start)] focus:ring-[color:var(--accent-start)]"
+            className="h-4 w-4 rounded"
+            style={{
+              borderColor: 'var(--color-border-glass)',
+              accentColor: 'var(--color-accent)',
+            }}
           />
           {t('settings.toggles.notifications')}
         </label>
