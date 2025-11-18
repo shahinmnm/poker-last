@@ -23,6 +23,7 @@
   --radius-lg: 0.75rem;   /* 12px - cards, tiles */
   --radius-xl: 1rem;      /* 16px - large cards */
   --radius-2xl: 1.625rem; /* 26px - app cards */
+  --radius-tile: 1rem;    /* 16px - menu tiles (little round corners) */
   --radius-pill: 9999px;  /* full rounded - pills, segmented controls */
 
   /* ==================== TYPOGRAPHY SCALE ==================== */
@@ -89,6 +90,8 @@
   --color-surface-soft: rgba(18, 26, 46, 0.68);
   --color-surface-overlay: rgba(15, 23, 42, 0.7);
   --color-surface-muted: rgba(15, 23, 42, 0.6);
+  --bg-glass: rgba(15, 23, 42, 0.78);
+  --bg-elevated-glass: rgba(15, 23, 42, 0.85);
 
   /* Border colors */
   --border-soft: rgba(148, 163, 184, 0.35);
@@ -128,10 +131,10 @@
   --tile-blue: #4dabf7;
 
   /* Gradient tile backgrounds for dark mode */
-  --tile-gradient-violet-pink: linear-gradient(135deg, rgba(132, 94, 247, 0.3) 0%, rgba(236, 72, 153, 0.3) 100%);
-  --tile-gradient-pink-orange: linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(251, 146, 60, 0.3) 100%);
-  --tile-gradient-gold-orange: linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(251, 146, 60, 0.3) 100%);
-  --tile-gradient-blue-violet: linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(132, 94, 247, 0.3) 100%);
+  --tile-gradient-violet-pink: linear-gradient(135deg, rgba(132, 94, 247, 0.45) 0%, rgba(236, 72, 153, 0.45) 100%);
+  --tile-gradient-pink-orange: linear-gradient(135deg, rgba(236, 72, 153, 0.45) 0%, rgba(251, 146, 60, 0.45) 100%);
+  --tile-gradient-gold-orange: linear-gradient(135deg, rgba(251, 191, 36, 0.45) 0%, rgba(251, 146, 60, 0.45) 100%);
+  --tile-gradient-blue-violet: linear-gradient(135deg, rgba(59, 130, 246, 0.45) 0%, rgba(132, 94, 247, 0.45) 100%);
 
   /* Status colors */
   --color-success: #22c55e;
@@ -195,6 +198,8 @@
   --color-surface-soft: rgba(255, 255, 255, 0.7);
   --color-surface-overlay: rgba(255, 255, 255, 0.82);
   --color-surface-muted: rgba(255, 255, 255, 0.6);
+  --bg-glass: rgba(255, 255, 255, 0.78);
+  --bg-elevated-glass: rgba(255, 255, 255, 0.88);
 
   /* Border colors */
   --color-border: rgba(0, 0, 0, 0.08);
@@ -264,8 +269,8 @@
   --color-nav-border: rgba(15, 23, 42, 0.08);
 
   /* Gradient tile backgrounds for light mode */
-  --tile-gradient-violet-pink: linear-gradient(135deg, rgba(167, 139, 250, 0.25) 0%, rgba(244, 114, 182, 0.25) 100%);
-  --tile-gradient-pink-orange: linear-gradient(135deg, rgba(244, 114, 182, 0.25) 0%, rgba(251, 146, 60, 0.25) 100%);
-  --tile-gradient-gold-orange: linear-gradient(135deg, rgba(252, 211, 77, 0.25) 0%, rgba(251, 146, 60, 0.25) 100%);
-  --tile-gradient-blue-violet: linear-gradient(135deg, rgba(96, 165, 250, 0.25) 0%, rgba(167, 139, 250, 0.25) 100%);
+  --tile-gradient-violet-pink: linear-gradient(135deg, rgba(167, 139, 250, 0.4) 0%, rgba(244, 114, 182, 0.4) 100%);
+  --tile-gradient-pink-orange: linear-gradient(135deg, rgba(244, 114, 182, 0.4) 0%, rgba(251, 146, 60, 0.4) 100%);
+  --tile-gradient-gold-orange: linear-gradient(135deg, rgba(252, 211, 77, 0.4) 0%, rgba(251, 146, 60, 0.4) 100%);
+  --tile-gradient-blue-violet: linear-gradient(135deg, rgba(96, 165, 250, 0.4) 0%, rgba(167, 139, 250, 0.4) 100%);
 }

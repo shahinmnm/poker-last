@@ -23,11 +23,15 @@ export function FilterPills({ options, activeId, onChange, className }: FilterPi
             onClick={() => onChange(option.id)}
             className={cn(
               'shrink-0 rounded-pill px-4 py-2 text-sm font-medium transition-all duration-200',
-              'border',
+              'border backdrop-blur-md active:scale-95',
               isActive
-                ? 'border-accent bg-accent text-white shadow-md'
-                : 'border-border bg-surface/50 text-text-muted hover:border-accent/50 hover:text-text'
+                ? 'border-accent/40 bg-accent text-white shadow-md'
+                : 'border-border bg-glass/50 text-text-muted hover:border-accent/30 hover:text-text hover:bg-glass/70'
             )}
+            style={{
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}
           >
             {option.label}
           </button>
