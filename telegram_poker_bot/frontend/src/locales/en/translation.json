@@ -548,6 +548,19 @@
     },
     "stacks": "{{amount}} chips starting",
     "chips": "{{amount}} chips",
+    "statusLabel": "Game Status",
+    "pot": "Pot: {{amount}}",
+    "blinds": "Blinds",
+    "turnCountdown": "Action timer",
+    "waitingForBoard": "Waiting for board...",
+    "betAmount": "Bet: {{amount}}",
+    "folded": "Folded",
+    "yourHand": "Your Hand",
+    "waitingForHand": "Waiting for cards...",
+    "result": {
+      "won": "You won {{amount}}!",
+      "lost": "You lost this hand"
+    },
     "status": {
       "waiting": "Waiting",
       "active": "Running",
@@ -583,7 +596,16 @@
       "starting": "Starting...",
       "refresh": "Refresh",
       "retry": "Try again",
-      "delete": "Delete table"
+      "delete": "Delete table",
+      "play": "Play",
+      "yourTurn": "Your turn",
+      "wait": "Wait for your turn",
+      "fold": "Fold",
+      "check": "Check",
+      "call": "Call {{amount}}",
+      "bet": "Bet",
+      "raise": "Raise",
+      "allIn": "All-In"
     },
     "messages": {
       "readyToStart": "Ready to shuffle up.",
