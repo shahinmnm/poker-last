@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, CSSProperties } from 'react'
 import { useTelegram } from '../../hooks/useTelegram'
 import { cn } from '../../utils/cn'
 
 interface AvatarProps {
   size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
+  style?: CSSProperties
 }
 
 const sizeClasses: Record<NonNullable<AvatarProps['size']>, string> = {
@@ -46,7 +47,7 @@ function getInitials(name: string) {
   return trimmed.slice(0, 2).toUpperCase()
 }
 
-export default function Avatar({ size = 'md', className }: AvatarProps) {
+export default function Avatar({ size = 'md', className, style }: AvatarProps) {
   const { user } = useTelegram()
   const displayName = user?.first_name || user?.username || ''
   const avatarSeed = user?.username || user?.id?.toString() || displayName || 'poker'
@@ -62,7 +63,7 @@ export default function Avatar({ size = 'md', className }: AvatarProps) {
         sizeClasses[size],
         className
       )}
-      style={{ background: gradient }}
+      style={{ background: gradient, ...style }}
     >
       <span className="select-none" aria-hidden>
         {initials}

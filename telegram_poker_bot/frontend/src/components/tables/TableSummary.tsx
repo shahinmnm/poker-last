@@ -71,13 +71,20 @@ export function TableSummary({
 
   const isExpiringSoon = timeRemaining.isExpiringSoon
   const className = cn(
-    'block rounded-[var(--radius-lg)] border p-[var(--space-md)] shadow-sm transition',
+    'block rounded-[var(--radius-xl)] border p-[var(--space-md)] shadow-sm transition',
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent-start)]',
     isExpiringSoon
       ? 'border-[color:var(--color-danger-glass-border)] bg-[color:var(--color-danger-glass)] hover:border-[color:var(--color-danger)]'
-      : 'border-[color:var(--color-border)] bg-[color:var(--color-surface-overlay)]/80 hover:border-[color:var(--color-accent-soft)]',
+      : 'border-[color:var(--color-border-glass)] hover:border-[color:var(--color-accent-soft)]',
     muted && 'opacity-70',
   )
+  
+  const cardStyle = {
+    background: 'var(--bg-glass)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    boxShadow: 'var(--shadow-soft)',
+  }
 
   const content = (
     <>
@@ -170,13 +177,13 @@ export function TableSummary({
 
   if (href) {
     return (
-      <Link to={href} state={{ from: '/lobby' }} className={className}>
+      <Link to={href} state={{ from: '/lobby' }} className={className} style={cardStyle}>
         {content}
       </Link>
     )
   }
 
-  return <div className={className}>{content}</div>
+  return <div className={className} style={cardStyle}>{content}</div>
 }
 
 export default TableSummary

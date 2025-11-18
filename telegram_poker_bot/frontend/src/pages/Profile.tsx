@@ -81,21 +81,37 @@ export default function ProfilePage() {
       {/* Avatar & Profile Header */}
       <Card padding="lg">
         <div className="flex flex-col items-center text-center">
-          <Avatar size="xl" className="mb-4" />
-          <h1 className="text-2xl font-semibold">
+          <div className="relative mb-4">
+            <span 
+              className="absolute inset-[-6px] rounded-full blur-lg" 
+              style={{ background: 'var(--glow-primary)' }}
+              aria-hidden 
+            />
+            <Avatar size="xl" className="relative" />
+          </div>
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
             {user?.first_name} {user?.last_name}
           </h1>
           {user?.username && (
-            <p className="mt-1 text-sm text-[color:var(--text-muted)]">@{user.username}</p>
+            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>@{user.username}</p>
           )}
-          <div className="mt-4 flex items-center gap-2">
-            <FontAwesomeIcon icon={faCoins} className="text-3xl text-[color:var(--accent-end)]" />
+          <div 
+            className="mt-4 flex items-center gap-3 px-6 py-3 rounded-full"
+            style={{
+              background: 'var(--bg-glass)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid var(--color-border-glass)',
+              boxShadow: 'var(--shadow-accent-glow)',
+            }}
+          >
+            <FontAwesomeIcon icon={faCoins} className="text-3xl" style={{ color: 'var(--accent-green)' }} />
             <div>
-              <p className="text-sm text-[color:var(--text-muted)]">{t('profile.balance')}</p>
-              <p className="text-2xl font-bold text-[color:var(--accent-end)]">
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('profile.balance')}</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--accent-green)' }}>
                 {balance.toLocaleString()}
               </p>
-              <p className="text-xs text-[color:var(--text-muted)]">{t('profile.chips')}</p>
+              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('profile.chips')}</p>
             </div>
           </div>
         </div>
@@ -103,33 +119,63 @@ export default function ProfilePage() {
 
       {/* Stats Card */}
       <Card padding="lg">
-        <h2 className="text-lg font-semibold mb-4">{t('profile.highlights.title')}</h2>
+        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-text)' }}>
+          {t('profile.highlights.title')}
+        </h2>
         {hasPlayedGames ? (
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl bg-[color:var(--surface-overlay)] p-4 border border-[color:var(--surface-border)]">
-              <p className="text-xs uppercase text-[color:var(--text-muted)]">
+            <div 
+              className="relative rounded-xl p-4"
+              style={{
+                background: 'var(--bg-glass)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid var(--color-border-glass)',
+                boxShadow: 'var(--shadow-soft)',
+              }}
+            >
+              <p className="text-xs uppercase" style={{ color: 'var(--color-text-muted)' }}>
                 {t('profile.highlights.handsPlayed')}
               </p>
-              <p className="mt-2 text-2xl font-semibold text-[color:var(--text-primary)]">
+              <p className="mt-2 text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
                 {stats!.hands_played}
               </p>
             </div>
-            <div className="rounded-xl bg-[color:var(--surface-overlay)] p-4 border border-[color:var(--surface-border)]">
-              <p className="text-xs uppercase text-[color:var(--text-muted)]">
+            <div 
+              className="relative rounded-xl p-4"
+              style={{
+                background: 'var(--bg-glass)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid var(--color-border-glass)',
+                boxShadow: 'var(--shadow-soft)',
+              }}
+            >
+              <p className="text-xs uppercase" style={{ color: 'var(--color-text-muted)' }}>
                 {t('profile.highlights.winRate')}
               </p>
-              <p className="mt-2 text-2xl font-semibold text-[color:var(--accent-end)]">
+              <p className="mt-2 text-2xl font-semibold" style={{ color: 'var(--accent-green)' }}>
                 {stats!.win_rate.toFixed(1)}%
               </p>
             </div>
-            <div className="rounded-xl bg-[color:var(--surface-overlay)] p-4 border border-[color:var(--surface-border)]">
-              <p className="text-xs uppercase text-[color:var(--text-muted)]">
+            <div 
+              className="relative rounded-xl p-4"
+              style={{
+                background: 'var(--bg-glass)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid var(--color-border-glass)',
+                boxShadow: 'var(--shadow-soft)',
+              }}
+            >
+              <p className="text-xs uppercase" style={{ color: 'var(--color-text-muted)' }}>
                 {t('profile.highlights.totalProfit')}
               </p>
               <p
-                className={`mt-2 text-2xl font-semibold ${
-                  stats!.total_profit >= 0 ? 'text-[color:var(--accent-end)]' : 'text-[color:var(--danger)]'
-                }`}
+                className="mt-2 text-2xl font-semibold"
+                style={{ 
+                  color: stats!.total_profit >= 0 ? 'var(--accent-green)' : 'var(--color-danger)'
+                }}
               >
                 {stats!.total_profit >= 0 ? '+' : ''}
                 {stats!.total_profit.toLocaleString()}
@@ -137,12 +183,12 @@ export default function ProfilePage() {
             </div>
           </div>
         ) : (
-          <p className="text-sm text-[color:var(--text-muted)]">
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {t('profile.noGamesYet')}
           </p>
         )}
         {stats?.first_game_date && (
-          <p className="mt-4 text-xs text-[color:var(--text-muted)] text-center">
+          <p className="mt-4 text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>
             {t('profile.playerSince', {
               date: new Date(stats.first_game_date).getFullYear(),
             })}
