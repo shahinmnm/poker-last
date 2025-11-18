@@ -1,6 +1,7 @@
 """Telegram bot service - webhook handler and command router."""
 
 import asyncio
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, Request, Response, Header, HTTPException, status
@@ -44,7 +45,44 @@ bot_application.add_handler(CommandHandler("settings", settings_handler))
 bot_application.add_handler(CallbackQueryHandler(callback_query_handler))
 
 # Create FastAPI app for webhook
-app = FastAPI(title="Telegram Poker Bot Webhook")
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # pragma: no cover - exercised in integration/runtime
+    """Manage startup and shutdown lifecycle for the FastAPI application."""
+
+    try:
+        await bot_application.initialize()
+        await bot_application.start()
+        bot_ready.set()
+    except Exception as exc:
+        logger.error("Failed to start Telegram bot application", error=str(exc))
+        bot_ready.clear()
+        raise
+
+    await configure_telegram_webhook()
+
+    try:
+        yield
+    finally:
+        bot_ready.clear()
+        try:
+            await bot_application.stop()
+        except Exception as exc:  # pragma: no cover - best-effort cleanup
+            logger.warning("Failed to stop Telegram application cleanly", error=str(exc))
+
+        try:
+            await bot_application.shutdown()
+        except Exception as exc:  # pragma: no cover - best-effort cleanup
+            logger.warning("Failed to shutdown Telegram application cleanly", error=str(exc))
+
+        close_method = getattr(bot_client, "close", None)
+        if callable(close_method):
+            try:
+                await close_method()  # type: ignore[misc]
+            except Exception as exc:  # pragma: no cover - best-effort cleanup
+                logger.warning("Failed to close Telegram bot session cleanly", error=str(exc))
+
+
+app = FastAPI(title="Telegram Poker Bot Webhook", lifespan=lifespan)
 
 bot_ready = asyncio.Event()
 
@@ -138,43 +176,6 @@ async def configure_telegram_webhook():
             raise
     else:
         logger.info("Telegram webhook already points to configured domain", webhook_url=webhook_url)
-
-
-@app.on_event("startup")
-async def on_startup():
-    """FastAPI startup hook to configure Telegram webhook."""
-    try:
-        await bot_application.initialize()
-        await bot_application.start()
-        bot_ready.set()
-    except Exception as exc:
-        logger.error("Failed to start Telegram bot application", error=str(exc))
-        bot_ready.clear()
-        raise
-
-    await configure_telegram_webhook()
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    """FastAPI shutdown hook to close the Telegram bot session."""
-    bot_ready.clear()
-    try:
-        await bot_application.stop()
-    except Exception as exc:  # pragma: no cover - best-effort cleanup
-        logger.warning("Failed to stop Telegram application cleanly", error=str(exc))
-
-    try:
-        await bot_application.shutdown()
-    except Exception as exc:  # pragma: no cover - best-effort cleanup
-        logger.warning("Failed to shutdown Telegram application cleanly", error=str(exc))
-
-    close_method = getattr(bot_client, "close", None)
-    if callable(close_method):
-        try:
-            await close_method()  # type: ignore[misc]
-        except Exception as exc:  # pragma: no cover - best-effort cleanup
-            logger.warning("Failed to close Telegram bot session cleanly", error=str(exc))
 
 
 if __name__ == "__main__":
