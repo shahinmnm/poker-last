@@ -1,11 +1,13 @@
 import { forwardRef, type ComponentType, type HTMLAttributes } from 'react'
 import { Link } from 'react-router-dom'
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 import { cn } from '../../utils/cn'
 import type { IconProps } from './icons'
 
 export interface MenuTileProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
-  icon: ComponentType<IconProps>
+  icon?: ComponentType<IconProps> | IconDefinition
   title: string
   subtitle?: string
   badge?: string | number
@@ -20,9 +22,12 @@ export interface MenuTileProps extends Omit<HTMLAttributes<HTMLDivElement>, 'tit
 }
 
 export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuTile(
-  { className, icon: Icon, title, subtitle, badge, to, recommended = false, quickTag, pulse, shine, depth, emoji, tileColor, ...rest },
+  { className, icon, title, subtitle, to, emoji, tileColor, ...rest },
   ref,
 ) {
+  // Check if icon is a Font Awesome icon definition
+  const isFontAwesomeIcon = icon && typeof icon === 'object' && 'iconName' in icon
+
   return (
     <Link to={to} className="block">
       <div
@@ -46,6 +51,19 @@ export const MenuTile = forwardRef<HTMLDivElement, MenuTileProps>(function MenuT
             {emoji && (
               <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/18 border border-white/12">
                 <span className="text-base">{emoji}</span>
+              </div>
+            )}
+            {icon && !emoji && (
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/18 border border-white/12">
+                {isFontAwesomeIcon ? (
+                  <FontAwesomeIcon icon={icon as IconDefinition} className="text-base" />
+                ) : (
+                  // Legacy custom SVG icon support
+                  typeof icon === 'function' && (() => {
+                    const IconComponent = icon as ComponentType<IconProps>
+                    return <IconComponent className="w-4 h-4" />
+                  })()
+                )}
               </div>
             )}
           </div>

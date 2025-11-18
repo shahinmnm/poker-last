@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { cn } from '../../utils/cn'
 import { getTimeRemaining } from '../../utils/countdown'
 import type { TableStatusTone } from '../lobby/types'
 
 interface MetaItem {
-  icon: string
+  icon: string | IconDefinition
   label: string
   value: string
 }
@@ -144,17 +146,24 @@ export function TableSummary({
       </div>
 
       <div className="mt-[var(--space-sm)] grid grid-cols-2 gap-x-[var(--space-md)] gap-y-[calc(var(--space-xs)+var(--space-xs))] text-[var(--font-size-sm)] text-[color:var(--color-text-muted)] sm:grid-cols-3">
-        {meta.map((item) => (
-          <div key={`${item.label}-${item.value}`} className="flex items-center gap-[calc(var(--space-xs)+var(--space-xs))]">
-            <span className="text-[var(--font-size-base)] leading-none">{item.icon}</span>
-            <div className="min-w-0 leading-tight">
-              <div className="truncate text-[12px] font-semibold text-[color:var(--color-text)]">
-                {item.value}
+        {meta.map((item) => {
+          const isFontAwesomeIcon = typeof item.icon === 'object' && 'iconName' in item.icon
+          return (
+            <div key={`${item.label}-${item.value}`} className="flex items-center gap-[calc(var(--space-xs)+var(--space-xs))]">
+              {isFontAwesomeIcon ? (
+                <FontAwesomeIcon icon={item.icon as IconDefinition} className="text-[var(--font-size-base)]" />
+              ) : (
+                <span className="text-[var(--font-size-base)] leading-none">{item.icon as string}</span>
+              )}
+              <div className="min-w-0 leading-tight">
+                <div className="truncate text-[12px] font-semibold text-[color:var(--color-text)]">
+                  {item.value}
+                </div>
+                <div className="text-[var(--font-size-xs)] uppercase tracking-wider">{item.label}</div>
               </div>
-              <div className="text-[var(--font-size-xs)] uppercase tracking-wider">{item.label}</div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </>
   )

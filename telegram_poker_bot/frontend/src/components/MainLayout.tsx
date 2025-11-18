@@ -1,6 +1,8 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useMemo, useState } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faPlay, faGear } from '@fortawesome/free-solid-svg-icons'
 
 import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
@@ -86,7 +88,7 @@ export default function MainLayout() {
                     className="flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] px-2.5 text-white shadow-[0_0_16px_rgba(44,197,122,0.55)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
                     aria-label={t('home.actions.resumeGame')}
                   >
-                    <span className="text-sm leading-none">▶</span>
+                    <FontAwesomeIcon icon={faPlay} className="text-sm" />
                     <span className="whitespace-nowrap text-[12px] font-medium tracking-wide leading-none">{t('home.actions.resumeGame')}</span>
                   </Link>
                 )}
@@ -96,7 +98,7 @@ export default function MainLayout() {
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[color:var(--text-strong)] transition-transform duration-150 ease-out active:scale-95 border border-white/30"
                   aria-label={t('menu.settings.label')}
                 >
-                  ⚙️
+                  <FontAwesomeIcon icon={faGear} className="text-sm" />
                 </Link>
               </div>
             </div>
@@ -124,7 +126,10 @@ export default function MainLayout() {
                     )}
                     style={{ fontSize: 'var(--fs-large)' }}
                   >
-                    <span style={{ color: isActive ? 'var(--accent-main)' : 'var(--text-muted)' }}>{item.icon}</span>
+                    <FontAwesomeIcon 
+                      icon={item.icon} 
+                      style={{ color: isActive ? 'var(--accent-main)' : 'var(--text-muted)' }}
+                    />
                   </div>
                   <span
                     className="leading-tight"

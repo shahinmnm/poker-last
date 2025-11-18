@@ -1,7 +1,9 @@
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+
 export interface MenuNode {
   key: string
   path: string
-  icon: string
+  icon: IconDefinition
   labelKey: string
   descriptionKey?: string
   children?: MenuNodeChild[]
@@ -14,18 +16,20 @@ export interface MenuNodeChild {
   descriptionKey?: string
 }
 
+import { faHouse, faDice, faCirclePlus, faRightToBracket, faUser, faWallet, faGear, faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
+
 export const menuTree: MenuNode[] = [
   {
     key: 'home',
     path: '/',
-    icon: '🏠',
+    icon: faHouse,
     labelKey: 'menu.home.label',
     descriptionKey: 'menu.home.description',
   },
   {
     key: 'lobby',
     path: '/lobby',
-    icon: '🎲',
+    icon: faDice,
     labelKey: 'menu.lobby.label',
     descriptionKey: 'menu.lobby.description',
     children: [
@@ -49,7 +53,7 @@ export const menuTree: MenuNode[] = [
   {
     key: 'createGame',
     path: '/games/create',
-    icon: '🃏',
+    icon: faCirclePlus,
     labelKey: 'menu.createGame.label',
     descriptionKey: 'menu.createGame.description',
     children: [
@@ -73,7 +77,7 @@ export const menuTree: MenuNode[] = [
   {
     key: 'joinGame',
     path: '/games/join',
-    icon: '➕',
+    icon: faRightToBracket,
     labelKey: 'menu.joinGame.label',
     descriptionKey: 'menu.joinGame.description',
     children: [
@@ -92,7 +96,7 @@ export const menuTree: MenuNode[] = [
   {
     key: 'profile',
     path: '/profile',
-    icon: '👤',
+    icon: faUser,
     labelKey: 'menu.profile.label',
     descriptionKey: 'menu.profile.description',
     children: [
@@ -116,7 +120,7 @@ export const menuTree: MenuNode[] = [
   {
     key: 'wallet',
     path: '/wallet',
-    icon: '💰',
+    icon: faWallet,
     labelKey: 'menu.wallet.label',
     descriptionKey: 'menu.wallet.description',
     children: [
@@ -145,7 +149,7 @@ export const menuTree: MenuNode[] = [
   {
     key: 'settings',
     path: '/settings',
-    icon: '⚙️',
+    icon: faGear,
     labelKey: 'menu.settings.label',
     descriptionKey: 'menu.settings.description',
     children: [
@@ -169,7 +173,7 @@ export const menuTree: MenuNode[] = [
   {
     key: 'help',
     path: '/help',
-    icon: '❓',
+    icon: faCircleQuestion,
     labelKey: 'menu.help.label',
     descriptionKey: 'menu.help.description',
     children: [
