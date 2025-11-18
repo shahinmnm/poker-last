@@ -316,6 +316,190 @@ a {
   .app-bottom-nav__link.is-active {
     color: var(--color-accent);
   }
+
+  /* ==================== GLASS CARD COMPONENT ==================== */
+  /* GlassCard - glassmorphism card inspired by glass_kit */
+  .glass-card {
+    position: relative;
+    background: linear-gradient(
+      135deg,
+      var(--bg-glass) 0%,
+      var(--color-surface-muted) 100%
+    );
+    backdrop-filter: blur(var(--glass-blur, 18px));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 18px));
+    box-shadow: var(--shadow-card);
+    transition: transform 0.14s ease, box-shadow 0.14s ease;
+  }
+
+  /* Border gradient layer */
+  .glass-card__border {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      var(--glass-accent-to, rgba(255, 255, 255, 0.15)) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Inner highlight - diagonal gradient from top-left */
+  .glass-card__highlight {
+    position: absolute;
+    inset-inline: var(--space-xl);
+    top: 0;
+    height: 60%;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(255, 255, 255, 0.08) 40%,
+      transparent 70%
+    );
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .glass-card__content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Hover glow effect (desktop only) */
+  .glass-card--hover:hover {
+    box-shadow: 
+      var(--shadow-card),
+      0 0 32px var(--glass-accent-from, rgba(44, 197, 122, 0.25));
+  }
+
+  /* Press scale effect */
+  .glass-card--pressable:active {
+    transform: scale(0.97);
+  }
+
+  /* Light mode adjustments */
+  :root[data-theme='light'] .glass-card {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.40) 0%,
+      rgba(255, 255, 255, 0.10) 100%
+    );
+  }
+
+  :root[data-theme='light'] .glass-card__border {
+    background: linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.08) 0%,
+      rgba(0, 0, 0, 0.04) 50%,
+      var(--glass-accent-to, rgba(0, 0, 0, 0.06)) 100%
+    );
+  }
+
+  :root[data-theme='light'] .glass-card__highlight {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.32) 0%,
+      rgba(255, 255, 255, 0.16) 40%,
+      transparent 70%
+    );
+  }
+
+  :root[data-theme='light'] .glass-card--hover:hover {
+    box-shadow: 
+      var(--shadow-card),
+      0 0 28px var(--glass-accent-from, rgba(44, 197, 122, 0.15));
+  }
+
+  /* ==================== MAIN TILE COMPONENT ==================== */
+  /* MainTile - menu tiles built on GlassCard */
+  .main-tile {
+    min-height: 140px;
+  }
+
+  .main-tile__content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 140px;
+    padding: var(--space-lg);
+  }
+
+  .main-tile__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .main-tile__label {
+    font-size: 0.6875rem; /* 11px */
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    line-height: var(--line-height-tight);
+  }
+
+  .main-tile__title {
+    font-size: 1.25rem; /* 20px */
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+    color: var(--color-text);
+    margin-top: var(--space-sm);
+  }
+
+  .main-tile__subtitle {
+    font-size: 0.8125rem; /* 13px */
+    line-height: var(--line-height-snug);
+    color: var(--color-text-muted);
+    opacity: 0.8;
+    margin-top: var(--space-xs);
+  }
+
+  .main-tile__icon {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-size: 1.5rem; /* 24px */
+    color: var(--color-text);
+    margin-top: var(--space-md);
+  }
+
+  /* Light mode adjustments */
+  :root[data-theme='light'] .main-tile__label {
+    color: var(--color-text-muted);
+  }
+
+  :root[data-theme='light'] .main-tile__title {
+    color: var(--color-text);
+  }
+
+  :root[data-theme='light'] .main-tile__subtitle {
+    color: var(--color-text-muted);
+  }
+
+  :root[data-theme='light'] .main-tile__icon {
+    color: var(--color-text-muted);
+  }
+
+  /* ==================== MAIN TILES GRID COMPONENT ==================== */
+  /* MainTilesGrid - 2-column responsive grid for menu tiles */
+  .main-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md); /* 12px gap */
+  }
+
+  @media (min-width: 640px) {
+    .main-tiles-grid {
+      gap: var(--space-lg); /* 16px gap on larger screens */
+    }
+  }
 }
 
 
