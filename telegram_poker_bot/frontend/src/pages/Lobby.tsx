@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
+import { faUserGroup, faCoins, faClock, faMoneyBillTransfer, faCalendar } from '@fortawesome/free-solid-svg-icons'
 
 import LobbyEmptyState from '../components/lobby/LobbyEmptyState'
 import LobbySection from '../components/lobby/LobbySection'
@@ -320,17 +321,17 @@ export default function LobbyPage() {
                 ]}
                 meta={[
                   {
-                    icon: '👥',
+                    icon: faUserGroup,
                     label: t('lobby.fields.players'),
                     value: `${table.player_count} / ${table.max_players}`,
                   },
                   {
-                    icon: '💰',
+                    icon: faCoins,
                     label: t('lobby.fields.stack'),
                     value: `${stackAmount ?? '—'}`,
                   },
                   {
-                    icon: '🕒',
+                    icon: faClock,
                     label: t('lobby.fields.joined'),
                     value: joinedAtText || '—',
                   },
@@ -388,17 +389,17 @@ export default function LobbyPage() {
                 muted={table.is_full && !isSeated}
                 meta={[
                   {
-                    icon: '👥',
+                    icon: faUserGroup,
                     label: t('lobby.fields.players'),
                     value: `${table.player_count}/${table.max_players}`,
                   },
                   {
-                    icon: '💸',
+                    icon: faMoneyBillTransfer,
                     label: t('lobby.fields.blinds'),
                     value: `${table.small_blind}/${table.big_blind}`,
                   },
                   {
-                    icon: '📅',
+                    icon: faCalendar,
                     label: t('lobby.fields.created'),
                     value: createdAtText || '—',
                   },

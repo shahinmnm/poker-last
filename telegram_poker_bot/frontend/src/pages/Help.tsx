@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
 
 import Card from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
@@ -17,7 +19,7 @@ export default function HelpPage() {
     <div className="space-y-6">
       <PageHeader
         title={t('help.title')}
-        icon="❓"
+        icon={<FontAwesomeIcon icon={faCircleQuestion} />}
       />
 
       <Card>

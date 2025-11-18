@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { faUser, faCoins, faUserGroup, faClock } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, ApiError, resolveWebSocketUrl } from '../utils/apiClient'
@@ -526,22 +527,22 @@ export default function TablePage() {
         statusBadge={{ label: statusLabel, tone: statusTone }}
         meta={[
           {
-            icon: '👤',
+            icon: faUser,
             label: t('table.meta.host'),
             value: hostName || t('table.meta.unknown'),
           },
           {
-            icon: '🪙',
+            icon: faCoins,
             label: t('table.meta.stakes'),
             value: `${tableDetails.small_blind}/${tableDetails.big_blind} • ${t('table.stacks', { amount: tableDetails.starting_stack })}`,
           },
           {
-            icon: '👥',
+            icon: faUserGroup,
             label: t('table.meta.players'),
             value: `${tableDetails.player_count} / ${tableDetails.max_players}`,
           },
           {
-            icon: '🕒',
+            icon: faClock,
             label: t('table.meta.created'),
             value: createdAtText || '—',
           },

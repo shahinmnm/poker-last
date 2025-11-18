@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faWallet, faCircleInfo, faClockRotateLeft } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
@@ -56,14 +58,17 @@ export default function WalletPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">{t('wallet.title')}</h1>
+        <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <FontAwesomeIcon icon={faWallet} />
+          {t('wallet.title')}
+        </h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('menu.wallet.description')}</p>
       </header>
 
       <section id="balance" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
         <h2 className="text-lg font-semibold">{t('wallet.balance')}</h2>
         <div className="mt-4 flex items-center gap-3">
-          <span className="text-4xl">💰</span>
+          <FontAwesomeIcon icon={faWallet} className="text-4xl text-emerald-500" />
           <div>
             <p className="text-xs text-gray-500 dark:text-gray-400">Your Balance</p>
             <p className="text-3xl font-bold text-emerald-500">
@@ -77,7 +82,10 @@ export default function WalletPage() {
       </section>
 
       <section id="info" className="rounded-2xl bg-blue-50 p-5 dark:bg-blue-950/40">
-        <h3 className="font-semibold text-blue-900 dark:text-blue-200">ℹ️ About Chips</h3>
+        <h3 className="font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-2">
+          <FontAwesomeIcon icon={faCircleInfo} />
+          About Chips
+        </h3>
         <p className="mt-2 text-sm text-blue-800 dark:text-blue-300">
           Chips are used for playing poker. When you join a table, chips are reserved for your buy-in.
           When you leave, your remaining chips return to your wallet.
@@ -85,7 +93,10 @@ export default function WalletPage() {
       </section>
 
       <section id="history" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
-        <h2 className="text-lg font-semibold">{t('wallet.history.title')}</h2>
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <FontAwesomeIcon icon={faClockRotateLeft} />
+          {t('wallet.history.title')}
+        </h2>
         <div className="mt-3">
           <p className="text-sm text-gray-600 dark:text-gray-300">
             Transaction history coming soon! For now, check your game history in the Stats page.

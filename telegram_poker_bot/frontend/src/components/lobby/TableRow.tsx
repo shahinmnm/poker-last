@@ -1,3 +1,4 @@
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import TableSummary, { SummaryBadgeDescriptor } from '../tables/TableSummary'
 
 export interface TableRowProps {
@@ -5,7 +6,7 @@ export interface TableRowProps {
   tableName: string
   chipLabel: string
   statusBadge: SummaryBadgeDescriptor
-  meta: { icon: string; label: string; value: string }[]
+  meta: { icon: string | IconDefinition; label: string; value: string }[]
   badges?: SummaryBadgeDescriptor[]
   muted?: boolean
   subtext?: string | null
