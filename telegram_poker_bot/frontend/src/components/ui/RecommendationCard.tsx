@@ -18,10 +18,15 @@ export function RecommendationCard({ title, subtitle, icon, to, className }: Rec
       <div
         className={cn(
           'flex items-center justify-between gap-4 px-5 py-4',
-          'rounded-2xl border border-border bg-surface/80 backdrop-blur-md',
+          'rounded-2xl border border-border/50',
           'shadow-soft transition-all duration-200',
           'hover:shadow-elevated active:scale-[0.98]'
         )}
+        style={{
+          background: 'var(--bg-glass)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
       >
         <div className="flex-1 space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-accent">Next action</p>
@@ -29,7 +34,14 @@ export function RecommendationCard({ title, subtitle, icon, to, className }: Rec
           <p className="text-sm text-text-muted">{subtitle}</p>
         </div>
         {icon && (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/10">
+          <div 
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+            style={{
+              background: 'var(--color-accent-soft)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+          >
             <FontAwesomeIcon icon={icon} className="text-xl text-accent" />
           </div>
         )}

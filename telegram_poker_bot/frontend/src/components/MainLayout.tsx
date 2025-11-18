@@ -67,7 +67,18 @@ export default function MainLayout() {
     <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
       <header className="sticky top-0 z-30 px-[var(--space-lg)] py-[var(--space-xs)] sm:px-[var(--space-xl)]">
         <div className="mx-auto w-full max-w-4xl">
-          <div className="glass-panel flex items-center gap-2.5 px-3 py-2 shadow-[0_16px_40px_rgba(0,0,0,0.55)]" style={{ borderRadius: 'var(--radius-xl)' }}>
+          <div 
+            className="flex items-center gap-2.5 px-3 py-2 shadow-[0_16px_40px_rgba(0,0,0,0.55)]" 
+            style={{ 
+              borderRadius: 'var(--radius-xl)',
+              borderBottomLeftRadius: 'var(--radius-2xl)',
+              borderBottomRightRadius: 'var(--radius-2xl)',
+              background: 'var(--bg-glass)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid var(--color-border-glass)',
+            }}
+          >
             <Link to="/profile" className="relative flex items-center gap-2.5">
               <span className="absolute inset-[-3px] rounded-full bg-[rgba(44,197,122,0.35)] blur-md" aria-hidden />
               <Avatar size="sm" className="relative border border-white/30" />
@@ -75,8 +86,8 @@ export default function MainLayout() {
 
             <div className="flex flex-1 items-center justify-between gap-3">
               <Link to="/profile" className="flex flex-1 flex-col leading-tight min-w-0">
-                <span className="truncate max-w-[120px] font-semibold text-[14px] text-slate-50">{displayName}</span>
-                <span className="font-medium text-[11px] text-slate-400">
+                <span className="truncate max-w-[120px] font-semibold text-[14px]" style={{ color: 'var(--color-text)' }}>{displayName}</span>
+                <span className="font-medium text-[11px] text-text-muted">
                   {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
                 </span>
               </Link>
@@ -108,7 +119,19 @@ export default function MainLayout() {
       <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-[var(--space-lg)] pb-24 pt-[var(--space-lg)] sm:px-[var(--space-xl)] sm:pt-[var(--space-xl)]">
         <Outlet />
       </main>
-      <nav className="fixed bottom-0 left-0 right-0 z-40 px-[var(--space-md)] pb-[calc(var(--space-sm)+var(--space-xs))] pt-[calc(var(--space-xs)+var(--space-xs))] sm:px-[var(--space-lg)]" style={{ height: '60px', background: 'var(--surface-elevated)', backdropFilter: 'blur(16px)', borderTop: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-nav)' }}>
+      <nav 
+        className="fixed bottom-0 left-0 right-0 z-40 px-[var(--space-md)] pb-[calc(var(--space-sm)+var(--space-xs))] pt-[calc(var(--space-xs)+var(--space-xs))] sm:px-[var(--space-lg)]" 
+        style={{ 
+          height: '60px', 
+          background: 'var(--bg-glass)', 
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderTop: '1px solid var(--color-border-glass)', 
+          boxShadow: 'var(--shadow-nav)',
+          borderTopLeftRadius: 'var(--radius-2xl)',
+          borderTopRightRadius: 'var(--radius-2xl)',
+        }}
+      >
         <div className="mx-auto flex w-full max-w-4xl items-center justify-around gap-[var(--space-xs)]">
           {bottomNavItems.map((item) => (
             <NavLink
@@ -121,14 +144,16 @@ export default function MainLayout() {
                 <div className="flex flex-col items-center gap-1">
                   <div
                     className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-full bg-transparent transition-all duration-150 ease-out active:scale-95',
-                      isActive && 'border-2 border-[color:var(--accent-main)] shadow-[0_0_12px_rgba(44,197,122,0.6)]',
+                      'flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 ease-out active:scale-95',
+                      isActive 
+                        ? 'bg-accent border border-white/20 shadow-[0_0_12px_rgba(44,197,122,0.6)]' 
+                        : 'bg-transparent'
                     )}
                     style={{ fontSize: 'var(--fs-large)' }}
                   >
                     <FontAwesomeIcon 
                       icon={item.icon} 
-                      style={{ color: isActive ? 'var(--accent-main)' : 'var(--text-muted)' }}
+                      style={{ color: isActive ? '#ffffff' : 'var(--text-muted)' }}
                     />
                   </div>
                   <span
