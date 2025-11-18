@@ -1,19 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
+import { faDice, faLock, faRightToBracket, faChartLine, faUser, faGear, faFire } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
 import Card from '../components/ui/Card'
 import HomeMenuGrid from '../components/home/HomeMenuGrid'
-import {
-  JoinIcon,
-  LiveIcon,
-  PlayIcon,
-  PrivateIcon,
-  ProfileIcon,
-  SettingsIcon,
-  TablesIcon,
-} from '../components/ui/icons'
 
 export default function HomePage() {
   const { ready, initData } = useTelegram()
@@ -42,74 +34,67 @@ export default function HomePage() {
   const mosaicTiles = [
     {
       key: 'playPublic',
-      icon: PlayIcon,
+      icon: faDice,
       to: '/lobby',
       quickTag: t('home.mosaic.playPublic.badge', 'HOT'),
       subtitle: t('home.mosaic.playPublic.subtitle'),
       recommended: !hasActiveTables,
       shine: true,
       depth: true,
-      emoji: '🔥',
       tileColor: 'var(--tile-green)',
     },
     {
       key: 'createPrivate',
-      icon: PrivateIcon,
+      icon: faLock,
       to: '/games/create?mode=private',
       quickTag: t('home.mosaic.createPrivate.badge', 'NEW'),
       subtitle: t('home.mosaic.createPrivate.subtitle'),
       recommended: !hasActiveTables,
       badge: hasActiveTables ? undefined : t('home.mosaic.createPrivate.cta', 'Invite-only'),
-      emoji: '🔐',
       tileColor: 'var(--tile-purple)',
     },
     {
       key: 'joinWithCode',
-      icon: JoinIcon,
+      icon: faRightToBracket,
       to: '/games/join',
       subtitle: t('home.mosaic.joinWithCode.subtitle'),
       pulse: false,
-      emoji: '📥',
       tileColor: 'var(--tile-blue)',
     },
     {
       key: 'myTables',
-      icon: TablesIcon,
+      icon: faChartLine,
       to: '/profile/stats',
       badge: activeTables.length > 0 ? activeTables.length : undefined,
       subtitle: t('home.mosaic.myTables.subtitle'),
       recommended: hasActiveTables,
       pulse: hasActiveTables,
       depth: true,
-      emoji: '🎯',
       tileColor: 'var(--tile-orange)',
     },
     {
       key: 'profile',
-      icon: ProfileIcon,
+      icon: faUser,
       to: '/profile',
       subtitle: t('home.mosaic.profile.subtitle'),
-      emoji: '👤',
       tileColor: 'var(--tile-red)',
     },
     {
       key: 'settings',
-      icon: SettingsIcon,
+      icon: faGear,
       to: '/settings',
       subtitle: t('home.mosaic.settings.subtitle'),
-      emoji: '⚙️',
       tileColor: 'var(--tile-yellow)',
     },
     {
       key: 'liveNow',
-      icon: LiveIcon,
+      icon: faFire,
       to: '/lobby',
       subtitle: t('home.mosaic.liveNow.subtitle', 'Track live tournaments'),
       quickTag: t('home.mosaic.liveNow.badge', 'LIVE'),
       pulse: true,
       badge: hasActiveTables ? t('home.mosaic.liveNow.active', 'Now') : undefined,
       shine: true,
-      emoji: '💰',
       tileColor: 'var(--tile-green)',
     },
   ]

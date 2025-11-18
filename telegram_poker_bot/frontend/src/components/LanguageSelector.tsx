@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faLanguage } from '@fortawesome/free-solid-svg-icons'
 
 import { useLocalization } from '../providers/LocalizationProvider'
 
@@ -42,9 +44,7 @@ export default function LanguageSelector({ variant = 'pill' }: LanguageSelectorP
       aria-label={t('settings.sections.language.title')}
       className={`${baseClasses} glass-pill flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[color:var(--color-text)] shadow-[0_10px_24px_rgba(0,0,0,0.35)]`}
     >
-      <span role="img" aria-hidden="true">
-        🌐
-      </span>
+      <FontAwesomeIcon icon={faLanguage} />
       <span>{language.toUpperCase()}</span>
     </button>
   )

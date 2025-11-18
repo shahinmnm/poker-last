@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useState, useEffect } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCoins, faChartLine, faWallet } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
@@ -87,7 +89,7 @@ export default function ProfilePage() {
             <p className="mt-1 text-sm text-[color:var(--text-muted)]">@{user.username}</p>
           )}
           <div className="mt-4 flex items-center gap-2">
-            <span className="text-3xl">💰</span>
+            <FontAwesomeIcon icon={faCoins} className="text-3xl text-[color:var(--accent-end)]" />
             <div>
               <p className="text-sm text-[color:var(--text-muted)]">{t('profile.balance')}</p>
               <p className="text-2xl font-bold text-[color:var(--accent-end)]">
@@ -154,14 +156,14 @@ export default function ProfilePage() {
           to="/profile/stats"
           className="app-button app-button--secondary app-button--lg flex items-center justify-center gap-2"
         >
-          <span>📊</span>
+          <FontAwesomeIcon icon={faChartLine} />
           <span>{t('profile.actions.viewStats')}</span>
         </Link>
         <Link
           to="/wallet"
           className="app-button app-button--primary app-button--lg flex items-center justify-center gap-2"
         >
-          <span>💰</span>
+          <FontAwesomeIcon icon={faWallet} />
           <span>{t('menu.wallet.label')}</span>
         </Link>
       </div>
