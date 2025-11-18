@@ -1,16 +1,19 @@
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
-import { faDice, faLock, faRightToBracket, faChartLine, faUser, faGear, faFire } from '@fortawesome/free-solid-svg-icons'
+import { faPlay, faUsers, faTrophy, faGraduationCap, faChartLine } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
 import Card from '../components/ui/Card'
 import HomeMenuGrid from '../components/home/HomeMenuGrid'
+import FilterPills from '../components/ui/FilterPills'
+import RecommendationCard from '../components/ui/RecommendationCard'
 
 export default function HomePage() {
   const { ready, initData } = useTelegram()
   const { t } = useTranslation()
   const [activeTables, setActiveTables] = useState<any[]>([])
+  const [activeFilter, setActiveFilter] = useState('all')
 
   useEffect(() => {
     if (!initData) return
@@ -31,101 +34,76 @@ export default function HomePage() {
     )
   }
 
+  const filterOptions = [
+    { id: 'all', label: t('home.filters.all', 'All') },
+    { id: 'cash', label: t('home.filters.cash', 'Cash') },
+    { id: 'tournaments', label: t('home.filters.tournaments', 'Tournaments') },
+    { id: 'private', label: t('home.filters.private', 'Private') },
+  ]
+
   const mosaicTiles = [
     {
-      key: 'playPublic',
-      icon: faDice,
+      key: 'quickMatch',
+      icon: faPlay,
       to: '/lobby',
-      quickTag: t('home.mosaic.playPublic.badge', 'HOT'),
-      subtitle: t('home.mosaic.playPublic.subtitle'),
-      recommended: !hasActiveTables,
-      shine: true,
-      depth: true,
-      tileColor: 'var(--tile-green)',
+      label: t('home.mosaic.quickMatch.label', 'Cash Game'),
+      title: t('home.mosaic.quickMatch.title', 'Quick Match'),
+      subtitle: t('home.mosaic.quickMatch.subtitle', 'Fast seat at best table'),
+      gradientBg: 'var(--tile-gradient-violet-pink)',
     },
     {
-      key: 'createPrivate',
-      icon: faLock,
+      key: 'privateTable',
+      icon: faUsers,
       to: '/games/create?mode=private',
-      quickTag: t('home.mosaic.createPrivate.badge', 'NEW'),
-      subtitle: t('home.mosaic.createPrivate.subtitle'),
-      recommended: !hasActiveTables,
-      badge: hasActiveTables ? undefined : t('home.mosaic.createPrivate.cta', 'Invite-only'),
-      tileColor: 'var(--tile-purple)',
+      label: t('home.mosaic.privateTable.label', 'Friends'),
+      title: t('home.mosaic.privateTable.title', 'Private Table'),
+      subtitle: t('home.mosaic.privateTable.subtitle', 'Invite & play with friends'),
+      gradientBg: 'var(--tile-gradient-pink-orange)',
     },
     {
-      key: 'joinWithCode',
-      icon: faRightToBracket,
-      to: '/games/join',
-      subtitle: t('home.mosaic.joinWithCode.subtitle'),
-      pulse: false,
-      tileColor: 'var(--tile-blue)',
+      key: 'tournaments',
+      icon: faTrophy,
+      to: '/lobby?filter=tournaments',
+      label: t('home.mosaic.tournaments.label', 'Events'),
+      title: t('home.mosaic.tournaments.title', 'Tournaments'),
+      subtitle: t('home.mosaic.tournaments.subtitle', 'Sit & Go · MTT'),
+      gradientBg: 'var(--tile-gradient-gold-orange)',
     },
     {
-      key: 'myTables',
-      icon: faChartLine,
-      to: '/profile/stats',
-      badge: activeTables.length > 0 ? activeTables.length : undefined,
-      subtitle: t('home.mosaic.myTables.subtitle'),
-      recommended: hasActiveTables,
-      pulse: hasActiveTables,
-      depth: true,
-      tileColor: 'var(--tile-orange)',
-    },
-    {
-      key: 'profile',
-      icon: faUser,
-      to: '/profile',
-      subtitle: t('home.mosaic.profile.subtitle'),
-      tileColor: 'var(--tile-red)',
-    },
-    {
-      key: 'settings',
-      icon: faGear,
-      to: '/settings',
-      subtitle: t('home.mosaic.settings.subtitle'),
-      tileColor: 'var(--tile-yellow)',
-    },
-    {
-      key: 'liveNow',
-      icon: faFire,
-      to: '/lobby',
-      subtitle: t('home.mosaic.liveNow.subtitle', 'Track live tournaments'),
-      quickTag: t('home.mosaic.liveNow.badge', 'LIVE'),
-      pulse: true,
-      badge: hasActiveTables ? t('home.mosaic.liveNow.active', 'Now') : undefined,
-      shine: true,
-      tileColor: 'var(--tile-green)',
+      key: 'practiceMode',
+      icon: faGraduationCap,
+      to: '/games/create?mode=practice',
+      label: t('home.mosaic.practiceMode.label', 'Training'),
+      title: t('home.mosaic.practiceMode.title', 'Practice Mode'),
+      subtitle: t('home.mosaic.practiceMode.subtitle', 'Play with fake chips'),
+      gradientBg: 'var(--tile-gradient-blue-violet)',
     },
   ]
 
-  const menuItems = mosaicTiles.map((tile) => ({
-    ...tile,
-    title: t(`home.mosaic.${tile.key}.title`),
-    subtitle: tile.subtitle ?? t(`home.mosaic.${tile.key}.subtitle`),
-  }))
-
   return (
-    <div className="space-y-[var(--space-xl)] pt-[var(--space-sm)]">
-      <div className="glass-panel relative mx-auto w-full px-5 py-5 text-center shadow-[0_18px_48px_rgba(0,0,0,0.5)]" style={{ borderRadius: 'var(--radius-xl)' }}>
-        <div className="mx-auto inline-flex items-center justify-center rounded-full border border-[color:var(--color-accent-soft)] bg-[color:var(--color-accent-soft)]/50 px-3 py-1 font-semibold uppercase tracking-[0.16em] text-[color:var(--color-accent-start)]" style={{ fontSize: 'var(--fs-caption)' }}>
-          {t('home.mosaic.heroKicker', 'Premium poker hub')}
-        </div>
-        <div className="mt-2 space-y-2">
-          <p className="font-bold text-[color:var(--color-text)]" style={{ fontSize: 'var(--fs-large)' }}>{t('home.tagline')}</p>
-          <div className="mx-auto h-px w-16 bg-white/15" />
-          <p className="leading-relaxed text-[color:var(--color-text-muted)] line-clamp-2" style={{ fontSize: 'var(--fs-label)' }}>
-            {t('home.mosaic.hint')}
-          </p>
-        </div>
+    <div className="space-y-6 pt-4">
+      {/* Filter Pills */}
+      <div className="px-4">
+        <FilterPills
+          options={filterOptions}
+          activeId={activeFilter}
+          onChange={setActiveFilter}
+        />
       </div>
 
-      <HomeMenuGrid items={menuItems} />
+      {/* 2×2 Grid of Tiles */}
+      <div className="px-4">
+        <HomeMenuGrid items={mosaicTiles} />
+      </div>
 
-      <div className="glass-panel px-5 py-4 text-center" style={{ borderRadius: 'var(--radius-xl)' }}>
-        <p className="leading-relaxed text-[color:var(--color-text-muted)]" style={{ fontSize: 'var(--fs-label)' }}>
-          {hasActiveTables ? t('home.mosaic.activeTablesHint') : t('home.mosaic.hint')}
-        </p>
+      {/* Recommendation Card */}
+      <div className="px-4">
+        <RecommendationCard
+          title={hasActiveTables ? t('home.recommendation.continueTitle', 'Continue playing') : t('home.recommendation.nextTitle', 'Start your first game')}
+          subtitle={hasActiveTables ? t('home.recommendation.continueSubtitle', 'You have active tables waiting') : t('home.recommendation.nextSubtitle', 'Join a public table or create your own')}
+          icon={hasActiveTables ? faChartLine : faPlay}
+          to={hasActiveTables ? '/profile/stats' : '/lobby'}
+        />
       </div>
     </div>
   )

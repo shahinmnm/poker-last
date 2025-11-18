@@ -164,7 +164,39 @@
         "subtitle": "Preferences and language"
       },
       "hint": "Tap any tile to quickly access that feature. Your active tables will show badges.",
-      "activeTablesHint": "You have active games! Tap My Tables to continue playing or start a new one."
+      "activeTablesHint": "You have active games! Tap My Tables to continue playing or start a new one.",
+      "quickMatch": {
+        "label": "Cash Game",
+        "title": "Quick Match",
+        "subtitle": "Fast seat at best table"
+      },
+      "privateTable": {
+        "label": "Friends",
+        "title": "Private Table",
+        "subtitle": "Invite & play with friends"
+      },
+      "tournaments": {
+        "label": "Events",
+        "title": "Tournaments",
+        "subtitle": "Sit & Go · MTT"
+      },
+      "practiceMode": {
+        "label": "Training",
+        "title": "Practice Mode",
+        "subtitle": "Play with fake chips"
+      }
+    },
+    "filters": {
+      "all": "All",
+      "cash": "Cash",
+      "tournaments": "Tournaments",
+      "private": "Private"
+    },
+    "recommendation": {
+      "nextTitle": "Start your first game",
+      "nextSubtitle": "Join a public table or create your own",
+      "continueTitle": "Continue playing",
+      "continueSubtitle": "You have active tables waiting"
     }
   },
   "lobby": {
