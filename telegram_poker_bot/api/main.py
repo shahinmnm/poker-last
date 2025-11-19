@@ -1038,7 +1038,13 @@ async def start_table(
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.warning("Failed to invalidate public table cache after start", error=str(exc))
 
-    return state
+    # Return viewer-specific state (with hero cards) to the caller
+    viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
+    # Preserve hand_result if present in the broadcast payload
+    if state.get("hand_result"):
+        viewer_state["hand_result"] = state["hand_result"]
+
+    return viewer_state
 
 
 @api_app.get("/tables/{table_id}/state")
@@ -1266,21 +1272,32 @@ async def submit_action(
     user_auth = verify_telegram_init_data(x_telegram_init_data)
     if not user_auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, user_auth)
     
     # Process action
     action_type = ActionType(action.action_type)
 
     try:
-        state = await get_pokerkit_runtime_manager().handle_action(
+        public_state = await get_pokerkit_runtime_manager().handle_action(
             db,
             table_id=table_id,
-            user_id=user_auth.user_id,
+            user_id=user.id,
             action=action_type,
             amount=action.amount,
         )
 
-        await manager.broadcast(table_id, state)
-        return state
+        # Broadcast public state (without hero cards)
+        await manager.broadcast(table_id, public_state)
+
+        # Return viewer-specific state so the acting player sees their hole cards
+        viewer_state = await get_pokerkit_runtime_manager().get_state(
+            db, table_id, user.id
+        )
+        if public_state.get("hand_result"):
+            viewer_state["hand_result"] = public_state["hand_result"]
+
+        return viewer_state
     except Exception as e:
         logger.error("Error processing action", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
