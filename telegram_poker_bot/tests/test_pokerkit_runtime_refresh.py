@@ -1,4 +1,5 @@
 """Test that PokerKit runtime refreshes seat data correctly."""
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -30,10 +31,12 @@ async def db_session() -> AsyncSession:
 
 
 @pytest.mark.asyncio
-async def test_runtime_refreshes_seats_when_players_join(db_session: AsyncSession) -> None:
+async def test_runtime_refreshes_seats_when_players_join(
+    db_session: AsyncSession,
+) -> None:
     """
     Test that the runtime manager refreshes seat data when players join after table creation.
-    
+
     This tests the fix for the issue where the runtime was cached with 0 players,
     and then when players joined and the game started, it would fail with
     "Player count must be between 2 and 8, got 0".
