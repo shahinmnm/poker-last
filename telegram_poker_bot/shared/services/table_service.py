@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List, TYPE_CHECKING, Tuple
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from telegram_poker_bot.game_core import runtime as game_runtime
+from telegram_poker_bot.game_core import pokerkit_runtime as game_runtime
 from telegram_poker_bot.shared.models import (
     User,
     Table,

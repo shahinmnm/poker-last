@@ -1,4 +1,12 @@
-"""Game core service - table orchestration, matchmaking, timers."""
+"""Game core service - table orchestration, matchmaking, timers.
+
+NOTE: The TableManager class in this file contains duplicate poker logic
+and is DEPRECATED. It is kept only for backward compatibility with existing tests.
+
+The MatchmakingPool class is still actively used.
+
+For game runtime, use telegram_poker_bot.game_core.pokerkit_runtime instead.
+"""
 
 import asyncio
 import json

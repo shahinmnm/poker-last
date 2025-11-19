@@ -53,7 +53,6 @@ from telegram_poker_bot.shared.services import user_service, table_service
 from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import get_matchmaking_pool
-from telegram_poker_bot.game_core.runtime import get_runtime_manager
 from telegram_poker_bot.game_core.pokerkit_runtime import get_pokerkit_runtime_manager
 
 settings = get_settings()

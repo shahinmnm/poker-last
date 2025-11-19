@@ -338,6 +338,17 @@ def get_pokerkit_runtime_manager() -> PokerKitTableRuntimeManager:
     return _pokerkit_runtime_manager
 
 
+async def refresh_table_runtime(db: AsyncSession, table_id: int) -> None:
+    """
+    Refresh table runtime by ensuring it exists in the runtime manager.
+
+    This function ensures that a table runtime is loaded and cached
+    in the PokerKitTableRuntimeManager. This is called when tables are
+    created or modified to ensure the runtime is up-to-date.
+    """
+    await get_pokerkit_runtime_manager().ensure_table(db, table_id)
+
+
 def reset_pokerkit_runtime_cache() -> None:
     """Reset the runtime cache (for testing)."""
     global _pokerkit_runtime_manager
