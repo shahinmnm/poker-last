@@ -222,6 +222,8 @@ export default function TablePage() {
           if (payload?.type === 'table_state') {
             setLiveState(payload as LiveTableState)
             setHandResult((payload as LiveTableState).hand_result ?? null)
+            // Fetch viewer-specific state to restore hero cards and private info
+            fetchLiveState()
           }
           if (
             payload?.type === 'action' ||
@@ -323,6 +325,7 @@ export default function TablePage() {
       setLiveState(state)
       setHandResult(state.hand_result ?? null)
       await fetchTable()
+      await fetchLiveState()
       showToast(t('table.toast.started'))
     } catch (err) {
       console.error('Error starting table:', err)
@@ -361,6 +364,7 @@ export default function TablePage() {
       })
       setLiveState(state)
       setHandResult(state.hand_result ?? null)
+      await fetchLiveState()
     } catch (err) {
       console.error('Error sending action', err)
       if (err instanceof ApiError) {
