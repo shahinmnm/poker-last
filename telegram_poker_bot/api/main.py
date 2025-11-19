@@ -24,6 +24,7 @@ from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
@@ -319,28 +320,36 @@ async def find_user_by_tg_id(db: AsyncSession, tg_user_id: int) -> Optional[User
 
 async def ensure_user(db: AsyncSession, auth: UserAuth) -> User:
     """Fetch existing user or create a new record based on Telegram data."""
-    user = await find_user_by_tg_id(db, auth.user_id)
     normalized_language = sanitize_language(auth.language_code)
 
-    if user:
-        updated = False
-        if auth.username and user.username != auth.username:
-            user.username = auth.username
-            updated = True
-        if normalized_language and user.language != normalized_language:
-            user.language = normalized_language
-            updated = True
-        if updated:
-            await db.flush()
-        return user
+    user = await find_user_by_tg_id(db, auth.user_id)
 
-    user = User(
-        tg_user_id=auth.user_id,
-        username=auth.username,
-        language=normalized_language or "en",
-    )
-    db.add(user)
-    await db.flush()
+    if not user:
+        user = User(
+            tg_user_id=auth.user_id,
+            username=auth.username,
+            language=normalized_language or "en",
+        )
+        db.add(user)
+        try:
+            await db.flush()
+        except IntegrityError:
+            await db.rollback()
+            # Another request created the user concurrently; fetch the existing row.
+            user = await find_user_by_tg_id(db, auth.user_id)
+            if not user:
+                raise
+
+    updated = False
+    if auth.username and user.username != auth.username:
+        user.username = auth.username
+        updated = True
+    if normalized_language and user.language != normalized_language:
+        user.language = normalized_language
+        updated = True
+    if updated:
+        await db.flush()
+
     return user
 
 
