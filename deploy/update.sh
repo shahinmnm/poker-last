@@ -3,19 +3,16 @@
 set -euo pipefail
 
 ###############################################################################
-# PokerBot Deployment Helper
+# PokerBot Deployment Helper (force mode)
 #
-# Responsibilities:
-#   - Update the git repo to the latest upstream commit (branch from .env)
-#   - Stop running containers
-#   - Optionally prune unused Docker resources
-#   - Rebuild images (optionally pulling newer base images)
-#   - Restart services (optionally including nginx profile)
+# - Reads DEPLOY_GIT_BRANCH from .env (e.g. main, gamecore, etc.)
+# - Forces local repo to match remote branch (ignores dirty changes)
+# - Stops containers, prunes Docker garbage, rebuilds, restarts
 #
-# Relies on lib/common.sh for:
-#   - REPO_ROOT
-#   - compose, log_info, log_warn, log_error, log_success
-#   - ensure_command, ensure_env_file, load_env_file, check_worktree_clean
+# Requires lib/common.sh to define:
+#   REPO_ROOT, ENV_FILE
+#   compose, log_info, log_warn, log_error, log_success
+#   ensure_command, ensure_env_file, load_env_file, check_worktree_clean
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,7 +32,7 @@ BACKUP_DIR="${BACKUP_DIR:-${REPO_ROOT}/backups}"
 
 usage() {
   cat <<'USAGE'
-Simplified PokerBot redeploy: update git (using branch from .env), stop containers,
+Simplified PokerBot redeploy: force-update git (branch from .env), stop containers,
 prune unused Docker resources (optional), rebuild, and restart.
 
 Usage:
@@ -66,7 +63,7 @@ while [[ $# -gt 0 ]]; do
     --prune-volumes)    PRUNE_VOLUMES=true ;;
     -h|--help)          usage; exit 0 ;;
     *)
-      log_error "Unknown option: $1"
+      echo "Unknown option: $1" >&2
       usage
       exit 1
       ;;
@@ -187,10 +184,12 @@ ensure_command docker
 ensure_env_file
 load_env_file
 backup_env_file
-check_worktree_clean
+
+# We don't block on dirty worktree; we force-reset anyway
+check_worktree_clean || true
 
 REMOTE=${DEPLOY_GIT_REMOTE:-origin}
-BRANCH=${DEPLOY_GIT_BRANCH:-main}  # change DEPLOY_GIT_BRANCH in .env (e.g. main or gamecore)
+BRANCH=${DEPLOY_GIT_BRANCH:-main}   # set in .env (e.g. main or gamecore)
 
 if ! git -C "${REPO_ROOT}" remote get-url "${REMOTE}" >/dev/null 2>&1; then
   log_error "Git remote '${REMOTE}' is not configured. Update DEPLOY_GIT_REMOTE or add the remote."
@@ -217,25 +216,25 @@ else
 fi
 
 ###############################################################################
-# Git update (branch from .env, supports main/gamecore/etc)
+# Git force update (supports main/gamecore/etc via DEPLOY_GIT_BRANCH)
 ###############################################################################
 
 log_info "Fetching updates from ${REMOTE}/${BRANCH}"
 git -C "${REPO_ROOT}" fetch "${REMOTE}" "${BRANCH}"
 
-# Use FETCH_HEAD instead of assuming ${REMOTE}/${BRANCH} exists as a local tracking ref
+# Force-local branch to exactly fetched commit using FETCH_HEAD (avoids origin/BRANCH issues)
 if git -C "${REPO_ROOT}" rev-parse --verify "${BRANCH}" >/dev/null 2>&1; then
-  log_info "Checking out existing local branch ${BRANCH}"
-  git -C "${REPO_ROOT}" checkout "${BRANCH}"
+  log_info "Checking out existing local branch ${BRANCH} (force)"
+  git -C "${REPO_ROOT}" checkout -f "${BRANCH}"
 else
-  log_info "Creating local branch ${BRANCH} from FETCH_HEAD"
-  git -C "${REPO_ROOT}" checkout -b "${BRANCH}" FETCH_HEAD
+  log_info "Creating local branch ${BRANCH} from FETCH_HEAD (force)"
+  git -C "${REPO_ROOT}" checkout -f -b "${BRANCH}" FETCH_HEAD
 fi
 
-log_info "Resetting ${BRANCH} to fetched commit"
+log_info "Hard-resetting ${BRANCH} to fetched commit"
 git -C "${REPO_ROOT}" reset --hard FETCH_HEAD
 
-log_success "Repository updated to ${REMOTE}/${BRANCH}"
+log_success "Repository forced to ${REMOTE}/${BRANCH}"
 
 ###############################################################################
 # Docker build & restart
@@ -260,7 +259,6 @@ else
 fi
 
 if [[ "${SKIP_MIGRATIONS}" == "false" ]]; then
-  # Adjust service/command to your actual migration setup if needed
   log_info "Running database migrations (if configured)"
   if ! compose run --rm api alembic upgrade head 2>/dev/null; then
     log_warn "Migration step failed or service 'api' not defined; continuing without migrations"
