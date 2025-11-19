@@ -54,6 +54,7 @@ from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import get_matchmaking_pool
 from telegram_poker_bot.game_core.runtime import get_runtime_manager
+from telegram_poker_bot.game_core.pokerkit_runtime import get_pokerkit_runtime_manager
 
 settings = get_settings()
 configure_logging()
@@ -1011,7 +1012,7 @@ async def start_table(
 
     try:
         await table_service.start_table(db, table_id, user_id=user.id)
-        state = await get_runtime_manager().start_game(db, table_id)
+        state = await get_pokerkit_runtime_manager().start_game(db, table_id)
         await db.commit()
 
         await manager.broadcast(table_id, state)
@@ -1045,7 +1046,7 @@ async def get_table_state(
             user = await ensure_user(db, auth)
             viewer_id = user.id
     try:
-        state = await get_runtime_manager().get_state(db, table_id, viewer_id)
+        state = await get_pokerkit_runtime_manager().get_state(db, table_id, viewer_id)
         return state
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -1262,7 +1263,7 @@ async def submit_action(
     action_type = ActionType(action.action_type)
 
     try:
-        state = await get_runtime_manager().handle_action(
+        state = await get_pokerkit_runtime_manager().handle_action(
             db,
             table_id=table_id,
             user_id=user_auth.user_id,
