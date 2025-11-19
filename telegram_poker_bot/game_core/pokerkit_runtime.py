@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from pokerkit import Mode
 
@@ -302,6 +303,7 @@ class PokerKitTableRuntimeManager:
                 raise ValueError("Table not found")
             seats_result = await db.execute(
                 select(Seat)
+                .options(selectinload(Seat.user))
                 .where(Seat.table_id == table_id, Seat.left_at.is_(None))
                 .order_by(Seat.position)
             )

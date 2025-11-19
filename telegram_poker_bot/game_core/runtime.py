@@ -17,6 +17,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram_poker_bot.shared.logging import get_logger
@@ -382,6 +383,7 @@ class TableRuntimeManager:
                 raise ValueError("Table not found")
             seats_result = await db.execute(
                 select(Seat)
+                .options(selectinload(Seat.user))
                 .where(Seat.table_id == table_id, Seat.left_at.is_(None))
                 .order_by(Seat.position)
             )
