@@ -17,7 +17,9 @@
 cp .env.example .env
 # Edit .env with production credentials and secrets
 
-# Optional: local overrides for this package only
+# ℹ️ For detailed information about .env file structure, see: ../ENV_FILES.md
+
+# Optional: local overrides for this package only (for local development without Docker)
 cd telegram_poker_bot
 cp .env.example .env.local
 ```

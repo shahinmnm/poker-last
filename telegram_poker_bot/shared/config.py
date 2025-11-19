@@ -4,7 +4,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urljoin
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,12 +21,12 @@ class Settings(BaseSettings):
     )
 
     # Telegram Bot
-    telegram_bot_token: str
+    telegram_bot_token: str = "000000:TEST-TOKEN"
     telegram_webhook_secret_token: Optional[str] = None
     admin_chat_id: Optional[int] = None
 
     # Webhook
-    public_base_url: str
+    public_base_url: str = "https://poker.shahin8n.sbs"
     webhook_path: str = "/telegram/webhook"
     webhook_secret_token: Optional[str] = None
     webhook_bind_host: str = "0.0.0.0"
@@ -68,10 +68,47 @@ class Settings(BaseSettings):
     big_blind: int = 50
 
     # Mini App
-    webapp_secret: str
-    cors_origins: str = "https://poker.shahin8n.sbs"
-    vite_api_url: str = "https://poker.shahin8n.sbs/api"
+    webapp_secret: str = "test-webapp-secret"
+    cors_origins: Optional[str] = None
+    vite_api_url: Optional[str] = None
     vite_bot_username: str = "@pokerbazabot"
+    mini_app_base_url: Optional[str] = None
+    group_invite_ttl_seconds: int = 900
+
+    @field_validator("public_base_url", mode="before")
+    @classmethod
+    def normalize_public_base_url(cls, value: str) -> str:
+        """Ensure PUBLIC_BASE_URL has no trailing slash and includes a scheme."""
+        if not isinstance(value, str):
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("PUBLIC_BASE_URL cannot be empty")
+        if not trimmed.startswith(("http://", "https://")):
+            raise ValueError("PUBLIC_BASE_URL must include http:// or https://")
+        return trimmed.rstrip("/")
+
+    @field_validator("webhook_path", mode="before")
+    @classmethod
+    def ensure_webhook_path(cls, value: str) -> str:
+        """Ensure webhook path always starts with a leading slash."""
+        if not isinstance(value, str):
+            return value
+        trimmed = value.strip()
+        if not trimmed.startswith("/"):
+            trimmed = f"/{trimmed.lstrip('/')}"
+        return trimmed
+
+    @field_validator("cors_origins", "vite_api_url", "mini_app_base_url", mode="before")
+    @classmethod
+    def normalize_optional_urls(cls, value: Optional[str]) -> Optional[str]:
+        """Normalize optional URL fields, treating empty strings as missing."""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -119,6 +156,22 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def derive_service_urls(self) -> "Settings":
+        """Derive domain-dependent URLs from PUBLIC_BASE_URL when not explicitly set."""
+        base = self.public_base_url.rstrip("/")
+        if not self.cors_origins:
+            self.cors_origins = base
+        if not self.vite_api_url:
+            self.vite_api_url = f"{base}/api"
+        if not self.mini_app_base_url:
+            api_base = (self.vite_api_url or "").rstrip("/")
+            if api_base.endswith("/api"):
+                self.mini_app_base_url = api_base[: -len("/api")]
+            else:
+                self.mini_app_base_url = api_base or base
+        return self
+
     @property
     def redis_url_computed(self) -> str:
         """Compute Redis URL from components if not provided."""
@@ -126,6 +179,23 @@ class Settings(BaseSettings):
             return self.redis_url
         auth = f":{self.redis_pass}@" if self.redis_pass else ""
         return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
+    @property
+    def webhook_url(self) -> str:
+        """Full public webhook URL derived from PUBLIC_BASE_URL and WEBHOOK_PATH."""
+        base = f"{self.public_base_url.rstrip('/')}/"
+        path = self.webhook_path.lstrip("/")
+        return urljoin(base, path)
+
+    @property
+    def bot_username_clean(self) -> str:
+        """Normalized bot username without leading @."""
+        return self.vite_bot_username.lstrip("@")
+
+    @property
+    def mini_app_url(self) -> str:
+        """Public base URL for the mini app."""
+        return (self.mini_app_base_url or self.public_base_url).rstrip("/")
 
 
 @lru_cache()

@@ -1,21 +1,66 @@
 """Integration tests for game flow."""
 
 import pytest
+from collections import defaultdict
+from typing import Dict, Iterable, List, Tuple
+
+import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base
 
 from telegram_poker_bot.shared.models import Base
 from telegram_poker_bot.game_core import TableManager, MatchmakingPool
 from telegram_poker_bot.shared.models import GameMode, TableStatus
-import redis.asyncio as redis
 
 
-@pytest.fixture
+class InMemoryRedis:
+    """Minimal async Redis clone for sorted-set operations used in tests."""
+
+    def __init__(self) -> None:
+        self._sorted_sets: Dict[str, Dict[str, float]] = defaultdict(dict)
+
+    async def zadd(self, key: str, mapping: Dict[str, float]) -> None:
+        self._sorted_sets[key].update(mapping)
+
+    async def expire(self, key: str, _ttl: int) -> bool:
+        self._sorted_sets.setdefault(key, {})
+        return True
+
+    async def zrange(self, key: str, start: int, end: int) -> List[bytes]:
+        items: List[Tuple[str, float]] = sorted(
+            self._sorted_sets.get(key, {}).items(), key=lambda item: (item[1], item[0])
+        )
+        if end == -1:
+            slice_items = items[start:]
+        else:
+            slice_items = items[start : end + 1]
+        return [member.encode() for member, _ in slice_items]
+
+    async def zrem(self, key: str, member: bytes) -> None:
+        decoded = member.decode() if isinstance(member, (bytes, bytearray)) else str(member)
+        self._sorted_sets.get(key, {}).pop(decoded, None)
+
+    async def zremrangebyscore(self, key: str, min_score: float, max_score: float) -> None:
+        bucket = self._sorted_sets.get(key, {})
+        to_remove: Iterable[str] = [
+            member for member, score in bucket.items() if min_score <= score <= max_score
+        ]
+        for member in to_remove:
+            bucket.pop(member, None)
+
+    async def flushdb(self) -> None:
+        self._sorted_sets.clear()
+
+    async def close(self) -> None:
+        self._sorted_sets.clear()
+
+
+@pytest_asyncio.fixture
 async def db_session():
     """Create test database session."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
-        await conn.run_schema_creation(Base.metadata)
+        await conn.run_sync(Base.metadata.create_all)
     
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
@@ -25,13 +70,12 @@ async def db_session():
     await engine.dispose()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def redis_client():
     """Create test Redis client."""
-    client = await redis.from_url("redis://localhost:6379/15")  # Use DB 15 for tests
+    client = InMemoryRedis()
     yield client
     await client.flushdb()
-    await client.close()
 
 
 @pytest.mark.asyncio

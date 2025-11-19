@@ -1,0 +1,6 @@
+# Invite code flow notes
+
+- **Generation:** Private tables are assigned a 6-character invite code by default (`INVITE_CODE_LENGTH = 6`) using uppercase letters and digits that exclude lookalikes. A longer 8-character fallback is only used if a collision occurs. The code is stored on the `tables.invite_code` column (String length up to 16) when the table is private.
+- **Server-side validation:** The new `/tables/join-by-invite` endpoint trims and uppercases the provided code, accepts 6–8 alphanumeric characters, rejects expired/non-private tables, and seats the caller when possible. Table lookups now normalize codes and expose the invite code to seated players as well as the host.
+- **Client-side validation:** The Join Game form now normalizes pasted codes (removing spaces/hyphens, uppercasing) and enforces the 6-character minimum aligned with the backend. Error messages are parameterized with the configured minimum length.
+- **Mismatch cause:** Codes were generated at 6 characters while the previous frontend check demanded at least 8 characters, causing valid host-generated codes (e.g., `4SD54R`) to be rejected before hitting the API. The new shared constants and normalization remove that discrepancy.

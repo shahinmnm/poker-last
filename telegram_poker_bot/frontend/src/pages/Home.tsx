@@ -1,61 +1,97 @@
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import {
+  faPlay,
+  faUserGroup,
+  faTrophy,
+  faGraduationCap,
+} from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+
 import { useTelegram } from '../hooks/useTelegram'
-import { Link } from 'react-router-dom'
+import Card from '../components/ui/Card'
 
 export default function HomePage() {
   const { ready } = useTelegram()
+  const { t } = useTranslation()
+  const navigate = useNavigate()
 
   if (!ready) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return (
+      <Card className="flex min-h-[40vh] items-center justify-center text-sm text-[color:var(--text-muted)]">
+        {t('common.loading')}
+      </Card>
+    )
   }
 
+  // Define the 4 main menu actions with their unique styles
+  const menuActions = [
+    {
+      label: t('home.tiles.quickMatch.label', 'CASH GAME'),
+      title: t('home.tiles.quickMatch.title', 'Quick Match'),
+      subtitle: t('home.tiles.quickMatch.subtitle', 'Fast seat at best table'),
+      icon: faPlay,
+      variant: 'quickMatch',
+      action: () => navigate('/lobby'),
+    },
+    {
+      label: t('home.tiles.privateTable.label', 'PRIVATE'),
+      title: t('home.tiles.privateTable.title', 'Private Table'),
+      subtitle: t('home.tiles.privateTable.subtitle', 'Create your own game'),
+      icon: faUserGroup,
+      variant: 'privateTable',
+      action: () => navigate('/games/create'),
+    },
+    {
+      label: t('home.tiles.tournaments.label', 'COMPETE'),
+      title: t('home.tiles.tournaments.title', 'Tournaments'),
+      subtitle: t('home.tiles.tournaments.subtitle', 'Join competitive events'),
+      icon: faTrophy,
+      variant: 'tournaments',
+      action: () => navigate('/lobby'), // TODO: tournaments route when ready
+    },
+    {
+      label: t('home.tiles.practice.label', 'LEARN'),
+      title: t('home.tiles.practice.title', 'Practice Mode'),
+      subtitle: t('home.tiles.practice.subtitle', 'Improve your skills'),
+      icon: faGraduationCap,
+      variant: 'practice',
+      action: () => navigate('/help'),
+    },
+  ]
+
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          🎰 Poker Bot
-        </h1>
-
-        <div className="space-y-4">
-          <Link
-            to="/table/new?mode=anonymous"
-            className="block w-full p-4 bg-blue-500 text-white rounded-lg text-center font-semibold hover:bg-blue-600 transition"
+    <div className="space-y-4 px-4 pt-6 pb-8">
+      {/* Main Menu Square Tiles - 2x2 Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {menuActions.map((action, index) => (
+          <button
+            key={index}
+            onClick={action.action}
+            className={`menu-square-tile menu-square-tile--${action.variant} w-full`}
           >
-            Play Anonymous ♣️
-          </Link>
-
-          <Link
-            to="/table/new?mode=group"
-            className="block w-full p-4 bg-green-500 text-white rounded-lg text-center font-semibold hover:bg-green-600 transition"
-          >
-            Play in Group ♠️
-          </Link>
-
-          <div className="grid grid-cols-2 gap-4 mt-6">
-            <Link
-              to="/stats"
-              className="p-4 bg-gray-200 dark:bg-gray-700 rounded-lg text-center font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-            >
-              My Stats 📊
-            </Link>
-
-            <Link
-              to="/settings"
-              className="p-4 bg-gray-200 dark:bg-gray-700 rounded-lg text-center font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-            >
-              Settings ⚙️
-            </Link>
-          </div>
-
-          <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <h2 className="font-semibold mb-2">How to Play 📘</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              1. Join a game (Anonymous or Group)<br />
-              2. Wait for players to join<br />
-              3. Make your decisions when it's your turn<br />
-              4. Win pots by having the best hand!
-            </p>
-          </div>
-        </div>
+            {/* Diagonal highlight layer */}
+            <span className="menu-square-tile__highlight" aria-hidden="true" />
+            
+            {/* Button content */}
+            <div className="menu-square-tile__content">
+              <div className="menu-square-tile__text">
+                <div className="menu-square-tile__label">
+                  {action.label}
+                </div>
+                <div className="menu-square-tile__title">
+                  {action.title}
+                </div>
+                <div className="menu-square-tile__subtitle">
+                  {action.subtitle}
+                </div>
+              </div>
+              <div className="menu-square-tile__icon">
+                <FontAwesomeIcon icon={action.icon} />
+              </div>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   )

@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GameMode(str, Enum):
@@ -44,6 +44,34 @@ class ActionType(str, Enum):
     ALL_IN = "all_in"
 
 
+class TableVisibility(str, Enum):
+    """Visibility flag for tables exposed via the API."""
+
+    PUBLIC = "public"
+    PRIVATE = "private"
+
+
+class TableCreateRequest(BaseModel):
+    """Validated payload for creating poker tables."""
+
+    table_name: Optional[str] = None
+    small_blind: int = Field(default=25, ge=1)
+    big_blind: int = Field(default=50, ge=1)
+    starting_stack: int = Field(default=10000, ge=1)
+    max_players: int = Field(default=8, ge=2, le=9)
+    visibility: TableVisibility = TableVisibility.PUBLIC
+    auto_seat_host: Optional[bool] = None
+
+
+class GroupGameInviteStatus(str, Enum):
+    """Group game invite status enumeration."""
+
+    PENDING = "pending"
+    READY = "ready"
+    CONSUMED = "consumed"
+    EXPIRED = "expired"
+
+
 class User(BaseModel):
     """User model."""
 
@@ -65,6 +93,8 @@ class Table(BaseModel):
     created_at: str
     updated_at: str
     config_json: dict
+    creator_user_id: Optional[int] = None
+    is_public: bool = True
 
 
 class Seat(BaseModel):
@@ -109,3 +139,19 @@ class Pot(BaseModel):
     hand_id: int
     pot_index: int
     size: int
+
+
+class GroupGameInvite(BaseModel):
+    """Group game invite model."""
+
+    id: int
+    game_id: str
+    creator_user_id: int
+    group_id: Optional[int]
+    status: GroupGameInviteStatus
+    deep_link: str
+    created_at: str
+    updated_at: Optional[str] = None
+    expires_at: str
+    consumed_at: Optional[str] = None
+    metadata_json: dict = Field(default_factory=dict)

@@ -1,140 +1,882 @@
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { useTelegram } from '../hooks/useTelegram'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { faUser, faCoins, faUserGroup, faClock } from '@fortawesome/free-solid-svg-icons'
 
-interface TableState {
-  id: number
-  status: string
-  players: Array<{
-    id: number
-    position: number
-    chips: number
-  }>
-  board: string[]
-  pots: Array<{
-    pot_index: number
-    amount: number
-  }>
-  current_player: number | null
+import { useTelegram } from '../hooks/useTelegram'
+import { apiFetch, ApiError, resolveWebSocketUrl } from '../utils/apiClient'
+import Toast from '../components/Toast'
+import Countdown from '../components/Countdown'
+import Card from '../components/ui/Card'
+import Button from '../components/ui/Button'
+import Badge from '../components/ui/Badge'
+import Modal from '../components/ui/Modal'
+import TableSummary from '../components/tables/TableSummary'
+import ExpiredTableView from '../components/tables/ExpiredTableView'
+import InviteSection from '../components/tables/InviteSection'
+import TableActionButtons from '../components/tables/TableActionButtons'
+import type { TableStatusTone } from '../components/lobby/types'
+
+interface TablePlayer {
+  user_id: number
+  username?: string | null
+  display_name?: string | null
+  position: number
+  chips: number
+  joined_at?: string | null
+  is_host?: boolean
 }
+
+interface TableViewerInfo {
+  user_id: number | null
+  is_creator: boolean
+  is_seated: boolean
+  seat_position?: number | null
+}
+
+interface TablePermissions {
+  can_start: boolean
+  can_join: boolean
+  can_leave?: boolean
+}
+
+interface TableHostInfo {
+  user_id: number
+  username?: string | null
+  display_name?: string | null
+}
+
+interface TableInviteInfo {
+  game_id?: string
+  status?: string
+  expires_at?: string | null
+}
+
+interface TableDetails {
+  table_id: number
+  table_name?: string | null
+  mode?: string
+  status: string
+  small_blind: number
+  big_blind: number
+  starting_stack: number
+  player_count: number
+  max_players: number
+  created_at?: string | null
+  updated_at?: string | null
+  expires_at?: string | null
+  is_expired?: boolean
+  invite_code?: string | null
+  host?: TableHostInfo | null
+  players?: TablePlayer[]
+  viewer?: TableViewerInfo | null
+  permissions?: TablePermissions | null
+  invite?: TableInviteInfo | null
+  is_private?: boolean
+  is_public?: boolean
+  visibility?: 'public' | 'private'
+  group_title?: string | null
+}
+
+interface LivePlayerState {
+  user_id: number
+  seat: number
+  stack: number
+  bet: number
+  in_hand: boolean
+  is_button: boolean
+  is_small_blind: boolean
+  is_big_blind: boolean
+  acted?: boolean
+  display_name?: string | null
+}
+
+interface LiveHeroState {
+  user_id: number
+  cards: string[]
+}
+
+interface LiveTableState {
+  type: 'table_state'
+  table_id: number
+  hand_id: number | null
+  status: string
+  street: string | null
+  board: string[]
+  pot: number
+  current_bet: number
+  min_raise: number
+  current_actor: number | null
+  action_deadline?: string | null
+  players: LivePlayerState[]
+  hero: LiveHeroState | null
+  last_action?: Record<string, unknown> | null
+  hand_result?: { winners: { user_id: number; amount: number; hand_score: number }[] }
+}
+
+const DEFAULT_TOAST = { message: '', visible: false }
 
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
+  const navigate = useNavigate()
   const { initData } = useTelegram()
-  const [tableState, setTableState] = useState<TableState | null>(null)
+  const { t } = useTranslation()
+
+  const [tableDetails, setTableDetails] = useState<TableDetails | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isSeating, setIsSeating] = useState(false)
+  const [isLeaving, setIsLeaving] = useState(false)
+  const [isStarting, setIsStarting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [toast, setToast] = useState(DEFAULT_TOAST)
+  const [liveState, setLiveState] = useState<LiveTableState | null>(null)
+  const [handResult, setHandResult] = useState<LiveTableState['hand_result'] | null>(null)
+  const [actionPending, setActionPending] = useState(false)
+
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+    [],
+  )
+
+  const showToast = useCallback((message: string) => {
+    setToast({ message, visible: true })
+    window.setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }))
+    }, 2400)
+  }, [])
+
+  const fetchTable = useCallback(async () => {
+    if (!tableId) {
+      return
+    }
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await apiFetch<TableDetails>(`/tables/${tableId}`, {
+        method: 'GET',
+        initData: initData ?? undefined,
+      })
+      setTableDetails(data)
+    } catch (err) {
+      console.error('Error fetching table:', err)
+      if (err instanceof ApiError) {
+        if (err.status === 404) {
+          setError(t('table.errors.notFound'))
+        } else if (err.status === 401) {
+          setError(t('table.errors.unauthorized'))
+        } else {
+          setError(t('table.errors.loadFailed'))
+        }
+      } else {
+        setError(t('table.errors.loadFailed'))
+      }
+      setTableDetails(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [initData, tableId, t])
+
+  const fetchLiveState = useCallback(async () => {
+    if (!tableId) {
+      return
+    }
+    try {
+      const data = await apiFetch<LiveTableState>(`/tables/${tableId}/state`, {
+        method: 'GET',
+        initData: initData ?? undefined,
+      })
+      setLiveState(data)
+      setHandResult(data.hand_result ?? null)
+    } catch (err) {
+      console.warn('Unable to fetch live state', err)
+    }
+  }, [initData, tableId])
 
   useEffect(() => {
-    // Fetch table state
-    const fetchTable = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/tables/${tableId}`, {
-          headers: {
-            'X-Telegram-Init-Data': initData || '',
-          },
-        })
-        const data = await response.json()
-        setTableState(data)
-      } catch (error) {
-        console.error('Error fetching table:', error)
-      } finally {
-        setLoading(false)
-      }
+    if (!tableId) {
+      return
+    }
+    fetchTable()
+    fetchLiveState()
+  }, [fetchTable, fetchLiveState, tableId])
+
+  useEffect(() => {
+    if (!tableId) {
+      return
     }
 
-    if (tableId) {
-      fetchTable()
-    }
-  }, [tableId, initData])
-
-  const handleAction = async (actionType: string, amount?: number) => {
+    let socket: WebSocket | null = null
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/tables/${tableId}/actions`, {
+      const wsUrl = resolveWebSocketUrl(`/ws/${tableId}`)
+      socket = new WebSocket(wsUrl)
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data)
+          if (payload?.type === 'table_state') {
+            setLiveState(payload as LiveTableState)
+            setHandResult((payload as LiveTableState).hand_result ?? null)
+          }
+          if (
+            payload?.type === 'action' ||
+            payload?.type === 'table_started' ||
+            payload?.type === 'player_joined' ||
+            payload?.type === 'player_left'
+          ) {
+            fetchTable()
+            fetchLiveState()
+          }
+        } catch {
+          // Ignore malformed messages
+        }
+      }
+    } catch (wsError) {
+      console.warn('Unable to establish table WebSocket connection:', wsError)
+    }
+    return () => socket?.close()
+  }, [fetchLiveState, fetchTable, tableId])
+
+  const handleSeat = async () => {
+    if (!tableId) {
+      return
+    }
+    if (!initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      setIsSeating(true)
+      await apiFetch(`/tables/${tableId}/sit`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Telegram-Init-Data': initData || '',
-        },
-        body: JSON.stringify({
+        initData,
+      })
+      showToast(t('table.toast.seated'))
+      await fetchTable()
+    } catch (err) {
+      console.error('Error taking seat:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    } finally {
+      setIsSeating(false)
+    }
+  }
+
+  const handleLeave = async () => {
+    if (!tableId) {
+      return
+    }
+    if (!initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      setIsLeaving(true)
+      await apiFetch(`/tables/${tableId}/leave`, {
+        method: 'POST',
+        initData,
+      })
+      showToast(t('table.toast.left'))
+      await fetchTable()
+    } catch (err) {
+      console.error('Error leaving seat:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    } finally {
+      setIsLeaving(false)
+    }
+  }
+
+  const handleStart = async () => {
+    if (!tableId) {
+      return
+    }
+    if (!initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      setIsStarting(true)
+      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/start`, {
+        method: 'POST',
+        initData,
+      })
+      setLiveState(state)
+      setHandResult(state.hand_result ?? null)
+      await fetchTable()
+      showToast(t('table.toast.started'))
+    } catch (err) {
+      console.error('Error starting table:', err)
+      if (err instanceof ApiError) {
+        if (err.status === 403) {
+          showToast(t('table.errors.startNotAllowed'))
+        } else {
+          const message =
+            (typeof err.data === 'object' && err.data && 'detail' in err.data
+              ? String((err.data as { detail?: unknown }).detail)
+              : null) || t('table.errors.actionFailed')
+          showToast(message)
+        }
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    } finally {
+      setIsStarting(false)
+    }
+  }
+
+  const sendAction = async (actionType: 'fold' | 'check' | 'call' | 'bet' | 'raise', amount?: number) => {
+    if (!tableId || !initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      setActionPending(true)
+      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/actions`, {
+        method: 'POST',
+        initData,
+        body: {
           action_type: actionType,
           amount,
-        }),
+        },
       })
-      const data = await response.json()
-      if (data.success) {
-        // Refresh table state
-        // In real app, would use WebSocket for updates
+      setLiveState(state)
+      setHandResult(state.hand_result ?? null)
+    } catch (err) {
+      console.error('Error sending action', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.actionFailed'))
       }
-    } catch (error) {
-      console.error('Error submitting action:', error)
+    } finally {
+      setActionPending(false)
     }
+  }
+
+  const renderCard = useCallback((card: string, size: 'sm' | 'md' | 'lg' = 'sm') => {
+    const rank = card?.[0]
+    const suit = card?.[1]
+    const color = suit === 'h' || suit === 'd' ? 'text-rose-400' : 'text-sky-300'
+    const base =
+      size === 'lg'
+        ? 'w-12 h-16 text-lg'
+        : size === 'md'
+        ? 'w-9 h-12 text-sm'
+        : 'w-7 h-10 text-xs'
+
+    return (
+      <div
+        key={`${card}-${size}`}
+        className={`${base} rounded-lg bg-white/10 backdrop-blur-md border border-white/15 shadow-sm flex items-center justify-center font-bold tracking-tight ${color}`}
+      >
+        <span>{`${rank ?? '?'}`}{suit ?? ''}</span>
+      </div>
+    )
+  }, [])
+
+  const handleDeleteTable = async () => {
+    if (!tableId) {
+      return
+    }
+    if (!initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      setIsDeleting(true)
+      await apiFetch(`/tables/${tableId}`, {
+        method: 'DELETE',
+        initData,
+      })
+      showToast(t('table.toast.deleted'))
+      // Redirect to lobby after deletion
+      setTimeout(() => {
+        navigate('/lobby', { replace: true })
+      }, 1000)
+    } catch (err) {
+      console.error('Error deleting table:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.deleteFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.deleteFailed'))
+      }
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }
+
+  if (!tableId) {
+    return (
+      <Card className="flex min-h-[50vh] items-center justify-center text-sm text-[color:var(--text-muted)]">
+        {t('table.notFound')}
+      </Card>
+    )
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading table...</div>
+    return (
+      <Card className="flex min-h-[50vh] items-center justify-center text-sm text-[color:var(--text-muted)]">
+        {t('table.loading')}
+      </Card>
+    )
   }
 
-  if (!tableState) {
-    return <div className="flex items-center justify-center min-h-screen">Table not found</div>
+  if (error) {
+    return (
+      <Card className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center text-sm text-[color:var(--text-muted)]">
+        <p>{error}</p>
+        <Button variant="primary" onClick={fetchTable}>
+          {t('table.actions.retry')}
+        </Button>
+      </Card>
+    )
   }
+
+  if (!tableDetails) {
+    return (
+      <Card className="flex min-h-[50vh] items-center justify-center text-sm text-[color:var(--text-muted)]">
+        {t('table.notFound')}
+      </Card>
+    )
+  }
+
+  // Check if table is expired
+  if (tableDetails.is_expired || tableDetails.status?.toLowerCase() === 'expired') {
+    return (
+      <ExpiredTableView
+        tableName={tableDetails.table_name}
+        smallBlind={tableDetails.small_blind}
+        bigBlind={tableDetails.big_blind}
+        startingStack={tableDetails.starting_stack}
+        maxPlayers={tableDetails.max_players}
+        isPrivate={tableDetails.visibility === 'private' || tableDetails.is_private}
+      />
+    )
+  }
+
+  const createdAtText = tableDetails.created_at
+    ? dateFormatter.format(new Date(tableDetails.created_at))
+    : null
+  const viewerIsCreator = tableDetails.viewer?.is_creator ?? false
+  const viewerIsSeated = tableDetails.viewer?.is_seated ?? false
+  const canStart = tableDetails.permissions?.can_start ?? false
+  const canJoin = tableDetails.permissions?.can_join ?? false
+  const canLeave = tableDetails.permissions?.can_leave ?? false
+  const missingPlayers = Math.max(0, 2 - tableDetails.player_count)
+  const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
+  const tableName = tableDetails.table_name || `Table #${tableDetails.table_id}`
+  const hostName = tableDetails.host?.display_name || tableDetails.host?.username || null
+  const statusLabel = t(`table.status.${tableDetails.status.toLowerCase()}` as const, {
+    defaultValue: tableDetails.status,
+  })
+  const statusTone: TableStatusTone =
+    tableDetails.status.toLowerCase() === 'active'
+      ? 'running'
+      : tableDetails.status.toLowerCase() === 'ended'
+      ? 'finished'
+      : 'waiting'
+  const heroId = liveState?.hero?.user_id ?? null
+  const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
+  const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
+  const heroCards = liveState?.hero?.cards ?? []
 
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-xl font-bold mb-4">Table #{tableState.id}</h1>
+    <div className="space-y-4">
+      <Toast message={toast.message} visible={toast.visible} />
+      
+      <Modal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title={t('table.confirmDelete.message')}
+        description={t('table.confirmDelete.warning')}
+        confirmLabel={isDeleting ? t('common.loading') : t('table.confirmDelete.confirm')}
+        cancelLabel={t('table.confirmDelete.cancel')}
+        onConfirm={handleDeleteTable}
+        confirmVariant="danger"
+        confirmDisabled={isDeleting}
+      />
+      
+      <TableSummary
+        tableName={tableName}
+        chipLabel={`${tableDetails.small_blind}/${tableDetails.big_blind}`}
+        statusBadge={{ label: statusLabel, tone: statusTone }}
+        meta={[
+          {
+            icon: faUser,
+            label: t('table.meta.host'),
+            value: hostName || t('table.meta.unknown'),
+          },
+          {
+            icon: faCoins,
+            label: t('table.meta.stakes'),
+            value: `${tableDetails.small_blind}/${tableDetails.big_blind} • ${t('table.stacks', { amount: tableDetails.starting_stack })}`,
+          },
+          {
+            icon: faUserGroup,
+            label: t('table.meta.players'),
+            value: `${tableDetails.player_count} / ${tableDetails.max_players}`,
+          },
+          {
+            icon: faClock,
+            label: t('table.meta.created'),
+            value: createdAtText || '—',
+          },
+        ]}
+        badges={[
+          tableDetails.visibility
+            ? {
+                label: t(`table.visibility.${tableDetails.visibility}` as const, {
+                  defaultValue: tableDetails.visibility,
+                }),
+                tone: 'visibility',
+              }
+            : undefined,
+          viewerIsCreator
+            ? { label: t('table.labels.youHost'), tone: 'host' }
+            : viewerIsSeated
+            ? { label: t('table.labels.seated'), tone: 'seated' }
+            : undefined,
+        ].filter(Boolean) as { label: string; tone: 'visibility' | 'host' | 'seated' }[]}
+        subtext={tableDetails.group_title ? t('table.groupTag', { value: tableDetails.group_title }) : undefined}
+        expiresAt={tableDetails.expires_at ?? null}
+      />
 
-        {/* Board Cards */}
-        <div className="mb-6 p-4 bg-green-100 dark:bg-green-900 rounded-lg">
-          <h2 className="font-semibold mb-2">Board</h2>
-          <div className="flex gap-2">
-            {tableState.board.map((card, idx) => (
-              <div key={idx} className="w-12 h-16 bg-white dark:bg-gray-800 rounded border-2 border-gray-300 flex items-center justify-center text-lg font-bold">
-                {card}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Pots */}
-        <div className="mb-6">
-          <h2 className="font-semibold mb-2">Pots</h2>
-          {tableState.pots.map((pot) => (
-            <div key={pot.pot_index} className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded">
-              Pot {pot.pot_index === 0 ? 'Main' : `Side ${pot.pot_index}`}: {pot.amount} chips
+      {liveState && (
+        <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg">
+          {/* Game Status Header - Compact */}
+          <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <div className="flex-1">
+              <p className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)] mb-0.5">
+                {t('table.statusLabel')}
+              </p>
+              <p className="text-base font-semibold text-[color:var(--text-primary)]">
+                {liveState.street?.toUpperCase() || t('table.status.waiting')}
+              </p>
             </div>
-          ))}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700">
-          <div className="max-w-2xl mx-auto grid grid-cols-2 gap-2">
-            <button
-              onClick={() => handleAction('fold')}
-              className="p-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600"
-            >
-              Fold
-            </button>
-            <button
-              onClick={() => handleAction('check')}
-              className="p-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600"
-            >
-              Check
-            </button>
-            <button
-              onClick={() => handleAction('call')}
-              className="p-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600"
-            >
-              Call
-            </button>
-            <button
-              onClick={() => handleAction('bet', 100)}
-              className="p-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600"
-            >
-              Bet/Raise
-            </button>
+            <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.pot')}</p>
+              <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.blinds')}</p>
+              <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                {`${tableDetails.small_blind}/${tableDetails.big_blind}`}
+              </p>
+            </div>
           </div>
+
+          {/* Community Cards */}
+          <div className="py-3">
+            <div className="flex items-center justify-center gap-1.5">
+              {liveState.board && liveState.board.length > 0 ? (
+                liveState.board.map((card) => renderCard(card, 'md'))
+              ) : (
+                <div className="rounded-lg bg-black/20 px-3 py-2 text-xs text-[color:var(--text-muted)]">
+                  {t('table.waitingForBoard')}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Players Grid - More Compact */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 py-3 border-t border-white/10">
+            {liveState.players.map((player) => {
+              const isActor = player.user_id === liveState.current_actor
+              const isHero = player.user_id === heroId
+              return (
+                <div
+                  key={`${player.user_id}-${player.seat}`}
+                  className={`rounded-lg border px-2.5 py-2 backdrop-blur-sm transition-all ${
+                    isActor
+                      ? 'border-emerald-400/60 bg-emerald-500/5 shadow-md shadow-emerald-500/10'
+                      : isHero
+                      ? 'border-sky-400/40 bg-sky-500/5'
+                      : 'border-white/10 bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[color:var(--text-primary)] truncate">
+                      {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
+                    </span>
+                    <div className="flex gap-0.5 text-[9px] uppercase tracking-wide">
+                      {player.is_button && (
+                        <span className="rounded-full bg-amber-500/20 text-amber-300 px-1.5 py-0.5">D</span>
+                      )}
+                      {player.is_small_blind && (
+                        <span className="rounded-full bg-white/10 px-1.5 py-0.5">SB</span>
+                      )}
+                      {player.is_big_blind && (
+                        <span className="rounded-full bg-white/10 px-1.5 py-0.5">BB</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-[color:var(--text-muted)]">
+                      {t('table.chips', { amount: player.stack })}
+                    </span>
+                    {player.bet > 0 && (
+                      <span className="text-amber-400 font-semibold">
+                        {t('table.betAmount', { amount: player.bet })}
+                      </span>
+                    )}
+                  </div>
+                  {!player.in_hand && (
+                    <p className="mt-1 text-[10px] text-rose-400/80">{t('table.folded')}</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Hero Cards - Compact */}
+          <div className="pt-3 border-t border-white/10">
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-3 py-2.5 text-center">
+              <p className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)]">
+                {t('table.yourHand')}
+              </p>
+              <div className="flex gap-1.5">
+                {heroCards.length ? (
+                  heroCards.map((card) => renderCard(card, 'md'))
+                ) : (
+                  <span className="text-xs text-[color:var(--text-muted)]">
+                    {t('table.waitingForHand')}
+                  </span>
+                )}
+              </div>
+              {handResult && handResult.winners && handResult.winners.length > 0 && (
+                <div className="text-xs font-semibold">
+                  {handResult.winners.some((w) => w.user_id === heroId) ? (
+                    <span className="text-emerald-400">
+                      {t('table.result.won', {
+                        amount: handResult.winners.find((w) => w.user_id === heroId)?.amount,
+                      })}
+                    </span>
+                  ) : (
+                    <span className="text-rose-400">{t('table.result.lost')}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {liveState && viewerIsSeated && (
+        <Card className="glass-panel border border-white/10 bg-white/5">
+          <TableActionButtons
+            isPlayerTurn={liveState.current_actor === heroId}
+            amountToCall={amountToCall}
+            minRaise={liveState.min_raise}
+            playerStack={heroPlayer?.stack || 0}
+            playerBet={heroPlayer?.bet || 0}
+            actionPending={actionPending}
+            onFold={() => sendAction('fold')}
+            onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
+            onBet={() => sendAction('bet', liveState.min_raise || tableDetails.big_blind)}
+            onRaise={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
+            onAllIn={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
+          />
+        </Card>
+      )}
+
+      {/* Invite Code Section (for private tables) */}
+      {tableDetails.visibility === 'private' && tableDetails.invite_code && (viewerIsCreator || viewerIsSeated) && (
+        <InviteSection
+          inviteCode={tableDetails.invite_code}
+          expiresAt={tableDetails.expires_at}
+          onCopySuccess={() => showToast(t('table.invite.copied'))}
+          onCopyError={() => showToast(t('table.errors.actionFailed'))}
+        />
+      )}
+
+      {/* Countdown Timer (for all tables) */}
+      {tableDetails.expires_at && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h3 className="text-xs font-semibold text-[color:var(--text-primary)]">
+                {t('table.expiration.title', { defaultValue: 'Table Expires In' })}
+              </h3>
+              <p className="mt-0.5 text-[10px] text-[color:var(--text-muted)]">
+                {t('table.expiration.hint', { defaultValue: 'This table will automatically close when time runs out.' })}
+              </p>
+            </div>
+            <div className="text-right">
+              <Countdown 
+                expiresAt={tableDetails.expires_at} 
+                className="text-lg font-bold text-[color:var(--text-primary)]"
+                onExpire={() => {
+                  showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
+                  setTimeout(() => navigate('/lobby'), 2000)
+                }}
+              />
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">
+            {t('table.players.title')}
+          </h2>
+          <Button variant="ghost" size="sm" onClick={fetchTable}>
+            {t('table.actions.refresh')}
+          </Button>
         </div>
-      </div>
+        {players.length === 0 ? (
+          <p className="mt-2 rounded-lg border border-dashed border-[color:var(--surface-border)] px-3 py-3 text-xs text-[color:var(--text-muted)]">
+            {t('table.players.empty')}
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {players.map((player) => (
+              <li
+                key={`${player.user_id}-${player.position}`}
+                className="flex items-center justify-between rounded-lg border border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] px-3 py-2.5 text-xs"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[color:var(--text-primary)] truncate">
+                    {t('table.players.seat', { index: player.position + 1 })}
+                  </p>
+                  <p className="text-[10px] text-[color:var(--text-muted)] truncate">
+                    {player.display_name || player.username || t('table.meta.unknown')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-right ml-2">
+                  <div>
+                    <p className="font-semibold text-[color:var(--text-primary)] text-xs">
+                      {t('table.chips', { amount: player.chips })}
+                    </p>
+                    <div className="mt-0.5 flex gap-1 justify-end">
+                      {player.is_host && (
+                        <Badge variant="success" size="sm">
+                          {t('table.players.hostTag')}
+                        </Badge>
+                      )}
+                      {tableDetails.viewer?.user_id === player.user_id && (
+                        <Badge variant="info" size="sm">
+                          {t('table.players.youTag')}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-[color:var(--text-primary)] mb-3">
+          {viewerIsCreator ? t('table.actions.titleHost') : t('table.actions.titleGuest')}
+        </h2>
+        <div className="flex flex-col gap-3">
+          {/* Join/Leave seat actions */}
+          <div className="flex flex-col gap-1.5">
+            {viewerIsSeated ? (
+              <Button
+                variant="secondary"
+                size="md"
+                block
+                onClick={handleLeave}
+                disabled={!canLeave || isLeaving}
+              >
+                {isLeaving ? t('table.actions.leaving') : t('table.actions.leave')}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="md"
+                block
+                onClick={handleSeat}
+                disabled={!canJoin || isSeating}
+              >
+                {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat')}
+              </Button>
+            )}
+            <p className="text-[10px] text-[color:var(--text-muted)] px-1">
+              {viewerIsSeated
+                ? viewerIsCreator
+                  ? canStart
+                    ? t('table.messages.readyToStart')
+                    : t('table.messages.waitForPlayers', { count: missingPlayers })
+                  : t('table.messages.waitingForHost')
+                : canJoin
+                ? t('table.messages.joinPrompt')
+                : t('table.messages.tableFull')}
+            </p>
+          </div>
+
+          {/* Host-only actions */}
+          {viewerIsCreator && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Button
+                  variant="primary"
+                  size="md"
+                  block
+                  glow={canStart}
+                  onClick={handleStart}
+                  disabled={!canStart || isStarting}
+                >
+                  {isStarting ? t('table.actions.starting') : t('table.actions.start')}
+                </Button>
+                {!canStart && missingPlayers > 0 && (
+                  <p className="text-[10px] text-amber-400 px-1">
+                    ⚠️ {t('table.messages.waitForPlayers', { count: missingPlayers })}
+                  </p>
+                )}
+                {canStart && (
+                  <p className="text-[10px] text-emerald-400 px-1">
+                    ✓ {t('table.messages.readyToStart')}
+                  </p>
+                )}
+              </div>
+
+              {/* Delete table section */}
+              <Button
+                variant="danger"
+                size="sm"
+                block
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isDeleting}
+              >
+                {t('table.actions.delete')}
+              </Button>
+            </>
+          )}
+        </div>
+      </Card>
     </div>
   )
 }

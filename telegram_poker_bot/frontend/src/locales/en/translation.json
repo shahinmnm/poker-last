@@ -1,0 +1,668 @@
+{
+  "app": {
+    "title": "Poker Mini App",
+    "subtitle": "Play Texas Hold'em anywhere"
+  },
+  "languages": {
+    "en": "English",
+    "fa": "فارسی"
+  },
+  "common": {
+    "loading": "Loading...",
+    "comingSoon": "Coming soon",
+    "emptyState": "Nothing to show yet.",
+    "actions": {
+      "view": "View",
+      "open": "Open",
+      "start": "Start",
+      "saveChanges": "Save changes",
+      "join": "Join",
+      "create": "Create"
+    }
+  },
+  "menu": {
+    "home": {
+      "label": "Home",
+      "description": "Overview, quick actions, and announcements"
+    },
+    "lobby": {
+      "label": "Lobby",
+      "description": "Browse and join public tables",
+      "children": {
+        "activeTables": "Active tables",
+        "tournaments": "Upcoming tournaments",
+        "invitations": "Invitations"
+      }
+    },
+    "createGame": {
+      "label": "Create Game",
+      "description": "Host a private or public table",
+      "children": {
+        "privateTable": "Private table",
+        "publicListing": "Public listing",
+        "tournament": "Tournament"
+      }
+    },
+    "joinGame": {
+      "label": "Join Game",
+      "description": "Enter an invite code or scan a QR",
+      "children": {
+        "inviteCode": "Invite code",
+        "qrScan": "Scan QR"
+      }
+    },
+    "profile": {
+      "label": "Profile",
+      "description": "Player identity, stats, and achievements",
+      "children": {
+        "overview": "Overview",
+        "stats": "Performance stats",
+        "achievements": "Achievements"
+      }
+    },
+    "wallet": {
+      "label": "Wallet",
+      "description": "Chip balance and transactions",
+      "children": {
+        "balance": "Balance",
+        "history": "Transaction history",
+        "deposit": "Deposit",
+        "withdraw": "Withdraw"
+      }
+    },
+    "settings": {
+      "label": "Settings",
+      "description": "Preferences, notifications, and language",
+      "children": {
+        "preferences": "Preferences",
+        "notifications": "Notifications",
+        "language": "Language"
+      }
+    },
+    "help": {
+      "label": "Help",
+      "description": "How to play, FAQ, and support",
+      "children": {
+        "howToPlay": "How to play",
+        "faq": "FAQ",
+        "support": "Support"
+      }
+    }
+  },
+  "home": {
+    "welcome": "Welcome back",
+    "welcomeWithName": "Welcome back, {{name}}",
+    "tagline": "Set the stakes, choose your audience, and start playing.",
+    "hero": {
+      "badge": "Mini app dashboard",
+      "stats": [
+        {
+          "label": "Hands this week",
+          "value": "0"
+        },
+        {
+          "label": "Active tables",
+          "value": "0"
+        },
+        {
+          "label": "Invites sent",
+          "value": "0"
+        }
+      ]
+    },
+    "actions": {
+      "public": {
+        "label": "Host a public table",
+        "description": "Create a lobby-visible game and let anyone join."
+      },
+      "private": {
+        "label": "Play with friends",
+        "description": "Spin up an invite-only table for your crew."
+      },
+      "viewLobby": "View lobby",
+      "create": {
+        "label": "Create a table",
+        "description": "Set up a new game - public or private - and start playing."
+      },
+      "resume": "Resume",
+      "resumeGame": "Resume game"
+    },
+    "primaryMenuTitle": "Main menu",
+    "secondaryMenuTitle": "Explore more",
+    "lobbyCallout": "Browse tables, tournaments, or accept invitations in the Lobby.",
+    "howItWorks": {
+      "title": "How it works",
+      "steps": [
+        "Pick the table type that matches your vibe.",
+        "Share a link or join from the lobby in one tap.",
+        "Get real-time updates as the game progresses."
+      ]
+    },
+    "mosaic": {
+      "playPublic": {
+        "title": "Play Public Game",
+        "subtitle": "Browse and join lobby tables"
+      },
+      "createPrivate": {
+        "title": "Create Private Table",
+        "subtitle": "Invite friends to play"
+      },
+      "joinWithCode": {
+        "title": "Join with Code",
+        "subtitle": "Enter code or scan QR"
+      },
+      "myTables": {
+        "title": "My Tables & Stats",
+        "subtitle": "Active games and history"
+      },
+      "profile": {
+        "title": "Profile & Avatar",
+        "subtitle": "View your poker identity"
+      },
+      "settings": {
+        "title": "Settings",
+        "subtitle": "Preferences and language"
+      },
+      "hint": "Tap any tile to quickly access that feature. Your active tables will show badges.",
+      "activeTablesHint": "You have active games! Tap My Tables to continue playing or start a new one.",
+      "quickMatch": {
+        "label": "Cash Game",
+        "title": "Quick Match",
+        "subtitle": "Fast seat at best table"
+      },
+      "privateTable": {
+        "label": "Friends",
+        "title": "Private Table",
+        "subtitle": "Invite & play with friends"
+      },
+      "tournaments": {
+        "label": "Events",
+        "title": "Tournaments",
+        "subtitle": "Sit & Go · MTT"
+      },
+      "practiceMode": {
+        "label": "Training",
+        "title": "Practice Mode",
+        "subtitle": "Play with fake chips"
+      }
+    },
+    "filters": {
+      "all": "All",
+      "cash": "Cash",
+      "tournaments": "Tournaments",
+      "private": "Private"
+    },
+    "recommendation": {
+      "nextTitle": "Start your first game",
+      "nextSubtitle": "Join a public table or create your own",
+      "continueTitle": "Continue playing",
+      "continueSubtitle": "You have active tables waiting"
+    }
+  },
+  "lobby": {
+    "title": "Lobby",
+    "myTables": {
+      "title": "Your active tables",
+      "subtitle": "Tables where you already have a seat.",
+      "empty": "You’re not seated at any tables right now."
+    },
+    "availableTables": {
+      "title": "Public tables",
+      "subtitle": "Hosted by the community and visible to everyone.",
+      "empty": "No public tables are open right now."
+    },
+    "tournaments": {
+      "title": "Upcoming tournaments",
+      "cta": "View schedule",
+      "empty": "No tournaments scheduled."
+    },
+    "invitations": {
+      "title": "Invitations",
+      "empty": "No pending invitations.",
+      "private": "Private table"
+    },
+    "actions": {
+      "refresh": "Refresh list",
+      "join": "Open table",
+      "view": "View table",
+      "retry": "Try again"
+    },
+    "empty": {
+      "public": "No public tables available right now.",
+      "createPublic": "Create a public table"
+    },
+    "errors": {
+      "loadFailed": "We couldn't load the latest tables. Please try again."
+    },
+    "fields": {
+      "players": "Players",
+      "blinds": "Blinds",
+      "status": "Status",
+      "host": "Host",
+      "created": "Created",
+      "stack": "Stack",
+      "seat": "Seat",
+      "joined": "Joined"
+    },
+    "labels": {
+      "seating": "Seating",
+      "full": "Table full",
+      "open": "Seats open",
+      "seated": "You're seated",
+      "youHost": "You’re the host",
+      "youAreSeated": "You already have a seat",
+      "visibility": {
+        "public": "Public",
+        "private": "Private"
+      }
+    },
+    "status": {
+      "running": "Running",
+      "waiting": "Waiting",
+      "starting": "Starting soon",
+      "finished": "Finished"
+    }
+  },
+  "createGame": {
+    "title": "Create Game",
+    "description": "Configure blinds, stack, and visibility in a single flow.",
+    "tipsTitle": "Tips",
+    "form": {
+      "name": "Table name",
+      "namePlaceholder": "Friday Night Poker",
+      "visibility": "Visibility",
+      "visibilityOptions": {
+        "public": {
+          "label": "Public",
+          "description": "Show in the lobby so anyone can join."
+        },
+        "private": {
+          "label": "Private",
+          "description": "Only players with the invite code can join."
+        }
+      },
+      "smallBlind": "Small blind",
+      "bigBlind": "Big blind",
+      "startingStack": "Starting stack",
+      "maxPlayers": "Maximum players",
+      "autoSeatHost": "Seat me automatically",
+      "button": "Create table"
+    },
+    "tips": [
+      "You can share the invite code directly from the confirmation screen.",
+      "Public tables instantly appear in the lobby when they're created."
+    ],
+    "errors": {
+      "missingAuth": "We couldn't verify your Telegram session. Try re-opening the mini app.",
+      "requestFailed": "We couldn't create the table. Please try again in a moment."
+    },
+    "successTitle": "Your table is live",
+    "summary": {
+      "public": "Your table is now visible in the public lobby.",
+      "private": "Share the code below with friends to invite them.",
+      "tableId": "Table ID",
+      "tableName": "Display name",
+      "defaultTableName": "Untitled table",
+      "inviteHint": "Share this table ID: {{code}}",
+      "publicHint": "Players can now find this table in the public lobby.",
+      "openTable": "Open table",
+      "backToLobby": "Back to lobby"
+    }
+  },
+  "joinGame": {
+    "title": "Join Game",
+    "description": "Enter an invite code or scan a QR shared by the host.",
+    "success": "Invite accepted. We’ll seat you as soon as the host starts the game.",
+    "form": {
+      "codeLabel": "Invite code",
+      "codePlaceholder": "Enter invite code",
+      "joinButton": "Join table",
+      "scanButton": "Scan QR",
+      "invalidCode": "Enter a valid invite code (at least {{min}} characters).",
+      "authRequired": "Sign in with Telegram to join a private table.",
+      "joinFailed": "Unable to join this table right now."
+    },
+    "qr": {
+      "title": "Scan QR Code",
+      "description": "Point your camera at the QR code shared by the host",
+      "openScanner": "Open QR Scanner",
+      "manualEntry": "Enter code manually",
+      "invalid": "This QR doesn’t include a valid invite code.",
+      "scanned": "Code captured from QR. Joining now..."
+    },
+    "preview": {
+      "title": "Table found"
+    },
+    "recent": {
+      "title": "Recent invites",
+      "empty": "No recent invites.",
+      "clear": "Clear history",
+      "unknownGroup": "Unknown group",
+      "updated": "Updated {{value}}",
+      "status": {
+        "pending": "Pending",
+        "ready": "Ready",
+        "consumed": "Completed",
+        "expired": "Expired"
+      }
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Your poker identity across modes",
+    "balance": "Balance",
+    "chips": "chips",
+    "noGamesYet": "Play some games to see your stats!",
+    "playerSince": "Player since {{date}}",
+    "highlights": {
+      "title": "Highlights",
+      "handsPlayed": "Hands played",
+      "winRate": "Win rate",
+      "totalProfit": "Total profit",
+      "bestFinish": "Best tournament finish",
+      "trends": {
+        "handsPlayed": "+12 this week",
+        "winRate": "+3% vs last week",
+        "bestFinish": "Last: Sunday Showdown"
+      }
+    },
+    "actions": {
+      "viewStats": "View full stats",
+      "manageAccount": "Manage account"
+    },
+    "achievements": {
+      "title": "Achievements",
+      "empty": "Achievements unlock as you play more games.",
+      "unlocked": "Unlocked",
+      "locked": "Locked",
+      "items": {
+        "firstWin": "First win",
+        "fiveInRow": "5-hand streak",
+        "collector": "Collector"
+      }
+    }
+  },
+  "stats": {
+    "title": "Performance Stats",
+    "comingSoon": "Detailed performance analytics are coming soon.",
+    "samples": {
+      "period": "Last 30 days",
+      "mode": "Cash games",
+      "overall": "All tables",
+      "ev": "EV / 100"
+    }
+  },
+  "wallet": {
+    "title": "Wallet",
+    "balance": "Chip balance",
+    "chips": "{{amount}} chips",
+    "actions": {
+      "deposit": "Add chips",
+      "withdraw": "Withdraw",
+      "transfer": "Transfer"
+    },
+    "history": {
+      "title": "Recent transactions",
+      "empty": "No wallet activity yet."
+    },
+    "transactions": {
+      "deposit": "Deposit",
+      "buyIn": "Buy-in",
+      "payout": "Payout"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "sections": {
+      "language": {
+        "title": "Language",
+        "description": "Choose your preferred language for menus and notifications."
+      },
+      "appearance": {
+        "title": "Appearance",
+        "description": "Switch between light and dark themes."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Control Telegram messages and in-app alerts."
+      }
+    },
+    "toggles": {
+      "darkMode": "Enable dark mode",
+      "notifications": "Enable notifications"
+    },
+    "actions": {
+      "save": "Save preferences"
+    }
+  },
+  "help": {
+    "title": "Help & Support",
+    "howToPlay": {
+      "title": "How to play",
+      "steps": [
+        "Pick a game mode and join a table.",
+        "Follow the dealer actions shown in the table view.",
+        "Make your move using the action buttons."
+      ]
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "question": "How do I invite friends?",
+          "answer": "Create a table and share the invite code or link."
+        },
+        {
+          "question": "Can I play on desktop?",
+          "answer": "Yes, open the mini app in Telegram Desktop or Web."
+        }
+      ]
+    },
+    "support": {
+      "title": "Need more help?",
+      "description": "Contact support via the bot or email support@poker.shahin8n.sbs."
+    }
+  },
+  "groupInvite": {
+    "title": "Invite your group",
+    "subtitle": "Share the link below so everyone can add the bot to your group, {{name, defaultValue=player}}.",
+    "status": {
+      "generating": "Creating your group link..."
+    },
+    "fields": {
+      "linkLabel": "Group invite link",
+      "miniAppLinkLabel": "Mini app link"
+    },
+    "meta": {
+      "expires": "Expires on {{value}}"
+    },
+    "instructions": {
+      "title": "How to start the group game",
+      "forward": "Forward the link to your Telegram group and add the bot.",
+      "telegramMessage": "We also sent you a Telegram message with a share button.",
+      "addBot": "After the bot joins, open the mini app to launch the table."
+    },
+    "actions": {
+      "copy": "Copy link",
+      "share": "Share link",
+      "regenerate": "Generate new link",
+      "openMiniApp": "Open mini app",
+      "retry": "Try again"
+    },
+    "toast": {
+      "copied": "Link copied!",
+      "copiedGroupLink": "Group link copied!",
+      "copiedMiniAppLink": "Mini app link copied!"
+    },
+    "errors": {
+      "missingInit": "We could not verify your Telegram session. Open the mini app from the bot to try again.",
+      "unauthorized": "We were unable to authenticate you. Please reopen the mini app from Telegram.",
+      "requestFailed": "We couldn't generate the link. Please try again in a moment.",
+      "copyFailed": "Copy failed. Please copy the link manually.",
+      "shareFailed": "We couldn't open the share sheet. Copy the link instead."
+    },
+    "share": {
+      "title": "Join my poker game",
+      "text": "Add the bot to our group and open the table: {{link}}"
+    }
+  },
+  "groupJoin": {
+    "title": "Joining your group game",
+    "subtitle": "We’re validating the invitation and getting your seat ready.",
+    "status": {
+      "loading": "Checking the group invite...",
+      "joining": "Linking you to the group table..."
+    },
+    "register": {
+      "message": "You need to register with the bot before joining the group game.",
+      "action": "Register now"
+    },
+    "meta": {
+      "groupLabel": "Group: {{title}}"
+    },
+    "actions": {
+      "openTable": "Open group table",
+      "backHome": "Return home",
+      "retry": "Retry"
+    },
+    "errors": {
+      "missingInit": "We couldn't authenticate your session. Please reopen the mini app from Telegram.",
+      "notFound": "This group invite was not found. Ask the host for a new link.",
+      "expired": "This group invite has expired. Request a fresh link from the host.",
+      "requestFailed": "We couldn't join the group right now. Please try again."
+    },
+    "missingParam": "We couldn't determine which group invite to open. Follow the link shared in Telegram again."
+  },
+  "table": {
+    "loading": "Loading table...",
+    "notFound": "Table not found",
+    "headerLabel": "Table details",
+    "groupTag": "Group: {{value}}",
+    "meta": {
+      "host": "Host",
+      "created": "Created",
+      "expires": "Expires",
+      "stakes": "Stakes",
+      "players": "Players",
+      "unknown": "Unknown player"
+    },
+    "stacks": "{{amount}} chips starting",
+    "chips": "{{amount}} chips",
+    "statusLabel": "Game Status",
+    "pot": "Pot: {{amount}}",
+    "blinds": "Blinds",
+    "turnCountdown": "Action timer",
+    "waitingForBoard": "Waiting for board...",
+    "betAmount": "Bet: {{amount}}",
+    "folded": "Folded",
+    "yourHand": "Your Hand",
+    "waitingForHand": "Waiting for cards...",
+    "result": {
+      "won": "You won {{amount}}!",
+      "lost": "You lost this hand"
+    },
+    "status": {
+      "waiting": "Waiting",
+      "active": "Running",
+      "paused": "Paused",
+      "ended": "Ended"
+    },
+    "visibility": {
+      "public": "Public table",
+      "private": "Private table"
+    },
+    "modes": {
+      "holdem": "Hold’em",
+      "shortdeck": "Short Deck",
+      "plo": "Pot Limit Omaha"
+    },
+    "players": {
+      "title": "Players seated",
+      "empty": "No one is seated yet.",
+      "seat": "Seat {{index}}",
+      "hostTag": "Host",
+      "youTag": "You"
+    },
+    "actions": {
+      "titleHost": "Host controls",
+      "titleGuest": "Table actions",
+      "back": "Back to lobby",
+      "start": "Start game",
+      "takeSeat": "Take a seat",
+      "seated": "Already seated",
+      "joining": "Joining...",
+      "leave": "Leave table",
+      "leaving": "Leaving...",
+      "starting": "Starting...",
+      "refresh": "Refresh",
+      "retry": "Try again",
+      "delete": "Delete table",
+      "play": "Play",
+      "yourTurn": "Your turn",
+      "wait": "Wait for your turn",
+      "fold": "Fold",
+      "check": "Check",
+      "call": "Call {{amount}}",
+      "bet": "Bet",
+      "raise": "Raise",
+      "allIn": "All-In"
+    },
+    "messages": {
+      "readyToStart": "Ready to shuffle up.",
+      "waitForPlayers": "Need {{count}} more player(s) to start.",
+      "waitingForHost": "Waiting for the host to start the game.",
+      "joinPrompt": "Grab a seat before the action begins.",
+      "tableFull": "Table is full at the moment."
+    },
+    "invite": {
+      "title": "Invite Friends",
+      "codeLabel": "Invite Code",
+      "copy": "Copy",
+      "copied": "Invite code copied!",
+      "share": "Share",
+      "shareText": "Join my private table with code",
+      "qrLabel": "QR invite",
+      "qrHint": "Friends can scan this or open the link to join faster.",
+      "hint": "Share this code with friends to invite them to this private table.",
+      "expires": "Invite expires {{value}}",
+      "status": {
+        "pending": "Pending",
+        "ready": "Ready",
+        "consumed": "Used",
+        "expired": "Expired"
+      }
+    },
+    "expiration": {
+      "title": "Table Expires In",
+      "hint": "This table will automatically close when time runs out.",
+      "expired": "Table has expired",
+      "expiredMessage": "This table has expired and is no longer available.",
+      "expiredBackToLobby": "Back to lobby",
+      "expiredCreateNew": "Create similar table"
+    },
+    "toast": {
+      "seated": "Seat reserved.",
+      "started": "Game starting now!",
+      "left": "You left the table.",
+      "deleted": "Table deleted successfully."
+    },
+    "errors": {
+      "loadFailed": "We couldn’t load the table. Please try again.",
+      "actionFailed": "We couldn’t complete that action. Please try again.",
+      "unauthorized": "We couldn’t verify your session. Reopen the mini app from Telegram.",
+      "notFound": "We couldn’t find this table. Ask the host for a fresh link.",
+      "startNotAllowed": "Only the table host can start the game.",
+      "deleteFailed": "Failed to delete table. Please try again."
+    },
+    "labels": {
+      "youHost": "You're the host",
+      "seated": "Seated"
+    },
+    "confirmDelete": {
+      "message": "Are you sure you want to delete this table?",
+      "warning": "This action cannot be undone. All players will be removed.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    }
+  }
+}

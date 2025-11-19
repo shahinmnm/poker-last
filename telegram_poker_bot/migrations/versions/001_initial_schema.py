@@ -20,7 +20,7 @@ def upgrade():
         sa.Column('username', sa.String(length=255), nullable=True),
         sa.Column('first_seen_at', sa.DateTime(timezone=True), server_default=sa.text('now()')),
         sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('stats_blob', sa.JSON(), nullable=True, server_default='{}'),
+        sa.Column('stats_blob', postgresql.JSONB(), nullable=True, server_default='{}'),
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index('idx_users_tg_user_id', 'users', ['tg_user_id'], unique=True)
@@ -33,7 +33,7 @@ def upgrade():
         sa.Column('tg_chat_id', sa.BigInteger(), nullable=False),
         sa.Column('title', sa.String(length=255), nullable=True),
         sa.Column('type', sa.String(length=50), nullable=False),
-        sa.Column('settings_json', sa.JSON(), nullable=True, server_default='{}'),
+        sa.Column('settings_json', postgresql.JSONB(), nullable=True, server_default='{}'),
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index('idx_groups_tg_chat_id', 'groups', ['tg_chat_id'], unique=True)
@@ -48,7 +48,7 @@ def upgrade():
         sa.Column('status', sa.Enum('WAITING', 'ACTIVE', 'PAUSED', 'ENDED', name='tablestatus'), nullable=False, server_default='WAITING'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('config_json', sa.JSON(), nullable=True, server_default='{}'),
+        sa.Column('config_json', postgresql.JSONB(), nullable=True, server_default='{}'),
         sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
     )
@@ -80,7 +80,7 @@ def upgrade():
         sa.Column('table_id', sa.Integer(), nullable=False),
         sa.Column('hand_no', sa.Integer(), nullable=False),
         sa.Column('status', sa.Enum('PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN', 'ENDED', name='handstatus'), nullable=False, server_default='PREFLOP'),
-        sa.Column('engine_state_json', sa.JSON(), nullable=False),
+        sa.Column('engine_state_json', postgresql.JSONB(), nullable=False),
         sa.Column('started_at', sa.DateTime(timezone=True), server_default=sa.text('now()')),
         sa.Column('ended_at', sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(['table_id'], ['tables.id'], ondelete='CASCADE'),
@@ -157,7 +157,7 @@ def upgrade():
         sa.Column('type', sa.String(length=50), nullable=False),
         sa.Column('amount', sa.Integer(), nullable=False),
         sa.Column('status', sa.String(length=50), nullable=False, server_default='pending'),
-        sa.Column('metadata_json', sa.JSON(), nullable=True, server_default='{}'),
+        sa.Column('metadata_json', postgresql.JSONB(), nullable=True, server_default='{}'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()')),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),

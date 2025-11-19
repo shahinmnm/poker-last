@@ -1,0 +1,337 @@
+/**
+ * AppBackground Styles
+ * 
+ * Multi-layered glassmorphism-friendly background
+ * Inspired by Apple iOS blur environments, Flutter glass_kit, and modern neo-brutalist gradients
+ */
+
+/* ==================== BASE CONTAINER ==================== */
+.app-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ==================== LAYER 1: BASE GRADIENT ==================== */
+.app-background__base {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark mode base gradient - deep navy → midnight purple → muted teal */
+.app-background[data-theme='dark'] .app-background__base {
+  background: linear-gradient(
+    135deg,
+    #030B1F 0%,
+    #0D1435 40%,
+    #0A1D2E 100%
+  );
+}
+
+/* Light mode base gradient - soft lavender → off-white → pastel pink */
+.app-background[data-theme='light'] .app-background__base {
+  background: linear-gradient(
+    135deg,
+    #F0EDFF 0%,
+    #FFF4F8 40%,
+    #F6F9FF 100%
+  );
+}
+
+/* ==================== LAYER 2: LARGE BLURRED COLOR BLOBS ==================== */
+.app-background__blobs {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.app-background__blob {
+  position: absolute;
+  border-radius: 50%;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity;
+}
+
+/* Dark mode blobs - neon purple, cyan, gold, deep blue */
+.app-background[data-theme='dark'] .app-background__blob--1 {
+  top: -15%;
+  left: -10%;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, #7C3AED 0%, transparent 65%);
+  opacity: 0.50;
+  filter: blur(60px);
+}
+
+.app-background[data-theme='dark'] .app-background__blob--2 {
+  top: 15%;
+  right: -12%;
+  width: 900px;
+  height: 900px;
+  background: radial-gradient(circle, #22D3EE 0%, transparent 65%);
+  opacity: 0.45;
+  filter: blur(70px);
+}
+
+.app-background[data-theme='dark'] .app-background__blob--3 {
+  bottom: -20%;
+  left: 10%;
+  width: 850px;
+  height: 850px;
+  background: radial-gradient(circle, #FBBF24 0%, transparent 65%);
+  opacity: 0.42;
+  filter: blur(55px);
+}
+
+.app-background[data-theme='dark'] .app-background__blob--4 {
+  bottom: 5%;
+  right: 5%;
+  width: 750px;
+  height: 750px;
+  background: radial-gradient(circle, #0EA5E9 0%, transparent 65%);
+  opacity: 0.48;
+  filter: blur(65px);
+}
+
+/* Light mode blobs - lavender, baby blue, peach */
+.app-background[data-theme='light'] .app-background__blob--1 {
+  top: -10%;
+  left: -8%;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, #C4B5FD 0%, transparent 65%);
+  opacity: 0.40;
+  filter: blur(55px);
+}
+
+.app-background[data-theme='light'] .app-background__blob--2 {
+  top: 20%;
+  right: -10%;
+  width: 750px;
+  height: 750px;
+  background: radial-gradient(circle, #93C5FD 0%, transparent 65%);
+  opacity: 0.38;
+  filter: blur(60px);
+}
+
+.app-background[data-theme='light'] .app-background__blob--3 {
+  bottom: -15%;
+  left: 15%;
+  width: 680px;
+  height: 680px;
+  background: radial-gradient(circle, #FECACA 0%, transparent 65%);
+  opacity: 0.35;
+  filter: blur(50px);
+}
+
+.app-background[data-theme='light'] .app-background__blob--4 {
+  bottom: 10%;
+  right: 10%;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, #BAE6FD 0%, transparent 65%);
+  opacity: 0.36;
+  filter: blur(53px);
+}
+
+/* ==================== LAYER 3: SOFT SHAPE ACCENTS ==================== */
+.app-background__shapes {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+
+.app-background__shape {
+  position: absolute;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity;
+}
+
+/* Dark mode shapes - subtle neon accents */
+.app-background[data-theme='dark'] .app-background__shape--1 {
+  top: 5%;
+  left: 5%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(
+    ellipse 80% 70% at 30% 30%,
+    rgba(124, 58, 237, 0.12) 0%,
+    transparent 60%
+  );
+  border-radius: 60% 40% 50% 50%;
+  filter: blur(25px);
+  opacity: 0.7;
+}
+
+.app-background[data-theme='dark'] .app-background__shape--2 {
+  bottom: 8%;
+  right: 8%;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(
+    ellipse 70% 80% at 60% 60%,
+    rgba(34, 211, 238, 0.15) 0%,
+    transparent 65%
+  );
+  border-radius: 50% 60% 40% 50%;
+  filter: blur(30px);
+  opacity: 0.8;
+}
+
+.app-background[data-theme='dark'] .app-background__shape--3 {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(
+    circle,
+    rgba(251, 191, 36, 0.10) 0%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  filter: blur(50px);
+  opacity: 0.6;
+}
+
+/* Light mode shapes - soft pastel accents */
+.app-background[data-theme='light'] .app-background__shape--1 {
+  top: 8%;
+  left: 8%;
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(
+    ellipse 80% 70% at 30% 30%,
+    rgba(196, 181, 253, 0.15) 0%,
+    transparent 60%
+  );
+  border-radius: 60% 40% 50% 50%;
+  filter: blur(20px);
+  opacity: 0.6;
+}
+
+.app-background[data-theme='light'] .app-background__shape--2 {
+  bottom: 10%;
+  right: 10%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(
+    ellipse 70% 80% at 60% 60%,
+    rgba(147, 197, 253, 0.18) 0%,
+    transparent 65%
+  );
+  border-radius: 50% 60% 40% 50%;
+  filter: blur(25px);
+  opacity: 0.7;
+}
+
+.app-background[data-theme='light'] .app-background__shape--3 {
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(
+    circle,
+    rgba(254, 202, 202, 0.12) 0%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  filter: blur(35px);
+  opacity: 0.5;
+}
+
+/* ==================== LAYER 4: SUBTLE NOISE TEXTURE ==================== */
+.app-background__noise {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark mode noise */
+.app-background[data-theme='dark'] .app-background__noise {
+  background-image: 
+    repeating-radial-gradient(
+      circle at 20% 30%,
+      transparent 0,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 2px
+    ),
+    repeating-radial-gradient(
+      circle at 80% 70%,
+      transparent 0,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 2px
+    );
+  background-size: 3px 3px, 4px 4px;
+  opacity: 0.04;
+}
+
+/* Light mode noise */
+.app-background[data-theme='light'] .app-background__noise {
+  background-image: 
+    repeating-radial-gradient(
+      circle at 20% 30%,
+      transparent 0,
+      rgba(0, 0, 0, 0.02) 1px,
+      transparent 2px
+    ),
+    repeating-radial-gradient(
+      circle at 80% 70%,
+      transparent 0,
+      rgba(0, 0, 0, 0.015) 1px,
+      transparent 2px
+    );
+  background-size: 3px 3px, 4px 4px;
+  opacity: 0.025;
+}
+
+/* ==================== RESPONSIVE ADJUSTMENTS ==================== */
+@media (max-width: 640px) {
+  /* Scale down blobs for mobile */
+  .app-background__blob--1,
+  .app-background__blob--2,
+  .app-background__blob--3,
+  .app-background__blob--4 {
+    width: 70%;
+    height: 70%;
+  }
+  
+  .app-background__shape--1,
+  .app-background__shape--2,
+  .app-background__shape--3 {
+    width: 70%;
+    height: 70%;
+  }
+}
+
+/* ==================== PERFORMANCE OPTIMIZATIONS ==================== */
+@media (prefers-reduced-motion: reduce) {
+  .app-background__base,
+  .app-background__blob,
+  .app-background__shape,
+  .app-background__noise {
+    transition: none;
+  }
+}
+
+/* Force GPU acceleration for smooth rendering */
+.app-background__base,
+.app-background__blobs,
+.app-background__shapes,
+.app-background__noise {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+}

@@ -111,14 +111,20 @@ class TableManager:
         - Stores table state in memory for fast access
         """
         # Create table record
+        creator_user_id = user_ids[0] if user_ids else None
         table = Table(
             mode=mode,
             group_id=group_id,
             status=TableStatus.WAITING,
+            creator_user_id=creator_user_id,
+            is_public=False,
             config_json={
                 "starting_stack": settings.default_starting_stack,
                 "small_blind": settings.small_blind,
                 "big_blind": settings.big_blind,
+                "creator_user_id": creator_user_id,
+                "is_private": True,
+                "visibility": "private",
             },
         )
         self.db.add(table)

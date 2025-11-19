@@ -14,8 +14,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-pokerbot}
       POSTGRES_USER: ${POSTGRES_USER:-pokerbot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # Port mapping removed to prevent external access and scanner traffic.
+    # Postgres is only accessible via the internal Docker network.
+    # To access from host for debugging, uncomment the line below:
+    # ports:
+    #   - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -30,8 +33,11 @@ services:
     container_name: pokerbot_redis
     env_file: *backend-env-file
     command: redis-server --appendonly yes
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    # Port mapping removed to prevent external access.
+    # Redis is only accessible via the internal Docker network.
+    # To access from host for debugging, uncomment the line below:
+    # ports:
+    #   - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -44,6 +50,7 @@ services:
   migrations:
     build: *backend-build
     image: pokerbot/backend:latest
+    pull_policy: never
     container_name: pokerbot_migrations
     command:
       [
@@ -64,6 +71,7 @@ services:
   bot:
     build: *backend-build
     image: pokerbot/backend:latest
+    pull_policy: never
     container_name: pokerbot_bot
     command: ["python", "-m", "telegram_poker_bot.bot.main"]
     env_file: *backend-env-file
@@ -73,10 +81,13 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    ports:
+      - "8443:8443"
 
   api:
     build: *backend-build
     image: pokerbot/backend:latest
+    pull_policy: never
     container_name: pokerbot_api
     command:
       [
@@ -93,9 +104,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "${API_PORT:-8000}:8000"
     restart: unless-stopped
+    ports:
+      - "8000:8000"
 
   frontend:
     build:
@@ -106,9 +117,9 @@ services:
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
       - VITE_BOT_USERNAME=${VITE_BOT_USERNAME:-@pokerbot}
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
     restart: unless-stopped
+    ports:
+      - "3000:3000"
 
   nginx:
     image: nginx:alpine
