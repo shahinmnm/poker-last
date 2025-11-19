@@ -41,19 +41,23 @@ export default function TableActionButtons({
   const isDisabled = !isPlayerTurn || actionPending
 
   return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+    <div className="space-y-2.5">
+      {/* Header - Compact */}
+      <div className="flex items-center justify-between px-0.5">
+        <p className="text-xs font-semibold text-[color:var(--text-primary)]">
           {t('table.actions.play')}
         </p>
-        <p className="text-xs text-[color:var(--text-muted)]">
-          {isPlayerTurn ? t('table.actions.yourTurn') : t('table.actions.wait')}
+        <p className="text-[10px] text-[color:var(--text-muted)]">
+          {isPlayerTurn ? (
+            <span className="text-emerald-400">● {t('table.actions.yourTurn')}</span>
+          ) : (
+            t('table.actions.wait')
+          )}
         </p>
       </div>
 
-      {/* Button Grid */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Button Grid - More Compact */}
+      <div className="grid grid-cols-2 gap-1.5">
         {/* Fold */}
         <GlassButton
           variant="fold"
