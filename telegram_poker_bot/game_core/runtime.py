@@ -1,4 +1,11 @@
-"""Lightweight runtime manager for table play loops."""
+"""Lightweight runtime manager for table play loops.
+
+DEPRECATED: This module contains custom poker logic and is being replaced by
+pokerkit_runtime.py which uses PokerKit as the authoritative game engine.
+
+This module is kept for backward compatibility with existing tests only.
+New code should use telegram_poker_bot.game_core.pokerkit_runtime instead.
+"""
 
 from __future__ import annotations
 

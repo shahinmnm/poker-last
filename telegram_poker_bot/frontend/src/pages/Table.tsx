@@ -8,6 +8,7 @@ import { apiFetch, ApiError, resolveWebSocketUrl } from '../utils/apiClient'
 import Toast from '../components/Toast'
 import Countdown from '../components/Countdown'
 import Card from '../components/ui/Card'
+import PlayingCard from '../components/ui/PlayingCard'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
@@ -376,27 +377,6 @@ export default function TablePage() {
     }
   }
 
-  const renderCard = useCallback((card: string, size: 'sm' | 'md' | 'lg' = 'sm') => {
-    const rank = card?.[0]
-    const suit = card?.[1]
-    const color = suit === 'h' || suit === 'd' ? 'text-rose-400' : 'text-sky-300'
-    const base =
-      size === 'lg'
-        ? 'w-12 h-16 text-lg'
-        : size === 'md'
-        ? 'w-9 h-12 text-sm'
-        : 'w-7 h-10 text-xs'
-
-    return (
-      <div
-        key={`${card}-${size}`}
-        className={`${base} rounded-lg bg-white/10 backdrop-blur-md border border-white/15 shadow-sm flex items-center justify-center font-bold tracking-tight ${color}`}
-      >
-        <span>{`${rank ?? '?'}`}{suit ?? ''}</span>
-      </div>
-    )
-  }, [])
-
   const handleDeleteTable = async () => {
     if (!tableId) {
       return
@@ -597,7 +577,7 @@ export default function TablePage() {
           <div className="py-3">
             <div className="flex items-center justify-center gap-1.5">
               {liveState.board && liveState.board.length > 0 ? (
-                liveState.board.map((card) => renderCard(card, 'md'))
+                liveState.board.map((card, idx) => <PlayingCard key={`board-${idx}`} card={card} size="md" />)
               ) : (
                 <div className="rounded-lg bg-black/20 px-3 py-2 text-xs text-[color:var(--text-muted)]">
                   {t('table.waitingForBoard')}
@@ -664,7 +644,7 @@ export default function TablePage() {
               </p>
               <div className="flex gap-1.5">
                 {heroCards.length ? (
-                  heroCards.map((card) => renderCard(card, 'md'))
+                  heroCards.map((card, idx) => <PlayingCard key={`hero-${idx}`} card={card} size="md" />)
                 ) : (
                   <span className="text-xs text-[color:var(--text-muted)]">
                     {t('table.waitingForHand')}
