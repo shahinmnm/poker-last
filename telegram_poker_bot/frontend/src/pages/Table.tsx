@@ -350,7 +350,7 @@ export default function TablePage() {
     }
     try {
       setActionPending(true)
-      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/action`, {
+      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/actions`, {
         method: 'POST',
         initData,
         body: {
@@ -376,19 +376,21 @@ export default function TablePage() {
     }
   }
 
-  const renderCard = useCallback((card: string, size: 'sm' | 'lg' = 'sm') => {
+  const renderCard = useCallback((card: string, size: 'sm' | 'md' | 'lg' = 'sm') => {
     const rank = card?.[0]
     const suit = card?.[1]
-    const color = suit === 'h' || suit === 'd' ? 'text-rose-300' : 'text-sky-200'
+    const color = suit === 'h' || suit === 'd' ? 'text-rose-400' : 'text-sky-300'
     const base =
       size === 'lg'
-        ? 'w-14 h-20 text-xl'
-        : 'w-10 h-14 text-base'
+        ? 'w-12 h-16 text-lg'
+        : size === 'md'
+        ? 'w-9 h-12 text-sm'
+        : 'w-7 h-10 text-xs'
 
     return (
       <div
         key={`${card}-${size}`}
-        className={`${base} rounded-xl bg-white/10 backdrop-blur-md border border-white/15 shadow-glow flex items-center justify-center font-black tracking-tight ${color}`}
+        className={`${base} rounded-lg bg-white/10 backdrop-blur-md border border-white/15 shadow-sm flex items-center justify-center font-bold tracking-tight ${color}`}
       >
         <span>{`${rank ?? '?'}`}{suit ?? ''}</span>
       </div>
@@ -507,7 +509,7 @@ export default function TablePage() {
   const heroCards = liveState?.hero?.cards ?? []
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Toast message={toast.message} visible={toast.visible} />
       
       <Modal
@@ -568,73 +570,118 @@ export default function TablePage() {
       />
 
       {liveState && (
-        <Card className="glass-panel border border-white/10 bg-white/5 shadow-xl">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]">{t('table.statusLabel')}</p>
-              <p className="text-xl font-semibold text-[color:var(--text-primary)]">{liveState.street?.toUpperCase() || t('table.status.waiting')}</p>
-              <p className="text-sm text-[color:var(--text-muted)]">{t('table.pot', { amount: liveState.pot })}</p>
+        <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg">
+          {/* Game Status Header - Compact */}
+          <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <div className="flex-1">
+              <p className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)] mb-0.5">
+                {t('table.statusLabel')}
+              </p>
+              <p className="text-base font-semibold text-[color:var(--text-primary)]">
+                {liveState.street?.toUpperCase() || t('table.status.waiting')}
+              </p>
+            </div>
+            <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.pot')}</p>
+              <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-[color:var(--text-muted)]">{t('table.blinds')}</p>
-              <p className="text-lg font-semibold text-[color:var(--text-primary)]">{`${tableDetails.small_blind}/${tableDetails.big_blind}`}</p>
-              {liveState.action_deadline && (
-                <p className="text-xs text-emerald-300">{t('table.turnCountdown')}</p>
-              )}
+              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.blinds')}</p>
+              <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                {`${tableDetails.small_blind}/${tableDetails.big_blind}`}
+              </p>
             </div>
           </div>
 
-          <div className="mt-4 space-y-4">
-            <div className="flex items-center justify-center gap-2">
+          {/* Community Cards */}
+          <div className="py-3">
+            <div className="flex items-center justify-center gap-1.5">
               {liveState.board && liveState.board.length > 0 ? (
-                liveState.board.map((card) => renderCard(card))
+                liveState.board.map((card) => renderCard(card, 'md'))
               ) : (
-                <div className="rounded-xl bg-black/20 px-4 py-3 text-xs text-[color:var(--text-muted)]">
+                <div className="rounded-lg bg-black/20 px-3 py-2 text-xs text-[color:var(--text-muted)]">
                   {t('table.waitingForBoard')}
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {liveState.players.map((player) => {
-                const isActor = player.user_id === liveState.current_actor
-                return (
-                  <div
-                    key={`${player.user_id}-${player.seat}`}
-                    className={`rounded-2xl border px-3 py-3 backdrop-blur-md ${
-                      isActor ? 'border-emerald-400/60 shadow-lg shadow-emerald-500/20' : 'border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-sm text-[color:var(--text-primary)]">
-                      <span className="font-semibold">
-                        {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
-                      </span>
-                      <div className="flex gap-1 text-[10px] uppercase tracking-wide">
-                        {player.is_button && <span className="rounded-full bg-white/10 px-2 py-0.5">D</span>}
-                        {player.is_small_blind && <span className="rounded-full bg-white/10 px-2 py-0.5">SB</span>}
-                        {player.is_big_blind && <span className="rounded-full bg-white/10 px-2 py-0.5">BB</span>}
-                      </div>
+          {/* Players Grid - More Compact */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 py-3 border-t border-white/10">
+            {liveState.players.map((player) => {
+              const isActor = player.user_id === liveState.current_actor
+              const isHero = player.user_id === heroId
+              return (
+                <div
+                  key={`${player.user_id}-${player.seat}`}
+                  className={`rounded-lg border px-2.5 py-2 backdrop-blur-sm transition-all ${
+                    isActor
+                      ? 'border-emerald-400/60 bg-emerald-500/5 shadow-md shadow-emerald-500/10'
+                      : isHero
+                      ? 'border-sky-400/40 bg-sky-500/5'
+                      : 'border-white/10 bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[color:var(--text-primary)] truncate">
+                      {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
+                    </span>
+                    <div className="flex gap-0.5 text-[9px] uppercase tracking-wide">
+                      {player.is_button && (
+                        <span className="rounded-full bg-amber-500/20 text-amber-300 px-1.5 py-0.5">D</span>
+                      )}
+                      {player.is_small_blind && (
+                        <span className="rounded-full bg-white/10 px-1.5 py-0.5">SB</span>
+                      )}
+                      {player.is_big_blind && (
+                        <span className="rounded-full bg-white/10 px-1.5 py-0.5">BB</span>
+                      )}
                     </div>
-                    <div className="mt-2 flex items-center justify-between text-xs text-[color:var(--text-muted)]">
-                      <span>{t('table.chips', { amount: player.stack })}</span>
-                      {player.bet > 0 && <span className="text-amber-300">{t('table.betAmount', { amount: player.bet })}</span>}
-                    </div>
-                    {!player.in_hand && <p className="mt-2 text-[11px] text-rose-300">{t('table.folded')}</p>}
                   </div>
-                )
-              })}
-            </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-[color:var(--text-muted)]">
+                      {t('table.chips', { amount: player.stack })}
+                    </span>
+                    {player.bet > 0 && (
+                      <span className="text-amber-400 font-semibold">
+                        {t('table.betAmount', { amount: player.bet })}
+                      </span>
+                    )}
+                  </div>
+                  {!player.in_hand && (
+                    <p className="mt-1 text-[10px] text-rose-400/80">{t('table.folded')}</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
 
-            <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-center">
-              <p className="text-xs uppercase tracking-[0.25em] text-[color:var(--text-muted)]">{t('table.yourHand')}</p>
-              <div className="flex gap-2">
-                {heroCards.length ? heroCards.map((card) => renderCard(card, 'lg')) : <span className="text-sm text-[color:var(--text-muted)]">{t('table.waitingForHand')}</span>}
+          {/* Hero Cards - Compact */}
+          <div className="pt-3 border-t border-white/10">
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-3 py-2.5 text-center">
+              <p className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)]">
+                {t('table.yourHand')}
+              </p>
+              <div className="flex gap-1.5">
+                {heroCards.length ? (
+                  heroCards.map((card) => renderCard(card, 'md'))
+                ) : (
+                  <span className="text-xs text-[color:var(--text-muted)]">
+                    {t('table.waitingForHand')}
+                  </span>
+                )}
               </div>
               {handResult && handResult.winners && handResult.winners.length > 0 && (
-                <div className="text-xs text-emerald-300">
-                  {handResult.winners.some((w) => w.user_id === heroId)
-                    ? t('table.result.won', { amount: handResult.winners.find((w) => w.user_id === heroId)?.amount })
-                    : t('table.result.lost')}
+                <div className="text-xs font-semibold">
+                  {handResult.winners.some((w) => w.user_id === heroId) ? (
+                    <span className="text-emerald-400">
+                      {t('table.result.won', {
+                        amount: handResult.winners.find((w) => w.user_id === heroId)?.amount,
+                      })}
+                    </span>
+                  ) : (
+                    <span className="text-rose-400">{t('table.result.lost')}</span>
+                  )}
                 </div>
               )}
             </div>
@@ -643,7 +690,7 @@ export default function TablePage() {
       )}
 
       {liveState && viewerIsSeated && (
-        <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg">
+        <Card className="glass-panel border border-white/10 bg-white/5">
           <TableActionButtons
             isPlayerTurn={liveState.current_actor === heroId}
             amountToCall={amountToCall}
@@ -674,18 +721,18 @@ export default function TablePage() {
       {tableDetails.expires_at && (
         <Card>
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">
+            <div className="flex-1">
+              <h3 className="text-xs font-semibold text-[color:var(--text-primary)]">
                 {t('table.expiration.title', { defaultValue: 'Table Expires In' })}
               </h3>
-              <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+              <p className="mt-0.5 text-[10px] text-[color:var(--text-muted)]">
                 {t('table.expiration.hint', { defaultValue: 'This table will automatically close when time runs out.' })}
               </p>
             </div>
             <div className="text-right">
               <Countdown 
                 expiresAt={tableDetails.expires_at} 
-                className="text-2xl font-bold text-[color:var(--text-primary)]"
+                className="text-lg font-bold text-[color:var(--text-primary)]"
                 onExpire={() => {
                   showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
                   setTimeout(() => navigate('/lobby'), 2000)
@@ -697,39 +744,39 @@ export default function TablePage() {
       )}
 
       <Card>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">
             {t('table.players.title')}
           </h2>
-          <Button variant="ghost" size="md" onClick={fetchTable}>
+          <Button variant="ghost" size="sm" onClick={fetchTable}>
             {t('table.actions.refresh')}
           </Button>
         </div>
         {players.length === 0 ? (
-          <p className="mt-3 rounded-xl border border-dashed border-[color:var(--surface-border)] px-3 py-4 text-sm text-[color:var(--text-muted)]">
+          <p className="mt-2 rounded-lg border border-dashed border-[color:var(--surface-border)] px-3 py-3 text-xs text-[color:var(--text-muted)]">
             {t('table.players.empty')}
           </p>
         ) : (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-3 space-y-2">
             {players.map((player) => (
               <li
                 key={`${player.user_id}-${player.position}`}
-                className="flex items-center justify-between rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] px-4 py-3 text-sm"
+                className="flex items-center justify-between rounded-lg border border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] px-3 py-2.5 text-xs"
               >
-                <div>
-                  <p className="font-semibold text-[color:var(--text-primary)]">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[color:var(--text-primary)] truncate">
                     {t('table.players.seat', { index: player.position + 1 })}
                   </p>
-                  <p className="text-xs text-[color:var(--text-muted)]">
+                  <p className="text-[10px] text-[color:var(--text-muted)] truncate">
                     {player.display_name || player.username || t('table.meta.unknown')}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-right">
+                <div className="flex items-center gap-2 text-right ml-2">
                   <div>
-                    <p className="font-semibold text-[color:var(--text-primary)]">
+                    <p className="font-semibold text-[color:var(--text-primary)] text-xs">
                       {t('table.chips', { amount: player.chips })}
                     </p>
-                    <div className="mt-1 flex gap-1">
+                    <div className="mt-0.5 flex gap-1 justify-end">
                       {player.is_host && (
                         <Badge variant="success" size="sm">
                           {t('table.players.hostTag')}
@@ -750,16 +797,16 @@ export default function TablePage() {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
+        <h2 className="text-sm font-semibold text-[color:var(--text-primary)] mb-3">
           {viewerIsCreator ? t('table.actions.titleHost') : t('table.actions.titleGuest')}
         </h2>
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           {/* Join/Leave seat actions */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {viewerIsSeated ? (
               <Button
                 variant="secondary"
-                size="lg"
+                size="md"
                 block
                 onClick={handleLeave}
                 disabled={!canLeave || isLeaving}
@@ -769,7 +816,7 @@ export default function TablePage() {
             ) : (
               <Button
                 variant="primary"
-                size="lg"
+                size="md"
                 block
                 onClick={handleSeat}
                 disabled={!canJoin || isSeating}
@@ -777,7 +824,7 @@ export default function TablePage() {
                 {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat')}
               </Button>
             )}
-            <p className="text-xs text-[color:var(--text-muted)]">
+            <p className="text-[10px] text-[color:var(--text-muted)] px-1">
               {viewerIsSeated
                 ? viewerIsCreator
                   ? canStart
@@ -793,10 +840,10 @@ export default function TablePage() {
           {/* Host-only actions */}
           {viewerIsCreator && (
             <>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 <Button
                   variant="primary"
-                  size="lg"
+                  size="md"
                   block
                   glow={canStart}
                   onClick={handleStart}
@@ -805,12 +852,12 @@ export default function TablePage() {
                   {isStarting ? t('table.actions.starting') : t('table.actions.start')}
                 </Button>
                 {!canStart && missingPlayers > 0 && (
-                  <p className="text-caption text-amber-400">
+                  <p className="text-[10px] text-amber-400 px-1">
                     ⚠️ {t('table.messages.waitForPlayers', { count: missingPlayers })}
                   </p>
                 )}
                 {canStart && (
-                  <p className="text-caption text-emerald-400">
+                  <p className="text-[10px] text-emerald-400 px-1">
                     ✓ {t('table.messages.readyToStart')}
                   </p>
                 )}
@@ -819,7 +866,7 @@ export default function TablePage() {
               {/* Delete table section */}
               <Button
                 variant="danger"
-                size="md"
+                size="sm"
                 block
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting}
