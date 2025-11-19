@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlay, faGear } from '@fortawesome/free-solid-svg-icons'
+import { faGear } from '@fortawesome/free-solid-svg-icons'
 
 import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
@@ -128,17 +128,6 @@ export default function MainLayout() {
               </Link>
 
               <div className="flex items-center gap-2">
-                {currentActiveTable && (
-                  <Link
-                    to={`/table/${currentActiveTable.table_id || currentActiveTable.id}`}
-                    className="flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-br from-[color:var(--color-accent-start)] to-[color:var(--color-accent-end)] px-2.5 text-white transition-transform duration-150 ease-out active:scale-95 border border-white/30"
-                    style={{ boxShadow: 'var(--shadow-accent-glow)' }}
-                    aria-label={t('home.actions.resumeGame')}
-                  >
-                    <FontAwesomeIcon icon={faPlay} className="text-sm" />
-                    <span className="whitespace-nowrap text-[12px] font-medium tracking-wide leading-none">{t('home.actions.resumeGame')}</span>
-                  </Link>
-                )}
                 <LanguageSelector variant="icon" />
                 <Link
                   to="/settings"
