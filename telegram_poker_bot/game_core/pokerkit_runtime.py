@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 class PokerKitTableRuntime:
     """
     Runtime state container for a single table using PokerKit engine.
-    
+
     Design:
     - ALL poker logic delegated to PokerKit via adapter
     - No custom dealing, betting, or pot calculation
@@ -46,25 +46,25 @@ class PokerKitTableRuntime:
     def start_hand(self, small_blind: int, big_blind: int) -> Dict[str, Any]:
         """
         Start a new hand using PokerKit engine.
-        
+
         Args:
             small_blind: Small blind amount
             big_blind: Big blind amount
-        
+
         Returns:
             Initial game state dictionary
         """
         self.hand_no += 1
-        
+
         # Build mapping from user_id to player index
         active_seats = [s for s in self.seats if s.left_at is None]
         self.user_id_to_player_index = {
             seat.user_id: idx for idx, seat in enumerate(active_seats)
         }
-        
+
         # Get starting stacks
         starting_stacks = [seat.chips for seat in active_seats]
-        
+
         # Create PokerKit engine
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
@@ -73,17 +73,17 @@ class PokerKitTableRuntime:
             big_blind=big_blind,
             mode=Mode.TOURNAMENT,
         )
-        
+
         # Deal hole cards
         self.engine.deal_new_hand()
-        
+
         logger.info(
             "Hand started with PokerKit",
             table_id=self.table.id,
             hand_no=self.hand_no,
             players=len(active_seats),
         )
-        
+
         # Return initial state
         return self.to_payload()
 
@@ -92,30 +92,30 @@ class PokerKitTableRuntime:
     ) -> Dict[str, Any]:
         """
         Handle player action through PokerKit engine.
-        
+
         Args:
             user_id: User ID of acting player
             action: Action type (fold, check, call, bet, raise, all_in)
             amount: Bet/raise amount (if applicable)
-        
+
         Returns:
             Updated game state with optional hand_result if hand complete
         """
         if not self.engine:
             raise ValueError("No active hand")
-        
+
         # Validate it's this player's turn
         player_index = self.user_id_to_player_index.get(user_id)
         if player_index is None:
             raise ValueError("User not seated")
-        
+
         actor_index = self.engine.state.actor_index
         if actor_index is None:
             raise ValueError("No player to act")
-        
+
         if player_index != actor_index:
             raise ValueError("Not your turn")
-        
+
         # Process action via PokerKit
         if action == ActionType.FOLD:
             self.engine.fold()
@@ -133,23 +133,25 @@ class PokerKitTableRuntime:
             self.engine.bet_or_raise(all_in_amount)
         else:
             raise ValueError(f"Unsupported action: {action}")
-        
+
         logger.info(
             "Action processed via PokerKit",
             user_id=user_id,
             action=action.value,
             amount=amount,
         )
-        
+
         # Build response
         result = {"state": self.to_payload()}
-        
+
         # Check if hand is complete
         if self.engine.is_hand_complete():
             winners = self.engine.get_winners()
-            
+
             # Convert player indices back to user IDs
-            user_id_by_index = {idx: uid for uid, idx in self.user_id_to_player_index.items()}
+            user_id_by_index = {
+                idx: uid for uid, idx in self.user_id_to_player_index.items()
+            }
             hand_result = {
                 "winners": [
                     {
@@ -161,23 +163,23 @@ class PokerKitTableRuntime:
                 ]
             }
             result["hand_result"] = hand_result
-            
+
             logger.info(
                 "Hand complete",
                 table_id=self.table.id,
                 hand_no=self.hand_no,
                 winners=hand_result["winners"],
             )
-        
+
         return result
 
     def to_payload(self, viewer_user_id: Optional[int] = None) -> Dict[str, Any]:
         """
         Serialize table state for frontend consumption.
-        
+
         Args:
             viewer_user_id: User ID of viewer (for card visibility)
-        
+
         Returns:
             State dictionary matching frontend expectations
         """
@@ -199,51 +201,57 @@ class PokerKitTableRuntime:
                 "hero": None,
                 "last_action": None,
             }
-        
+
         # Get viewer player index
         viewer_player_index = None
         if viewer_user_id is not None:
             viewer_player_index = self.user_id_to_player_index.get(viewer_user_id)
-        
+
         # Get full state from PokerKit
         poker_state = self.engine.to_full_state(viewer_player_index)
-        
+
         # Map player indices to user IDs
-        user_id_by_index = {idx: uid for uid, idx in self.user_id_to_player_index.items()}
+        user_id_by_index = {
+            idx: uid for uid, idx in self.user_id_to_player_index.items()
+        }
         seat_by_user_id = {s.user_id: s for s in self.seats}
-        
+
         # Build player list
         players = []
         for player in poker_state["players"]:
             player_idx = player["player_index"]
             user_id = user_id_by_index[player_idx]
             seat = seat_by_user_id.get(user_id)
-            
-            players.append({
-                "user_id": user_id,
-                "seat": seat.position if seat else player_idx,
-                "stack": player["stack"],
-                "bet": player["bet"],
-                "in_hand": not player["is_folded"],
-                "is_button": player["is_button"],
-                "is_small_blind": player["is_small_blind"],
-                "is_big_blind": player["is_big_blind"],
-                "acted": not player["is_actor"],  # If current actor, hasn't acted yet
-                "display_name": seat.user.username if seat and seat.user else None,
-            })
-        
+
+            players.append(
+                {
+                    "user_id": user_id,
+                    "seat": seat.position if seat else player_idx,
+                    "stack": player["stack"],
+                    "bet": player["bet"],
+                    "in_hand": not player["is_folded"],
+                    "is_button": player["is_button"],
+                    "is_small_blind": player["is_small_blind"],
+                    "is_big_blind": player["is_big_blind"],
+                    "acted": not player[
+                        "is_actor"
+                    ],  # If current actor, hasn't acted yet
+                    "display_name": seat.user.username if seat and seat.user else None,
+                }
+            )
+
         # Get current actor user ID
         actor_index = poker_state.get("current_actor_index")
         current_actor_user_id = None
         if actor_index is not None:
             current_actor_user_id = user_id_by_index.get(actor_index)
-        
+
         # Get hero cards
         hero_cards = []
         if viewer_player_index is not None:
             viewer_player = poker_state["players"][viewer_player_index]
             hero_cards = viewer_player.get("hole_cards", [])
-        
+
         # Build payload
         payload = {
             "type": "table_state",
@@ -262,13 +270,17 @@ class PokerKitTableRuntime:
                 else None
             ),
             "players": players,
-            "hero": {
-                "user_id": viewer_user_id,
-                "cards": hero_cards,
-            } if viewer_user_id else None,
+            "hero": (
+                {
+                    "user_id": viewer_user_id,
+                    "cards": hero_cards,
+                }
+                if viewer_user_id
+                else None
+            ),
             "last_action": None,  # Could track this if needed
         }
-        
+
         return payload
 
 
@@ -279,11 +291,11 @@ class PokerKitTableRuntimeManager:
         self._tables: Dict[int, PokerKitTableRuntime] = {}
         self._lock = asyncio.Lock()
 
-    async def ensure_table(self, db: AsyncSession, table_id: int) -> PokerKitTableRuntime:
+    async def ensure_table(
+        self, db: AsyncSession, table_id: int
+    ) -> PokerKitTableRuntime:
         async with self._lock:
-            runtime = self._tables.get(table_id)
-            if runtime:
-                return runtime
+            # Always fetch fresh table and seat data from database
             result = await db.execute(select(Table).where(Table.id == table_id))
             table = result.scalar_one_or_none()
             if not table:
@@ -294,8 +306,17 @@ class PokerKitTableRuntimeManager:
                 .order_by(Seat.position)
             )
             seats = seats_result.scalars().all()
-            runtime = PokerKitTableRuntime(table, seats)
-            self._tables[table_id] = runtime
+
+            # Update existing runtime or create new one
+            runtime = self._tables.get(table_id)
+            if runtime:
+                # Update existing runtime with fresh data
+                runtime.table = table
+                runtime.seats = sorted(seats, key=lambda s: s.position)
+            else:
+                # Create new runtime
+                runtime = PokerKitTableRuntime(table, seats)
+                self._tables[table_id] = runtime
             return runtime
 
     async def start_game(self, db: AsyncSession, table_id: int) -> Dict:
@@ -316,11 +337,11 @@ class PokerKitTableRuntimeManager:
         runtime = await self.ensure_table(db, table_id)
         result = runtime.handle_action(user_id, action, amount)
         state = result.get("state", runtime.to_payload(user_id))
-        
+
         # Add hand_result if present
         if "hand_result" in result:
             state["hand_result"] = result["hand_result"]
-        
+
         return state
 
     async def get_state(
