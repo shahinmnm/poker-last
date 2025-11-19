@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { faUser, faCoins, faUserGroup, faClock } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch, ApiError, resolveWebSocketUrl } from '../utils/apiClient'
+import { useTableWebSocket } from '../hooks/useTableWebSocket'
+import { apiFetch, ApiError } from '../utils/apiClient'
 import Toast from '../components/Toast'
 import Countdown from '../components/Countdown'
 import Card from '../components/ui/Card'
@@ -12,6 +13,7 @@ import PlayingCard from '../components/ui/PlayingCard'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
+import ConnectionStatus from '../components/ui/ConnectionStatus'
 import TableSummary from '../components/tables/TableSummary'
 import ExpiredTableView from '../components/tables/ExpiredTableView'
 import InviteSection from '../components/tables/InviteSection'
@@ -199,50 +201,45 @@ export default function TablePage() {
     }
   }, [initData, tableId])
 
+  // Initial data fetch on mount
   useEffect(() => {
     if (!tableId) {
       return
     }
     fetchTable()
     fetchLiveState()
-  }, [fetchTable, fetchLiveState, tableId])
+  }, [tableId]) // Only depend on tableId, not the fetch functions
 
-  useEffect(() => {
-    if (!tableId) {
-      return
-    }
-
-    let socket: WebSocket | null = null
-    try {
-      const wsUrl = resolveWebSocketUrl(`/ws/${tableId}`)
-      socket = new WebSocket(wsUrl)
-      socket.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data)
-          if (payload?.type === 'table_state') {
-            setLiveState(payload as LiveTableState)
-            setHandResult((payload as LiveTableState).hand_result ?? null)
-            // Fetch viewer-specific state to restore hero cards and private info
-            fetchLiveState()
-          }
-          if (
-            payload?.type === 'action' ||
-            payload?.type === 'table_started' ||
-            payload?.type === 'player_joined' ||
-            payload?.type === 'player_left'
-          ) {
-            fetchTable()
-            fetchLiveState()
-          }
-        } catch {
-          // Ignore malformed messages
-        }
+  // WebSocket connection with stable hook
+  const { status: wsStatus } = useTableWebSocket({
+    tableId: tableId || '',
+    enabled: !!tableId,
+    onMessage: useCallback((payload: any) => {
+      // Handle different message types
+      if (
+        payload?.type === 'action' ||
+        payload?.type === 'table_started' ||
+        payload?.type === 'player_joined' ||
+        payload?.type === 'player_left'
+      ) {
+        // Refetch table details on player/game state changes
+        fetchTable()
       }
-    } catch (wsError) {
-      console.warn('Unable to establish table WebSocket connection:', wsError)
-    }
-    return () => socket?.close()
-  }, [fetchLiveState, fetchTable, tableId])
+    }, [fetchTable]),
+    onStateChange: useCallback((payload: LiveTableState) => {
+      // Update live state from WebSocket
+      setLiveState(payload)
+      setHandResult(payload.hand_result ?? null)
+      // Note: We don't call fetchLiveState here to avoid redundant HTTP requests
+      // The WebSocket already provides the state update
+    }, []),
+    onConnect: useCallback(() => {
+      console.log('WebSocket connected to table', tableId)
+    }, [tableId]),
+    onDisconnect: useCallback(() => {
+      console.log('WebSocket disconnected from table', tableId)
+    }, [tableId]),
+  })
 
   const handleSeat = async () => {
     if (!tableId) {
@@ -552,6 +549,11 @@ export default function TablePage() {
         subtext={tableDetails.group_title ? t('table.groupTag', { value: tableDetails.group_title }) : undefined}
         expiresAt={tableDetails.expires_at ?? null}
       />
+
+      {/* WebSocket Connection Status */}
+      <Card className="py-2">
+        <ConnectionStatus status={wsStatus} />
+      </Card>
 
       {liveState && (
         <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg">

@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Optional, List, Dict, Any
+import asyncio
 import json
 import hmac
 import hashlib
@@ -1318,20 +1319,83 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
     - Broadcasts state changes to all connected clients
     - Handles disconnections gracefully
     - Connections are automatically closed when table is deleted
+    - Implements ping/pong heartbeat to keep connection alive
     """
     await manager.connect(websocket, table_id)
     
+    # Task for sending periodic pings to keep connection alive
+    ping_task = None
+    
+    async def send_pings():
+        """Send ping messages every 30 seconds to prevent timeout."""
+        try:
+            while True:
+                await asyncio.sleep(30)
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except Exception as e:
+                    logger.debug("Ping send failed", table_id=table_id, error=str(e))
+                    break
+        except asyncio.CancelledError:
+            pass
+    
     try:
+        # Start ping task
+        ping_task = asyncio.create_task(send_pings())
+        
         while True:
-            # Keep connection alive and handle incoming messages
-            data = await websocket.receive_text()
-            # Echo back or process message
-            await websocket.send_json({"type": "pong", "data": data})
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, table_id)
+            try:
+                # Keep connection alive and handle incoming messages
+                data = await websocket.receive_text()
+                
+                # Parse message
+                try:
+                    message = json.loads(data) if data else {}
+                    msg_type = message.get("type") if isinstance(message, dict) else None
+                    
+                    # Handle pong responses
+                    if msg_type == "pong":
+                        logger.debug("Received pong from client", table_id=table_id)
+                        continue
+                    
+                    # Echo back or acknowledge other messages
+                    await websocket.send_json({"type": "ack", "data": data})
+                except json.JSONDecodeError:
+                    # Non-JSON messages - just echo back
+                    await websocket.send_json({"type": "pong", "data": data})
+                    
+            except WebSocketDisconnect:
+                # Normal disconnect from client
+                logger.info("WebSocket client disconnected normally", table_id=table_id)
+                break
+            except Exception as e:
+                # Log error but keep connection alive for recoverable errors
+                logger.warning(
+                    "WebSocket receive error (continuing)",
+                    table_id=table_id,
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
+                # Only break on critical errors
+                if isinstance(e, (ConnectionError, RuntimeError)):
+                    break
+                # Otherwise continue the loop
+                await asyncio.sleep(0.1)
+                
     except Exception as e:
-        logger.error("WebSocket error", error=str(e))
+        logger.error("WebSocket fatal error", table_id=table_id, error=str(e))
+    finally:
+        # Cancel ping task
+        if ping_task:
+            ping_task.cancel()
+            try:
+                await ping_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Disconnect from manager
         manager.disconnect(websocket, table_id)
+        logger.info("WebSocket connection closed", table_id=table_id)
 
 
 _api_path_prefix = _derive_api_path_prefix(settings.vite_api_url)
