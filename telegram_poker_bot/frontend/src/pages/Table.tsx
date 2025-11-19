@@ -13,6 +13,7 @@ import PlayingCard from '../components/ui/PlayingCard'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
+import ConnectionStatus from '../components/ui/ConnectionStatus'
 import TableSummary from '../components/tables/TableSummary'
 import ExpiredTableView from '../components/tables/ExpiredTableView'
 import InviteSection from '../components/tables/InviteSection'
@@ -210,7 +211,7 @@ export default function TablePage() {
   }, [tableId]) // Only depend on tableId, not the fetch functions
 
   // WebSocket connection with stable hook
-  useTableWebSocket({
+  const { status: wsStatus } = useTableWebSocket({
     tableId: tableId || '',
     enabled: !!tableId,
     onMessage: useCallback((payload: any) => {
@@ -548,6 +549,11 @@ export default function TablePage() {
         subtext={tableDetails.group_title ? t('table.groupTag', { value: tableDetails.group_title }) : undefined}
         expiresAt={tableDetails.expires_at ?? null}
       />
+
+      {/* WebSocket Connection Status */}
+      <Card className="py-2">
+        <ConnectionStatus status={wsStatus} />
+      </Card>
 
       {liveState && (
         <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg">
