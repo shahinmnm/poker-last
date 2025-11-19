@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-
 ###############################################################################
 # PokerBot Deployment Helper (force mode)
 #
