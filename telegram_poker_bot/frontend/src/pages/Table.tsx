@@ -114,7 +114,7 @@ interface LiveTableState {
   players: LivePlayerState[]
   hero: LiveHeroState | null
   last_action?: Record<string, unknown> | null
-  hand_result?: { winners: { user_id: number; amount: number; hand_score: number }[] }
+  hand_result?: { winners: { user_id: number; amount: number; hand_score: number }[] } | null
 }
 
 const DEFAULT_TOAST = { message: '', visible: false }
