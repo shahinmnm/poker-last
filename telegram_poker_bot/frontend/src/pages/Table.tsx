@@ -234,15 +234,36 @@ export default function TablePage() {
       }
     }, [fetchTable]),
     onStateChange: useCallback((payload: LiveTableState) => {
-      // Update live state from WebSocket
-      setLiveState(payload)
-      setHandResult(payload.hand_result ?? null)
+      setLiveState((previous) => {
+        const isSameHand =
+          payload.hand_id !== null && previous?.hand_id === payload.hand_id
+
+        // Preserve viewer-specific data (like hero cards) when the broadcast
+        // payload omits it. WebSocket broadcasts are public, so they don't
+        // include the viewer's hole cards, which we need to keep showing.
+        const mergedHero = payload.hero ?? (isSameHand ? previous?.hero ?? null : null)
+
+        // Keep hand result while the hand is still the same
+        const mergedHandResult =
+          payload.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
+
+        const nextState: LiveTableState = {
+          ...payload,
+          hero: mergedHero,
+          hand_result: mergedHandResult,
+        }
+
+        setHandResult(mergedHandResult ?? null)
+        return nextState
+      })
       // Note: We don't call fetchLiveState here to avoid redundant HTTP requests
       // The WebSocket already provides the state update
     }, []),
     onConnect: useCallback(() => {
       console.log('WebSocket connected to table', tableId)
-    }, [tableId]),
+      // Refresh viewer-specific state (including hero cards) after reconnects
+      fetchLiveState()
+    }, [fetchLiveState, tableId]),
     onDisconnect: useCallback(() => {
       console.log('WebSocket disconnected from table', tableId)
     }, [tableId]),
@@ -264,6 +285,7 @@ export default function TablePage() {
       })
       showToast(t('table.toast.seated'))
       await fetchTable()
+      await fetchLiveState()
     } catch (err) {
       console.error('Error taking seat:', err)
       if (err instanceof ApiError) {
