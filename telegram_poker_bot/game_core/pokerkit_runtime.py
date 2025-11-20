@@ -18,6 +18,8 @@ from pokerkit import Mode
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.models import (
     ActionType,
+    Hand,
+    HandStatus,
     Seat,
     Table,
 )
@@ -43,6 +45,121 @@ class PokerKitTableRuntime:
         self.hand_no = 0
         self.engine: Optional[PokerEngineAdapter] = None
         self.user_id_to_player_index: Dict[int, int] = {}
+        self.current_hand: Optional[Hand] = None
+
+    async def load_or_create_hand(self, db: AsyncSession) -> Hand:
+        """
+        Load the current active hand or create a new one.
+
+        Query for the latest Hand for this table with status != ENDED.
+        If exists, return it. Otherwise, create a new Hand row.
+
+        Args:
+            db: Database session
+
+        Returns:
+            Current or new Hand record
+        """
+        # Query for active hand
+        result = await db.execute(
+            select(Hand)
+            .where(Hand.table_id == self.table.id, Hand.status != HandStatus.ENDED)
+            .order_by(Hand.hand_no.desc())
+            .limit(1)
+        )
+        hand = result.scalar_one_or_none()
+
+        if hand:
+            logger.info(
+                "Loaded active hand from DB",
+                table_id=self.table.id,
+                hand_no=hand.hand_no,
+                status=hand.status.value,
+            )
+            self.current_hand = hand
+            return hand
+
+        # Get max hand_no for this table
+        max_hand_result = await db.execute(
+            select(Hand.hand_no)
+            .where(Hand.table_id == self.table.id)
+            .order_by(Hand.hand_no.desc())
+            .limit(1)
+        )
+        max_hand_no = max_hand_result.scalar_one_or_none()
+        next_hand_no = (max_hand_no or 0) + 1
+
+        # Create new hand
+        hand = Hand(
+            table_id=self.table.id,
+            hand_no=next_hand_no,
+            status=HandStatus.PREFLOP,
+            engine_state_json={},  # Will be updated after engine init
+        )
+        db.add(hand)
+
+        logger.info(
+            "Created new hand",
+            table_id=self.table.id,
+            hand_no=next_hand_no,
+        )
+
+        self.current_hand = hand
+        return hand
+
+    async def start_new_hand(
+        self, db: AsyncSession, small_blind: int, big_blind: int
+    ) -> Dict[str, Any]:
+        """
+        Start a new hand using PokerKit engine and persist state to DB.
+
+        Args:
+            db: Database session
+            small_blind: Small blind amount
+            big_blind: Big blind amount
+
+        Returns:
+            Initial game state dictionary
+        """
+        # Load or create Hand row
+        hand = await self.load_or_create_hand(db)
+        self.hand_no = hand.hand_no
+
+        # Build mapping from user_id to player index
+        active_seats = [s for s in self.seats if s.left_at is None]
+        self.user_id_to_player_index = {
+            seat.user_id: idx for idx, seat in enumerate(active_seats)
+        }
+
+        # Get starting stacks
+        starting_stacks = [seat.chips for seat in active_seats]
+
+        # Create PokerKit engine
+        self.engine = PokerEngineAdapter(
+            player_count=len(active_seats),
+            starting_stacks=starting_stacks,
+            small_blind=small_blind,
+            big_blind=big_blind,
+            mode=Mode.TOURNAMENT,
+        )
+
+        # Deal hole cards
+        self.engine.deal_new_hand()
+
+        # Persist engine state to DB
+        hand.engine_state_json = self.engine.to_persistence_state()
+        hand.status = HandStatus.PREFLOP
+        await db.flush()
+
+        logger.info(
+            "Hand started with PokerKit and persisted",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+            players=len(active_seats),
+        )
+
+        # Return initial state
+        return self.to_payload()
 
     def start_hand(self, small_blind: int, big_blind: int) -> Dict[str, Any]:
         """
@@ -333,6 +450,47 @@ class PokerKitTableRuntimeManager:
             # Create new runtime
             runtime = PokerKitTableRuntime(table, seats)
             self._tables[table_id] = runtime
+
+        # Check for active hand and restore engine if needed
+        if runtime.engine is None:
+            hand_result = await db.execute(
+                select(Hand)
+                .where(Hand.table_id == table_id, Hand.status != HandStatus.ENDED)
+                .order_by(Hand.hand_no.desc())
+                .limit(1)
+            )
+            hand = hand_result.scalar_one_or_none()
+
+            if hand and hand.engine_state_json:
+                # Restore engine from persisted state
+                try:
+                    runtime.engine = PokerEngineAdapter.from_persistence_state(
+                        hand.engine_state_json
+                    )
+                    runtime.hand_no = hand.hand_no
+                    runtime.current_hand = hand
+
+                    # Rebuild user_id_to_player_index mapping
+                    active_seats = [s for s in runtime.seats if s.left_at is None]
+                    runtime.user_id_to_player_index = {
+                        seat.user_id: idx for idx, seat in enumerate(active_seats)
+                    }
+
+                    logger.info(
+                        "Restored engine from DB",
+                        table_id=table_id,
+                        hand_no=hand.hand_no,
+                        status=hand.status.value,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Failed to restore engine from DB",
+                        table_id=table_id,
+                        hand_id=hand.id,
+                        error=str(e),
+                    )
+                    # Keep engine as None, will be created on next start_game
+
         return runtime
 
     async def start_game(self, db: AsyncSession, table_id: int) -> Dict:
@@ -342,7 +500,7 @@ class PokerKitTableRuntimeManager:
             config = runtime.table.config_json or {}
             small_blind = config.get("small_blind", 25)
             big_blind = config.get("big_blind", 50)
-            return runtime.start_hand(small_blind, big_blind)
+            return await runtime.start_new_hand(db, small_blind, big_blind)
 
     async def handle_action(
         self,
@@ -355,7 +513,59 @@ class PokerKitTableRuntimeManager:
         lock = self._get_lock_for_table(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
+
+            # Get or load current hand
+            if runtime.current_hand is None:
+                hand_result = await db.execute(
+                    select(Hand)
+                    .where(Hand.table_id == table_id, Hand.status != HandStatus.ENDED)
+                    .order_by(Hand.hand_no.desc())
+                    .limit(1)
+                )
+                runtime.current_hand = hand_result.scalar_one_or_none()
+
+            if runtime.current_hand is None:
+                raise ValueError("No active hand to handle action")
+
+            # Process the action
             result = runtime.handle_action(user_id, action, amount)
+
+            # Persist engine state after action
+            if runtime.engine is None:
+                raise ValueError("Engine not initialized")
+
+            runtime.current_hand.engine_state_json = (
+                runtime.engine.to_persistence_state()
+            )
+
+            # Update hand status based on result
+            if "hand_result" in result:
+                runtime.current_hand.status = HandStatus.ENDED
+                runtime.current_hand.ended_at = datetime.now(timezone.utc)
+            else:
+                # Update status based on street
+                street = runtime.engine.state.street_index
+                if street is not None:
+                    street_names = [
+                        HandStatus.PREFLOP,
+                        HandStatus.FLOP,
+                        HandStatus.TURN,
+                        HandStatus.RIVER,
+                    ]
+                    if 0 <= street < len(street_names):
+                        runtime.current_hand.status = street_names[street]
+
+            await db.flush()
+
+            logger.info(
+                "Action persisted to DB",
+                table_id=table_id,
+                hand_no=runtime.hand_no,
+                user_id=user_id,
+                action=action.value,
+                hand_status=runtime.current_hand.status.value,
+            )
+
             state = result.get("state", runtime.to_payload(user_id))
 
             # Add hand_result if present

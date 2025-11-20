@@ -15,7 +15,7 @@ def test_engine_adapter_initialization():
         big_blind=50,
         mode=Mode.TOURNAMENT,
     )
-    
+
     assert adapter.player_count == 2
     assert adapter.starting_stacks == [10000, 10000]
     assert adapter.small_blind == 25
@@ -31,7 +31,7 @@ def test_engine_adapter_invalid_player_count():
             small_blind=25,
             big_blind=50,
         )
-    
+
     with pytest.raises(ValueError):
         PokerEngineAdapter(
             player_count=9,
@@ -42,43 +42,49 @@ def test_engine_adapter_invalid_player_count():
 
 
 def test_engine_adapter_state_serialization():
-    """Test state serialization."""
+    """Test state serialization using to_persistence_state."""
     adapter = PokerEngineAdapter(
         player_count=2,
         starting_stacks=[10000, 10000],
         small_blind=25,
         big_blind=50,
     )
-    
-    state_dict = adapter.to_state_dict()
-    
+
+    state_dict = adapter.to_persistence_state()
+
     assert "player_count" in state_dict
     assert "stacks" in state_dict
-    assert "street" in state_dict
+    assert "street_index" in state_dict
     assert len(state_dict["stacks"]) == 2
 
 
-def test_engine_adapter_deal_hole_cards():
-    """Test dealing hole cards."""
+def test_engine_adapter_deal_new_hand():
+    """Test dealing a new hand."""
     adapter = PokerEngineAdapter(
         player_count=2,
         starting_stacks=[10000, 10000],
         small_blind=25,
         big_blind=50,
     )
-    
-    operation = adapter.deal_hole_cards(0, ["Ac", "Kd"])
-    assert operation is not None
+
+    adapter.deal_new_hand()
+    # Verify hole cards were dealt
+    assert len(adapter.state.hole_cards) == 2
+    assert len(adapter.state.hole_cards[0]) == 2
 
 
-def test_engine_adapter_get_pots():
-    """Test getting pots."""
+def test_engine_adapter_get_winners():
+    """Test getting winners after hand completion."""
     adapter = PokerEngineAdapter(
         player_count=2,
         starting_stacks=[10000, 10000],
         small_blind=25,
         big_blind=50,
     )
-    
-    pots = adapter.get_pots()
-    assert isinstance(pots, list)
+
+    adapter.deal_new_hand()
+
+    # Initially no winners (hand not complete)
+    winners = adapter.get_winners()
+    assert isinstance(winners, list)
+

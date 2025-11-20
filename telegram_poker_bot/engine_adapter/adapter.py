@@ -1,19 +1,15 @@
 """PokerKit engine adapter - clean API wrapper for PokerKit."""
 
 import random
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from pokerkit import (
     Automation,
-    Card,
     Mode,
     NoLimitTexasHoldem,
     State,
 )
 from pokerkit.state import (
-    CheckingOrCalling,
-    CompletionBettingOrRaisingTo,
-    Folding,
     Operation,
 )
 
@@ -460,3 +456,132 @@ class PokerEngineAdapter:
                     )
 
         return winners
+
+    def to_persistence_state(self) -> Dict[str, Any]:
+        """
+        Return a JSON-serializable dict that fully captures the PokerKit State
+        and can be used to reconstruct the engine later.
+
+        This format is stable and does not include viewer-specific hiding of cards.
+        It stores the complete game state including all hole cards and the deck.
+
+        Returns:
+            Dictionary with complete engine state for DB persistence
+        """
+        # Serialize hole cards (all players' cards, not hidden)
+        serialized_hole_cards = []
+        if hasattr(self.state, "hole_cards") and self.state.hole_cards:
+            for player_cards in self.state.hole_cards:
+                if player_cards:
+                    # Convert Card objects to string representation
+                    serialized_hole_cards.append([repr(card) for card in player_cards])
+                else:
+                    serialized_hole_cards.append([])
+
+        # Serialize board cards
+        serialized_board_cards = []
+        if self.state.board_cards:
+            for card_list in self.state.board_cards:
+                if card_list and len(card_list) > 0:
+                    serialized_board_cards.append(repr(card_list[0]))
+
+        # Serialize pots
+        serialized_pots = [
+            {
+                "amount": pot.amount,
+                "player_indices": list(pot.player_indices),
+            }
+            for pot in self.state.pots
+        ]
+
+        # Build complete state dictionary
+        persistence_state = {
+            # Configuration
+            "player_count": self.player_count,
+            "starting_stacks": self.starting_stacks,
+            "small_blind": self.small_blind,
+            "big_blind": self.big_blind,
+            "mode": self.mode.value,
+            # Current game state from PokerKit
+            "stacks": list(self.state.stacks),
+            "bets": list(self.state.bets),
+            "hole_cards": serialized_hole_cards,
+            "board_cards": serialized_board_cards,
+            "pots": serialized_pots,
+            "button_index": (
+                self.state.button_index if hasattr(self.state, "button_index") else 0
+            ),
+            "street_index": self.state.street_index,
+            "player_indices": (
+                list(self.state.player_indices)
+                if hasattr(self.state, "player_indices")
+                else list(range(self.player_count))
+            ),
+            "actor_index": self.state.actor_index,
+            "status": bool(self.state.status),
+            # Deck state
+            "deck": self._deck,
+        }
+
+        return persistence_state
+
+    @classmethod
+    def from_persistence_state(cls, data: Dict[str, Any]) -> "PokerEngineAdapter":
+        """
+        Reconstruct a PokerEngineAdapter from a persisted state dict.
+
+        This is the reverse of to_persistence_state() and restores the complete
+        game state including hole cards, board cards, bets, and deck.
+
+        Args:
+            data: Persisted state dictionary from to_persistence_state()
+
+        Returns:
+            Reconstructed PokerEngineAdapter instance
+        """
+        # Create a new adapter instance
+        mode = Mode(data["mode"]) if isinstance(data["mode"], str) else data["mode"]
+        adapter = cls(
+            player_count=data["player_count"],
+            starting_stacks=data["starting_stacks"],
+            small_blind=data["small_blind"],
+            big_blind=data["big_blind"],
+            mode=mode,
+        )
+
+        # Restore deck state
+        adapter._deck = data.get("deck", [])
+
+        # Restore hole cards
+        if data.get("hole_cards"):
+            for player_idx, cards in enumerate(data["hole_cards"]):
+                if cards and player_idx < adapter.player_count:
+                    # Deal hole cards to this player
+                    cards_str = "".join(cards)
+                    adapter.state.deal_hole(cards_str)
+
+        # Restore board cards
+        if data.get("board_cards"):
+            board_str = "".join(data["board_cards"])
+            if board_str:
+                adapter.state.deal_board(board_str)
+
+        # Restore stacks and bets
+        if data.get("stacks"):
+            for idx, stack in enumerate(data["stacks"]):
+                if idx < len(adapter.state.stacks):
+                    adapter.state.stacks[idx] = stack
+
+        if data.get("bets"):
+            for idx, bet in enumerate(data["bets"]):
+                if idx < len(adapter.state.bets):
+                    adapter.state.bets[idx] = bet
+
+        logger.info(
+            "Engine restored from persistence",
+            player_count=adapter.player_count,
+            street_index=data.get("street_index"),
+            status=data.get("status"),
+        )
+
+        return adapter
