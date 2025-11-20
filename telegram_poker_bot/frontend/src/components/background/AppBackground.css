@@ -25,13 +25,13 @@
   transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark mode base gradient - deep black → midnight → dark navy */
+/* Dark mode base gradient - pure black base */
 .app-background[data-theme='dark'] .app-background__base {
   background: linear-gradient(
     135deg,
     #000000 0%,
-    #0A0A14 40%,
-    #050510 100%
+    #000000 40%,
+    #000000 100%
   );
 }
 
@@ -66,7 +66,7 @@
   width: 600px;
   height: 600px;
   background: radial-gradient(circle, #9333EA 0%, transparent 60%);
-  opacity: 0.65;
+  opacity: 0.35;
   filter: blur(45px);
 }
 
@@ -76,7 +76,7 @@
   width: 650px;
   height: 650px;
   background: radial-gradient(circle, #EC4899 0%, transparent 60%);
-  opacity: 0.60;
+  opacity: 0.32;
   filter: blur(50px);
 }
 
@@ -86,7 +86,7 @@
   width: 600px;
   height: 600px;
   background: radial-gradient(circle, #F59E0B 0%, transparent 60%);
-  opacity: 0.58;
+  opacity: 0.30;
   filter: blur(40px);
 }
 
@@ -96,7 +96,7 @@
   width: 620px;
   height: 620px;
   background: radial-gradient(circle, #3B82F6 0%, transparent 60%);
-  opacity: 0.62;
+  opacity: 0.33;
   filter: blur(48px);
 }
 
@@ -162,12 +162,12 @@
   height: 280px;
   background: radial-gradient(
     ellipse 80% 70% at 30% 30%,
-    rgba(147, 51, 234, 0.18) 0%,
+    rgba(147, 51, 234, 0.12) 0%,
     transparent 60%
   );
   border-radius: 60% 40% 50% 50%;
   filter: blur(20px);
-  opacity: 0.75;
+  opacity: 0.50;
 }
 
 .app-background[data-theme='dark'] .app-background__shape--2 {
@@ -177,12 +177,12 @@
   height: 320px;
   background: radial-gradient(
     ellipse 70% 80% at 60% 60%,
-    rgba(236, 72, 153, 0.20) 0%,
+    rgba(236, 72, 153, 0.14) 0%,
     transparent 65%
   );
   border-radius: 50% 60% 40% 50%;
   filter: blur(22px);
-  opacity: 0.80;
+  opacity: 0.55;
 }
 
 .app-background[data-theme='dark'] .app-background__shape--3 {
@@ -193,12 +193,12 @@
   height: 350px;
   background: radial-gradient(
     circle,
-    rgba(245, 158, 11, 0.15) 0%,
+    rgba(245, 158, 11, 0.10) 0%,
     transparent 70%
   );
   border-radius: 50%;
   filter: blur(35px);
-  opacity: 0.65;
+  opacity: 0.45;
 }
 
 /* Light mode shapes - vibrant pastel accents */
