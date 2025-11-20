@@ -160,16 +160,6 @@ export default function TablePage() {
     initDataRef.current = initData
   }, [initData])
 
-  // Refresh table data once auth context (initData) becomes available so the
-  // viewer-specific fields (like seat status and hero cards) are populated.
-  useEffect(() => {
-    if (!tableId || !initData) {
-      return
-    }
-    fetchTable()
-    fetchLiveState()
-  }, [fetchLiveState, fetchTable, initData, tableId])
-
   const fetchTable = useCallback(async () => {
     if (!tableId) {
       return
@@ -216,6 +206,16 @@ export default function TablePage() {
       console.warn('Unable to fetch live state', err)
     }
   }, [tableId])
+
+  // Refresh table data once auth context (initData) becomes available so the
+  // viewer-specific fields (like seat status and hero cards) are populated.
+  useEffect(() => {
+    if (!tableId || !initData) {
+      return
+    }
+    fetchTable()
+    fetchLiveState()
+  }, [fetchLiveState, fetchTable, initData, tableId])
 
   // Initial data fetch on mount
   useEffect(() => {
