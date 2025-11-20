@@ -164,15 +164,15 @@
   --color-role-seated-bg: rgba(168, 85, 247, 0.22);
   --color-role-seated-text: #f3e8ff;
 
-  /* Component-specific shadows - Enhanced glows for glassmorphism */
-  --shadow-soft: 0 8px 22px rgba(0, 0, 0, 0.35);
-  --shadow-nav: 0 -4px 18px rgba(0, 0, 0, 0.5);
-  --shadow-card: 0 25px 60px rgba(0, 0, 0, 0.45);
-  --shadow-elevated: 0 25px 60px rgba(0, 0, 0, 0.55);
-  --shadow-button: 0 14px 40px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 20px 50px rgba(44, 197, 122, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
-  --shadow-strong: 0 12px 32px rgba(0, 0, 0, 0.34);
-  --shadow-accent-glow: 0 0 24px rgba(44, 197, 122, 0.6);
+  /* Component-specific shadows - Flat modern design */
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-nav: 0 -2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 6px 16px rgba(0, 0, 0, 0.2);
+  --shadow-button: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-strong: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-accent-glow: 0 2px 8px rgba(0, 0, 0, 0.12);
 
   /* Navigation colors - Enhanced glass effect */
   --color-nav-bg: rgba(17, 25, 40, 0.45);
@@ -261,13 +261,13 @@
   --color-role-seated-text: #6b21a8;
 
   /* Component-specific shadows - Light mode */
-  --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.08);
-  --shadow-elevated: 0 24px 48px rgba(0, 0, 0, 0.12);
-  --shadow-button: 0 12px 30px rgba(0, 0, 0, 0.10);
-  --shadow-glow: 0 18px 45px rgba(44, 197, 122, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.06) inset;
-  --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.06);
-  --shadow-strong: 0 10px 32px rgba(0, 0, 0, 0.12);
-  --shadow-accent-glow: 0 0 20px rgba(44, 197, 122, 0.3);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-button: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-strong: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-accent-glow: 0 2px 6px rgba(0, 0, 0, 0.08);
 
   /* Navigation colors - Light mode glass */
   --color-nav-bg: rgba(255, 255, 255, 0.25);
