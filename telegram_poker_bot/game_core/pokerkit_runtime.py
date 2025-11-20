@@ -120,6 +120,8 @@ class PokerKitTableRuntime:
     ) -> Dict[str, Any]:
         """
         Start a new hand using PokerKit engine and persist state to DB.
+        
+        Supports multi-hand sessions with proper dealer button rotation.
 
         Args:
             db: Database session
@@ -139,16 +141,45 @@ class PokerKitTableRuntime:
             seat.user_id: idx for idx, seat in enumerate(active_seats)
         }
 
-        # Get starting stacks
+        # Get starting stacks (current chips from seats)
         starting_stacks = [seat.chips for seat in active_seats]
+        
+        # Determine button index for this hand
+        # For multi-hand support, rotate button from previous hand
+        button_index = None
+        if self.hand_no > 1:
+            # Get the previous completed hand to find the button position
+            prev_hand_result = await db.execute(
+                select(Hand)
+                .where(
+                    Hand.table_id == self.table.id,
+                    Hand.hand_no == self.hand_no - 1,
+                    Hand.status == HandStatus.ENDED,
+                )
+                .limit(1)
+            )
+            prev_hand = prev_hand_result.scalar_one_or_none()
+            
+            if prev_hand and prev_hand.engine_state_json:
+                prev_button = prev_hand.engine_state_json.get("button_index", 0)
+                # Rotate button clockwise (add 1, modulo player count)
+                button_index = (prev_button + 1) % len(active_seats)
+                logger.info(
+                    "Rotating button for next hand",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    prev_button=prev_button,
+                    new_button=button_index,
+                )
 
-        # Create PokerKit engine
+        # Create PokerKit engine with optional button rotation
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
             starting_stacks=starting_stacks,
             small_blind=small_blind,
             big_blind=big_blind,
             mode=Mode.TOURNAMENT,
+            button_index=button_index,
         )
 
         # Deal hole cards
@@ -164,6 +195,7 @@ class PokerKitTableRuntime:
             table_id=self.table.id,
             hand_no=self.hand_no,
             players=len(active_seats),
+            button_index=button_index,
         )
 
         # Return initial state

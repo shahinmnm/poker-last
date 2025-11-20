@@ -855,7 +855,15 @@ async def start_table(
     *,
     user_id: int,
 ) -> Table:
-    """Transition a table into the active state if the caller is the host."""
+    """
+    Transition a table into the active state or start a new hand if already active.
+    
+    This allows:
+    - Starting the first hand when table is WAITING
+    - Starting subsequent hands when table is ACTIVE (multi-hand support)
+    
+    Requires the caller to be the table creator (host).
+    """
 
     result = await db.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
@@ -867,8 +875,9 @@ async def start_table(
     if creator_user_id is None or creator_user_id != user_id:
         raise PermissionError("Only the table creator can start the game")
 
-    if table.status != TableStatus.WAITING:
-        raise ValueError("Table is not in a state that can be started")
+    # Allow starting from WAITING or ACTIVE status
+    if table.status not in (TableStatus.WAITING, TableStatus.ACTIVE):
+        raise ValueError(f"Table cannot be started from {table.status.value} state")
 
     result = await db.execute(
         select(func.count(Seat.id)).where(
@@ -880,16 +889,32 @@ async def start_table(
     required_players = 2
     if player_count < required_players:
         raise ValueError("At least two seated players are required to start the game")
+    
+    # Check if there's an active hand already running
+    from telegram_poker_bot.shared.models import Hand, HandStatus
+    hand_result = await db.execute(
+        select(Hand)
+        .where(Hand.table_id == table_id, Hand.status != HandStatus.ENDED)
+        .order_by(Hand.hand_no.desc())
+        .limit(1)
+    )
+    active_hand = hand_result.scalar_one_or_none()
+    if active_hand:
+        raise ValueError("Cannot start a new hand while another hand is in progress")
 
-    table.status = TableStatus.ACTIVE
+    # Transition table to ACTIVE if it was WAITING
+    if table.status == TableStatus.WAITING:
+        table.status = TableStatus.ACTIVE
+    
     table.updated_at = datetime.now(timezone.utc)
     await db.flush()
 
     logger.info(
-        "Table started",
+        "Table ready for new hand",
         table_id=table.id,
         started_by=user_id,
         player_count=player_count,
+        table_status=table.status.value,
     )
 
     return table
