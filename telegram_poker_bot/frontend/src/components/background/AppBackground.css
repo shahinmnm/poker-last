@@ -25,23 +25,23 @@
   transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark mode base gradient - deep navy → midnight purple → muted teal */
+/* Dark mode base gradient - pure black base */
 .app-background[data-theme='dark'] .app-background__base {
   background: linear-gradient(
     135deg,
-    #030B1F 0%,
-    #0D1435 40%,
-    #0A1D2E 100%
+    #000000 0%,
+    #000000 40%,
+    #000000 100%
   );
 }
 
-/* Light mode base gradient - soft lavender → off-white → pastel pink */
+/* Light mode base gradient - soft pastel blue → cream → pale pink */
 .app-background[data-theme='light'] .app-background__base {
   background: linear-gradient(
     135deg,
-    #F0EDFF 0%,
-    #FFF4F8 40%,
-    #F6F9FF 100%
+    #E8F0FF 0%,
+    #FFF9F0 40%,
+    #FFE8F0 100%
   );
 }
 
@@ -59,86 +59,86 @@
   will-change: opacity;
 }
 
-/* Dark mode blobs - neon purple, cyan, gold, deep blue */
+/* Dark mode blobs - vibrant neon purple, cyan, gold, deep blue */
 .app-background[data-theme='dark'] .app-background__blob--1 {
-  top: -15%;
-  left: -10%;
-  width: 800px;
-  height: 800px;
-  background: radial-gradient(circle, #7C3AED 0%, transparent 65%);
-  opacity: 0.50;
-  filter: blur(60px);
+  top: 8%;
+  left: -5%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #9333EA 0%, transparent 60%);
+  opacity: 0.35;
+  filter: blur(45px);
 }
 
 .app-background[data-theme='dark'] .app-background__blob--2 {
-  top: 15%;
-  right: -12%;
-  width: 900px;
-  height: 900px;
-  background: radial-gradient(circle, #22D3EE 0%, transparent 65%);
-  opacity: 0.45;
-  filter: blur(70px);
-}
-
-.app-background[data-theme='dark'] .app-background__blob--3 {
-  bottom: -20%;
-  left: 10%;
-  width: 850px;
-  height: 850px;
-  background: radial-gradient(circle, #FBBF24 0%, transparent 65%);
-  opacity: 0.42;
-  filter: blur(55px);
-}
-
-.app-background[data-theme='dark'] .app-background__blob--4 {
-  bottom: 5%;
-  right: 5%;
-  width: 750px;
-  height: 750px;
-  background: radial-gradient(circle, #0EA5E9 0%, transparent 65%);
-  opacity: 0.48;
-  filter: blur(65px);
-}
-
-/* Light mode blobs - lavender, baby blue, peach */
-.app-background[data-theme='light'] .app-background__blob--1 {
-  top: -10%;
-  left: -8%;
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, #C4B5FD 0%, transparent 65%);
-  opacity: 0.40;
-  filter: blur(55px);
-}
-
-.app-background[data-theme='light'] .app-background__blob--2 {
-  top: 20%;
-  right: -10%;
-  width: 750px;
-  height: 750px;
-  background: radial-gradient(circle, #93C5FD 0%, transparent 65%);
-  opacity: 0.38;
-  filter: blur(60px);
-}
-
-.app-background[data-theme='light'] .app-background__blob--3 {
-  bottom: -15%;
-  left: 15%;
-  width: 680px;
-  height: 680px;
-  background: radial-gradient(circle, #FECACA 0%, transparent 65%);
-  opacity: 0.35;
+  top: 5%;
+  right: -8%;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, #EC4899 0%, transparent 60%);
+  opacity: 0.32;
   filter: blur(50px);
 }
 
+.app-background[data-theme='dark'] .app-background__blob--3 {
+  bottom: 15%;
+  left: -5%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #F59E0B 0%, transparent 60%);
+  opacity: 0.30;
+  filter: blur(40px);
+}
+
+.app-background[data-theme='dark'] .app-background__blob--4 {
+  bottom: 12%;
+  right: -5%;
+  width: 620px;
+  height: 620px;
+  background: radial-gradient(circle, #3B82F6 0%, transparent 60%);
+  opacity: 0.33;
+  filter: blur(48px);
+}
+
+/* Light mode blobs - vibrant lavender, sky blue, coral, mint */
+.app-background[data-theme='light'] .app-background__blob--1 {
+  top: 8%;
+  left: -5%;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, #A78BFA 0%, transparent 60%);
+  opacity: 0.55;
+  filter: blur(35px);
+}
+
+.app-background[data-theme='light'] .app-background__blob--2 {
+  top: 5%;
+  right: -8%;
+  width: 580px;
+  height: 580px;
+  background: radial-gradient(circle, #F472B6 0%, transparent 60%);
+  opacity: 0.52;
+  filter: blur(38px);
+}
+
+.app-background[data-theme='light'] .app-background__blob--3 {
+  bottom: 15%;
+  left: -5%;
+  width: 560px;
+  height: 560px;
+  background: radial-gradient(circle, #FBBF24 0%, transparent 60%);
+  opacity: 0.48;
+  filter: blur(32px);
+}
+
 .app-background[data-theme='light'] .app-background__blob--4 {
-  bottom: 10%;
-  right: 10%;
-  width: 650px;
-  height: 650px;
-  background: radial-gradient(circle, #BAE6FD 0%, transparent 65%);
-  opacity: 0.36;
-  filter: blur(53px);
+  bottom: 12%;
+  right: -5%;
+  width: 570px;
+  height: 570px;
+  background: radial-gradient(circle, #60A5FA 0%, transparent 60%);
+  opacity: 0.50;
+  filter: blur(36px);
 }
 
 /* ==================== LAYER 3: SOFT SHAPE ACCENTS ==================== */
@@ -154,98 +154,98 @@
   will-change: opacity;
 }
 
-/* Dark mode shapes - subtle neon accents */
+/* Dark mode shapes - vibrant neon accents */
 .app-background[data-theme='dark'] .app-background__shape--1 {
-  top: 5%;
-  left: 5%;
-  width: 300px;
-  height: 300px;
+  top: 10%;
+  left: 10%;
+  width: 280px;
+  height: 280px;
   background: radial-gradient(
     ellipse 80% 70% at 30% 30%,
-    rgba(124, 58, 237, 0.12) 0%,
+    rgba(147, 51, 234, 0.12) 0%,
     transparent 60%
   );
   border-radius: 60% 40% 50% 50%;
-  filter: blur(25px);
-  opacity: 0.7;
+  filter: blur(20px);
+  opacity: 0.50;
 }
 
 .app-background[data-theme='dark'] .app-background__shape--2 {
-  bottom: 8%;
-  right: 8%;
-  width: 350px;
-  height: 350px;
+  bottom: 18%;
+  right: 12%;
+  width: 320px;
+  height: 320px;
   background: radial-gradient(
     ellipse 70% 80% at 60% 60%,
-    rgba(34, 211, 238, 0.15) 0%,
+    rgba(236, 72, 153, 0.14) 0%,
     transparent 65%
   );
   border-radius: 50% 60% 40% 50%;
-  filter: blur(30px);
-  opacity: 0.8;
+  filter: blur(22px);
+  opacity: 0.55;
 }
 
 .app-background[data-theme='dark'] .app-background__shape--3 {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 400px;
-  height: 400px;
+  width: 350px;
+  height: 350px;
   background: radial-gradient(
     circle,
-    rgba(251, 191, 36, 0.10) 0%,
+    rgba(245, 158, 11, 0.10) 0%,
     transparent 70%
   );
   border-radius: 50%;
-  filter: blur(50px);
-  opacity: 0.6;
+  filter: blur(35px);
+  opacity: 0.45;
 }
 
-/* Light mode shapes - soft pastel accents */
+/* Light mode shapes - vibrant pastel accents */
 .app-background[data-theme='light'] .app-background__shape--1 {
-  top: 8%;
-  left: 8%;
-  width: 250px;
-  height: 250px;
+  top: 12%;
+  left: 12%;
+  width: 240px;
+  height: 240px;
   background: radial-gradient(
     ellipse 80% 70% at 30% 30%,
-    rgba(196, 181, 253, 0.15) 0%,
+    rgba(167, 139, 250, 0.22) 0%,
     transparent 60%
   );
   border-radius: 60% 40% 50% 50%;
-  filter: blur(20px);
-  opacity: 0.6;
+  filter: blur(18px);
+  opacity: 0.65;
 }
 
 .app-background[data-theme='light'] .app-background__shape--2 {
-  bottom: 10%;
-  right: 10%;
-  width: 280px;
-  height: 280px;
+  bottom: 20%;
+  right: 15%;
+  width: 260px;
+  height: 260px;
   background: radial-gradient(
     ellipse 70% 80% at 60% 60%,
-    rgba(147, 197, 253, 0.18) 0%,
+    rgba(244, 114, 182, 0.25) 0%,
     transparent 65%
   );
   border-radius: 50% 60% 40% 50%;
-  filter: blur(25px);
-  opacity: 0.7;
+  filter: blur(20px);
+  opacity: 0.70;
 }
 
 .app-background[data-theme='light'] .app-background__shape--3 {
   top: 45%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 320px;
-  height: 320px;
+  width: 280px;
+  height: 280px;
   background: radial-gradient(
     circle,
-    rgba(254, 202, 202, 0.12) 0%,
+    rgba(251, 191, 36, 0.18) 0%,
     transparent 70%
   );
   border-radius: 50%;
-  filter: blur(35px);
-  opacity: 0.5;
+  filter: blur(25px);
+  opacity: 0.55;
 }
 
 /* ==================== LAYER 4: SUBTLE NOISE TEXTURE ==================== */
