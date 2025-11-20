@@ -559,7 +559,20 @@
     "waitingForHand": "Waiting for cards...",
     "result": {
       "won": "You won {{amount}}!",
-      "lost": "You lost this hand"
+      "lost": "You lost this hand",
+      "handRank": {
+        "high_card": "High Card",
+        "pair": "Pair",
+        "two_pair": "Two Pair",
+        "three_of_a_kind": "Three of a Kind",
+        "straight": "Straight",
+        "flush": "Flush",
+        "full_house": "Full House",
+        "four_of_a_kind": "Four of a Kind",
+        "straight_flush": "Straight Flush",
+        "folded": "Folded",
+        "unknown": "Unknown"
+      }
     },
     "status": {
       "waiting": "Waiting",

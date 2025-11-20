@@ -99,6 +99,14 @@ interface LiveHeroState {
   cards: string[]
 }
 
+interface HandWinnerResult {
+  user_id: number
+  amount: number
+  hand_score: number
+  hand_rank: string
+  best_hand_cards?: string[]
+}
+
 interface LiveTableState {
   type: 'table_state'
   table_id: number
@@ -114,7 +122,7 @@ interface LiveTableState {
   players: LivePlayerState[]
   hero: LiveHeroState | null
   last_action?: Record<string, unknown> | null
-  hand_result?: { winners: { user_id: number; amount: number; hand_score: number }[] } | null
+  hand_result?: { winners: HandWinnerResult[] } | null
 }
 
 const DEFAULT_TOAST = { message: '', visible: false }
@@ -704,16 +712,30 @@ export default function TablePage() {
                   <span className="text-xs text-[color:var(--text-muted)]">
                     {t('table.waitingForHand')}
                   </span>
-                )}
+                              )}
               </div>
               {handResult && handResult.winners && handResult.winners.length > 0 && (
-                <div className="text-xs font-semibold">
+                <div className="text-xs font-semibold space-y-1">
                   {handResult.winners.some((w) => w.user_id === heroId) ? (
-                    <span className="text-emerald-400">
-                      {t('table.result.won', {
-                        amount: handResult.winners.find((w) => w.user_id === heroId)?.amount,
-                      })}
-                    </span>
+                    <>
+                      <div className="text-emerald-400">
+                        {t('table.result.won', {
+                          amount: handResult.winners.find((w) => w.user_id === heroId)?.amount,
+                        })}
+                      </div>
+                      {(() => {
+                        const heroWinner = handResult.winners.find((w) => w.user_id === heroId)
+                        const handRank = heroWinner?.hand_rank
+                        if (handRank && handRank !== 'folded') {
+                          return (
+                            <div className="text-[color:var(--text-muted)]">
+                              {t(`table.result.handRank.${handRank}`, handRank.replace(/_/g, ' '))}
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+                    </>
                   ) : (
                     <span className="text-rose-400">{t('table.result.lost')}</span>
                   )}
