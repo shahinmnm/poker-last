@@ -89,12 +89,6 @@ export default function GlassCard({
       style={customStyle}
       {...props}
     >
-      {/* Border gradient layer */}
-      <div className="glass-card__border" />
-      
-      {/* Inner highlight - diagonal gradient from top-left */}
-      <div className="glass-card__highlight" />
-      
       {/* Content */}
       <div className="glass-card__content relative z-10">
         {children}

@@ -95,27 +95,11 @@ export default function MainLayout() {
               borderBottomLeftRadius: 'var(--radius-2xl)',
               borderBottomRightRadius: 'var(--radius-2xl)',
               background: 'var(--bg-glass)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid var(--color-border-glass)',
               boxShadow: 'var(--shadow-card)',
             }}
           >
-            {/* Diagonal highlight for glass effect */}
-            <div 
-              className="absolute top-0 left-[20%] right-[20%] h-[50%] pointer-events-none"
-              style={{
-                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent)',
-                borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
-              }}
-            />
-            
             <Link to="/profile" className="relative flex items-center gap-2.5 z-10">
-              <span 
-                className="absolute inset-[-3px] rounded-full blur-md" 
-                style={{ background: 'var(--glow-primary)' }}
-                aria-hidden 
-              />
               <Avatar size="sm" className="relative" style={{ border: '1px solid rgba(255, 255, 255, 0.3)' }} />
             </Link>
 
@@ -134,8 +118,6 @@ export default function MainLayout() {
                   className="flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 ease-out active:scale-95"
                   style={{ 
                     background: 'var(--bg-glass)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
                     border: '1px solid var(--color-border-glass)',
                     color: 'var(--color-text)',
                   }}
@@ -156,23 +138,12 @@ export default function MainLayout() {
         style={{ 
           height: '60px',
           background: 'var(--bg-glass)', 
-          backdropFilter: 'blur(22px)',
-          WebkitBackdropFilter: 'blur(22px)',
           borderTop: '1px solid var(--color-border-glass)', 
           boxShadow: 'var(--shadow-nav)',
           borderTopLeftRadius: 'var(--radius-2xl)',
           borderTopRightRadius: 'var(--radius-2xl)',
         }}
       >
-        {/* Diagonal highlight for glass dock */}
-        <div 
-          className="absolute inset-x-[10%] bottom-[30%] h-[40%] pointer-events-none"
-          style={{
-            background: 'linear-gradient(0deg, transparent, rgba(255, 255, 255, 0.06))',
-            borderRadius: '0 0 var(--radius-2xl) var(--radius-2xl)',
-          }}
-        />
-        
         <div className="relative z-10 mx-auto flex w-full max-w-4xl items-center justify-around gap-[var(--space-xs)]">
           {bottomNavItems.slice(0, 2).map((item) => (
             <NavLink
@@ -192,7 +163,6 @@ export default function MainLayout() {
                     )}
                     style={{ 
                       fontSize: 'var(--fs-large)',
-                      boxShadow: isActive ? 'var(--shadow-accent-glow)' : 'none',
                     }}
                   >
                     <FontAwesomeIcon 
@@ -239,7 +209,6 @@ export default function MainLayout() {
                     )}
                     style={{ 
                       fontSize: 'var(--fs-large)',
-                      boxShadow: isActive ? 'var(--shadow-accent-glow)' : 'none',
                     }}
                   >
                     <FontAwesomeIcon 

@@ -62,9 +62,6 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
         disabled={disabled}
         {...rest}
       >
-        {/* Diagonal highlight layer */}
-        <span className="glass-button__highlight" aria-hidden="true" />
-        
         {/* Button content */}
         <span className="glass-button__content">{children}</span>
       </button>

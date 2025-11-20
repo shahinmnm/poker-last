@@ -69,8 +69,6 @@ a {
 @layer components {
   .glass-panel {
     background: var(--bg-glass);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border-radius: var(--radius-2xl);
     border: 1px solid var(--color-border-glass);
     box-shadow: var(--shadow-card);
@@ -78,8 +76,6 @@ a {
 
   .glass-pill {
     background: var(--bg-glass);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
     border-radius: 999px;
     border: 1px solid var(--color-border-glass);
     box-shadow: var(--shadow-soft);
@@ -90,8 +86,6 @@ a {
     height: 38px;
     border-radius: 999px;
     background: var(--bg-glass);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
     border: 1px solid var(--color-border-glass);
     display: flex;
     align-items: center;
@@ -122,26 +116,14 @@ a {
     background: var(--bg-glass);
     border: 1px solid var(--color-border-glass);
     box-shadow: var(--shadow-card);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     color: var(--color-text);
-  }
-
-  .app-card::before {
-    content: '';
-    position: absolute;
-    inset-inline: var(--space-xl);
-    top: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    opacity: 0.5;
   }
 
   .app-card--overlay {
     background: var(--color-surface-overlay);
   }
 
-  /* Button components - Enhanced glassmorphism */
+  /* Button components - Flat modern design */
   .app-button {
     position: relative;
     border-radius: var(--radius-pill);
@@ -150,29 +132,15 @@ a {
     letter-spacing: var(--letter-spacing-tight);
     border: 1px solid var(--color-border-glass);
     background: var(--bg-glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     box-shadow: var(--shadow-button);
     transition: transform 0.14s ease, box-shadow 0.14s ease;
   }
 
-  .app-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 20%;
-    right: 20%;
-    height: 50%;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.15), transparent);
-    border-radius: var(--radius-pill) var(--radius-pill) 0 0;
-    pointer-events: none;
-  }
-
   .app-button--primary {
-    background-image: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+    background: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
     color: #fff;
     border-color: rgba(255, 255, 255, 0.25);
-    box-shadow: var(--shadow-glow);
+    box-shadow: var(--shadow-button);
   }
 
   .app-button--secondary {
@@ -191,12 +159,6 @@ a {
     background: transparent;
     color: var(--color-text);
     border-color: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .app-button--ghost::before {
-    display: none;
   }
 
   .app-button--danger {
@@ -228,7 +190,7 @@ a {
 
   .app-button:active {
     transform: scale(0.97);
-    box-shadow: var(--shadow-accent-glow);
+    box-shadow: var(--shadow-soft);
   }
 
   .app-segmented-control {
@@ -241,8 +203,6 @@ a {
     border: 1px solid var(--color-border-glass);
     background: var(--bg-glass);
     box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
     overflow: hidden;
   }
 
@@ -282,15 +242,14 @@ a {
     inset-inline-start: 6px;
     height: 32px;
     border-radius: 999px;
-    background-image: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
-    box-shadow: 0 12px 28px rgba(44, 197, 122, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+    background: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+    box-shadow: var(--shadow-soft);
     transition: transform 160ms ease;
     pointer-events: none;
   }
 
   .app-bottom-nav {
     background: var(--color-nav-bg);
-    backdrop-filter: blur(20px);
     border-top: 1px solid var(--color-nav-border);
   }
 
@@ -314,7 +273,7 @@ a {
   }
 
   /* ==================== GLASS CARD COMPONENT ==================== */
-  /* GlassCard - glassmorphism card inspired by glass_kit */
+  /* GlassCard - simplified modern card */
   .glass-card {
     position: relative;
     background: linear-gradient(
@@ -322,46 +281,8 @@ a {
       rgba(255, 255, 255, 0.08) 0%,
       rgba(255, 255, 255, 0.04) 100%
     );
-    backdrop-filter: blur(var(--glass-blur, 24px));
-    -webkit-backdrop-filter: blur(var(--glass-blur, 24px));
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.4),
-      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    box-shadow: var(--shadow-card);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  /* Border gradient layer */
-  .glass-card__border {
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.25) 0%,
-      rgba(255, 255, 255, 0.15) 50%,
-      var(--glass-accent-to, rgba(255, 255, 255, 0.2)) 100%
-    );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
-
-  /* Inner highlight - diagonal gradient from top-left */
-  .glass-card__highlight {
-    position: absolute;
-    inset-inline: var(--space-xl);
-    top: 0;
-    height: 65%;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.15) 0%,
-      rgba(255, 255, 255, 0.08) 40%,
-      transparent 70%
-    );
-    border-radius: inherit;
-    pointer-events: none;
   }
 
   .glass-card__content {
@@ -369,13 +290,10 @@ a {
     z-index: 1;
   }
 
-  /* Hover glow effect (desktop only) */
+  /* Hover effect (desktop only) */
   .glass-card--hover:hover {
     transform: scale(1.02);
-    box-shadow: 
-      0 12px 48px rgba(0, 0, 0, 0.5),
-      0 0 40px var(--glass-accent-from, rgba(44, 197, 122, 0.3)),
-      0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    box-shadow: var(--shadow-elevated);
   }
 
   /* Press scale effect */
@@ -390,39 +308,16 @@ a {
       rgba(255, 255, 255, 0.50) 0%,
       rgba(255, 255, 255, 0.30) 100%
     );
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.1),
-      0 0 0 1px rgba(255, 255, 255, 0.6) inset;
-  }
-
-  :root[data-theme='light'] .glass-card__border {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.70) 0%,
-      rgba(255, 255, 255, 0.50) 50%,
-      var(--glass-accent-to, rgba(255, 255, 255, 0.60)) 100%
-    );
-  }
-
-  :root[data-theme='light'] .glass-card__highlight {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.60) 0%,
-      rgba(255, 255, 255, 0.30) 40%,
-      transparent 70%
-    );
+    box-shadow: var(--shadow-card);
   }
 
   :root[data-theme='light'] .glass-card--hover:hover {
     transform: scale(1.02);
-    box-shadow: 
-      0 12px 40px rgba(0, 0, 0, 0.15),
-      0 0 32px var(--glass-accent-from, rgba(44, 197, 122, 0.2)),
-      0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+    box-shadow: var(--shadow-elevated);
   }
 
   /* ==================== MAIN TILE COMPONENT ==================== */
-  /* MainTile - menu tiles built on GlassCard */
+  /* MainTile - menu tiles with flat modern design */
   .main-tile {
     min-height: 180px;
   }
@@ -442,39 +337,6 @@ a {
       rgba(255, 255, 255, 0.02) 0%,
       rgba(255, 255, 255, 0.04) 100%
     );
-  }
-
-  .main-tile__content::before,
-  .main-tile__content::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    opacity: 0.85;
-    pointer-events: none;
-    transform: translate3d(0, 0, 0);
-  }
-
-  .main-tile__content::before {
-    background:
-      radial-gradient(circle at 18% 22%,
-        color-mix(in srgb, var(--glass-accent-from, #7c3aed) 80%, transparent) 0%,
-        transparent 48%),
-      radial-gradient(circle at 85% 16%,
-        color-mix(in srgb, var(--glass-accent-to, #22d3ee) 70%, transparent) 0%,
-        transparent 42%);
-    filter: blur(2px);
-  }
-
-  .main-tile__content::after {
-    background:
-      radial-gradient(120% 80% at 50% 110%,
-        color-mix(in srgb, var(--glass-accent-to, #22d3ee) 40%, transparent) 0%,
-        transparent 65%),
-      linear-gradient(160deg,
-        color-mix(in srgb, var(--glass-accent-from, #7c3aed) 26%, transparent) 0%,
-        transparent 55%);
-    mix-blend-mode: screen;
   }
 
   .main-tile__text {
@@ -553,7 +415,7 @@ a {
   }
 
   /* ==================== GLASS BUTTON COMPONENT ==================== */
-  /* GlassButton - poker action buttons with glassmorphism inspired by glass_kit */
+  /* GlassButton - poker action buttons with flat modern design */
   .glass-button {
     position: relative;
     border-radius: 12px;
@@ -564,27 +426,8 @@ a {
       rgba(255, 255, 255, 0.14) 0%,
       rgba(255, 255, 255, 0.06) 100%
     );
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: 
-      0 8px 24px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-button);
     color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-
-  /* Diagonal highlight layer inside the button */
-  .glass-button__highlight {
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.18) 0%,
-      rgba(255, 255, 255, 0.08) 40%,
-      transparent 70%
-    );
-    pointer-events: none;
   }
 
   /* Button content layer */
@@ -597,9 +440,7 @@ a {
   @media (hover: hover) {
     .glass-button:hover:not(:disabled) {
       transform: translateY(-1px);
-      box-shadow: 
-        0 12px 32px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-elevated);
     }
   }
 
@@ -629,9 +470,7 @@ a {
 
   @media (hover: hover) {
     .glass-button--fold:hover:not(:disabled) {
-      box-shadow: 
-        0 12px 32px rgba(100, 116, 139, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-elevated);
     }
   }
 
@@ -647,9 +486,7 @@ a {
 
   @media (hover: hover) {
     .glass-button--check:hover:not(:disabled) {
-      box-shadow: 
-        0 12px 32px rgba(59, 130, 246, 0.20),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-elevated);
     }
   }
 
@@ -665,9 +502,7 @@ a {
 
   @media (hover: hover) {
     .glass-button--bet:hover:not(:disabled) {
-      box-shadow: 
-        0 12px 32px rgba(34, 197, 94, 0.30),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-elevated);
     }
   }
 
@@ -683,9 +518,7 @@ a {
 
   @media (hover: hover) {
     .glass-button--raise:hover:not(:disabled) {
-      box-shadow: 
-        0 12px 32px rgba(59, 130, 246, 0.30),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-elevated);
     }
   }
 
@@ -701,9 +534,7 @@ a {
 
   @media (hover: hover) {
     .glass-button--all-in:hover:not(:disabled) {
-      box-shadow: 
-        0 12px 32px rgba(239, 68, 68, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-elevated);
     }
   }
 
@@ -717,26 +548,12 @@ a {
     );
     border-color: rgba(0, 0, 0, 0.10);
     color: #111827;
-    text-shadow: none;
-    box-shadow: 
-      0 6px 20px rgba(0, 0, 0, 0.10),
-      inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  }
-
-  :root[data-theme='light'] .glass-button__highlight {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.32) 0%,
-      rgba(255, 255, 255, 0.16) 40%,
-      transparent 70%
-    );
+    box-shadow: var(--shadow-button);
   }
 
   @media (hover: hover) {
     :root[data-theme='light'] .glass-button:hover:not(:disabled) {
-      box-shadow: 
-        0 10px 28px rgba(0, 0, 0, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      box-shadow: var(--shadow-elevated);
     }
   }
 
