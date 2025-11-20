@@ -39,15 +39,15 @@ INVITE_CODE_FALLBACK_LENGTH = 8
 async def check_and_mark_expired_table(db: AsyncSession, table: Table) -> bool:
     """
     Check if a table should be marked as expired and update its status.
-    
+
     Returns True if table was expired, False otherwise.
     """
     now = datetime.now(timezone.utc)
-    
+
     # Skip tables that are already ended or expired
     if table.status in {TableStatus.ENDED, TableStatus.EXPIRED}:
         return table.status == TableStatus.EXPIRED
-    
+
     # Check time-based expiration
     if table.expires_at and table.expires_at <= now:
         table.status = TableStatus.EXPIRED
@@ -59,7 +59,7 @@ async def check_and_mark_expired_table(db: AsyncSession, table: Table) -> bool:
             expires_at=table.expires_at.isoformat(),
         )
         return True
-    
+
     return False
 
 
@@ -68,8 +68,10 @@ def _generate_invite_code(length: int = INVITE_CODE_LENGTH) -> str:
     # Use uppercase letters and digits for readability
     alphabet = string.ascii_uppercase + string.digits
     # Exclude similar-looking characters: O, 0, I, 1
-    alphabet = alphabet.replace('O', '').replace('I', '').replace('0', '').replace('1', '')
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
+    alphabet = (
+        alphabet.replace("O", "").replace("I", "").replace("0", "").replace("1", "")
+    )
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def normalize_invite_code(raw: str) -> str:
@@ -110,7 +112,11 @@ def _resolve_visibility_flags(table: Table) -> Tuple[bool, bool, str]:
     """Return (is_public, is_private, visibility_label) for a table."""
 
     config = table.config_json or {}
-    is_public = table.is_public if table.is_public is not None else not _is_table_private(config)
+    is_public = (
+        table.is_public
+        if table.is_public is not None
+        else not _is_table_private(config)
+    )
     visibility = "public" if is_public else "private"
     return is_public, not is_public, visibility
 
@@ -139,7 +145,7 @@ async def create_table_with_config(
     """Create a table with explicit configuration options."""
 
     is_public = not is_private
-    
+
     # Generate invite code for private tables
     invite_code = None
     if is_private:
@@ -155,9 +161,11 @@ async def create_table_with_config(
         if invite_code is None:
             # Fallback to longer code
             invite_code = _generate_invite_code(length=INVITE_CODE_FALLBACK_LENGTH)
-    
+
     # Set expiration time (10 minutes from now)
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=TABLE_EXPIRATION_MINUTES)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=TABLE_EXPIRATION_MINUTES
+    )
 
     table = Table(
         mode=mode,
@@ -218,7 +226,10 @@ async def invalidate_public_table_cache(redis_client: Optional["Redis"]) -> None
     try:
         cached_keys = await redis_client.smembers(PUBLIC_TABLE_CACHE_KEYS)
         if cached_keys:
-            keys = [key.decode() if isinstance(key, bytes) else str(key) for key in cached_keys]
+            keys = [
+                key.decode() if isinstance(key, bytes) else str(key)
+                for key in cached_keys
+            ]
             if keys:
                 await redis_client.delete(*keys)
         await redis_client.delete(PUBLIC_TABLE_CACHE_KEYS)
@@ -261,7 +272,7 @@ async def create_group_table(
 ) -> Table:
     """
     Create a table linked to a Telegram group.
-    
+
     Args:
         db: Database session
         creator_user_id: User ID of table creator
@@ -270,7 +281,7 @@ async def create_group_table(
         big_blind: Big blind amount
         starting_stack: Starting chip stack
         max_players: Maximum players allowed
-    
+
     Returns:
         Created Table instance
     """
@@ -295,71 +306,63 @@ async def seat_user_at_table(
 ) -> Seat:
     """
     Seat a user at a table.
-    
+
     Args:
         db: Database session
         table_id: Table to join
         user_id: User to seat
-    
+
     Returns:
         Created Seat instance
-        
+
     Raises:
         ValueError: If table is full or user already seated
     """
     # Check if table exists and get config
-    result = await db.execute(
-        select(Table).where(Table.id == table_id)
-    )
+    result = await db.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
     if not table:
         raise ValueError(f"Table {table_id} not found")
-    
+
     config = table.config_json or {}
     max_players = config.get("max_players", 8)
-    
+
     # Check if user already seated
     result = await db.execute(
         select(Seat).where(
-            Seat.table_id == table_id,
-            Seat.user_id == user_id,
-            Seat.left_at.is_(None)
+            Seat.table_id == table_id, Seat.user_id == user_id, Seat.left_at.is_(None)
         )
     )
     existing_seat = result.scalar_one_or_none()
     if existing_seat:
         raise ValueError(f"User {user_id} already seated at table {table_id}")
-    
+
     # Count current players
     result = await db.execute(
         select(func.count(Seat.id)).where(
-            Seat.table_id == table_id,
-            Seat.left_at.is_(None)
+            Seat.table_id == table_id, Seat.left_at.is_(None)
         )
     )
     current_players = result.scalar() or 0
-    
+
     if current_players >= max_players:
         raise ValueError(f"Table {table_id} is full ({current_players}/{max_players})")
-    
+
     # Find next available position
     result = await db.execute(
-        select(Seat.position).where(
-            Seat.table_id == table_id,
-            Seat.left_at.is_(None)
-        )
+        select(Seat.position).where(Seat.table_id == table_id, Seat.left_at.is_(None))
     )
     occupied_positions = set(pos for pos, in result.all())
-    
+
     position = 0
     while position < max_players:
         if position not in occupied_positions:
             break
         position += 1
-    
+
     # Get starting stack from table config
     starting_stack = config.get("starting_stack", 10000)
-    
+
     # Create seat
     seat = Seat(
         table_id=table_id,
@@ -371,7 +374,7 @@ async def seat_user_at_table(
     db.add(seat)
     table.updated_at = datetime.now(timezone.utc)
     await db.flush()
-    
+
     logger.info(
         "User seated at table",
         table_id=table_id,
@@ -442,19 +445,42 @@ async def leave_table(
     table_id: int,
     user_id: int,
 ) -> Seat:
-    """Mark a user's seat as vacated for the given table."""
+    """
+    Mark a user's seat as vacated for the given table.
+
+    Also reconciles wallet balance based on session profit/loss.
+    """
 
     result = await db.execute(
-        select(Seat)
-        .where(
-            Seat.table_id == table_id,
-            Seat.user_id == user_id,
-            Seat.left_at.is_(None)
+        select(Seat).where(
+            Seat.table_id == table_id, Seat.user_id == user_id, Seat.left_at.is_(None)
         )
     )
     seat = result.scalar_one_or_none()
     if not seat:
         raise ValueError(f"User {user_id} is not seated at table {table_id}")
+
+    # Get table config to determine starting stack
+    result = await db.execute(select(Table).where(Table.id == table_id))
+    table = result.scalar_one_or_none()
+    if table:
+        config = table.config_json or {}
+        starting_stack = config.get("starting_stack", 10000)
+
+        # Calculate session profit/loss
+        # Note: This is cumulative across all hands at this table
+        # Wallet updates from individual hands are already applied
+        # We don't need to double-apply here
+        session_profit = seat.chips - starting_stack
+
+        logger.info(
+            "User leaving table",
+            table_id=table_id,
+            user_id=user_id,
+            starting_stack=starting_stack,
+            final_chips=seat.chips,
+            session_profit=session_profit,
+        )
 
     seat.left_at = datetime.now(timezone.utc)
     seat.table.updated_at = datetime.now(timezone.utc)
@@ -480,12 +506,10 @@ async def get_table_info(
 ) -> Dict[str, Any]:
     """
     Get comprehensive table information.
-    
+
     Returns dict with table details, player count, and configuration.
     """
-    result = await db.execute(
-        select(Table).where(Table.id == table_id)
-    )
+    result = await db.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
 
     if not table:
@@ -494,28 +518,26 @@ async def get_table_info(
     # Check if table should be marked as expired
     is_expired = await check_and_mark_expired_table(db, table)
 
-    now = datetime.now(timezone.utc)
     config = table.config_json or {}
     creator_user_id = table.creator_user_id or config.get("creator_user_id")
-    is_public = table.is_public if table.is_public is not None else not _is_table_private(config)
+    is_public = (
+        table.is_public
+        if table.is_public is not None
+        else not _is_table_private(config)
+    )
     is_private = not is_public
 
     # Fetch host user if available
     host_user = None
     if creator_user_id:
-        host_result = await db.execute(
-            select(User).where(User.id == creator_user_id)
-        )
+        host_result = await db.execute(select(User).where(User.id == creator_user_id))
         host_user = host_result.scalar_one_or_none()
 
     # Load seated players with user information
     seats_result = await db.execute(
         select(Seat, User)
         .join(User, Seat.user_id == User.id)
-        .where(
-            Seat.table_id == table_id,
-            Seat.left_at.is_(None)
-        )
+        .where(Seat.table_id == table_id, Seat.left_at.is_(None))
         .order_by(Seat.position.asc())
     )
 
@@ -541,17 +563,15 @@ async def get_table_info(
             viewer_position = seat.position
 
     player_count = len(players)
-    
+
     # Get group info if it's a group table
     group_title = None
     if table.group_id:
-        result = await db.execute(
-            select(Group).where(Group.id == table.group_id)
-        )
+        result = await db.execute(select(Group).where(Group.id == table.group_id))
         group = result.scalar_one_or_none()
         if group:
             group_title = group.title
-    
+
     # Determine invite metadata for the table
     invite_info = None
     if creator_user_id:
@@ -561,7 +581,10 @@ async def get_table_info(
             .order_by(desc(GroupGameInvite.expires_at))
         )
         for invite in invite_result.scalars():
-            if invite.status not in {GroupGameInviteStatus.PENDING, GroupGameInviteStatus.READY}:
+            if invite.status not in {
+                GroupGameInviteStatus.PENDING,
+                GroupGameInviteStatus.READY,
+            }:
                 continue
             expires_at = invite.expires_at
             if expires_at:
@@ -569,7 +592,9 @@ async def get_table_info(
                     expires_at = expires_at.replace(tzinfo=timezone.utc)
                 if expires_at < datetime.now(timezone.utc):
                     continue
-            table_hint = invite.metadata_json.get("table_id") if invite.metadata_json else None
+            table_hint = (
+                invite.metadata_json.get("table_id") if invite.metadata_json else None
+            )
             if table_hint == table.id:
                 invite_info = {
                     "game_id": invite.game_id,
@@ -589,11 +614,28 @@ async def get_table_info(
     max_players = config.get("max_players", 8)
     viewer_is_creator = viewer_user_id is not None and viewer_user_id == creator_user_id
 
+    # Check if there's an active hand to determine if "Next Hand" can be started
+    from telegram_poker_bot.shared.models import Hand, HandStatus
+
+    has_active_hand = False
+    if table.status == TableStatus.ACTIVE:
+        hand_result = await db.execute(
+            select(Hand)
+            .where(Hand.table_id == table.id, Hand.status != HandStatus.ENDED)
+            .limit(1)
+        )
+        has_active_hand = hand_result.scalar_one_or_none() is not None
+
     permissions = {
         "can_start": (
             viewer_is_creator
-            and table.status == TableStatus.WAITING
             and player_count >= 2
+            and (
+                table.status == TableStatus.WAITING  # First hand
+                or (
+                    table.status == TableStatus.ACTIVE and not has_active_hand
+                )  # Next hand
+            )
         ),
         "can_join": (
             (not viewer_is_seated)
@@ -633,7 +675,9 @@ async def get_table_info(
         "expires_at": table.expires_at.isoformat() if table.expires_at else None,
         "is_expired": is_expired,
         "invite_code": (
-            table.invite_code if is_private and (viewer_is_creator or viewer_is_seated) else None
+            table.invite_code
+            if is_private and (viewer_is_creator or viewer_is_seated)
+            else None
         ),
         "players": players,
         "host": host_info,
@@ -671,10 +715,16 @@ async def list_available_tables(
         else:
             if cached_raw:
                 try:
-                    cached_text = cached_raw.decode() if isinstance(cached_raw, (bytes, bytearray)) else cached_raw
+                    cached_text = (
+                        cached_raw.decode()
+                        if isinstance(cached_raw, (bytes, bytearray))
+                        else cached_raw
+                    )
                     cached_payload = json.loads(cached_text)
                 except (json.JSONDecodeError, AttributeError):
-                    logger.warning("Corrupted public table cache entry", cache_key=cache_key)
+                    logger.warning(
+                        "Corrupted public table cache entry", cache_key=cache_key
+                    )
                     cached_payload = None
 
     if cached_payload is None:
@@ -682,14 +732,9 @@ async def list_available_tables(
         query = select(Table).where(
             Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
         )
-        
+
         # Filter out expired tables
-        query = query.where(
-            or_(
-                Table.expires_at.is_(None),
-                Table.expires_at > now
-            )
-        )
+        query = query.where(or_(Table.expires_at.is_(None), Table.expires_at > now))
 
         if mode:
             query = query.where(Table.mode == mode)
@@ -712,7 +757,9 @@ async def list_available_tables(
                 query = query.where(Table.is_public.is_(True))
 
         # Order by expiration (soonest first), then by created_at
-        query = query.order_by(Table.expires_at.asc().nullslast(), Table.created_at.desc(), Table.id.desc()).limit(limit)
+        query = query.order_by(
+            Table.expires_at.asc().nullslast(), Table.created_at.desc(), Table.id.desc()
+        ).limit(limit)
 
         result = await db.execute(query)
         tables = result.scalars().all()
@@ -723,22 +770,19 @@ async def list_available_tables(
                     await redis_client.setex(cache_key, cache_ttl, "[]")
                     await redis_client.sadd(PUBLIC_TABLE_CACHE_KEYS, cache_key)
                 except Exception as exc:  # pragma: no cover
-                    logger.warning("Failed to write empty public table cache", error=str(exc))
+                    logger.warning(
+                        "Failed to write empty public table cache", error=str(exc)
+                    )
             return []
 
         table_ids = [table.id for table in tables]
 
         seat_counts_result = await db.execute(
             select(Seat.table_id, func.count(Seat.id))
-            .where(
-                Seat.table_id.in_(table_ids),
-                Seat.left_at.is_(None)
-            )
+            .where(Seat.table_id.in_(table_ids), Seat.left_at.is_(None))
             .group_by(Seat.table_id)
         )
-        seat_counts = {
-            table_id: count for table_id, count in seat_counts_result.all()
-        }
+        seat_counts = {table_id: count for table_id, count in seat_counts_result.all()}
 
         creator_ids = {
             table.creator_user_id or (table.config_json or {}).get("creator_user_id")
@@ -781,9 +825,15 @@ async def list_available_tables(
                     "starting_stack": config.get("starting_stack", 10000),
                     "table_name": config.get("table_name", f"Table #{table.id}"),
                     "host": host_info,
-                    "created_at": table.created_at.isoformat() if table.created_at else None,
-                    "updated_at": table.updated_at.isoformat() if table.updated_at else None,
-                    "expires_at": table.expires_at.isoformat() if table.expires_at else None,
+                    "created_at": (
+                        table.created_at.isoformat() if table.created_at else None
+                    ),
+                    "updated_at": (
+                        table.updated_at.isoformat() if table.updated_at else None
+                    ),
+                    "expires_at": (
+                        table.expires_at.isoformat() if table.expires_at else None
+                    ),
                     "is_full": player_count >= max_players,
                     "is_private": is_private,
                     "is_public": is_public,
@@ -815,8 +865,7 @@ async def list_available_tables(
                 Seat.position,
                 Seat.chips,
                 Seat.joined_at,
-            )
-            .where(
+            ).where(
                 Seat.table_id.in_(table_ids),
                 Seat.left_at.is_(None),
                 Seat.user_id == viewer_user_id,
@@ -855,7 +904,15 @@ async def start_table(
     *,
     user_id: int,
 ) -> Table:
-    """Transition a table into the active state if the caller is the host."""
+    """
+    Transition a table into the active state or start a new hand if already active.
+
+    This allows:
+    - Starting the first hand when table is WAITING
+    - Starting subsequent hands when table is ACTIVE (multi-hand support)
+
+    Requires the caller to be the table creator (host).
+    """
 
     result = await db.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
@@ -867,13 +924,13 @@ async def start_table(
     if creator_user_id is None or creator_user_id != user_id:
         raise PermissionError("Only the table creator can start the game")
 
-    if table.status != TableStatus.WAITING:
-        raise ValueError("Table is not in a state that can be started")
+    # Allow starting from WAITING or ACTIVE status
+    if table.status not in (TableStatus.WAITING, TableStatus.ACTIVE):
+        raise ValueError(f"Table cannot be started from {table.status.value} state")
 
     result = await db.execute(
         select(func.count(Seat.id)).where(
-            Seat.table_id == table_id,
-            Seat.left_at.is_(None)
+            Seat.table_id == table_id, Seat.left_at.is_(None)
         )
     )
     player_count = result.scalar() or 0
@@ -881,15 +938,98 @@ async def start_table(
     if player_count < required_players:
         raise ValueError("At least two seated players are required to start the game")
 
-    table.status = TableStatus.ACTIVE
+    # Check if there's an active hand already running
+    from telegram_poker_bot.shared.models import Hand, HandStatus
+
+    hand_result = await db.execute(
+        select(Hand)
+        .where(Hand.table_id == table_id, Hand.status != HandStatus.ENDED)
+        .order_by(Hand.hand_no.desc())
+        .limit(1)
+    )
+    active_hand = hand_result.scalar_one_or_none()
+    if active_hand:
+        raise ValueError("Cannot start a new hand while another hand is in progress")
+
+    # Transition table to ACTIVE if it was WAITING
+    if table.status == TableStatus.WAITING:
+        table.status = TableStatus.ACTIVE
+
     table.updated_at = datetime.now(timezone.utc)
     await db.flush()
 
     logger.info(
-        "Table started",
+        "Table ready for new hand",
         table_id=table.id,
         started_by=user_id,
         player_count=player_count,
+        table_status=table.status.value,
+    )
+
+    return table
+
+
+async def end_table(
+    db: AsyncSession,
+    table_id: int,
+    *,
+    user_id: int,
+) -> Table:
+    """
+    End a table session (host only).
+
+    This will:
+    1. Mark all active seats as left
+    2. Reconcile wallet balances for all seated players (already done per-hand)
+    3. Mark table as ENDED
+
+    Args:
+        db: Database session
+        table_id: Table to end
+        user_id: User requesting to end the table (must be creator)
+
+    Returns:
+        Updated Table instance
+
+    Raises:
+        ValueError: If table not found
+        PermissionError: If user is not the creator
+    """
+    result = await db.execute(select(Table).where(Table.id == table_id))
+    table = result.scalar_one_or_none()
+    if not table:
+        raise ValueError(f"Table {table_id} not found")
+
+    config = table.config_json or {}
+    creator_user_id = table.creator_user_id or config.get("creator_user_id")
+    if creator_user_id is None or creator_user_id != user_id:
+        raise PermissionError("Only the table creator can end the table")
+
+    # Mark all active seats as left
+    result = await db.execute(
+        select(Seat).where(Seat.table_id == table_id, Seat.left_at.is_(None))
+    )
+    active_seats = result.scalars().all()
+
+    now = datetime.now(timezone.utc)
+    for seat in active_seats:
+        seat.left_at = now
+        logger.info(
+            "Auto-leaving seat on table end",
+            table_id=table_id,
+            user_id=seat.user_id,
+            seat_id=seat.id,
+        )
+
+    # Mark table as ended
+    table.status = TableStatus.ENDED
+    table.updated_at = now
+    await db.flush()
+
+    logger.info(
+        "Table ended",
+        table_id=table.id,
+        ended_by=user_id,
     )
 
     return table

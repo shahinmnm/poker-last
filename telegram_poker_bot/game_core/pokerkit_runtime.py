@@ -121,6 +121,8 @@ class PokerKitTableRuntime:
         """
         Start a new hand using PokerKit engine and persist state to DB.
 
+        Supports multi-hand sessions with proper dealer button rotation.
+
         Args:
             db: Database session
             small_blind: Small blind amount
@@ -139,16 +141,45 @@ class PokerKitTableRuntime:
             seat.user_id: idx for idx, seat in enumerate(active_seats)
         }
 
-        # Get starting stacks
+        # Get starting stacks (current chips from seats)
         starting_stacks = [seat.chips for seat in active_seats]
 
-        # Create PokerKit engine
+        # Determine button index for this hand
+        # For multi-hand support, rotate button from previous hand
+        button_index = None
+        if self.hand_no > 1:
+            # Get the previous completed hand to find the button position
+            prev_hand_result = await db.execute(
+                select(Hand)
+                .where(
+                    Hand.table_id == self.table.id,
+                    Hand.hand_no == self.hand_no - 1,
+                    Hand.status == HandStatus.ENDED,
+                )
+                .limit(1)
+            )
+            prev_hand = prev_hand_result.scalar_one_or_none()
+
+            if prev_hand and prev_hand.engine_state_json:
+                prev_button = prev_hand.engine_state_json.get("button_index", 0)
+                # Rotate button clockwise (add 1, modulo player count)
+                button_index = (prev_button + 1) % len(active_seats)
+                logger.info(
+                    "Rotating button for next hand",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    prev_button=prev_button,
+                    new_button=button_index,
+                )
+
+        # Create PokerKit engine with optional button rotation
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
             starting_stacks=starting_stacks,
             small_blind=small_blind,
             big_blind=big_blind,
             mode=Mode.TOURNAMENT,
+            button_index=button_index,
         )
 
         # Deal hole cards
@@ -164,6 +195,7 @@ class PokerKitTableRuntime:
             table_id=self.table.id,
             hand_no=self.hand_no,
             players=len(active_seats),
+            button_index=button_index,
         )
 
         # Return initial state
@@ -337,6 +369,9 @@ class PokerKitTableRuntime:
                         "user_id": user_id_by_index[w["player_index"]],
                         "amount": w["amount"],
                         "pot_index": w["pot_index"],
+                        "hand_score": w["hand_score"],
+                        "hand_rank": w["hand_rank"],
+                        "best_hand_cards": w["best_hand_cards"],
                     }
                     for w in winners
                 ]
@@ -655,6 +690,33 @@ class PokerKitTableRuntimeManager:
             if "hand_result" in result:
                 runtime.current_hand.status = HandStatus.ENDED
                 runtime.current_hand.ended_at = datetime.now(timezone.utc)
+
+                # Apply hand results to wallets and stats
+                from telegram_poker_bot.shared.services.user_service import (
+                    apply_hand_result_to_wallets_and_stats,
+                )
+
+                try:
+                    await apply_hand_result_to_wallets_and_stats(
+                        db=db,
+                        hand=runtime.current_hand,
+                        table=runtime.table,
+                        seats=runtime.seats,
+                        hand_result=result["hand_result"],
+                    )
+                    logger.info(
+                        "Applied hand result to wallets and stats",
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Failed to apply hand result to wallets/stats",
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                        error=str(e),
+                    )
+                    # Don't fail the action - just log the error
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index
