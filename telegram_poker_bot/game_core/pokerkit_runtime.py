@@ -658,6 +658,33 @@ class PokerKitTableRuntimeManager:
             if "hand_result" in result:
                 runtime.current_hand.status = HandStatus.ENDED
                 runtime.current_hand.ended_at = datetime.now(timezone.utc)
+                
+                # Apply hand results to wallets and stats
+                from telegram_poker_bot.shared.services.user_service import (
+                    apply_hand_result_to_wallets_and_stats,
+                )
+                
+                try:
+                    await apply_hand_result_to_wallets_and_stats(
+                        db=db,
+                        hand=runtime.current_hand,
+                        table=runtime.table,
+                        seats=runtime.seats,
+                        hand_result=result["hand_result"],
+                    )
+                    logger.info(
+                        "Applied hand result to wallets and stats",
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Failed to apply hand result to wallets/stats",
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                        error=str(e),
+                    )
+                    # Don't fail the action - just log the error
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index

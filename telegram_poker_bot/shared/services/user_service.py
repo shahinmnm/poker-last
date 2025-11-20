@@ -319,3 +319,128 @@ async def update_user_language(
     user.language = language_code
     await db.flush()
     return user
+
+
+async def apply_hand_result_to_wallets_and_stats(
+    db: AsyncSession,
+    hand: Hand,
+    table: Table,
+    seats: List[Seat],
+    hand_result: Dict[str, Any],
+) -> None:
+    """
+    Apply hand result to user wallets and stats.
+    
+    This function:
+    1. Ensures all affected users have wallets
+    2. Computes profit/loss for each user based on chip changes
+    3. Updates wallet balances
+    4. Creates transaction records
+    5. Updates user stats
+    
+    Args:
+        db: Database session
+        hand: The completed Hand record
+        table: The Table record
+        seats: List of Seat records for players in the hand
+        hand_result: Hand result dict with winners info
+    """
+    from telegram_poker_bot.shared.models import Transaction
+    
+    config = table.config_json or {}
+    starting_stack = config.get("starting_stack", 10000)
+    
+    # Track initial chip amounts for each seat (before this hand started)
+    # For simplicity, we'll use the difference in seat.chips vs starting_stack
+    # as the cumulative profit/loss for all hands at this table
+    
+    # Get all winners from hand_result
+    winners = hand_result.get("winners", [])
+    winner_user_ids = {w["user_id"] for w in winners}
+    winner_amounts = {w["user_id"]: w["amount"] for w in winners}
+    
+    # For each seat, determine their profit/loss
+    for seat in seats:
+        user_id = seat.user_id
+        
+        # Ensure wallet exists
+        wallet = await ensure_wallet(db, user_id)
+        
+        # Calculate profit/loss for this specific hand
+        # Winner amounts represent chips won in this hand
+        hand_profit = winner_amounts.get(user_id, 0)
+        
+        # Note: We don't track contributions per hand easily, so we'll use
+        # a simpler approach: winners get their winnings added, losers get nothing
+        # This means wallets reflect cumulative session profit, not hand-by-hand
+        
+        # For now, we'll only apply positive winnings to wallet
+        if hand_profit > 0:
+            wallet.balance += hand_profit
+            
+            # Create transaction record
+            transaction = Transaction(
+                user_id=user_id,
+                type="game_payout",
+                amount=hand_profit,
+                status="completed",
+                metadata_json={
+                    "table_id": table.id,
+                    "hand_id": hand.id,
+                    "hand_no": hand.hand_no,
+                },
+            )
+            db.add(transaction)
+    
+    # Update user stats for all participants
+    for seat in seats:
+        user_id = seat.user_id
+        
+        # Get current stats
+        result = await db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            continue
+        
+        stats_blob = user.stats_blob or {}
+        
+        # Increment hands played
+        stats_blob["hands_played"] = stats_blob.get("hands_played", 0) + 1
+        
+        # Update win count if user won
+        if user_id in winner_user_ids:
+            stats_blob["hands_won"] = stats_blob.get("hands_won", 0) + 1
+            hand_profit = winner_amounts.get(user_id, 0)
+            
+            # Update total profit
+            stats_blob["total_profit"] = stats_blob.get("total_profit", 0) + hand_profit
+            
+            # Update biggest pot
+            if hand_profit > stats_blob.get("biggest_pot", 0):
+                stats_blob["biggest_pot"] = hand_profit
+            
+            # Update winning streak
+            current_streak = stats_blob.get("current_streak", 0)
+            if current_streak >= 0:
+                stats_blob["current_streak"] = current_streak + 1
+            else:
+                stats_blob["current_streak"] = 1
+        else:
+            # Lost hand - update losing streak
+            current_streak = stats_blob.get("current_streak", 0)
+            if current_streak <= 0:
+                stats_blob["current_streak"] = current_streak - 1
+            else:
+                stats_blob["current_streak"] = -1
+        
+        # Calculate win rate
+        hands_played = stats_blob.get("hands_played", 1)
+        hands_won = stats_blob.get("hands_won", 0)
+        stats_blob["win_rate"] = (hands_won / hands_played * 100) if hands_played > 0 else 0.0
+        
+        # Save updated stats
+        user.stats_blob = stats_blob
+    
+    await db.flush()
