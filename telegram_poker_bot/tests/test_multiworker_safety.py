@@ -60,7 +60,7 @@ async def test_worker_loads_hand_state_on_first_access(
     # Worker 1 starts a game
     manager1 = PokerKitTableRuntimeManager()
     state1 = await manager1.start_game(db_session, table.id)
-    
+
     # Verify hand was created in DB
     result = await db_session.execute(
         select(Hand).where(Hand.table_id == table.id, Hand.status != HandStatus.ENDED)
@@ -68,15 +68,15 @@ async def test_worker_loads_hand_state_on_first_access(
     hand = result.scalar_one()
     assert hand is not None
     assert hand.engine_state_json is not None
-    
+
     await db_session.commit()
-    
+
     # Worker 2 (new manager simulating different process)
     manager2 = PokerKitTableRuntimeManager()
-    
+
     # Worker 2 gets state - should load from DB on first access
     state2 = await manager2.get_state(db_session, table.id, creator.id)
-    
+
     # Worker 2 should see the game that Worker 1 started
     assert state2 is not None
     assert state2["hand_id"] == state1["hand_id"]
@@ -111,29 +111,27 @@ async def test_same_worker_handles_sequential_actions(
     # Worker handles start and multiple actions
     manager = PokerKitTableRuntimeManager()
     state1 = await manager.start_game(db_session, table.id)
-    
+
     actor1 = state1.get("current_actor")
     state2 = await manager.handle_action(
         db_session, table.id, actor1, ActionType.CALL, None
     )
-    
+
     # Next action
     actor2 = state2.get("current_actor")
     assert actor2 is not None
-    
+
     state3 = await manager.handle_action(
         db_session, table.id, actor2, ActionType.CHECK, None
     )
-    
+
     # Verify the sequence was successful
     assert state3 is not None
     # After call and check, we should be at flop
     assert state3["status"] == "flop"
-    
+
     # Verify state was persisted to DB
-    result = await db_session.execute(
-        select(Hand).where(Hand.table_id == table.id)
-    )
+    result = await db_session.execute(select(Hand).where(Hand.table_id == table.id))
     hand = result.scalar_one()
     assert hand.engine_state_json is not None
 
@@ -177,4 +175,3 @@ async def test_table_and_seat_data_always_fresh_from_db(
     runtime2 = await manager.ensure_table(db_session, table.id)
     assert len(runtime2.seats) == 3
     assert runtime2.seats[-1].user_id == player3.id
-

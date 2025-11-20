@@ -428,7 +428,7 @@ class PokerKitTableRuntimeManager:
     - Once loaded, a worker keeps the engine in memory and updates it on each action
     - After each action, state is persisted back to DB (via handle_action)
     - This means: A worker will see the current state once it performs any operation on a table
-    
+
     Known Limitation:
     - If Worker A handles an action and Worker B hasn't accessed that table yet,
       Worker B will still have stale/no state until it performs an operation.
