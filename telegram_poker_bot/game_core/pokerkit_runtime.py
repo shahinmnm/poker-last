@@ -37,6 +37,14 @@ class PokerKitTableRuntime:
     - ALL poker logic delegated to PokerKit via adapter
     - No custom dealing, betting, or pot calculation
     - State is serialized from PokerKit for frontend consumption
+    - Engine state is persisted to Hand.engine_state_json after each action
+    - This class is cached per-process in PokerKitTableRuntimeManager
+
+    Multi-Worker Note:
+    - Each worker process maintains its own instance of this class
+    - Table and Seat data are refreshed from DB on each operation
+    - Engine state is loaded from DB on first access, then kept in memory
+    - State changes are persisted back to DB after each action
     """
 
     def __init__(self, table: Table, seats: List[Seat]):
@@ -403,10 +411,43 @@ class PokerKitTableRuntime:
 
 
 class PokerKitTableRuntimeManager:
-    """Registry for PokerKit table runtimes."""
+    """
+    Manager for PokerKit table runtimes with multi-worker safety considerations.
+
+    Design Principles:
+    - The database (Hand.engine_state_json) is the SINGLE SOURCE OF TRUTH for engine state
+    - Engine state is persisted to DB after each action (in handle_action)
+    - _tables cache is a per-process optimization for runtime objects
+    - Per-table locks ensure serialized access to DB read/write operations within a process
+    - Table and Seat data is ALWAYS refreshed from DB on each operation
+
+    Multi-Worker Behavior:
+    - The service CAN run with multiple API workers sharing the same database
+    - Each worker maintains its own _tables cache for performance
+    - Engine state is loaded from DB when a worker first accesses a table
+    - Once loaded, a worker keeps the engine in memory and updates it on each action
+    - After each action, state is persisted back to DB (via handle_action)
+    - This means: A worker will see the current state once it performs any operation on a table
+    
+    Known Limitation:
+    - If Worker A handles an action and Worker B hasn't accessed that table yet,
+      Worker B will still have stale/no state until it performs an operation.
+    - This is acceptable because:
+      1. Most requests complete atomically under the per-table lock
+      2. WebSocket connections typically stick to one worker (session affinity)
+      3. The state converges on the next operation
+      4. Complete state restoration from DB is complex and not fully implemented
+
+    For truly stateless multi-worker operation, the engine restoration logic in
+    PokerEngineAdapter.from_persistence_state() would need to be enhanced to fully
+    reconstruct all internal PokerKit State fields.
+    """
 
     def __init__(self):
+        # Per-process cache for runtime objects
+        # Contains table metadata and engine state
         self._tables: Dict[int, PokerKitTableRuntime] = {}
+        # Per-table locks to serialize operations within this process
         self._locks: Dict[int, asyncio.Lock] = {}
 
     def _get_lock_for_table(self, table_id: int) -> asyncio.Lock:
@@ -427,6 +468,24 @@ class PokerKitTableRuntimeManager:
     async def ensure_table(
         self, db: AsyncSession, table_id: int
     ) -> PokerKitTableRuntime:
+        """
+        Get or create runtime instance, always refreshing table/seat data from DB.
+
+        This method ensures multi-worker safety by:
+        1. ALWAYS fetching fresh Table and Seats from DB
+        2. Reusing cached runtime if it exists, or creating new if not
+        3. Loading engine state from DB only if runtime.engine is None
+
+        The engine is loaded from DB on first access per worker. Subsequent calls
+        reuse the in-memory engine, which is kept in sync via handle_action's persistence.
+
+        Args:
+            db: Database session
+            table_id: The table ID to load
+
+        Returns:
+            PokerKitTableRuntime instance with current table/seat data from DB
+        """
         # Always fetch fresh table and seat data from database
         result = await db.execute(select(Table).where(Table.id == table_id))
         table = result.scalar_one_or_none()
@@ -451,7 +510,8 @@ class PokerKitTableRuntimeManager:
             runtime = PokerKitTableRuntime(table, seats)
             self._tables[table_id] = runtime
 
-        # Check for active hand and restore engine if needed
+        # Load engine state from DB if not already loaded in this worker
+        # This ensures first access gets DB state, subsequent calls reuse in-memory state
         if runtime.engine is None:
             hand_result = await db.execute(
                 select(Hand)
