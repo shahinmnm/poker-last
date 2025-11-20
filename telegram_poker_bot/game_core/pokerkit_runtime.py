@@ -213,6 +213,56 @@ class PokerKitTableRuntime:
         # Return initial state
         return self.to_payload()
 
+    def _auto_advance_street_and_showdown(self) -> None:
+        """
+        Automatically advance through streets when betting rounds complete.
+
+        This helper handles:
+        - Normal play: preflop -> flop -> turn -> river
+        - All-in scenarios: auto-deal remaining community cards
+
+        Called after each player action to ensure proper game progression.
+        """
+        if not self.engine:
+            return
+
+        # Loop while hand is not complete and there's no one to act
+        # This handles both normal street progression and all-in run-outs
+        while (
+            not self.engine.is_hand_complete() and not self.engine.state.actor_indices
+        ):
+            street_index = self.engine.state.street_index
+            if street_index is None:
+                break
+
+            # Count current board cards to determine what to deal
+            current_board_count = sum(
+                len(cards) for cards in self.engine.state.board_cards
+            )
+
+            # Deal community cards based on what's missing
+            if street_index == 1 and current_board_count == 0:
+                # On flop street but no cards dealt yet -> deal flop
+                self.engine.deal_flop()
+                logger.debug(
+                    "Auto-dealt flop", table_id=self.table.id, hand_no=self.hand_no
+                )
+            elif street_index == 2 and current_board_count == 3:
+                # On turn street but only 3 cards -> deal turn
+                self.engine.deal_turn()
+                logger.debug(
+                    "Auto-dealt turn", table_id=self.table.id, hand_no=self.hand_no
+                )
+            elif street_index == 3 and current_board_count == 4:
+                # On river street but only 4 cards -> deal river
+                self.engine.deal_river()
+                logger.debug(
+                    "Auto-dealt river", table_id=self.table.id, hand_no=self.hand_no
+                )
+            else:
+                # Either preflop (street_index=0), or cards already dealt, or hand complete
+                break
+
     def handle_action(
         self, user_id: int, action: ActionType, amount: Optional[int] = None
     ) -> Dict[str, Any]:
@@ -266,6 +316,9 @@ class PokerKitTableRuntime:
             action=action.value,
             amount=amount,
         )
+
+        # Auto-advance streets and handle showdown
+        self._auto_advance_street_and_showdown()
 
         # Build response
         result = {"state": self.to_payload()}
