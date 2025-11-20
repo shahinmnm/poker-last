@@ -37,8 +37,8 @@ interface GlassCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'className
 
 const radiusMap = {
   sm: 'rounded-xl',
-  md: 'rounded-2xl',
-  lg: 'rounded-[1.25rem]',
+  md: 'rounded-[1.5rem]', // 24px - larger for glassmorphism
+  lg: 'rounded-[2rem]',   // 32px - larger for glassmorphism
   xl: 'rounded-3xl',
 }
 
@@ -57,7 +57,7 @@ const radiusMap = {
 export default function GlassCard({
   children,
   radius = 'lg',
-  blur = 18,
+  blur = 24,
   accentGradient,
   className,
   hover = true,
