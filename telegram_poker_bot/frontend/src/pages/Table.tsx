@@ -160,6 +160,9 @@ export default function TablePage() {
     initDataRef.current = initData
   }, [initData])
 
+  // Track the last hand_id to detect when a new hand starts
+  const lastHandIdRef = useRef<number | null>(null)
+
   const fetchTable = useCallback(async () => {
     if (!tableId) {
       return
@@ -244,6 +247,9 @@ export default function TablePage() {
       }
     }, [fetchTable]),
     onStateChange: useCallback((payload: LiveTableState) => {
+      const isNewHand =
+        payload.hand_id !== null && lastHandIdRef.current !== payload.hand_id
+
       setLiveState((previous) => {
         const isSameHand =
           payload.hand_id !== null && previous?.hand_id === payload.hand_id
@@ -266,9 +272,13 @@ export default function TablePage() {
         setHandResult(mergedHandResult ?? null)
         return nextState
       })
-      // Note: We don't call fetchLiveState here to avoid redundant HTTP requests
-      // The WebSocket already provides the state update
-    }, []),
+
+      // When a new hand starts, fetch viewer-specific state (including hero cards)
+      if (isNewHand && payload.hand_id !== null) {
+        lastHandIdRef.current = payload.hand_id
+        fetchLiveState()
+      }
+    }, [fetchLiveState]),
     onConnect: useCallback(() => {
       console.log('WebSocket connected to table', tableId)
       // Refresh viewer-specific state (including hero cards) after reconnects
