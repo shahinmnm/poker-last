@@ -337,6 +337,9 @@ class PokerKitTableRuntime:
                         "user_id": user_id_by_index[w["player_index"]],
                         "amount": w["amount"],
                         "pot_index": w["pot_index"],
+                        "hand_score": w["hand_score"],
+                        "hand_rank": w["hand_rank"],
+                        "best_hand_cards": w["best_hand_cards"],
                     }
                     for w in winners
                 ]
