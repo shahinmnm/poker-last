@@ -18,7 +18,6 @@ from telegram_poker_bot.shared.models import (
 )
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 from telegram_poker_bot.game_core.pokerkit_runtime import (
-    PokerKitTableRuntime,
     PokerKitTableRuntimeManager,
 )
 
@@ -221,7 +220,7 @@ async def test_engine_restoration_after_restart(
     state2 = await manager1.handle_action(
         db_session, table.id, current_actor, ActionType.CALL, None
     )
-    
+
     current_actor = state2.get("current_actor")
     state3 = await manager1.handle_action(
         db_session, table.id, current_actor, ActionType.CHECK, None
@@ -229,7 +228,7 @@ async def test_engine_restoration_after_restart(
 
     # Record hand_no and table_id before restart
     hand_no = state3.get("hand_id")
-    
+
     # Simulate process restart by creating new manager
     manager2 = PokerKitTableRuntimeManager()
 
@@ -239,7 +238,7 @@ async def test_engine_restoration_after_restart(
     # Verify key state elements match
     assert post_restart_state["table_id"] == table.id
     assert post_restart_state["hand_id"] == hand_no
-    
+
     # Verify we have players
     assert len(post_restart_state["players"]) == 2
 
@@ -369,15 +368,13 @@ async def test_multiple_hands_persistence(
 
     # Get all hands for this table
     result = await db_session.execute(
-        select(Hand)
-        .where(Hand.table_id == table.id)
-        .order_by(Hand.hand_no.asc())
+        select(Hand).where(Hand.table_id == table.id).order_by(Hand.hand_no.asc())
     )
     all_hands = result.scalars().all()
-    
+
     # Verify we have 2 hands
     assert len(all_hands) == 2
-    
+
     hand2 = all_hands[1]  # Second hand
 
     # Verify it's a new hand
