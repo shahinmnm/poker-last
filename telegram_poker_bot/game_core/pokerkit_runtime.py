@@ -120,7 +120,7 @@ class PokerKitTableRuntime:
     ) -> Dict[str, Any]:
         """
         Start a new hand using PokerKit engine and persist state to DB.
-        
+
         Supports multi-hand sessions with proper dealer button rotation.
 
         Args:
@@ -143,7 +143,7 @@ class PokerKitTableRuntime:
 
         # Get starting stacks (current chips from seats)
         starting_stacks = [seat.chips for seat in active_seats]
-        
+
         # Determine button index for this hand
         # For multi-hand support, rotate button from previous hand
         button_index = None
@@ -159,7 +159,7 @@ class PokerKitTableRuntime:
                 .limit(1)
             )
             prev_hand = prev_hand_result.scalar_one_or_none()
-            
+
             if prev_hand and prev_hand.engine_state_json:
                 prev_button = prev_hand.engine_state_json.get("button_index", 0)
                 # Rotate button clockwise (add 1, modulo player count)
@@ -690,12 +690,12 @@ class PokerKitTableRuntimeManager:
             if "hand_result" in result:
                 runtime.current_hand.status = HandStatus.ENDED
                 runtime.current_hand.ended_at = datetime.now(timezone.utc)
-                
+
                 # Apply hand results to wallets and stats
                 from telegram_poker_bot.shared.services.user_service import (
                     apply_hand_result_to_wallets_and_stats,
                 )
-                
+
                 try:
                     await apply_hand_result_to_wallets_and_stats(
                         db=db,

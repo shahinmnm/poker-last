@@ -91,7 +91,7 @@ class PokerEngineAdapter:
             player_count=player_count,
             mode=mode,
         )
-        
+
         # Set button index if provided (for hand rotation)
         # Note: PokerKit sets button_index internally, but we can override it
         # after the state is created by modifying the internal attribute
@@ -136,14 +136,16 @@ class PokerEngineAdapter:
                 cards = card1 + card2
                 self.state.deal_hole(cards)
                 logger.debug(f"Dealt hole cards to player {player_idx}")
-        
+
         # Apply button index rotation if this is not the first hand
         if self._initial_button_index is not None:
             # After hole cards are dealt, PokerKit has initialized button_index
             # We can now override it for proper rotation
-            if hasattr(self.state, '_button_index'):
+            if hasattr(self.state, "_button_index"):
                 self.state._button_index = self._initial_button_index
-                logger.debug(f"Set button index to {self._initial_button_index} for hand rotation")
+                logger.debug(
+                    f"Set button index to {self._initial_button_index} for hand rotation"
+                )
 
         logger.info("New hand dealt", players=self.player_count)
 
@@ -477,7 +479,7 @@ class PokerEngineAdapter:
                 for player_idx in pot.player_indices:
                     # Get hand evaluation data for this player
                     hand_data = self._get_player_hand_data(player_idx)
-                    
+
                     winners.append(
                         {
                             "pot_index": pot_idx,
@@ -490,18 +492,18 @@ class PokerEngineAdapter:
                     )
 
         return winners
-    
+
     def _get_player_hand_data(self, player_index: int) -> Dict[str, Any]:
         """
         Get hand evaluation data for a specific player.
-        
+
         Returns:
             Dict with hand_score, hand_rank, and best_hand_cards
         """
         try:
             # Get the player's best hand (board_index=0, hand_type_index=0 for high hand)
             hand = self.state.get_hand(player_index, 0, 0)
-            
+
             if hand is None:
                 # Player mucked or folded - return default values
                 return {
@@ -509,10 +511,10 @@ class PokerEngineAdapter:
                     "hand_rank": "folded",
                     "best_hand_cards": [],
                 }
-            
+
             # Get hand entry for ranking and label
             entry = hand.lookup.get_entry(hand.cards)
-            
+
             # Map Label enum to symbolic names
             label_to_rank = {
                 "High card": "high_card",
@@ -525,25 +527,25 @@ class PokerEngineAdapter:
                 "Four of a kind": "four_of_a_kind",
                 "Straight flush": "straight_flush",
             }
-            
+
             hand_rank = label_to_rank.get(entry.label.value, "unknown")
-            
+
             # entry.index is the hand strength (lower index = stronger hand in PokerKit)
             # Invert it so higher score = stronger hand
             # PokerKit uses index where 0 = best hand, so we invert it
             # For a 5-card hand, max index is around 7462 for high card
             # We'll use a large number minus index to get ascending scores
             hand_score = 10000 - entry.index
-            
+
             # Get the 5 cards that form the best hand
             best_hand_cards = [repr(card) for card in hand.cards]
-            
+
             return {
                 "hand_score": hand_score,
                 "hand_rank": hand_rank,
                 "best_hand_cards": best_hand_cards,
             }
-            
+
         except Exception as e:
             logger.error(
                 "Failed to evaluate hand for player",
