@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { faUser, faCoins, faUserGroup, faClock } from '@fortawesome/free-solid-svg-icons'
@@ -154,6 +154,12 @@ export default function TablePage() {
     }, 2400)
   }, [])
 
+  // Use ref to store the latest initData to avoid recreating fetchTable
+  const initDataRef = useRef(initData)
+  useEffect(() => {
+    initDataRef.current = initData
+  }, [initData])
+
   const fetchTable = useCallback(async () => {
     if (!tableId) {
       return
@@ -163,7 +169,7 @@ export default function TablePage() {
       setError(null)
       const data = await apiFetch<TableDetails>(`/tables/${tableId}`, {
         method: 'GET',
-        initData: initData ?? undefined,
+        initData: initDataRef.current ?? undefined,
       })
       setTableDetails(data)
     } catch (err) {
@@ -183,7 +189,7 @@ export default function TablePage() {
     } finally {
       setLoading(false)
     }
-  }, [initData, tableId, t])
+  }, [tableId, t])
 
   const fetchLiveState = useCallback(async () => {
     if (!tableId) {
@@ -192,14 +198,14 @@ export default function TablePage() {
     try {
       const data = await apiFetch<LiveTableState>(`/tables/${tableId}/state`, {
         method: 'GET',
-        initData: initData ?? undefined,
+        initData: initDataRef.current ?? undefined,
       })
       setLiveState(data)
       setHandResult(data.hand_result ?? null)
     } catch (err) {
       console.warn('Unable to fetch live state', err)
     }
-  }, [initData, tableId])
+  }, [tableId])
 
   // Initial data fetch on mount
   useEffect(() => {
@@ -208,7 +214,8 @@ export default function TablePage() {
     }
     fetchTable()
     fetchLiveState()
-  }, [tableId]) // Only depend on tableId, not the fetch functions
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableId]) // Only depend on tableId, not the fetch functions (which are stable via useCallback)
 
   // WebSocket connection with stable hook
   const { status: wsStatus } = useTableWebSocket({

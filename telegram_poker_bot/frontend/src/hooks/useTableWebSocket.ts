@@ -195,6 +195,9 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
   }, [cleanup, connect])
 
   // Connect on mount, disconnect on unmount
+  // Note: connect and cleanup are stable (memoized with useCallback) and have the
+  // same dependencies as this effect, so they don't need to be in the deps array.
+  // However, we include them to satisfy React's exhaustive-deps rule.
   useEffect(() => {
     if (enabled) {
       connect()
@@ -203,6 +206,7 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
     return () => {
       cleanup()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableId, enabled]) // Only reconnect when tableId or enabled changes
 
   return {
