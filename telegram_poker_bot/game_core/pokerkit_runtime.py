@@ -290,43 +290,59 @@ class PokerKitTableRuntimeManager:
 
     def __init__(self):
         self._tables: Dict[int, PokerKitTableRuntime] = {}
-        self._lock = asyncio.Lock()
+        self._locks: Dict[int, asyncio.Lock] = {}
+
+    def _get_lock_for_table(self, table_id: int) -> asyncio.Lock:
+        """Get or create a lock for a specific table.
+
+        Args:
+            table_id: The table ID to get a lock for
+
+        Returns:
+            An asyncio.Lock for the specified table
+        """
+        lock = self._locks.get(table_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._locks[table_id] = lock
+        return lock
 
     async def ensure_table(
         self, db: AsyncSession, table_id: int
     ) -> PokerKitTableRuntime:
-        async with self._lock:
-            # Always fetch fresh table and seat data from database
-            result = await db.execute(select(Table).where(Table.id == table_id))
-            table = result.scalar_one_or_none()
-            if not table:
-                raise ValueError("Table not found")
-            seats_result = await db.execute(
-                select(Seat)
-                .options(selectinload(Seat.user))
-                .where(Seat.table_id == table_id, Seat.left_at.is_(None))
-                .order_by(Seat.position)
-            )
-            seats = seats_result.scalars().all()
+        # Always fetch fresh table and seat data from database
+        result = await db.execute(select(Table).where(Table.id == table_id))
+        table = result.scalar_one_or_none()
+        if not table:
+            raise ValueError("Table not found")
+        seats_result = await db.execute(
+            select(Seat)
+            .options(selectinload(Seat.user))
+            .where(Seat.table_id == table_id, Seat.left_at.is_(None))
+            .order_by(Seat.position)
+        )
+        seats = seats_result.scalars().all()
 
-            # Update existing runtime or create new one
-            runtime = self._tables.get(table_id)
-            if runtime:
-                # Update existing runtime with fresh data
-                runtime.table = table
-                runtime.seats = sorted(seats, key=lambda s: s.position)
-            else:
-                # Create new runtime
-                runtime = PokerKitTableRuntime(table, seats)
-                self._tables[table_id] = runtime
-            return runtime
+        # Update existing runtime or create new one
+        runtime = self._tables.get(table_id)
+        if runtime:
+            # Update existing runtime with fresh data
+            runtime.table = table
+            runtime.seats = sorted(seats, key=lambda s: s.position)
+        else:
+            # Create new runtime
+            runtime = PokerKitTableRuntime(table, seats)
+            self._tables[table_id] = runtime
+        return runtime
 
     async def start_game(self, db: AsyncSession, table_id: int) -> Dict:
-        runtime = await self.ensure_table(db, table_id)
-        config = runtime.table.config_json or {}
-        small_blind = config.get("small_blind", 25)
-        big_blind = config.get("big_blind", 50)
-        return runtime.start_hand(small_blind, big_blind)
+        lock = self._get_lock_for_table(table_id)
+        async with lock:
+            runtime = await self.ensure_table(db, table_id)
+            config = runtime.table.config_json or {}
+            small_blind = config.get("small_blind", 25)
+            big_blind = config.get("big_blind", 50)
+            return runtime.start_hand(small_blind, big_blind)
 
     async def handle_action(
         self,
@@ -336,21 +352,25 @@ class PokerKitTableRuntimeManager:
         action: ActionType,
         amount: Optional[int],
     ) -> Dict:
-        runtime = await self.ensure_table(db, table_id)
-        result = runtime.handle_action(user_id, action, amount)
-        state = result.get("state", runtime.to_payload(user_id))
+        lock = self._get_lock_for_table(table_id)
+        async with lock:
+            runtime = await self.ensure_table(db, table_id)
+            result = runtime.handle_action(user_id, action, amount)
+            state = result.get("state", runtime.to_payload(user_id))
 
-        # Add hand_result if present
-        if "hand_result" in result:
-            state["hand_result"] = result["hand_result"]
+            # Add hand_result if present
+            if "hand_result" in result:
+                state["hand_result"] = result["hand_result"]
 
-        return state
+            return state
 
     async def get_state(
         self, db: AsyncSession, table_id: int, viewer_user_id: Optional[int]
     ) -> Dict:
-        runtime = await self.ensure_table(db, table_id)
-        return runtime.to_payload(viewer_user_id)
+        lock = self._get_lock_for_table(table_id)
+        async with lock:
+            runtime = await self.ensure_table(db, table_id)
+            return runtime.to_payload(viewer_user_id)
 
 
 _pokerkit_runtime_manager = PokerKitTableRuntimeManager()
