@@ -887,6 +887,8 @@ export default function TablePage() {
                   ? canStart
                     ? t('table.messages.readyToStart')
                     : t('table.messages.waitForPlayers', { count: missingPlayers })
+                  : tableDetails.status === 'active' && handResult
+                  ? t('table.messages.waitingForNextHand', 'Waiting for host to start next hand...')
                   : t('table.messages.waitingForHost')
                 : canJoin
                 ? t('table.messages.joinPrompt')
@@ -906,14 +908,24 @@ export default function TablePage() {
                   onClick={handleStart}
                   disabled={!canStart || isStarting}
                 >
-                  {isStarting ? t('table.actions.starting') : t('table.actions.start')}
+                  {isStarting 
+                    ? t('table.actions.starting') 
+                    : tableDetails.status === 'active' && handResult
+                    ? t('table.actions.nextHand', 'Next Hand')
+                    : t('table.actions.start')
+                  }
                 </Button>
                 {!canStart && missingPlayers > 0 && (
                   <p className="text-[10px] text-amber-400 px-1">
                     ⚠️ {t('table.messages.waitForPlayers', { count: missingPlayers })}
                   </p>
                 )}
-                {canStart && (
+                {canStart && tableDetails.status === 'active' && handResult && (
+                  <p className="text-[10px] text-emerald-400 px-1">
+                    ✓ {t('table.messages.readyForNextHand', 'Ready to deal next hand')}
+                  </p>
+                )}
+                {canStart && tableDetails.status !== 'active' && (
                   <p className="text-[10px] text-emerald-400 px-1">
                     ✓ {t('table.messages.readyToStart')}
                   </p>

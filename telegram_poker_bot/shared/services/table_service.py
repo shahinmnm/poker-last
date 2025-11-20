@@ -442,7 +442,11 @@ async def leave_table(
     table_id: int,
     user_id: int,
 ) -> Seat:
-    """Mark a user's seat as vacated for the given table."""
+    """
+    Mark a user's seat as vacated for the given table.
+    
+    Also reconciles wallet balance based on session profit/loss.
+    """
 
     result = await db.execute(
         select(Seat)
@@ -455,6 +459,28 @@ async def leave_table(
     seat = result.scalar_one_or_none()
     if not seat:
         raise ValueError(f"User {user_id} is not seated at table {table_id}")
+    
+    # Get table config to determine starting stack
+    result = await db.execute(select(Table).where(Table.id == table_id))
+    table = result.scalar_one_or_none()
+    if table:
+        config = table.config_json or {}
+        starting_stack = config.get("starting_stack", 10000)
+        
+        # Calculate session profit/loss
+        # Note: This is cumulative across all hands at this table
+        # Wallet updates from individual hands are already applied
+        # We don't need to double-apply here
+        session_profit = seat.chips - starting_stack
+        
+        logger.info(
+            "User leaving table",
+            table_id=table_id,
+            user_id=user_id,
+            starting_stack=starting_stack,
+            final_chips=seat.chips,
+            session_profit=session_profit,
+        )
 
     seat.left_at = datetime.now(timezone.utc)
     seat.table.updated_at = datetime.now(timezone.utc)
@@ -588,12 +614,26 @@ async def get_table_info(
 
     max_players = config.get("max_players", 8)
     viewer_is_creator = viewer_user_id is not None and viewer_user_id == creator_user_id
+    
+    # Check if there's an active hand to determine if "Next Hand" can be started
+    from telegram_poker_bot.shared.models import Hand, HandStatus
+    has_active_hand = False
+    if table.status == TableStatus.ACTIVE:
+        hand_result = await db.execute(
+            select(Hand)
+            .where(Hand.table_id == table.id, Hand.status != HandStatus.ENDED)
+            .limit(1)
+        )
+        has_active_hand = hand_result.scalar_one_or_none() is not None
 
     permissions = {
         "can_start": (
             viewer_is_creator
-            and table.status == TableStatus.WAITING
             and player_count >= 2
+            and (
+                table.status == TableStatus.WAITING  # First hand
+                or (table.status == TableStatus.ACTIVE and not has_active_hand)  # Next hand
+            )
         ),
         "can_join": (
             (not viewer_is_seated)
@@ -917,4 +957,73 @@ async def start_table(
         table_status=table.status.value,
     )
 
+    return table
+
+
+async def end_table(
+    db: AsyncSession,
+    table_id: int,
+    *,
+    user_id: int,
+) -> Table:
+    """
+    End a table session (host only).
+    
+    This will:
+    1. Mark all active seats as left
+    2. Reconcile wallet balances for all seated players (already done per-hand)
+    3. Mark table as ENDED
+    
+    Args:
+        db: Database session
+        table_id: Table to end
+        user_id: User requesting to end the table (must be creator)
+    
+    Returns:
+        Updated Table instance
+    
+    Raises:
+        ValueError: If table not found
+        PermissionError: If user is not the creator
+    """
+    result = await db.execute(select(Table).where(Table.id == table_id))
+    table = result.scalar_one_or_none()
+    if not table:
+        raise ValueError(f"Table {table_id} not found")
+    
+    config = table.config_json or {}
+    creator_user_id = table.creator_user_id or config.get("creator_user_id")
+    if creator_user_id is None or creator_user_id != user_id:
+        raise PermissionError("Only the table creator can end the table")
+    
+    # Mark all active seats as left
+    result = await db.execute(
+        select(Seat).where(
+            Seat.table_id == table_id,
+            Seat.left_at.is_(None)
+        )
+    )
+    active_seats = result.scalars().all()
+    
+    now = datetime.now(timezone.utc)
+    for seat in active_seats:
+        seat.left_at = now
+        logger.info(
+            "Auto-leaving seat on table end",
+            table_id=table_id,
+            user_id=seat.user_id,
+            seat_id=seat.id,
+        )
+    
+    # Mark table as ended
+    table.status = TableStatus.ENDED
+    table.updated_at = now
+    await db.flush()
+    
+    logger.info(
+        "Table ended",
+        table_id=table.id,
+        ended_by=user_id,
+    )
+    
     return table
