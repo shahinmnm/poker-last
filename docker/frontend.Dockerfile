@@ -2,7 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Temporarily disable strict SSL for npm (workaround for self-signed cert issues in build environment)
+# Temporarily disable strict SSL for npm (workaround for self-signed cert issues in CI/CD environments)
+# NOTE: This is a workaround for build environments with proxy or custom certificates.
+# In production deployments, consider using proper CA certificates or a private npm registry.
 RUN npm config set strict-ssl false
 
 # Install dependencies
