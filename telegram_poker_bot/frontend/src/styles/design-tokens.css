@@ -104,13 +104,27 @@
   --color-border-subtle: rgba(255, 255, 255, 0.18);
   --color-border-glass: rgba(255, 255, 255, 0.20);
 
-  /* Unified Glass System */
+  /* ==================== UNIFIED GLASS SYSTEM ==================== */
+  /* These tokens ensure consistent glassmorphism across ALL pages */
   --glass-bg: rgba(17, 25, 40, 0.40);
   --glass-bg-elevated: rgba(17, 25, 40, 0.50);
   --glass-border: rgba(255, 255, 255, 0.20);
   --glass-blur: 20px;
   --glass-radius: var(--radius-2xl);
   --glass-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* ==================== BUTTON SYSTEM ==================== */
+  /* Unified button tokens matching Home page signature */
+  --btn-radius: var(--radius-pill);
+  --btn-padding-sm: var(--space-sm) calc(var(--space-md) + var(--space-sm));
+  --btn-padding-md: calc(var(--space-sm) + var(--space-xs)) calc(var(--space-lg) + var(--space-sm));
+  --btn-padding-lg: calc(var(--space-md) + var(--space-xs)) calc(var(--space-xl) + var(--space-sm));
+  --btn-shadow: var(--shadow-button);
+
+  /* ==================== TYPOGRAPHY TOKENS ==================== */
+  /* Shared typography for consistent text hierarchy */
+  --fs-body-sm: 0.875rem;
+  --fs-caption: 0.7rem;
 
   /* Glass effect colors */
   --color-glass-chip: rgba(255, 255, 255, 0.1);
@@ -214,13 +228,27 @@
   --color-border-subtle: rgba(148, 163, 184, 0.3);
   --color-border-glass: rgba(0, 0, 0, 0.08);
 
-  /* Unified Glass System */
+  /* ==================== UNIFIED GLASS SYSTEM ==================== */
+  /* These tokens ensure consistent glassmorphism across ALL pages */
   --glass-bg: rgba(255, 255, 255, 0.30);
   --glass-bg-elevated: rgba(255, 255, 255, 0.40);
   --glass-border: rgba(0, 0, 0, 0.10);
   --glass-blur: 20px;
   --glass-radius: var(--radius-2xl);
   --glass-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  /* ==================== BUTTON SYSTEM ==================== */
+  /* Unified button tokens matching Home page signature */
+  --btn-radius: var(--radius-pill);
+  --btn-padding-sm: var(--space-sm) calc(var(--space-md) + var(--space-sm));
+  --btn-padding-md: calc(var(--space-sm) + var(--space-xs)) calc(var(--space-lg) + var(--space-sm));
+  --btn-padding-lg: calc(var(--space-md) + var(--space-xs)) calc(var(--space-xl) + var(--space-sm));
+  --btn-shadow: var(--shadow-button);
+
+  /* ==================== TYPOGRAPHY TOKENS ==================== */
+  /* Shared typography for consistent text hierarchy */
+  --fs-body-sm: 0.875rem;
+  --fs-caption: 0.7rem;
 
   /* Glass effect colors */
   --color-glass-chip: rgba(15, 23, 42, 0.05);
