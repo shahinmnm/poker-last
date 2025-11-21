@@ -196,7 +196,8 @@
     },
     "empty": {
       "public": "No public tables available right now.",
-      "createPublic": "Create a public table"
+      "createPublic": "Create a public table",
+      "private": "Private tables coming soon"
     },
     "errors": {
       "loadFailed": "We couldn't load the latest tables. Please try again."
@@ -228,6 +229,18 @@
       "waiting": "Waiting",
       "starting": "Starting soon",
       "finished": "Finished"
+    },
+    "tabs": {
+      "public": "Public",
+      "private": "Private",
+      "my": "My Tables"
+    },
+    "inviteCode": {
+      "label": "Join with invite code",
+      "placeholder": "Enter code"
+    },
+    "qrJoin": {
+      "label": "Join via QR"
     }
   },
   "createGame": {
@@ -340,10 +353,26 @@
         "firstWin": "First win",
         "fiveInRow": "5-hand streak",
         "collector": "Collector"
-      }
+      },
+      "firstWin": "First Win",
+      "bigPot": "Big Pot",
+      "streak": "Streak"
     },
     "errors": {
       "loadFailed": "Failed to load profile data"
+    },
+    "edit": "Edit",
+    "stats": {
+      "games": "Games",
+      "winRate": "Win Rate",
+      "profit": "Profit"
+    },
+    "settings": {
+      "title": "Settings",
+      "language": "Language",
+      "sound": "Sound",
+      "theme": "Theme",
+      "help": "Help"
     }
   },
   "stats": {
@@ -363,7 +392,8 @@
     "actions": {
       "deposit": "Add chips",
       "withdraw": "Withdraw",
-      "transfer": "Transfer"
+      "transfer": "Transfer",
+      "topUp": "Top up"
     },
     "history": {
       "title": "Transaction History",
@@ -379,10 +409,22 @@
     "description": "Use your chips to buy into poker tables and tournaments.",
     "about": {
       "title": "About Chips",
-      "description": "Chips are used for playing poker. When you join a table, chips are reserved for your buy-in. When you leave, your remaining chips return to your wallet."
+      "description": "Chips are used for playing poker. When you join a table, chips are reserved for your buy-in. When you leave, your remaining chips return to your wallet.",
+      "point1": "Used for table buy-ins",
+      "point2": "Returned when you leave",
+      "point3": "Track in game history"
     },
     "errors": {
       "loadFailed": "Failed to load balance"
+    },
+    "activity": {
+      "title": "Recent activity",
+      "empty": "No transactions yet"
+    },
+    "promo": {
+      "label": "Promo code",
+      "placeholder": "Enter code",
+      "redeem": "Redeem"
     }
   },
   "settings": {
