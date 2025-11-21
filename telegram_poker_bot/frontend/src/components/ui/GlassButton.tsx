@@ -27,10 +27,10 @@ const baseClasses = `
 `
 
 const sizeClasses = `
-  px-5
-  py-3
-  text-sm
-  sm:text-base
+  px-2.5
+  py-1.75
+  text-[13px]
+  sm:text-sm
   rounded-xl
 `
 

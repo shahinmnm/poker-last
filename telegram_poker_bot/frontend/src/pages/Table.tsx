@@ -547,7 +547,7 @@ export default function TablePage() {
   const heroCards = liveState?.hero?.cards ?? []
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Toast message={toast.message} visible={toast.visible} />
       
       <Modal
@@ -605,12 +605,8 @@ export default function TablePage() {
         ].filter(Boolean) as { label: string; tone: 'visibility' | 'host' | 'seated' }[]}
         subtext={tableDetails.group_title ? t('table.groupTag', { value: tableDetails.group_title }) : undefined}
         expiresAt={tableDetails.expires_at ?? null}
+        statusComponent={<ConnectionStatus status={wsStatus} />}
       />
-
-      {/* WebSocket Connection Status */}
-      <Card className="py-2">
-        <ConnectionStatus status={wsStatus} />
-      </Card>
 
       {liveState && (
         <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg">
@@ -637,12 +633,12 @@ export default function TablePage() {
           </div>
 
           {/* Community Cards */}
-          <div className="py-3">
-            <div className="flex items-center justify-center gap-1.5">
+          <div className="py-2.5">
+            <div className="flex items-center justify-center gap-1">
               {liveState.board && liveState.board.length > 0 ? (
-                liveState.board.map((card, idx) => <PlayingCard key={`board-${idx}`} card={card} size="md" />)
+                liveState.board.map((card, idx) => <PlayingCard key={`board-${idx}`} card={card} size="sm" />)
               ) : (
-                <div className="rounded-lg bg-black/20 px-3 py-2 text-xs text-[color:var(--text-muted)]">
+                <div className="rounded-lg bg-black/20 px-2.5 py-1.5 text-[10px] text-[color:var(--text-muted)]">
                   {t('table.waitingForBoard')}
                 </div>
               )}
@@ -650,22 +646,22 @@ export default function TablePage() {
           </div>
 
           {/* Players Grid - More Compact */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 py-3 border-t border-white/10">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 py-2.5 border-t border-white/10">
             {liveState.players.map((player) => {
               const isActor = player.user_id === liveState.current_actor
               const isHero = player.user_id === heroId
               return (
                 <div
                   key={`${player.user_id}-${player.seat}`}
-                  className={`rounded-lg border px-2.5 py-2 backdrop-blur-sm transition-all ${
+                  className={`rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-all ${
                     isActor
-                      ? 'border-emerald-400/60 bg-emerald-500/5 shadow-md shadow-emerald-500/10'
+                      ? 'border-emerald-400/70 bg-emerald-500/10 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/70'
                       : isHero
-                      ? 'border-sky-400/40 bg-sky-500/5'
+                      ? 'border-sky-400/50 bg-sky-500/10'
                       : 'border-white/10 bg-white/5'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-[11px]">
                     <span className="font-semibold text-[color:var(--text-primary)] truncate">
                       {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
                     </span>
@@ -679,9 +675,12 @@ export default function TablePage() {
                       {player.is_big_blind && (
                         <span className="rounded-full bg-white/10 px-1.5 py-0.5">BB</span>
                       )}
+                      {isHero && (
+                        <span className="rounded-full bg-sky-500/20 text-sky-300 px-1.5 py-0.5">YOU</span>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                  <div className="mt-1 flex items-center justify-between text-[10px]">
                     <span className="text-[color:var(--text-muted)]">
                       {t('table.chips', { amount: player.stack })}
                     </span>
@@ -692,7 +691,7 @@ export default function TablePage() {
                     )}
                   </div>
                   {!player.in_hand && (
-                    <p className="mt-1 text-[10px] text-rose-400/80">{t('table.folded')}</p>
+                    <p className="mt-0.5 text-[9px] text-rose-400/80">{t('table.folded')}</p>
                   )}
                 </div>
               )
@@ -700,22 +699,22 @@ export default function TablePage() {
           </div>
 
           {/* Hero Cards - Compact */}
-          <div className="pt-3 border-t border-white/10">
-            <div className="flex flex-col items-center gap-2 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-3 py-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)]">
+          <div className="pt-2.5 border-t border-white/10">
+            <div className="flex flex-col items-center gap-1.5 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-2.5 py-2 text-center">
+              <p className="text-[9px] uppercase tracking-wider text-[color:var(--text-muted)]">
                 {t('table.yourHand')}
               </p>
               <div className="flex gap-1.5">
                 {heroCards.length ? (
                   heroCards.map((card, idx) => <PlayingCard key={`hero-${idx}`} card={card} size="md" />)
                 ) : (
-                  <span className="text-xs text-[color:var(--text-muted)]">
+                  <span className="text-[10px] text-[color:var(--text-muted)]">
                     {t('table.waitingForHand')}
                   </span>
                               )}
               </div>
               {handResult && handResult.winners && handResult.winners.length > 0 && (
-                <div className="text-xs font-semibold space-y-1">
+                <div className="text-[10px] font-semibold space-y-0.5">
                   {handResult.winners.some((w) => w.user_id === heroId) ? (
                     <>
                       <div className="text-emerald-400">
