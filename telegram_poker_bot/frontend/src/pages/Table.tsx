@@ -365,8 +365,14 @@ export default function TablePage() {
         method: 'GET',
         initData: initDataRef.current ?? undefined,
       })
-      setLiveState(data)
-      setHandResult(data.hand_result ?? null)
+      setLiveState((previous) => {
+        const isSameHand = data.hand_id !== null && previous?.hand_id === data.hand_id
+        const mergedHero = data.hero ?? (isSameHand ? previous?.hero ?? null : null)
+        const mergedHandResult = data.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
+        const nextState: LiveTableState = { ...data, hero: mergedHero, hand_result: mergedHandResult }
+        setHandResult(mergedHandResult ?? null)
+        return nextState
+      })
     } catch (err) {
       console.warn('Unable to fetch live state', err)
     }
@@ -840,7 +846,8 @@ export default function TablePage() {
             <div className="flex items-center justify-center gap-1">
               {liveState.board && liveState.board.length > 0 ? (
                 liveState.board.map((card, idx) => {
-                  const isWinningCard = liveState.hand_result?.winners?.[0]?.best_hand_cards?.includes(card) ?? false
+                  const isWinningCard =
+                    liveState.hand_result?.winners?.some((winner) => winner.best_hand_cards?.includes(card)) ?? false
                   return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
                 })
               ) : (
