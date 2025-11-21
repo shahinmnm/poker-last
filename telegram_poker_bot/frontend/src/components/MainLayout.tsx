@@ -119,7 +119,7 @@ export default function MainLayout() {
                     <span
                       className="text-xs font-medium"
                       style={{
-                        color: isActive ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                        color: isActive ? 'var(--color-accent)' : 'var(--color-text)',
                       }}
                     >
                       {t(item.labelKey)}
@@ -165,7 +165,7 @@ export default function MainLayout() {
                     <span
                       className="text-xs font-medium"
                       style={{
-                        color: isActive ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                        color: isActive ? 'var(--color-accent)' : 'var(--color-text)',
                       }}
                     >
                       {t(item.labelKey)}
