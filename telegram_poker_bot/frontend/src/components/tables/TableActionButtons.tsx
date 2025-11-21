@@ -41,15 +41,15 @@ export default function TableActionButtons({
   const isDisabled = !isPlayerTurn || actionPending
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {/* Header - Compact */}
       <div className="flex items-center justify-between px-0.5">
-        <p className="text-xs font-semibold text-[color:var(--text-primary)]">
+        <p className="text-[11px] font-semibold text-[color:var(--text-primary)]">
           {t('table.actions.play')}
         </p>
         <p className="text-[10px] text-[color:var(--text-muted)]">
           {isPlayerTurn ? (
-            <span className="text-emerald-400">● {t('table.actions.yourTurn')}</span>
+            <span className="text-emerald-400 font-semibold">● {t('table.actions.yourTurn')}</span>
           ) : (
             t('table.actions.wait')
           )}
