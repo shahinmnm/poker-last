@@ -11,6 +11,8 @@ export interface PlayingCardProps {
   size?: 'sm' | 'md' | 'lg'
   /** Whether to show card back (hidden card) */
   hidden?: boolean
+  /** Whether to highlight the card (for winning cards) */
+  highlighted?: boolean
 }
 
 // Map suit letters to Unicode symbols
@@ -38,7 +40,7 @@ const RANK_DISPLAY: Record<string, string> = {
   '2': '2',
 }
 
-export default function PlayingCard({ card, size = 'sm', hidden = false }: PlayingCardProps) {
+export default function PlayingCard({ card, size = 'sm', hidden = false, highlighted = false }: PlayingCardProps) {
   const { rank, suit, color } = useMemo(() => {
     if (!card || card.length < 2) {
       return { rank: '?', suit: '', color: 'text-gray-400' }
@@ -86,7 +88,9 @@ export default function PlayingCard({ card, size = 'sm', hidden = false }: Playi
 
   return (
     <div
-      className={`${sizeClasses} rounded-lg bg-white border-2 border-gray-300 shadow-md flex flex-col items-center justify-center font-bold tracking-tight ${color} relative`}
+      className={`${sizeClasses} rounded-lg bg-white border-2 shadow-md flex flex-col items-center justify-center font-bold tracking-tight ${color} relative ${
+        highlighted ? 'border-emerald-400 ring-2 ring-emerald-400/80 shadow-emerald-500/30' : 'border-gray-300'
+      }`}
       style={{ 
         backgroundImage: 'linear-gradient(to bottom, #ffffff, #f8f8f8)',
       }}
