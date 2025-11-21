@@ -19,6 +19,7 @@ import ExpiredTableView from '../components/tables/ExpiredTableView'
 import InviteSection from '../components/tables/InviteSection'
 import TableActionButtons from '../components/tables/TableActionButtons'
 import HandResultPanel from '../components/tables/HandResultPanel'
+import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import type { TableStatusTone } from '../components/lobby/types'
 
 interface TablePlayer {
@@ -155,6 +156,13 @@ export default function TablePage() {
   const [liveState, setLiveState] = useState<LiveTableState | null>(null)
   const [handResult, setHandResult] = useState<LiveTableState['hand_result'] | null>(null)
   const [actionPending, setActionPending] = useState(false)
+  const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
+  
+  // Refs for tracking elements for animations
+  const playerTileRefs = useRef<Map<number, HTMLElement>>(new Map())
+  const potAreaRef = useRef<HTMLDivElement | null>(null)
+  const lastActionRef = useRef<LastAction | null>(null)
+  const lastHandResultRef = useRef<LiveTableState['hand_result'] | null>(null)
 
   const dateFormatter = useMemo(
     () =>
@@ -180,6 +188,102 @@ export default function TablePage() {
 
   // Track the last hand_id to detect when a new hand starts
   const lastHandIdRef = useRef<number | null>(null)
+
+  // Helper to get center position of an element
+  const getElementCenter = useCallback((element: HTMLElement | null): { x: number; y: number } | null => {
+    if (!element) return null
+    const rect = element.getBoundingClientRect()
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    }
+  }, [])
+
+  // Remove completed animations
+  const handleAnimationComplete = useCallback((id: string) => {
+    setChipAnimations((prev) => prev.filter((a) => a.id !== id))
+  }, [])
+
+  // Trigger chip animation on last_action changes
+  useEffect(() => {
+    if (!liveState?.last_action) return
+    
+    const lastAction = liveState.last_action
+    
+    // Check if this is a new action
+    if (
+      lastActionRef.current?.user_id === lastAction.user_id &&
+      lastActionRef.current?.action === lastAction.action &&
+      lastActionRef.current?.amount === lastAction.amount &&
+      lastActionRef.current?.created_at === lastAction.created_at
+    ) {
+      return
+    }
+    
+    lastActionRef.current = lastAction
+    
+    // Only animate for bet/raise/call/all_in actions with amount > 0
+    const shouldAnimate =
+      ['bet', 'raise', 'call', 'all_in'].includes(lastAction.action) &&
+      (lastAction.amount ?? 0) > 0
+    
+    if (!shouldAnimate) return
+    
+    // Get player tile position
+    const playerTile = playerTileRefs.current.get(lastAction.user_id)
+    const playerPos = getElementCenter(playerTile ?? null)
+    const potPos = getElementCenter(potAreaRef.current)
+    
+    if (!playerPos || !potPos) return
+    
+    // Create animation
+    const animationId = `action-${lastAction.user_id}-${Date.now()}`
+    const newAnimation: ChipAnimation = {
+      id: animationId,
+      fromX: playerPos.x,
+      fromY: playerPos.y,
+      toX: potPos.x,
+      toY: potPos.y,
+    }
+    
+    setChipAnimations((prev) => [...prev, newAnimation])
+  }, [liveState?.last_action, getElementCenter])
+
+  // Trigger pot-to-winner animation on hand_result
+  useEffect(() => {
+    if (!liveState?.hand_result?.winners?.length) return
+    
+    // Check if this is a new hand result
+    const currentResult = liveState.hand_result
+    if (lastHandResultRef.current === currentResult) return
+    
+    lastHandResultRef.current = currentResult
+    
+    const potPos = getElementCenter(potAreaRef.current)
+    if (!potPos) return
+    
+    // Animate to main winner (first winner with highest amount)
+    const mainWinner = currentResult.winners.reduce((max, winner) =>
+      winner.amount > max.amount ? winner : max
+    , currentResult.winners[0])
+    
+    const winnerTile = playerTileRefs.current.get(mainWinner.user_id)
+    const winnerPos = getElementCenter(winnerTile ?? null)
+    
+    if (!winnerPos) return
+    
+    // Create animation from pot to winner
+    const animationId = `pot-win-${mainWinner.user_id}-${Date.now()}`
+    const newAnimation: ChipAnimation = {
+      id: animationId,
+      fromX: potPos.x,
+      fromY: potPos.y,
+      toX: winnerPos.x,
+      toY: winnerPos.y,
+    }
+    
+    setChipAnimations((prev) => [...prev, newAnimation])
+  }, [liveState?.hand_result, getElementCenter])
 
   const fetchTable = useCallback(async () => {
     if (!tableId) {
@@ -560,6 +664,9 @@ export default function TablePage() {
     <div className="space-y-3">
       <Toast message={toast.message} visible={toast.visible} />
       
+      {/* Chip Animations */}
+      <ChipFlyManager animations={chipAnimations} onAnimationComplete={handleAnimationComplete} />
+      
       <Modal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -630,7 +737,7 @@ export default function TablePage() {
                 {liveState.hand_result ? 'SHOWDOWN' : liveState.street ? liveState.street.charAt(0).toUpperCase() + liveState.street.slice(1) : 'Waiting'}
               </p>
             </div>
-            <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+            <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10" ref={potAreaRef}>
               <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.pot')}</p>
               <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
             </div>
@@ -687,6 +794,13 @@ export default function TablePage() {
               return (
                 <div
                   key={`${player.user_id}-${player.seat}`}
+                  ref={(el) => {
+                    if (el) {
+                      playerTileRefs.current.set(player.user_id, el)
+                    } else {
+                      playerTileRefs.current.delete(player.user_id)
+                    }
+                  }}
                   className={`rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-all relative ${
                     isActor
                       ? 'border-emerald-400/70 bg-emerald-500/10 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/70'
