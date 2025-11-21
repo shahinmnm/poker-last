@@ -18,6 +18,7 @@ import TableSummary from '../components/tables/TableSummary'
 import ExpiredTableView from '../components/tables/ExpiredTableView'
 import InviteSection from '../components/tables/InviteSection'
 import TableActionButtons from '../components/tables/TableActionButtons'
+import HandResultPanel from '../components/tables/HandResultPanel'
 import type { TableStatusTone } from '../components/lobby/types'
 
 interface TablePlayer {
@@ -102,9 +103,10 @@ interface LiveHeroState {
 interface HandWinnerResult {
   user_id: number
   amount: number
+  pot_index: number
   hand_score: number
   hand_rank: string
-  best_hand_cards?: string[]
+  best_hand_cards: string[]
 }
 
 interface LiveTableState {
@@ -617,7 +619,7 @@ export default function TablePage() {
                 {t('table.statusLabel')}
               </p>
               <p className="text-base font-semibold text-[color:var(--text-primary)]">
-                {liveState.street?.toUpperCase() || t('table.status.waiting')}
+                {liveState.hand_result ? 'SHOWDOWN' : liveState.street ? liveState.street.charAt(0).toUpperCase() + liveState.street.slice(1) : 'Waiting'}
               </p>
             </div>
             <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
@@ -636,7 +638,10 @@ export default function TablePage() {
           <div className="py-2.5">
             <div className="flex items-center justify-center gap-1">
               {liveState.board && liveState.board.length > 0 ? (
-                liveState.board.map((card, idx) => <PlayingCard key={`board-${idx}`} card={card} size="sm" />)
+                liveState.board.map((card, idx) => {
+                  const isWinningCard = liveState.hand_result?.winners?.[0]?.best_hand_cards?.includes(card) ?? false
+                  return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
+                })
               ) : (
                 <div className="rounded-lg bg-black/20 px-2.5 py-1.5 text-[10px] text-[color:var(--text-muted)]">
                   {t('table.waitingForBoard')}
@@ -644,6 +649,9 @@ export default function TablePage() {
               )}
             </div>
           </div>
+
+          {/* Hand Result Panel */}
+          <HandResultPanel liveState={liveState} currentUserId={heroId} />
 
           {/* Players Grid - More Compact */}
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 py-2.5 border-t border-white/10">
@@ -706,40 +714,17 @@ export default function TablePage() {
               </p>
               <div className="flex gap-1.5">
                 {heroCards.length ? (
-                  heroCards.map((card, idx) => <PlayingCard key={`hero-${idx}`} card={card} size="md" />)
+                  heroCards.map((card, idx) => {
+                    const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
+                    const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                    return <PlayingCard key={`hero-${idx}`} card={card} size="md" highlighted={isWinningCard} />
+                  })
                 ) : (
                   <span className="text-[10px] text-[color:var(--text-muted)]">
                     {t('table.waitingForHand')}
                   </span>
                               )}
               </div>
-              {handResult && handResult.winners && handResult.winners.length > 0 && (
-                <div className="text-[10px] font-semibold space-y-0.5">
-                  {handResult.winners.some((w) => w.user_id === heroId) ? (
-                    <>
-                      <div className="text-emerald-400">
-                        {t('table.result.won', {
-                          amount: handResult.winners.find((w) => w.user_id === heroId)?.amount,
-                        })}
-                      </div>
-                      {(() => {
-                        const heroWinner = handResult.winners.find((w) => w.user_id === heroId)
-                        const handRank = heroWinner?.hand_rank
-                        if (handRank && handRank !== 'folded') {
-                          return (
-                            <div className="text-[color:var(--text-muted)]">
-                              {t(`table.result.handRank.${handRank}`, handRank.replace(/_/g, ' '))}
-                            </div>
-                          )
-                        }
-                        return null
-                      })()}
-                    </>
-                  ) : (
-                    <span className="text-rose-400">{t('table.result.lost')}</span>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </Card>
