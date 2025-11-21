@@ -93,27 +93,25 @@
     "welcome": "Welcome back",
     "welcomeWithName": "Welcome back, {{name}}",
     "tagline": "Set the stakes, choose your audience, and start playing.",
-    "hero": {
-      "badge": "Mini app dashboard",
-      "stats": [
-        {
-          "label": "Hands this week",
-          "value": "0"
-        },
-        {
-          "label": "Active tables",
-          "value": "0"
-        },
-        {
-          "label": "Invites sent",
-          "value": "0"
-        }
-      ]
+    "continueGame": {
+      "title": "Continue your game",
+      "active": "Active",
+      "players": "players",
+      "rejoin": "Rejoin table",
+      "leave": "Leave"
     },
     "actions": {
       "public": {
-        "label": "Host a public table",
-        "description": "Create a lobby-visible game and let anyone join."
+        "label": "Play Public Tables",
+        "subtitle": "Join live tables"
+      },
+      "friends": {
+        "label": "Play with Friends",
+        "subtitle": "Create a private table"
+      },
+      "group": {
+        "label": "Start Group Game",
+        "subtitle": "Launch inside a Telegram group"
       },
       "private": {
         "label": "Play with friends",
@@ -127,76 +125,45 @@
       "resume": "Resume",
       "resumeGame": "Resume game"
     },
-    "primaryMenuTitle": "Main menu",
-    "secondaryMenuTitle": "Explore more",
-    "lobbyCallout": "Browse tables, tournaments, or accept invitations in the Lobby.",
-    "howItWorks": {
-      "title": "How it works",
-      "steps": [
-        "Pick the table type that matches your vibe.",
-        "Share a link or join from the lobby in one tap.",
-        "Get real-time updates as the game progresses."
-      ]
+    "qrJoin": {
+      "label": "Join via QR"
     },
-    "mosaic": {
-      "playPublic": {
-        "title": "Play Public Game",
-        "subtitle": "Browse and join lobby tables"
-      },
-      "createPrivate": {
-        "title": "Create Private Table",
-        "subtitle": "Invite friends to play"
-      },
-      "joinWithCode": {
-        "title": "Join with Code",
-        "subtitle": "Enter code or scan QR"
-      },
-      "myTables": {
-        "title": "My Tables & Stats",
-        "subtitle": "Active games and history"
-      },
-      "profile": {
-        "title": "Profile & Avatar",
-        "subtitle": "View your poker identity"
-      },
-      "settings": {
-        "title": "Settings",
-        "subtitle": "Preferences and language"
-      },
-      "hint": "Tap any tile to quickly access that feature. Your active tables will show badges.",
-      "activeTablesHint": "You have active games! Tap My Tables to continue playing or start a new one.",
+    "publicTables": {
+      "title": "Public Tables",
+      "viewAll": "View all",
+      "join": "Join"
+    },
+    "stats": {
+      "games": "Games",
+      "winRate": "Win Rate",
+      "profit": "Profit"
+    },
+    "inviteCode": {
+      "label": "Enter invite code",
+      "placeholder": "Enter code",
+      "join": "Join"
+    },
+    "tiles": {
       "quickMatch": {
-        "label": "Cash Game",
+        "label": "CASH GAME",
         "title": "Quick Match",
         "subtitle": "Fast seat at best table"
       },
       "privateTable": {
-        "label": "Friends",
+        "label": "PRIVATE",
         "title": "Private Table",
-        "subtitle": "Invite & play with friends"
+        "subtitle": "Create your own game"
       },
       "tournaments": {
-        "label": "Events",
+        "label": "COMPETE",
         "title": "Tournaments",
-        "subtitle": "Sit & Go · MTT"
+        "subtitle": "Join competitive events"
       },
-      "practiceMode": {
-        "label": "Training",
+      "practice": {
+        "label": "LEARN",
         "title": "Practice Mode",
-        "subtitle": "Play with fake chips"
+        "subtitle": "Improve your skills"
       }
-    },
-    "filters": {
-      "all": "All",
-      "cash": "Cash",
-      "tournaments": "Tournaments",
-      "private": "Private"
-    },
-    "recommendation": {
-      "nextTitle": "Start your first game",
-      "nextSubtitle": "Join a public table or create your own",
-      "continueTitle": "Continue playing",
-      "continueSubtitle": "You have active tables waiting"
     }
   },
   "lobby": {
@@ -352,23 +319,17 @@
     "subtitle": "Your poker identity across modes",
     "balance": "Balance",
     "chips": "chips",
-    "noGamesYet": "Play some games to see your stats!",
+    "noGamesYet": "No games played yet",
     "playerSince": "Player since {{date}}",
     "highlights": {
       "title": "Highlights",
-      "handsPlayed": "Hands played",
-      "winRate": "Win rate",
-      "totalProfit": "Total profit",
-      "bestFinish": "Best tournament finish",
-      "trends": {
-        "handsPlayed": "+12 this week",
-        "winRate": "+3% vs last week",
-        "bestFinish": "Last: Sunday Showdown"
-      }
+      "handsPlayed": "Hands Played",
+      "winRate": "Win Rate",
+      "totalProfit": "Total Profit"
     },
     "actions": {
-      "viewStats": "View full stats",
-      "manageAccount": "Manage account"
+      "viewStats": "View Stats",
+      "wallet": "Wallet"
     },
     "achievements": {
       "title": "Achievements",
@@ -380,6 +341,9 @@
         "fiveInRow": "5-hand streak",
         "collector": "Collector"
       }
+    },
+    "errors": {
+      "loadFailed": "Failed to load profile data"
     }
   },
   "stats": {
@@ -394,21 +358,31 @@
   },
   "wallet": {
     "title": "Wallet",
-    "balance": "Chip balance",
-    "chips": "{{amount}} chips",
+    "balance": "Balance",
+    "chips": "chips",
     "actions": {
       "deposit": "Add chips",
       "withdraw": "Withdraw",
       "transfer": "Transfer"
     },
     "history": {
-      "title": "Recent transactions",
-      "empty": "No wallet activity yet."
+      "title": "Transaction History",
+      "comingSoon": "Transaction history coming soon! For now, check your game history in the Stats page."
     },
     "transactions": {
       "deposit": "Deposit",
       "buyIn": "Buy-in",
       "payout": "Payout"
+    },
+    "subtitle": "Manage your chip balance",
+    "yourBalance": "Your Balance",
+    "description": "Use your chips to buy into poker tables and tournaments.",
+    "about": {
+      "title": "About Chips",
+      "description": "Chips are used for playing poker. When you join a table, chips are reserved for your buy-in. When you leave, your remaining chips return to your wallet."
+    },
+    "errors": {
+      "loadFailed": "Failed to load balance"
     }
   },
   "settings": {
@@ -676,6 +650,28 @@
       "warning": "This action cannot be undone. All players will be removed.",
       "confirm": "Delete",
       "cancel": "Cancel"
+    }
+  },
+  "nav": {
+    "play": "Play"
+  },
+  "playSheet": {
+    "title": "Choose Game Mode",
+    "public": {
+      "label": "Play Public Tables",
+      "subtitle": "Join live tables"
+    },
+    "private": {
+      "label": "Play with Friends",
+      "subtitle": "Create private table"
+    },
+    "group": {
+      "label": "Start Group Game",
+      "subtitle": "Launch in Telegram group"
+    },
+    "qr": {
+      "label": "Join via QR",
+      "subtitle": "Scan QR code"
     }
   }
 }

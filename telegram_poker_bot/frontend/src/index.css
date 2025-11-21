@@ -602,5 +602,18 @@ a {
     );
     border-color: rgba(239, 68, 68, 0.30);
   }
+
+  /* ==================== ANIMATIONS ==================== */
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
 }
 
