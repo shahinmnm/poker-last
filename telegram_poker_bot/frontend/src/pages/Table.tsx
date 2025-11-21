@@ -94,6 +94,7 @@ interface LivePlayerState {
   is_big_blind: boolean
   acted?: boolean
   display_name?: string | null
+  is_sitting_out_next_hand?: boolean
 }
 
 interface LiveHeroState {
@@ -549,6 +550,34 @@ export default function TablePage() {
     }
   }
 
+  const handleToggleSitOut = async (sitOut: boolean) => {
+    if (!tableId || !initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      await apiFetch(`/tables/${tableId}/sitout`, {
+        method: 'POST',
+        initData,
+        body: {
+          sit_out: sitOut,
+        },
+      })
+      await fetchLiveState()
+    } catch (err) {
+      console.error('Error toggling sit-out:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    }
+  }
+
   const handleDeleteTable = async () => {
     if (!tableId) {
       return
@@ -809,7 +838,7 @@ export default function TablePage() {
                       : 'border-white/10 bg-white/5'
                   }`}
                 >
-                  {isActor && liveState.action_deadline && (
+                  {isActor && !player.is_sitting_out_next_hand && liveState.action_deadline && (
                     <div className="absolute -top-1 -right-1 w-6 h-6">
                       <svg className="w-6 h-6 transform -rotate-90" viewBox="0 0 24 24">
                         <circle
@@ -856,6 +885,13 @@ export default function TablePage() {
                       )}
                     </div>
                   </div>
+                  {player.is_sitting_out_next_hand && (
+                    <div className="mt-0.5">
+                      <span className="text-[8px] uppercase tracking-wide text-orange-400/80 bg-orange-500/10 px-1.5 py-0.5 rounded">
+                        {t('table.sitOut')}
+                      </span>
+                    </div>
+                  )}
                   <div className="mt-1 flex items-center justify-between text-[10px]">
                     <span className="text-[color:var(--text-muted)]">
                       {t('table.chips', { amount: player.stack })}
@@ -879,27 +915,29 @@ export default function TablePage() {
             })}
           </div>
 
-          {/* Hero Cards - Compact */}
-          <div className="pt-2.5 border-t border-white/10">
-            <div className="flex flex-col items-center gap-1.5 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-2.5 py-2 text-center">
-              <p className="text-[9px] uppercase tracking-wider text-[color:var(--text-muted)]">
-                {t('table.yourHand')}
-              </p>
-              <div className="flex gap-1.5">
-                {heroCards.length ? (
-                  heroCards.map((card, idx) => {
-                    const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
-                    const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                    return <PlayingCard key={`hero-${idx}`} card={card} size="md" highlighted={isWinningCard} />
-                  })
-                ) : (
-                  <span className="text-[10px] text-[color:var(--text-muted)]">
-                    {t('table.waitingForHand')}
-                  </span>
-                              )}
+          {/* Hero Cards - Compact - Only show during active hand */}
+          {liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
+            <div className="pt-2.5 border-t border-white/10">
+              <div className="flex flex-col items-center gap-1.5 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-2.5 py-2 text-center">
+                <p className="text-[9px] uppercase tracking-wider text-[color:var(--text-muted)]">
+                  {t('table.yourHand')}
+                </p>
+                <div className="flex gap-1.5">
+                  {heroCards.length ? (
+                    heroCards.map((card, idx) => {
+                      const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
+                      const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                      return <PlayingCard key={`hero-${idx}`} card={card} size="md" highlighted={isWinningCard} />
+                    })
+                  ) : (
+                    <span className="text-[10px] text-[color:var(--text-muted)]">
+                      {t('table.waitingForHand')}
+                    </span>
+                                )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </Card>
       )}
 
@@ -912,11 +950,13 @@ export default function TablePage() {
             playerStack={heroPlayer?.stack || 0}
             playerBet={heroPlayer?.bet || 0}
             actionPending={actionPending}
+            isSittingOut={heroPlayer?.is_sitting_out_next_hand ?? false}
             onFold={() => sendAction('fold')}
             onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
             onBet={() => sendAction('bet', liveState.min_raise || tableDetails.big_blind)}
             onRaise={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
             onAllIn={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
+            onToggleSitOut={handleToggleSitOut}
           />
           {heroPlayer && heroPlayer.stack < (tableDetails.starting_stack * 0.2) && (
             <div className="mt-3 pt-3 border-t border-white/10">
