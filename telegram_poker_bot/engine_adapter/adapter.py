@@ -475,7 +475,10 @@ class PokerEngineAdapter:
             return []
 
         if self._pre_showdown_stacks is None:
-            logger.warning("get_winners called but pre-showdown stacks not captured")
+            logger.warning(
+                "get_winners called but pre-showdown stacks not captured - "
+                "deal_new_hand may not have been called properly"
+            )
             return []
 
         winners = []

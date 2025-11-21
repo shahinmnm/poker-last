@@ -157,6 +157,7 @@ export default function TablePage() {
   const [liveState, setLiveState] = useState<LiveTableState | null>(null)
   const [handResult, setHandResult] = useState<LiveTableState['hand_result'] | null>(null)
   const [actionPending, setActionPending] = useState(false)
+  const [isSitOutPending, setIsSitOutPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   
   // Refs for tracking elements for animations
@@ -556,6 +557,7 @@ export default function TablePage() {
       return
     }
     try {
+      setIsSitOutPending(true)
       await apiFetch(`/tables/${tableId}/sitout`, {
         method: 'POST',
         initData,
@@ -575,6 +577,8 @@ export default function TablePage() {
       } else {
         showToast(t('table.errors.actionFailed'))
       }
+    } finally {
+      setIsSitOutPending(false)
     }
   }
 
@@ -957,6 +961,7 @@ export default function TablePage() {
             onRaise={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
             onAllIn={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
             onToggleSitOut={handleToggleSitOut}
+            isSitOutPending={isSitOutPending}
           />
           {heroPlayer && heroPlayer.stack < (tableDetails.starting_stack * 0.2) && (
             <div className="mt-3 pt-3 border-t border-white/10">

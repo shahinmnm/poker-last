@@ -16,6 +16,8 @@ interface TableActionButtonsProps {
   actionPending: boolean
   /** Whether the player is sitting out next hand */
   isSittingOut: boolean
+  /** Whether sit-out toggle is pending */
+  isSitOutPending?: boolean
   /** Handler for fold action */
   onFold: () => void
   /** Handler for check/call action */
@@ -35,6 +37,7 @@ export default function TableActionButtons({
   amountToCall,
   actionPending,
   isSittingOut,
+  isSitOutPending = false,
   onFold,
   onCheckCall,
   onBet,
@@ -119,11 +122,14 @@ export default function TableActionButtons({
       <div className="mt-3 pt-3 border-t border-white/10">
         <button
           onClick={() => onToggleSitOut(!isSittingOut)}
+          disabled={isSitOutPending}
           className="w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
           style={{
             background: isSittingOut ? 'var(--glass-bg-elevated)' : 'var(--glass-bg)',
             border: `1px solid ${isSittingOut ? 'rgba(251, 146, 60, 0.3)' : 'var(--glass-border)'}`,
             color: isSittingOut ? 'rgb(251, 146, 60)' : 'var(--color-text-primary)',
+            opacity: isSitOutPending ? 0.6 : 1,
+            cursor: isSitOutPending ? 'wait' : 'pointer',
           }}
         >
           <div className="flex items-center justify-center gap-1.5">
