@@ -109,6 +109,14 @@ interface HandWinnerResult {
   best_hand_cards: string[]
 }
 
+interface LastAction extends Record<string, unknown> {
+  user_id: number
+  action: 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all_in' | string
+  amount?: number | null
+  street?: string | null
+  created_at?: string | null
+}
+
 interface LiveTableState {
   type: 'table_state'
   table_id: number
@@ -123,7 +131,7 @@ interface LiveTableState {
   action_deadline?: string | null
   players: LivePlayerState[]
   hero: LiveHeroState | null
-  last_action?: Record<string, unknown> | null
+  last_action?: LastAction | null
   hand_result?: { winners: HandWinnerResult[] } | null
 }
 
@@ -658,10 +666,28 @@ export default function TablePage() {
             {liveState.players.map((player) => {
               const isActor = player.user_id === liveState.current_actor
               const isHero = player.user_id === heroId
+              const isLastActor = liveState.last_action?.user_id === player.user_id
+              
+              const getLastActionText = () => {
+                if (!isLastActor || !liveState.last_action) return null
+                const action = liveState.last_action.action
+                const amount = liveState.last_action.amount
+                
+                if (action === 'fold') return t('table.actions.lastAction.fold')
+                if (action === 'check') return t('table.actions.lastAction.check')
+                if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
+                if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
+                if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
+                if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
+                return null
+              }
+              
+              const lastActionText = getLastActionText()
+              
               return (
                 <div
                   key={`${player.user_id}-${player.seat}`}
-                  className={`rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-all ${
+                  className={`rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-all relative ${
                     isActor
                       ? 'border-emerald-400/70 bg-emerald-500/10 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/70'
                       : isHero
@@ -669,6 +695,34 @@ export default function TablePage() {
                       : 'border-white/10 bg-white/5'
                   }`}
                 >
+                  {isActor && liveState.action_deadline && (
+                    <div className="absolute -top-1 -right-1 w-6 h-6">
+                      <svg className="w-6 h-6 transform -rotate-90" viewBox="0 0 24 24">
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="rgba(52, 211, 153, 0.3)"
+                          strokeWidth="2"
+                          fill="none"
+                        />
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="rgb(52, 211, 153)"
+                          strokeWidth="2"
+                          fill="none"
+                          strokeDasharray="62.83"
+                          strokeDashoffset="0"
+                          className="transition-all duration-1000 ease-linear"
+                          style={{
+                            strokeDashoffset: `${62.83 * (1 - Math.max(0, Math.min(1, (new Date(liveState.action_deadline).getTime() - Date.now()) / 30000)))}`,
+                          }}
+                        />
+                      </svg>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-semibold text-[color:var(--text-primary)] truncate">
                       {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
@@ -700,6 +754,11 @@ export default function TablePage() {
                   </div>
                   {!player.in_hand && (
                     <p className="mt-0.5 text-[9px] text-rose-400/80">{t('table.folded')}</p>
+                  )}
+                  {lastActionText && player.in_hand && (
+                    <p className="mt-0.5 text-[9px] font-semibold" style={{ color: isLastActor ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
+                      {lastActionText}
+                    </p>
                   )}
                 </div>
               )
@@ -745,6 +804,23 @@ export default function TablePage() {
             onRaise={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
             onAllIn={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
           />
+          {heroPlayer && heroPlayer.stack < (tableDetails.starting_stack * 0.2) && (
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <button
+                disabled
+                className="w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-opacity"
+                style={{
+                  background: 'var(--glass-bg-elevated)',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--color-text-muted)',
+                  opacity: 0.6,
+                  cursor: 'not-allowed',
+                }}
+              >
+                {t('table.actions.rebuy')} ({t('common.comingSoon')})
+              </button>
+            </div>
+          )}
         </Card>
       )}
 

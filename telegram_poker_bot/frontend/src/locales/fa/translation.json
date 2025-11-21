@@ -702,7 +702,18 @@
       "call": "کال {{amount}}",
       "bet": "بت",
       "raise": "ریز",
-      "allIn": "آل‌این"
+      "allIn": "آل‌این",
+      "rebuy": "خرید مجدد",
+      "sitOut": "نشستن بیرون",
+      "sitOutNextHand": "نشستن بیرون دست بعدی",
+      "lastAction": {
+        "fold": "فولد",
+        "check": "چک",
+        "call": "کال {{amount}}",
+        "bet": "بت {{amount}}",
+        "raise": "ریز {{amount}}",
+        "all_in": "آل‌این {{amount}}"
+      }
     },
     "messages": {
       "readyToStart": "همه‌چیز برای شروع آماده است.",

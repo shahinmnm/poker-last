@@ -680,7 +680,18 @@
       "call": "Call {{amount}}",
       "bet": "Bet",
       "raise": "Raise",
-      "allIn": "All-In"
+      "allIn": "All-In",
+      "rebuy": "Rebuy",
+      "sitOut": "Sit Out",
+      "sitOutNextHand": "Sit out next hand",
+      "lastAction": {
+        "fold": "FOLD",
+        "check": "CHECK",
+        "call": "CALL {{amount}}",
+        "bet": "BET {{amount}}",
+        "raise": "RAISE {{amount}}",
+        "all_in": "ALL-IN {{amount}}"
+      }
     },
     "messages": {
       "readyToStart": "Ready to shuffle up.",
