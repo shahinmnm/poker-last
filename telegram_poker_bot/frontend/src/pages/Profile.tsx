@@ -36,7 +36,6 @@ export default function ProfilePage() {
         setLoading(true)
         setError(null)
 
-        // Fetch stats and balance in parallel
         const [statsData, balanceData] = await Promise.all([
           apiFetch<UserStats>('/users/me/stats', { initData }),
           apiFetch<{ balance: number }>('/users/me/balance', { initData }),
@@ -46,21 +45,21 @@ export default function ProfilePage() {
         setBalance(balanceData.balance)
       } catch (err) {
         console.error('Error fetching profile data:', err)
-        setError('Failed to load profile data')
+        setError(t('profile.errors.loadFailed', 'Failed to load profile data'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchProfileData()
-  }, [initData])
+  }, [initData, t])
 
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
-          <p className="text-sm text-gray-600 dark:text-gray-300">{t('common.loading')}</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
         </div>
       </div>
     )
@@ -68,7 +67,14 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="rounded-2xl bg-red-50 p-5 text-red-700 dark:bg-red-950/40 dark:text-red-200">
+      <div
+        className="rounded-2xl p-5"
+        style={{
+          background: 'var(--color-danger-glass)',
+          border: '1px solid var(--color-danger-glass-border)',
+          color: 'var(--color-danger)',
+        }}
+      >
         <p>{error}</p>
       </div>
     )
@@ -78,15 +84,9 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      {/* Avatar & Profile Header */}
       <Card padding="lg">
         <div className="flex flex-col items-center text-center">
           <div className="relative mb-4">
-            <span 
-              className="absolute inset-[-6px] rounded-full blur-lg" 
-              style={{ background: 'var(--glow-primary)' }}
-              aria-hidden 
-            />
             <Avatar size="xl" className="relative" />
           </div>
           <h1 className="text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
@@ -98,44 +98,47 @@ export default function ProfilePage() {
           <div 
             className="mt-4 flex items-center gap-3 px-6 py-3 rounded-full"
             style={{
-              background: 'var(--bg-glass)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid var(--color-border-glass)',
-              boxShadow: 'var(--shadow-accent-glow)',
+              background: 'var(--glass-bg)',
+              backdropFilter: 'blur(var(--glass-blur))',
+              WebkitBackdropFilter: 'blur(var(--glass-blur))',
+              border: '1px solid var(--glass-border)',
+              boxShadow: 'var(--glass-shadow)',
             }}
           >
             <FontAwesomeIcon icon={faCoins} className="text-3xl" style={{ color: 'var(--accent-green)' }} />
             <div>
-              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('profile.balance')}</p>
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                {t('profile.balance', 'Balance')}
+              </p>
               <p className="text-2xl font-bold" style={{ color: 'var(--accent-green)' }}>
                 {balance.toLocaleString()}
               </p>
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('profile.chips')}</p>
+              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                {t('profile.chips', 'chips')}
+              </p>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Stats Card */}
       <Card padding="lg">
         <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-text)' }}>
-          {t('profile.highlights.title')}
+          {t('profile.highlights.title', 'Highlights')}
         </h2>
         {hasPlayedGames ? (
           <div className="grid gap-4 sm:grid-cols-3">
             <div 
               className="relative rounded-xl p-4"
               style={{
-                background: 'var(--bg-glass)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid var(--color-border-glass)',
-                boxShadow: 'var(--shadow-soft)',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(var(--glass-blur))',
+                WebkitBackdropFilter: 'blur(var(--glass-blur))',
+                border: '1px solid var(--glass-border)',
+                boxShadow: 'var(--glass-shadow)',
               }}
             >
               <p className="text-xs uppercase" style={{ color: 'var(--color-text-muted)' }}>
-                {t('profile.highlights.handsPlayed')}
+                {t('profile.highlights.handsPlayed', 'Hands Played')}
               </p>
               <p className="mt-2 text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
                 {stats!.hands_played}
@@ -144,15 +147,15 @@ export default function ProfilePage() {
             <div 
               className="relative rounded-xl p-4"
               style={{
-                background: 'var(--bg-glass)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid var(--color-border-glass)',
-                boxShadow: 'var(--shadow-soft)',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(var(--glass-blur))',
+                WebkitBackdropFilter: 'blur(var(--glass-blur))',
+                border: '1px solid var(--glass-border)',
+                boxShadow: 'var(--glass-shadow)',
               }}
             >
               <p className="text-xs uppercase" style={{ color: 'var(--color-text-muted)' }}>
-                {t('profile.highlights.winRate')}
+                {t('profile.highlights.winRate', 'Win Rate')}
               </p>
               <p className="mt-2 text-2xl font-semibold" style={{ color: 'var(--accent-green)' }}>
                 {stats!.win_rate.toFixed(1)}%
@@ -161,15 +164,15 @@ export default function ProfilePage() {
             <div 
               className="relative rounded-xl p-4"
               style={{
-                background: 'var(--bg-glass)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid var(--color-border-glass)',
-                boxShadow: 'var(--shadow-soft)',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(var(--glass-blur))',
+                WebkitBackdropFilter: 'blur(var(--glass-blur))',
+                border: '1px solid var(--glass-border)',
+                boxShadow: 'var(--glass-shadow)',
               }}
             >
               <p className="text-xs uppercase" style={{ color: 'var(--color-text-muted)' }}>
-                {t('profile.highlights.totalProfit')}
+                {t('profile.highlights.totalProfit', 'Total Profit')}
               </p>
               <p
                 className="mt-2 text-2xl font-semibold"
@@ -184,33 +187,33 @@ export default function ProfilePage() {
           </div>
         ) : (
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {t('profile.noGamesYet')}
+            {t('profile.noGamesYet', 'No games played yet')}
           </p>
         )}
         {stats?.first_game_date && (
           <p className="mt-4 text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>
             {t('profile.playerSince', {
               date: new Date(stats.first_game_date).getFullYear(),
+              defaultValue: `Player since ${new Date(stats.first_game_date).getFullYear()}`,
             })}
           </p>
         )}
       </Card>
 
-      {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-4">
         <Link
           to="/profile/stats"
           className="app-button app-button--secondary app-button--lg flex items-center justify-center gap-2"
         >
           <FontAwesomeIcon icon={faChartLine} />
-          <span>{t('profile.actions.viewStats')}</span>
+          <span>{t('profile.actions.viewStats', 'View Stats')}</span>
         </Link>
         <Link
           to="/wallet"
           className="app-button app-button--primary app-button--lg flex items-center justify-center gap-2"
         >
           <FontAwesomeIcon icon={faWallet} />
-          <span>{t('menu.wallet.label')}</span>
+          <span>{t('profile.actions.wallet', 'Wallet')}</span>
         </Link>
       </div>
     </div>
