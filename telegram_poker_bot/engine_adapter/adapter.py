@@ -485,26 +485,22 @@ class PokerEngineAdapter:
         total_won = 0
         total_lost = 0
         
-        # Calculate stack changes for each player
         for player_idx in range(self.player_count):
             stack_before = self._pre_showdown_stacks[player_idx]
             stack_after = self.state.stacks[player_idx]
             stack_change = stack_after - stack_before
             
-            # Track total winnings and losses for validation
             if stack_change > 0:
                 total_won += stack_change
             elif stack_change < 0:
                 total_lost += abs(stack_change)
             
-            # Only include players who won chips (stack increased)
             if stack_change > 0:
-                # Get hand evaluation data for this player
                 hand_data = self._get_player_hand_data(player_idx)
 
                 winners.append(
                     {
-                        "pot_index": 0,  # Single pot for simplicity
+                        "pot_index": 0,
                         "player_index": player_idx,
                         "amount": stack_change,
                         "hand_score": hand_data["hand_score"],
@@ -513,18 +509,35 @@ class PokerEngineAdapter:
                     }
                 )
 
-        # Sort by amount won (descending) so main winner is first
         winners.sort(key=lambda w: w["amount"], reverse=True)
         
-        # Validate pot integrity: total winnings should equal total losses (zero-sum)
-        if abs(total_won - total_lost) > 1:  # Allow 1 chip rounding error
+        if abs(total_won - total_lost) > 1:
+            pots_breakdown = [
+                {
+                    "pot_index": idx,
+                    "amount": pot.amount,
+                    "eligible_players": list(pot.player_indices),
+                }
+                for idx, pot in enumerate(self.state.pots)
+            ]
+            
             logger.warning(
-                "Pot integrity check failed",
+                "Pot integrity check failed - total winnings do not match total losses",
                 total_won=total_won,
                 total_lost=total_lost,
                 difference=total_won - total_lost,
-                pre_stacks=self._pre_showdown_stacks,
-                post_stacks=list(self.state.stacks),
+                stacks_before=self._pre_showdown_stacks,
+                stacks_after=list(self.state.stacks),
+                winners_list=[
+                    {
+                        "player_index": w["player_index"],
+                        "amount": w["amount"],
+                        "hand_rank": w["hand_rank"],
+                    }
+                    for w in winners
+                ],
+                pots=pots_breakdown,
+                player_count=self.player_count,
             )
 
         return winners
