@@ -816,7 +816,9 @@ export default function TablePage() {
             </div>
             <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10" ref={potAreaRef}>
               <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">
-                {liveState.pots && liveState.pots.length > 1 ? t('table.pots.title') : t('table.pot')}
+                {liveState.pots && liveState.pots.length > 1
+                  ? t('table.pots.title')
+                  : t('table.pot', { amount: liveState.pot })}
               </p>
               {liveState.pots && liveState.pots.length > 1 ? (
                 <div className="space-y-0.5">
