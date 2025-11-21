@@ -27,8 +27,8 @@ export function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }
     // Update immediately
     updateTimer()
 
-    // Update every 100ms for smooth animation
-    const interval = setInterval(updateTimer, 100)
+    // Update every 250ms for smooth animation with reasonable CPU usage
+    const interval = setInterval(updateTimer, 250)
 
     return () => clearInterval(interval)
   }, [deadline, turnTimeoutSeconds])

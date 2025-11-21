@@ -160,6 +160,7 @@ interface LiveTableState {
 }
 
 const DEFAULT_TOAST = { message: '', visible: false }
+const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
 
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
@@ -421,7 +422,7 @@ export default function TablePage() {
       // Check if table has expired
       if (payload.status === 'expired' || payload.table_status === 'expired') {
         showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
-        setTimeout(() => navigate('/lobby', { replace: true }), 2000)
+        setTimeout(() => navigate('/lobby', { replace: true }), EXPIRED_TABLE_REDIRECT_DELAY_MS)
         return
       }
 
@@ -1081,7 +1082,7 @@ export default function TablePage() {
                 className="text-lg font-bold text-[color:var(--text-primary)]"
                 onExpire={() => {
                   showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
-                  setTimeout(() => navigate('/lobby'), 2000)
+                  setTimeout(() => navigate('/lobby'), EXPIRED_TABLE_REDIRECT_DELAY_MS)
                 }}
               />
             </div>

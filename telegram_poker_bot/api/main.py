@@ -264,9 +264,9 @@ async def check_table_inactivity():
     Background task that checks for inactive tables and marks them as expired.
 
     Rules:
-    - Pre-game: Tables expire if expires_at is in the past (10-min fixed timeout)
-    - Post-game: Tables expire if last_action_at + INACTIVITY_TIMEOUT is in the past
-    - All-sit-out: Tables where ALL players are sitting out expire after threshold
+    - Pre-game: Tables expire if expires_at is in the past
+    - Post-game: Tables expire based on table_inactivity_timeout_minutes setting
+    - All-sit-out: Tables where ALL players are sitting out expire after 5 minutes
 
     Uses distributed lock to prevent duplicate execution in multi-worker environments.
     Runs every 30 seconds.
