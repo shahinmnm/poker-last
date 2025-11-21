@@ -502,6 +502,21 @@ class PokerKitTableRuntime:
             viewer_player = poker_state["players"][viewer_player_index]
             hero_cards = viewer_player.get("hole_cards", [])
 
+        # Convert pots to use user_ids instead of player_indices
+        pots_with_user_ids = []
+        for pot in poker_state.get("pots", []):
+            pots_with_user_ids.append(
+                {
+                    "pot_index": pot["pot_index"],
+                    "amount": pot["amount"],
+                    "eligible_user_ids": [
+                        user_id_by_index[idx]
+                        for idx in pot.get("player_indices", [])
+                        if idx in user_id_by_index
+                    ],
+                }
+            )
+
         # Build payload
         payload = {
             "type": "table_state",
@@ -511,6 +526,7 @@ class PokerKitTableRuntime:
             "street": poker_state["street"],
             "board": poker_state["board_cards"],
             "pot": poker_state["total_pot"],
+            "pots": pots_with_user_ids,
             "current_bet": max(self.engine.state.bets) if self.engine.state.bets else 0,
             "min_raise": poker_state["big_blind"],
             "current_actor": current_actor_user_id,

@@ -612,6 +612,11 @@
     "chips": "{{amount}} chips",
     "statusLabel": "Game Status",
     "pot": "Pot: {{amount}}",
+    "pots": {
+      "title": "Pots",
+      "mainPot": "Main Pot",
+      "sidePot": "Side Pot #{{number}}"
+    },
     "blinds": "Blinds",
     "turnCountdown": "Action timer",
     "waitingForBoard": "Waiting for board...",

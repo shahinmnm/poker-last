@@ -129,6 +129,11 @@ interface LiveTableState {
   street: string | null
   board: string[]
   pot: number
+  pots?: Array<{
+    pot_index: number
+    amount: number
+    eligible_user_ids: number[]
+  }>
   current_bet: number
   min_raise: number
   current_actor: number | null
@@ -804,8 +809,23 @@ export default function TablePage() {
               </p>
             </div>
             <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10" ref={potAreaRef}>
-              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.pot')}</p>
-              <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
+              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">
+                {liveState.pots && liveState.pots.length > 1 ? t('table.pots.title') : t('table.pot')}
+              </p>
+              {liveState.pots && liveState.pots.length > 1 ? (
+                <div className="space-y-0.5">
+                  {liveState.pots.map((pot) => (
+                    <div key={pot.pot_index} className="text-xs">
+                      <span className="text-[color:var(--text-muted)]">
+                        #{pot.pot_index + 1}:
+                      </span>{' '}
+                      <span className="font-bold text-emerald-400">{pot.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.blinds')}</p>
