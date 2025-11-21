@@ -482,12 +482,20 @@ class PokerEngineAdapter:
             return []
 
         winners = []
+        total_won = 0
+        total_lost = 0
         
         # Calculate stack changes for each player
         for player_idx in range(self.player_count):
             stack_before = self._pre_showdown_stacks[player_idx]
             stack_after = self.state.stacks[player_idx]
             stack_change = stack_after - stack_before
+            
+            # Track total winnings and losses for validation
+            if stack_change > 0:
+                total_won += stack_change
+            elif stack_change < 0:
+                total_lost += abs(stack_change)
             
             # Only include players who won chips (stack increased)
             if stack_change > 0:
@@ -507,6 +515,17 @@ class PokerEngineAdapter:
 
         # Sort by amount won (descending) so main winner is first
         winners.sort(key=lambda w: w["amount"], reverse=True)
+        
+        # Validate pot integrity: total winnings should equal total losses (zero-sum)
+        if abs(total_won - total_lost) > 1:  # Allow 1 chip rounding error
+            logger.warning(
+                "Pot integrity check failed",
+                total_won=total_won,
+                total_lost=total_lost,
+                difference=total_won - total_lost,
+                pre_stacks=self._pre_showdown_stacks,
+                post_stacks=list(self.state.stacks),
+            )
 
         return winners
 

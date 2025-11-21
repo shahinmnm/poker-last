@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear, faPlay } from '@fortawesome/free-solid-svg-icons'
 
@@ -11,7 +11,7 @@ import PlaySheet from './layout/PlaySheet'
 import AppBackground from './background/AppBackground'
 import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch } from '../utils/apiClient'
+import { useUserData } from '../providers/UserDataProvider'
 
 const bottomNavKeys = ['home', 'lobby', 'wallet', 'profile'] as const
 
@@ -21,21 +21,9 @@ const bottomNavItems = bottomNavKeys
 
 export default function MainLayout() {
   const { t } = useTranslation()
-  const { user, initData } = useTelegram()
-  const [balance, setBalance] = useState<number | null>(null)
+  const { user } = useTelegram()
+  const { balance } = useUserData()
   const [isPlaySheetOpen, setIsPlaySheetOpen] = useState(false)
-
-  useEffect(() => {
-    if (!initData) return
-
-    apiFetch<{ balance: number }>('/users/me/balance', { initData })
-      .then((balanceData) => {
-        setBalance(balanceData.balance)
-      })
-      .catch(() => {
-        setBalance(0)
-      })
-  }, [initData])
 
   const displayName = user?.first_name || user?.username || 'Player'
   const formatBalance = (bal: number) => {

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { TelegramProvider } from './hooks/useTelegram'
 import { LocalizationProvider } from './providers/LocalizationProvider'
 import { ThemeProvider } from './providers/ThemeProvider'
+import { UserDataProvider } from './providers/UserDataProvider'
 import MainLayout from './components/MainLayout'
 import HomePage from './pages/Home'
 import LobbyPage from './pages/Lobby'
@@ -40,33 +41,35 @@ function App() {
     <TelegramProvider>
       <LocalizationProvider>
         <ThemeProvider>
-          <BrowserRouter>
-            <StartParamBridge />
-            <Routes>
-              <Route element={<MainLayout />}>
-                <Route index element={<HomePage />} />
-                <Route path="lobby" element={<LobbyPage />} />
-                <Route path="games">
-                  <Route path="create" element={<CreateGamePage />} />
-                  <Route path="join" element={<JoinGamePage />} />
-                </Route>
-                <Route path="group">
-                  <Route path="invite" element={<GroupInvitePage />} />
-                  <Route path="join">
-                    <Route index element={<GroupJoinPage />} />
-                    <Route path=":gameId" element={<GroupJoinPage />} />
+          <UserDataProvider>
+            <BrowserRouter>
+              <StartParamBridge />
+              <Routes>
+                <Route element={<MainLayout />}>
+                  <Route index element={<HomePage />} />
+                  <Route path="lobby" element={<LobbyPage />} />
+                  <Route path="games">
+                    <Route path="create" element={<CreateGamePage />} />
+                    <Route path="join" element={<JoinGamePage />} />
                   </Route>
+                  <Route path="group">
+                    <Route path="invite" element={<GroupInvitePage />} />
+                    <Route path="join">
+                      <Route index element={<GroupJoinPage />} />
+                      <Route path=":gameId" element={<GroupJoinPage />} />
+                    </Route>
+                  </Route>
+                  <Route path="profile">
+                    <Route index element={<ProfilePage />} />
+                    <Route path="stats" element={<StatsPage />} />
+                  </Route>
+                  <Route path="wallet" element={<WalletPage />} />
+                  <Route path="table/:tableId" element={<TablePage />} />
                 </Route>
-                <Route path="profile">
-                  <Route index element={<ProfilePage />} />
-                  <Route path="stats" element={<StatsPage />} />
-                </Route>
-                <Route path="wallet" element={<WalletPage />} />
-                <Route path="table/:tableId" element={<TablePage />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </BrowserRouter>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
+          </UserDataProvider>
         </ThemeProvider>
       </LocalizationProvider>
     </TelegramProvider>

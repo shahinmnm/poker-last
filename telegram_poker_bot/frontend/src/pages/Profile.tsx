@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -19,52 +19,21 @@ import {
 
 import { useTelegram } from '../hooks/useTelegram'
 import { useTheme } from '../providers/ThemeProvider'
-import { apiFetch } from '../utils/apiClient'
-
-interface UserStats {
-  hands_played: number
-  tables_played: number
-  total_profit: number
-  win_rate: number
-}
+import { useUserData } from '../providers/UserDataProvider'
 
 type DropdownKey = 'language' | 'theme' | 'help' | null
 
 export default function ProfilePage() {
   const { t, i18n } = useTranslation()
-  const { user, initData } = useTelegram()
+  const { user } = useTelegram()
   const { mode, setMode } = useTheme()
-  const [stats, setStats] = useState<UserStats | null>(null)
-  const [balance, setBalance] = useState<number>(0)
-  const [loading, setLoading] = useState(true)
+  const { stats, balance, loading } = useUserData()
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null)
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window === 'undefined') return true
     const stored = window.localStorage.getItem('pokerbot.sound')
     return stored !== 'false'
   })
-
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      if (!initData) return
-
-      try {
-        setLoading(true)
-        const [statsData, balanceData] = await Promise.all([
-          apiFetch<UserStats>('/users/me/stats', { initData }),
-          apiFetch<{ balance: number }>('/users/me/balance', { initData }),
-        ])
-        setStats(statsData)
-        setBalance(balanceData.balance)
-      } catch (err) {
-        console.error('Error fetching profile data:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchProfileData()
-  }, [initData])
 
   const toggleDropdown = (key: DropdownKey) => {
     setOpenDropdown(openDropdown === key ? null : key)
@@ -175,7 +144,7 @@ export default function ProfilePage() {
           {
             icon: faCoins,
             label: t('profile.balance'),
-            value: balance.toLocaleString(),
+            value: balance !== null ? balance.toLocaleString() : '...',
             color: 'var(--color-accent)',
           },
         ].map((stat, idx) => (

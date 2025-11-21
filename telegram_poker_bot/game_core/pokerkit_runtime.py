@@ -684,6 +684,12 @@ class PokerKitTableRuntimeManager:
             config = runtime.table.config_json or {}
             small_blind = config.get("small_blind", 25)
             big_blind = config.get("big_blind", 50)
+            
+            # Update last_action_at and clear expires_at since game is starting
+            runtime.table.last_action_at = datetime.now(timezone.utc)
+            runtime.table.expires_at = None  # No fixed expiry after game starts
+            await db.flush()
+            
             return await runtime.start_new_hand(db, small_blind, big_blind)
 
     async def handle_action(
@@ -697,6 +703,10 @@ class PokerKitTableRuntimeManager:
         lock = self._get_lock_for_table(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
+
+            # Update last_action_at to track table activity
+            runtime.table.last_action_at = datetime.now(timezone.utc)
+            await db.flush()
 
             # Get or load current hand
             if runtime.current_hand is None:

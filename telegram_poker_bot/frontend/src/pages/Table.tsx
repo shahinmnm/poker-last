@@ -5,6 +5,7 @@ import { faUser, faCoins, faUserGroup, faClock } from '@fortawesome/free-solid-s
 
 import { useTelegram } from '../hooks/useTelegram'
 import { useTableWebSocket } from '../hooks/useTableWebSocket'
+import { useUserData } from '../providers/UserDataProvider'
 import { apiFetch, ApiError } from '../utils/apiClient'
 import Toast from '../components/Toast'
 import Countdown from '../components/Countdown'
@@ -144,6 +145,7 @@ export default function TablePage() {
   const navigate = useNavigate()
   const { initData } = useTelegram()
   const { t } = useTranslation()
+  const { refetchAll: refetchUserData } = useUserData()
 
   const [tableDetails, setTableDetails] = useState<TableDetails | null>(null)
   const [loading, setLoading] = useState(true)
@@ -165,6 +167,7 @@ export default function TablePage() {
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<LiveTableState['hand_result'] | null>(null)
+  const lastCompletedHandIdRef = useRef<number | null>(null)
 
   const dateFormatter = useMemo(
     () =>
@@ -286,6 +289,22 @@ export default function TablePage() {
     
     setChipAnimations((prev) => [...prev, newAnimation])
   }, [liveState?.hand_result, getElementCenter])
+
+  // Auto-refresh balance and stats when a hand completes
+  useEffect(() => {
+    if (!liveState?.hand_result?.winners?.length) return
+    if (!liveState.hand_id) return
+    
+    // Check if this is a new completed hand
+    if (lastCompletedHandIdRef.current === liveState.hand_id) return
+    
+    lastCompletedHandIdRef.current = liveState.hand_id
+    
+    // Refetch balance and stats
+    refetchUserData().catch((err) => {
+      console.warn('Failed to refetch user data after hand completion', err)
+    })
+  }, [liveState?.hand_result, liveState?.hand_id, refetchUserData])
 
   const fetchTable = useCallback(async () => {
     if (!tableId) {

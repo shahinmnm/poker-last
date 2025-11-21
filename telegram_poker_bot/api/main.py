@@ -254,6 +254,231 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+_auto_fold_task: Optional[asyncio.Task] = None
+_inactivity_check_task: Optional[asyncio.Task] = None
+
+
+async def check_table_inactivity():
+    """
+    Background task that checks for inactive tables and marks them as expired.
+    
+    Rules:
+    - Pre-game: Tables expire if expires_at is in the past (10-min fixed timeout)
+    - Post-game: Tables expire if last_action_at + INACTIVITY_TIMEOUT is in the past
+    
+    Runs every 30 seconds.
+    """
+    from telegram_poker_bot.shared.database import get_db_session
+    
+    INACTIVITY_TIMEOUT_MINUTES = 10  # Configurable inactivity timeout
+    
+    logger.info("Table inactivity check task started")
+    
+    while True:
+        try:
+            await asyncio.sleep(30)  # Check every 30 seconds
+            
+            now = datetime.now(timezone.utc)
+            
+            async with get_db_session() as db:
+                # Get all active/waiting tables
+                result = await db.execute(
+                    select(Table).where(
+                        Table.status.in_([TableStatus.ACTIVE, TableStatus.WAITING])
+                    )
+                )
+                tables = result.scalars().all()
+                
+                for table in tables:
+                    try:
+                        should_expire = False
+                        reason = ""
+                        
+                        # Check pre-game expiry (fixed 10-min timeout)
+                        if table.status == TableStatus.WAITING and table.expires_at:
+                            if table.expires_at <= now:
+                                should_expire = True
+                                reason = "pre-game timeout"
+                        
+                        # Check post-game inactivity
+                        elif table.status == TableStatus.ACTIVE:
+                            if table.last_action_at:
+                                inactivity_duration = now - table.last_action_at
+                                inactivity_timeout = timedelta(minutes=INACTIVITY_TIMEOUT_MINUTES)
+                                
+                                if inactivity_duration > inactivity_timeout:
+                                    should_expire = True
+                                    reason = f"inactivity ({inactivity_duration.total_seconds():.0f}s)"
+                            # If no last_action_at set yet, give it some time
+                            elif table.created_at:
+                                age = now - table.created_at
+                                if age > timedelta(minutes=INACTIVITY_TIMEOUT_MINUTES):
+                                    should_expire = True
+                                    reason = "no activity since creation"
+                        
+                        if should_expire:
+                            table.status = TableStatus.EXPIRED
+                            table.updated_at = now
+                            await db.flush()
+                            
+                            logger.info(
+                                "Table expired due to inactivity",
+                                table_id=table.id,
+                                reason=reason,
+                            )
+                            
+                            # Close all WebSocket connections for this table
+                            await manager.close_all_connections(table.id)
+                    
+                    except Exception as e:
+                        logger.error(
+                            "Error checking inactivity for table",
+                            table_id=table.id,
+                            error=str(e),
+                        )
+                
+                await db.commit()
+                        
+        except asyncio.CancelledError:
+            logger.info("Table inactivity check task cancelled")
+            break
+        except Exception as e:
+            logger.error("Error in table inactivity check task", error=str(e))
+
+
+async def auto_fold_expired_actions():
+    """
+    Background task that checks for expired action deadlines and auto-folds.
+    
+    Runs every 2 seconds to check all active tables with pending actions.
+    When a player exceeds their action_deadline, automatically folds for them.
+    """
+    from telegram_poker_bot.shared.database import get_db_session
+    
+    logger.info("Auto-fold background task started")
+    
+    while True:
+        try:
+            await asyncio.sleep(2)  # Check every 2 seconds
+            
+            now = datetime.now(timezone.utc)
+            
+            # Get all active tables
+            async with get_db_session() as db:
+                result = await db.execute(
+                    select(Table).where(
+                        Table.status == TableStatus.ACTIVE
+                    )
+                )
+                active_tables = result.scalars().all()
+                
+                for table in active_tables:
+                    try:
+                        # Get table state to check action_deadline
+                        runtime_mgr = get_pokerkit_runtime_manager()
+                        state = await runtime_mgr.get_state(db, table.id, viewer_user_id=None)
+                        
+                        # Check if there's an active actor with a deadline
+                        if not state.get("current_actor"):
+                            continue
+                        
+                        deadline_str = state.get("action_deadline")
+                        if not deadline_str:
+                            continue
+                        
+                        # Parse deadline - handle both with and without 'Z' suffix
+                        try:
+                            if deadline_str.endswith('Z'):
+                                deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+                            else:
+                                deadline = datetime.fromisoformat(deadline_str)
+                            
+                            if deadline.tzinfo is None:
+                                deadline = deadline.replace(tzinfo=timezone.utc)
+                        except (ValueError, AttributeError) as e:
+                            logger.warning(
+                                "Failed to parse action_deadline",
+                                table_id=table.id,
+                                deadline_str=deadline_str,
+                                error=str(e),
+                            )
+                            continue
+                        
+                        # Check if deadline has passed
+                        if now < deadline:
+                            continue
+                        
+                        # Deadline passed - auto-fold for current actor
+                        current_actor_user_id = state["current_actor"]
+                        
+                        logger.info(
+                            "Auto-folding player due to timeout",
+                            table_id=table.id,
+                            user_id=current_actor_user_id,
+                            deadline=deadline_str,
+                        )
+                        
+                        # Execute fold action
+                        public_state = await runtime_mgr.handle_action(
+                            db,
+                            table_id=table.id,
+                            user_id=current_actor_user_id,
+                            action=ActionType.FOLD,
+                            amount=None,
+                        )
+                        
+                        await db.commit()
+                        
+                        # Broadcast to all connected clients
+                        await manager.broadcast(table.id, public_state)
+                        
+                    except Exception as e:
+                        logger.error(
+                            "Error auto-folding for table",
+                            table_id=table.id,
+                            error=str(e),
+                        )
+                        # Continue to next table
+                        
+        except asyncio.CancelledError:
+            logger.info("Auto-fold background task cancelled")
+            break
+        except Exception as e:
+            logger.error("Error in auto-fold background task", error=str(e))
+            # Continue running despite errors
+
+
+@api_app.on_event("startup")
+async def startup_event():
+    """Start background tasks on application startup."""
+    global _auto_fold_task, _inactivity_check_task
+    _auto_fold_task = asyncio.create_task(auto_fold_expired_actions())
+    _inactivity_check_task = asyncio.create_task(check_table_inactivity())
+    logger.info("Started background tasks: auto-fold and inactivity check")
+
+
+@api_app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up background tasks on application shutdown."""
+    global _auto_fold_task, _inactivity_check_task
+    
+    if _auto_fold_task:
+        _auto_fold_task.cancel()
+        try:
+            await _auto_fold_task
+        except asyncio.CancelledError:
+            pass
+    
+    if _inactivity_check_task:
+        _inactivity_check_task.cancel()
+        try:
+            await _inactivity_check_task
+        except asyncio.CancelledError:
+            pass
+    
+    logger.info("Stopped background tasks")
+
+
 def verify_telegram_init_data(init_data: str) -> Optional[UserAuth]:
     """
     Verify Telegram Mini App init data.

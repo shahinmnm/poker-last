@@ -733,7 +733,9 @@ async def list_available_tables(
             Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
         )
 
-        # Filter out expired tables
+        # Filter out expired tables (both time-based and status-based)
+        # Time-based: expires_at is in the past (pre-game only)
+        # Status-based: status == EXPIRED (caught by status filter above)
         query = query.where(or_(Table.expires_at.is_(None), Table.expires_at > now))
 
         if mode:
