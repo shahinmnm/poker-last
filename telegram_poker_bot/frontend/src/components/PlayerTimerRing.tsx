@@ -7,6 +7,10 @@ interface PlayerTimerRingProps {
   className?: string
 }
 
+// SVG circle parameters
+const SIZE = 64
+const STROKE_WIDTH = 2
+
 export function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }: PlayerTimerRingProps) {
   const [remainingRatio, setRemainingRatio] = useState(1)
 
@@ -50,10 +54,7 @@ export function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }
     strokeColor = '#ef4444' // red-500
   }
 
-  // SVG circle parameters
-  const size = 64
-  const strokeWidth = 2
-  const radius = (size - strokeWidth) / 2
+  const radius = (SIZE - STROKE_WIDTH) / 2
   const circumference = 2 * Math.PI * radius
 
   // Calculate stroke offset for countdown (clockwise)
@@ -62,29 +63,29 @@ export function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }
   return (
     <svg
       className={`absolute inset-0 pointer-events-none ${className}`}
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
+      width={SIZE}
+      height={SIZE}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
       style={{ transform: 'rotate(-90deg)' }}
     >
       {/* Background circle */}
       <circle
-        cx={size / 2}
-        cy={size / 2}
+        cx={SIZE / 2}
+        cy={SIZE / 2}
         r={radius}
         fill="none"
         stroke="rgba(255, 255, 255, 0.1)"
-        strokeWidth={strokeWidth}
+        strokeWidth={STROKE_WIDTH}
       />
       
       {/* Progress circle */}
       <circle
-        cx={size / 2}
-        cy={size / 2}
+        cx={SIZE / 2}
+        cy={SIZE / 2}
         r={radius}
         fill="none"
         stroke={strokeColor}
-        strokeWidth={strokeWidth}
+        strokeWidth={STROKE_WIDTH}
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         strokeLinecap="round"
