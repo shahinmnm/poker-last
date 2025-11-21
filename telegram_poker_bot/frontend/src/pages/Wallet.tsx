@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faWallet, faCircleInfo, faClockRotateLeft } from '@fortawesome/free-solid-svg-icons'
+import { faCoins, faArrowUp, faArrowDown, faTicket } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch } from '../utils/apiClient'
@@ -11,71 +11,52 @@ export default function WalletPage() {
   const { initData } = useTelegram()
   const [balance, setBalance] = useState<number>(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [promoCode, setPromoCode] = useState('')
 
   useEffect(() => {
     const fetchBalance = async () => {
-      if (!initData) {
-        return
-      }
+      if (!initData) return
 
       try {
         setLoading(true)
-        setError(null)
-
         const balanceData = await apiFetch<{ balance: number }>('/users/me/balance', { initData })
         setBalance(balanceData.balance)
       } catch (err) {
         console.error('Error fetching balance:', err)
-        setError(t('wallet.errors.loadFailed', 'Failed to load balance'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchBalance()
-  }, [initData, t])
+  }, [initData])
+
+  const formatBalance = (amount: number) => {
+    if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`
+    if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`
+    return amount.toLocaleString()
+  }
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
       <div
-        className="rounded-2xl p-5"
+        className="flex min-h-[40vh] items-center justify-center rounded-2xl"
         style={{
-          background: 'var(--color-danger-glass)',
-          border: '1px solid var(--color-danger-glass-border)',
-          color: 'var(--color-danger)',
+          background: 'var(--glass-bg)',
+          backdropFilter: 'blur(var(--glass-blur))',
+          WebkitBackdropFilter: 'blur(var(--glass-blur))',
+          border: '1px solid var(--glass-border)',
         }}
       >
-        <p>{error}</p>
+        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-          <FontAwesomeIcon icon={faWallet} style={{ color: 'var(--accent-blue)' }} />
-          {t('wallet.title', 'Wallet')}
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          {t('wallet.subtitle', 'Manage your chip balance')}
-        </p>
-      </header>
-
-      <section 
-        className="relative rounded-2xl p-5"
+      <div
+        className="rounded-2xl p-5"
         style={{
           background: 'var(--glass-bg)',
           backdropFilter: 'blur(var(--glass-blur))',
@@ -84,80 +65,145 @@ export default function WalletPage() {
           boxShadow: 'var(--glass-shadow)',
         }}
       >
-        <div className="absolute top-0 left-[20%] right-[20%] h-[40%] pointer-events-none"
-          style={{
-            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent)',
-            borderRadius: 'var(--radius-2xl) var(--radius-2xl) 0 0',
-          }}
-        />
-        
-        <div className="relative z-10">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
-            {t('wallet.balance', 'Balance')}
-          </h2>
-          <div className="mt-4 flex items-center gap-4">
-            <div 
-              className="flex h-16 w-16 items-center justify-center rounded-xl"
-              style={{
-                background: 'linear-gradient(135deg, var(--accent-green), var(--accent-blue))',
-              }}
-            >
-              <FontAwesomeIcon icon={faWallet} className="text-3xl text-white" />
-            </div>
-            <div>
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                {t('wallet.yourBalance', 'Your Balance')}
-              </p>
-              <p className="text-3xl font-bold" style={{ color: 'var(--accent-green)' }}>
-                {balance.toLocaleString()} {t('wallet.chips', 'chips')}
-              </p>
-            </div>
-          </div>
-          <p className="mt-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {t('wallet.description', 'Use your chips to buy into poker tables and tournaments.')}
+        <div>
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
+            {t('wallet.title', 'Wallet')}
+          </h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {t('wallet.subtitle', 'Manage your chip balance')}
           </p>
         </div>
-      </section>
+      </div>
 
-      <section 
-        className="relative rounded-2xl p-5"
+      <div
+        className="rounded-2xl p-6"
         style={{
-          background: 'var(--glass-bg)',
+          background: 'var(--glass-bg-elevated)',
           backdropFilter: 'blur(var(--glass-blur))',
           WebkitBackdropFilter: 'blur(var(--glass-blur))',
           border: '1px solid var(--glass-border)',
           boxShadow: 'var(--glass-shadow)',
         }}
       >
-        <h3 className="font-semibold flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-          <FontAwesomeIcon icon={faCircleInfo} style={{ color: 'var(--accent-blue)' }} />
+        <div className="flex items-center gap-3 mb-4">
+          <div
+            className="flex h-12 w-12 items-center justify-center rounded-xl"
+            style={{
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)',
+            }}
+          >
+            <FontAwesomeIcon icon={faCoins} className="text-xl" style={{ color: 'var(--color-accent)' }} />
+          </div>
+          <div>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              {t('wallet.balance', 'Balance')}
+            </p>
+            <p className="text-3xl font-bold" style={{ color: 'var(--color-text)' }}>
+              {formatBalance(balance)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="rounded-2xl p-4"
+        style={{
+          background: 'var(--glass-bg)',
+          border: '1px solid var(--glass-border)',
+        }}
+      >
+        <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          {t('wallet.activity.title', 'Recent activity')}
+        </h3>
+        <div className="text-center py-6">
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {t('wallet.activity.empty', 'No transactions yet')}
+          </p>
+        </div>
+      </div>
+
+      <div
+        className="rounded-2xl p-4"
+        style={{
+          background: 'var(--glass-bg)',
+          border: '1px solid var(--glass-border)',
+        }}
+      >
+        <h3 className="mb-2 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
           {t('wallet.about.title', 'About Chips')}
         </h3>
-        <p className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          {t('wallet.about.description', 'Chips are used for playing poker. When you join a table, chips are reserved for your buy-in. When you leave, your remaining chips return to your wallet.')}
-        </p>
-      </section>
+        <ul className="space-y-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+          <li>• {t('wallet.about.point1', 'Used for table buy-ins')}</li>
+          <li>• {t('wallet.about.point2', 'Returned when you leave')}</li>
+          <li>• {t('wallet.about.point3', 'Track in game history')}</li>
+        </ul>
+      </div>
 
-      <section 
-        className="relative rounded-2xl p-5"
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          disabled
+          className="rounded-xl px-4 py-3 text-sm font-semibold transition-transform active:scale-98 opacity-50 cursor-not-allowed"
+          style={{
+            background: 'var(--glass-bg)',
+            border: '1px solid var(--glass-border)',
+            color: 'var(--color-text)',
+          }}
+        >
+          <FontAwesomeIcon icon={faArrowUp} className="mr-2" />
+          {t('wallet.actions.topUp', 'Top up')}
+        </button>
+        <button
+          disabled
+          className="rounded-xl px-4 py-3 text-sm font-semibold transition-transform active:scale-98 opacity-50 cursor-not-allowed"
+          style={{
+            background: 'var(--glass-bg)',
+            border: '1px solid var(--glass-border)',
+            color: 'var(--color-text)',
+          }}
+        >
+          <FontAwesomeIcon icon={faArrowDown} className="mr-2" />
+          {t('wallet.actions.withdraw', 'Withdraw')}
+        </button>
+      </div>
+
+      <div
+        className="rounded-2xl p-4"
         style={{
           background: 'var(--glass-bg)',
-          backdropFilter: 'blur(var(--glass-blur))',
-          WebkitBackdropFilter: 'blur(var(--glass-blur))',
           border: '1px solid var(--glass-border)',
-          boxShadow: 'var(--glass-shadow)',
         }}
       >
-        <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-          <FontAwesomeIcon icon={faClockRotateLeft} style={{ color: 'var(--color-text)' }} />
-          {t('wallet.history.title', 'Transaction History')}
-        </h2>
-        <div className="mt-3">
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {t('wallet.history.comingSoon', 'Transaction history coming soon! For now, check your game history in the Stats page.')}
-          </p>
+        <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+          <FontAwesomeIcon icon={faTicket} className="mr-2" />
+          {t('wallet.promo.label', 'Promo code')}
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+            placeholder={t('wallet.promo.placeholder', 'Enter code')}
+            className="flex-1 rounded-xl px-4 py-3 text-sm uppercase tracking-wider"
+            style={{
+              background: 'var(--glass-bg-elevated)',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--color-text)',
+            }}
+          />
+          <button
+            disabled
+            className="rounded-xl px-6 py-3 font-semibold opacity-50 cursor-not-allowed"
+            style={{
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--color-text)',
+            }}
+          >
+            {t('wallet.promo.redeem', 'Redeem')}
+          </button>
         </div>
-      </section>
+      </div>
     </div>
   )
 }
