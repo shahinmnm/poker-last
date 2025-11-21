@@ -708,7 +708,10 @@
       "readyToStart": "Ready to shuffle up.",
       "waitForPlayers": "Need {{count}} more player(s) to start.",
       "handCompleted": "Hand {{handNo}} complete",
-      "newHandStarting": "New hand starting..."
+      "newHandStarting": "New hand starting...",
+      "waitingForHost": "Waiting for the host to start the game.",
+      "joinPrompt": "Grab a seat before the action begins.",
+      "tableFull": "Table is full at the moment."
     },
     "recentHands": {
       "title": "Recent Hands",
@@ -717,10 +720,6 @@
       "pot": "Pot",
       "winner": "Winner",
       "winners": "Winners"
-    },
-      "waitingForHost": "Waiting for the host to start the game.",
-      "joinPrompt": "Grab a seat before the action begins.",
-      "tableFull": "Table is full at the moment."
     },
     "invite": {
       "title": "Invite Friends",

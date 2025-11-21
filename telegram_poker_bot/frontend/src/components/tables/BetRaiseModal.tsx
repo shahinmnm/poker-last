@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import Modal from '../ui/Modal'
 import GlassButton from '../ui/GlassButton'
+import Button from '../ui/Button'
 
 interface BetRaiseModalProps {
   isOpen: boolean
@@ -148,9 +149,9 @@ export default function BetRaiseModal({
         </div>
 
         <div className="flex gap-2 pt-2">
-          <GlassButton variant="secondary" onClick={onClose} fullWidth>
+          <Button variant="secondary" onClick={onClose} block>
             Cancel
-          </GlassButton>
+          </Button>
           <GlassButton
             variant={actionType === 'bet' ? 'bet' : 'raise'}
             onClick={handleSubmit}
