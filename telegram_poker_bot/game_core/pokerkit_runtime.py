@@ -701,12 +701,12 @@ class PokerKitTableRuntimeManager:
             config = runtime.table.config_json or {}
             small_blind = config.get("small_blind", 25)
             big_blind = config.get("big_blind", 50)
-            
+
             # Update last_action_at and clear expires_at since game is starting
             runtime.table.last_action_at = datetime.now(timezone.utc)
             runtime.table.expires_at = None  # No fixed expiry after game starts
             await db.flush()
-            
+
             return await runtime.start_new_hand(db, small_blind, big_blind)
 
     async def handle_action(
@@ -801,9 +801,11 @@ class PokerKitTableRuntimeManager:
                         }
                         for w in result["hand_result"]["winners"]
                     ],
-                    "pot_total": sum(
-                        pot.amount for pot in runtime.engine.state.pots
-                    ) if runtime.engine else 0,
+                    "pot_total": (
+                        sum(pot.amount for pot in runtime.engine.state.pots)
+                        if runtime.engine
+                        else 0
+                    ),
                 }
 
                 existing_history = await db.execute(

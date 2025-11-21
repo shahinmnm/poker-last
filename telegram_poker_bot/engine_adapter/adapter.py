@@ -129,7 +129,7 @@ class PokerEngineAdapter:
         5. Captures pre-showdown stacks for winner calculation
         """
         self._deck = self._create_shuffled_deck()
-        
+
         # Capture stacks before the hand starts
         self._pre_showdown_stacks = list(self.state.stacks)
 
@@ -487,17 +487,17 @@ class PokerEngineAdapter:
         winners = []
         total_won = 0
         total_lost = 0
-        
+
         for player_idx in range(self.player_count):
             stack_before = self._pre_showdown_stacks[player_idx]
             stack_after = self.state.stacks[player_idx]
             stack_change = stack_after - stack_before
-            
+
             if stack_change > 0:
                 total_won += stack_change
             elif stack_change < 0:
                 total_lost += abs(stack_change)
-            
+
             if stack_change > 0:
                 hand_data = self._get_player_hand_data(player_idx)
 
@@ -513,7 +513,7 @@ class PokerEngineAdapter:
                 )
 
         winners.sort(key=lambda w: w["amount"], reverse=True)
-        
+
         if abs(total_won - total_lost) > 1:
             pots_breakdown = [
                 {
@@ -523,7 +523,7 @@ class PokerEngineAdapter:
                 }
                 for idx, pot in enumerate(self.state.pots)
             ]
-            
+
             logger.warning(
                 "Pot integrity check failed - total winnings do not match total losses",
                 total_won=total_won,
