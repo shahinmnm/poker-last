@@ -93,6 +93,13 @@
     "welcome": "Welcome back",
     "welcomeWithName": "Welcome back, {{name}}",
     "tagline": "Set the stakes, choose your audience, and start playing.",
+    "leaderboard": {
+      "title": "Weekly Top Players",
+      "rank": "Rank",
+      "player": "Player",
+      "profit": "Profit",
+      "viewAll": "View Full Leaderboard"
+    },
     "continueGame": {
       "title": "Continue your game",
       "active": "Active",
@@ -223,6 +230,12 @@
         "public": "Public",
         "private": "Private"
       }
+      ,
+      "mode": {
+        "casual": "Casual",
+        "turbo": "Turbo",
+        "ranked": "Ranked"
+      }
     },
     "status": {
       "running": "Running",
@@ -266,6 +279,13 @@
       "startingStack": "Starting stack",
       "maxPlayers": "Maximum players",
       "autoSeatHost": "Seat me automatically",
+      "autoStart": "Auto-start when 2+ players seated",
+      "tableMode": "Mode",
+      "modeOptions": {
+        "casual": "Casual",
+        "turbo": "Turbo",
+        "ranked": "Ranked"
+      },
       "button": "Create table"
     },
     "tips": [
@@ -368,11 +388,36 @@
       "profit": "Profit"
     },
     "settings": {
-      "title": "Settings",
+      "title": "Quick Settings",
       "language": "Language",
+      "languageBadge": {
+        "en": "EN",
+        "fa": "FA"
+      },
       "sound": "Sound",
+      "soundEnabled": "Enabled",
+      "soundDisabled": "Disabled",
       "theme": "Theme",
-      "help": "Help"
+      "themeAuto": "Auto (Device)",
+      "themeDark": "Dark",
+      "themeLight": "Light",
+      "help": "Help & Support",
+      "helpRules": "Texas Hold'em Rules",
+      "helpRulesText": "Texas Hold'em is a community card poker game. Each player is dealt two private cards and uses five community cards to make the best five-card hand. Betting rounds occur before the flop, after the flop, after the turn, and after the river.",
+      "helpGroupPlay": "Group Play Guide",
+      "helpGroupPlayText": "To start a group game: 1) Create a private table, 2) Share the invite code with your group, 3) Players join using the code, 4) Host starts the game when ready.",
+      "helpSupport": "Report Bug / Support",
+      "helpSupportText": "For support, contact us via the bot or email support@poker.shahin8n.sbs"
+    },
+    "missions": {
+      "title": "Missions",
+      "daily": "Daily Mission",
+      "weekly": "Weekly Mission",
+      "reward": "Reward",
+      "progress": "Progress",
+      "playHands": "Play {{count}} hands",
+      "winHand": "Win a hand",
+      "history": "Mission History"
     }
   },
   "stats": {
@@ -393,7 +438,8 @@
       "deposit": "Add chips",
       "withdraw": "Withdraw",
       "transfer": "Transfer",
-      "topUp": "Top up"
+      "topUp": "Top up",
+      "rebuy": "Rebuy"
     },
     "history": {
       "title": "Transaction History",
