@@ -2,6 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Temporarily disable strict SSL for npm (workaround for self-signed cert issues in build environment)
+RUN npm config set strict-ssl false
+
 # Install dependencies
 COPY telegram_poker_bot/frontend/package.json telegram_poker_bot/frontend/package-lock.json* ./
 RUN npm ci
