@@ -27,6 +27,10 @@ const COLOR_GREEN = '#10b981'  // emerald-500
 const COLOR_YELLOW = '#eab308' // yellow-500
 const COLOR_RED = '#ef4444'    // red-500
 
+// Transition durations for smooth animations
+const PROGRESS_TRANSITION_MS = 100  // Stroke offset animation speed
+const COLOR_TRANSITION_MS = 200     // Color change animation speed
+
 /**
  * A circular timer ring that displays the countdown for a player's turn.
  * 
@@ -111,7 +115,7 @@ function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }: Playe
         strokeDashoffset={offset}
         strokeLinecap="round"
         style={{
-          transition: 'stroke-dashoffset 0.1s linear, stroke 0.2s ease',
+          transition: `stroke-dashoffset ${PROGRESS_TRANSITION_MS}ms linear, stroke ${COLOR_TRANSITION_MS}ms ease`,
         }}
       />
     </svg>
