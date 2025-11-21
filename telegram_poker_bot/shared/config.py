@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     default_starting_stack: int = 10000
     small_blind: int = 25
     big_blind: int = 50
+    turn_timeout_seconds: int = 25
+    table_inactivity_timeout_minutes: int = 10
+    table_all_sitout_timeout_minutes: int = 5
 
     # Mini App
     webapp_secret: str = "test-webapp-secret"

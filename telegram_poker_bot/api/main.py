@@ -264,15 +264,15 @@ async def check_table_inactivity():
     Background task that checks for inactive tables and marks them as expired.
 
     Rules:
-    - Pre-game: Tables expire if expires_at is in the past (10-min fixed timeout)
-    - Post-game: Tables expire if last_action_at + INACTIVITY_TIMEOUT is in the past
+    - Pre-game: Tables expire if expires_at is in the past
+    - Post-game: Tables expire based on table_inactivity_timeout_minutes setting
+    - All-sit-out: Tables where ALL players are sitting out expire after 5 minutes
 
     Uses distributed lock to prevent duplicate execution in multi-worker environments.
     Runs every 30 seconds.
     """
     from telegram_poker_bot.shared.database import get_db_session
 
-    INACTIVITY_TIMEOUT_MINUTES = 10
     LOCK_KEY = "background:check_table_inactivity"
     LOCK_TTL = 25
 
@@ -311,22 +311,47 @@ async def check_table_inactivity():
                                     reason = "pre-game timeout"
 
                             elif table.status == TableStatus.ACTIVE:
-                                if table.last_action_at:
-                                    inactivity_duration = now - table.last_action_at
-                                    inactivity_timeout = timedelta(
-                                        minutes=INACTIVITY_TIMEOUT_MINUTES
+                                # Check for all-sit-out scenario
+                                seats_result = await db.execute(
+                                    select(Seat).where(
+                                        Seat.table_id == table.id,
+                                        Seat.left_at.is_(None),
                                     )
+                                )
+                                active_seats = seats_result.scalars().all()
+                                
+                                if active_seats:
+                                    all_sitting_out = all(
+                                        seat.is_sitting_out_next_hand for seat in active_seats
+                                    )
+                                    
+                                    if all_sitting_out and table.last_action_at:
+                                        # If all players are sitting out, use a shorter timeout
+                                        sit_out_duration = now - table.last_action_at
+                                        if sit_out_duration > timedelta(
+                                            minutes=settings.table_all_sitout_timeout_minutes
+                                        ):
+                                            should_expire = True
+                                            reason = f"all players sitting out ({sit_out_duration.total_seconds():.0f}s)"
+                                
+                                # Check for general inactivity
+                                if not should_expire:
+                                    if table.last_action_at:
+                                        inactivity_duration = now - table.last_action_at
+                                        inactivity_timeout = timedelta(
+                                            minutes=settings.table_inactivity_timeout_minutes
+                                        )
 
-                                    if inactivity_duration > inactivity_timeout:
-                                        should_expire = True
-                                        reason = f"inactivity ({inactivity_duration.total_seconds():.0f}s)"
-                                elif table.created_at:
-                                    age = now - table.created_at
-                                    if age > timedelta(
-                                        minutes=INACTIVITY_TIMEOUT_MINUTES
-                                    ):
-                                        should_expire = True
-                                        reason = "no activity since creation"
+                                        if inactivity_duration > inactivity_timeout:
+                                            should_expire = True
+                                            reason = f"inactivity ({inactivity_duration.total_seconds():.0f}s)"
+                                    elif table.created_at:
+                                        age = now - table.created_at
+                                        if age > timedelta(
+                                            minutes=settings.table_inactivity_timeout_minutes
+                                        ):
+                                            should_expire = True
+                                            reason = "no activity since creation"
 
                             if should_expire:
                                 table.status = TableStatus.EXPIRED
