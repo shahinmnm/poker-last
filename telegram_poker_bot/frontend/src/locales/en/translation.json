@@ -702,6 +702,17 @@
     "messages": {
       "readyToStart": "Ready to shuffle up.",
       "waitForPlayers": "Need {{count}} more player(s) to start.",
+      "handCompleted": "Hand {{handNo}} complete",
+      "newHandStarting": "New hand starting..."
+    },
+    "recentHands": {
+      "title": "Recent Hands",
+      "empty": "No hand history yet",
+      "handNo": "Hand #{{number}}",
+      "pot": "Pot",
+      "winner": "Winner",
+      "winners": "Winners"
+    },
       "waitingForHost": "Waiting for the host to start the game.",
       "joinPrompt": "Grab a seat before the action begins.",
       "tableFull": "Table is full at the moment."

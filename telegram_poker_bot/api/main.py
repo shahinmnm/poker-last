@@ -43,6 +43,7 @@ from telegram_poker_bot.shared.models import (
     TableStatus,
     Seat,
     HandStatus,
+    HandHistory,
 )
 from telegram_poker_bot.shared.types import (
     GameMode,
@@ -1739,7 +1740,6 @@ async def submit_action(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit a poker action."""
-    # Verify user
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
 
@@ -1749,7 +1749,6 @@ async def submit_action(
 
     user = await ensure_user(db, user_auth)
 
-    # Process action
     action_type = ActionType(action.action_type)
 
     try:
@@ -1761,10 +1760,8 @@ async def submit_action(
             amount=action.amount,
         )
 
-        # Broadcast public state (without hero cards)
         await manager.broadcast(table_id, public_state)
 
-        # Return viewer-specific state so the acting player sees their hole cards
         viewer_state = await get_pokerkit_runtime_manager().get_state(
             db, table_id, user.id
         )
@@ -1775,6 +1772,38 @@ async def submit_action(
     except Exception as e:
         logger.error("Error processing action", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_app.get("/tables/{table_id}/hands")
+async def get_table_hand_history(
+    table_id: int,
+    limit: int = Query(default=10, ge=1, le=50),
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get hand history for a table."""
+    from telegram_poker_bot.shared.models import HandHistory
+
+    result = await db.execute(
+        select(HandHistory)
+        .where(HandHistory.table_id == table_id)
+        .order_by(HandHistory.hand_no.desc())
+        .limit(limit)
+    )
+    histories = result.scalars().all()
+
+    return {
+        "hands": [
+            {
+                "hand_no": h.hand_no,
+                "board": h.payload_json.get("board", []),
+                "winners": h.payload_json.get("winners", []),
+                "pot_total": h.payload_json.get("pot_total", 0),
+                "created_at": h.created_at.isoformat() if h.created_at else None,
+            }
+            for h in histories
+        ]
+    }
 
 
 @api_app.websocket("/ws/{table_id}")

@@ -763,7 +763,51 @@ class PokerKitTableRuntimeManager:
                         hand_no=runtime.hand_no,
                         error=str(e),
                     )
-                    # Don't fail the action - just log the error
+
+                from telegram_poker_bot.shared.models import HandHistory
+
+                board_cards = runtime.engine.state.board_cards if runtime.engine else []
+                formatted_board = []
+                if board_cards:
+                    for card_list in board_cards:
+                        if card_list and len(card_list) > 0:
+                            formatted_board.append(repr(card_list[0]))
+
+                hand_history_payload = {
+                    "hand_no": runtime.hand_no,
+                    "board": formatted_board,
+                    "winners": [
+                        {
+                            "user_id": w["user_id"],
+                            "amount": w["amount"],
+                            "hand_rank": w["hand_rank"],
+                            "best_hand_cards": w.get("best_hand_cards", []),
+                        }
+                        for w in result["hand_result"]["winners"]
+                    ],
+                    "pot_total": sum(
+                        pot.amount for pot in runtime.engine.state.pots
+                    ) if runtime.engine else 0,
+                }
+
+                existing_history = await db.execute(
+                    select(HandHistory).where(
+                        HandHistory.table_id == table_id,
+                        HandHistory.hand_no == runtime.hand_no,
+                    )
+                )
+                if not existing_history.scalar_one_or_none():
+                    history = HandHistory(
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                        payload_json=hand_history_payload,
+                    )
+                    db.add(history)
+                    logger.info(
+                        "Saved hand history",
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                    )
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index

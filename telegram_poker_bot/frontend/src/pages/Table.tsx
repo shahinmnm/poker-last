@@ -20,6 +20,7 @@ import ExpiredTableView from '../components/tables/ExpiredTableView'
 import InviteSection from '../components/tables/InviteSection'
 import TableActionButtons from '../components/tables/TableActionButtons'
 import HandResultPanel from '../components/tables/HandResultPanel'
+import RecentHandsModal from '../components/tables/RecentHandsModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import type { TableStatusTone } from '../components/lobby/types'
 
@@ -173,6 +174,7 @@ export default function TablePage() {
   const [actionPending, setActionPending] = useState(false)
   const [isSitOutPending, setIsSitOutPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
+  const [showRecentHands, setShowRecentHands] = useState(false)
   
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<number, HTMLElement>>(new Map())
@@ -1016,6 +1018,22 @@ export default function TablePage() {
         </Card>
       )}
 
+      {liveState && tableDetails.status === 'active' && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowRecentHands(true)}
+            className="rounded-xl px-4 py-2 text-sm font-medium transition-all"
+            style={{
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            {t('table.recentHands.title')}
+          </button>
+        </div>
+      )}
+
       {/* Invite Code Section (for private tables) */}
       {tableDetails.visibility === 'private' && tableDetails.invite_code && (viewerIsCreator || viewerIsSeated) && (
         <InviteSection
@@ -1198,6 +1216,13 @@ export default function TablePage() {
           )}
         </div>
       </Card>
+
+      <RecentHandsModal
+        isOpen={showRecentHands}
+        onClose={() => setShowRecentHands(false)}
+        tableId={parseInt(tableId || '0', 10)}
+        initData={initData ?? undefined}
+      />
     </div>
   )
 }

@@ -292,6 +292,24 @@ class Pot(Base):
     __table_args__ = (Index("idx_pots_hand_index", "hand_id", "pot_index"),)
 
 
+class HandHistory(Base):
+    """Hand history model for storing completed hand summaries."""
+
+    __tablename__ = "hand_histories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    hand_no = Column(Integer, nullable=False)
+    payload_json = Column(JSONB, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_hand_histories_table_hand", "table_id", "hand_no", unique=True),
+    )
+
+
 class Message(Base):
     """Table anchor message model."""
 
