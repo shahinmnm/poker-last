@@ -57,6 +57,7 @@ class PokerKitTableRuntime:
         self.current_hand: Optional[Hand] = None
         self.event_sequence = 0
         self._pending_deal_event: Optional[str] = None
+        self.last_hand_result: Optional[Dict[str, Any]] = None
 
     async def _log_hand_event(
         self,
@@ -195,6 +196,7 @@ class PokerKitTableRuntime:
         # Load or create Hand row
         hand = await self.load_or_create_hand(db)
         self.hand_no = hand.hand_no
+        self.last_hand_result = None
 
         # Build mapping from user_id to player index
         active_seats = [
@@ -462,6 +464,7 @@ class PokerKitTableRuntime:
                     for w in winners
                 ]
             }
+            self.last_hand_result = hand_result
             result["hand_result"] = hand_result
 
             logger.info(
@@ -617,6 +620,9 @@ class PokerKitTableRuntime:
             "last_action": None,
             "allowed_actions": poker_state.get("allowed_actions", {}),
         }
+
+        if self.last_hand_result and (not self.engine or not self.engine.state.status):
+            payload["hand_result"] = self.last_hand_result
 
         return payload
 
