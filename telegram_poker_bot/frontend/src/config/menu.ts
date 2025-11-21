@@ -16,7 +16,7 @@ export interface MenuNodeChild {
   descriptionKey?: string
 }
 
-import { faHouse, faDice, faCirclePlus, faRightToBracket, faUser, faWallet, faGear, faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
+import { faHouse, faDice, faCirclePlus, faRightToBracket, faUser, faWallet } from '@fortawesome/free-solid-svg-icons'
 
 export const menuTree: MenuNode[] = [
   {
@@ -143,54 +143,6 @@ export const menuTree: MenuNode[] = [
         key: 'withdraw',
         path: '/wallet#withdraw',
         labelKey: 'menu.wallet.children.withdraw',
-      },
-    ],
-  },
-  {
-    key: 'settings',
-    path: '/settings',
-    icon: faGear,
-    labelKey: 'menu.settings.label',
-    descriptionKey: 'menu.settings.description',
-    children: [
-      {
-        key: 'preferences',
-        path: '/settings#preferences',
-        labelKey: 'menu.settings.children.preferences',
-      },
-      {
-        key: 'notifications',
-        path: '/settings#notifications',
-        labelKey: 'menu.settings.children.notifications',
-      },
-      {
-        key: 'language',
-        path: '/settings#language',
-        labelKey: 'menu.settings.children.language',
-      },
-    ],
-  },
-  {
-    key: 'help',
-    path: '/help',
-    icon: faCircleQuestion,
-    labelKey: 'menu.help.label',
-    descriptionKey: 'menu.help.description',
-    children: [
-      {
-        key: 'howToPlay',
-        path: '/help#how-to-play',
-        labelKey: 'menu.help.children.howToPlay',
-      },
-      {
-        key: 'faq',
-        path: '/help#faq',
-        labelKey: 'menu.help.children.faq',
-      },
-      {
-        key: 'support',
-        path: '/help#support',
-        labelKey: 'menu.help.children.support',
       },
     ],
   },

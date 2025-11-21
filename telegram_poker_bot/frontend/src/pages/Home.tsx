@@ -303,6 +303,56 @@ export default function HomePage() {
           border: '1px solid var(--glass-border)',
         }}
       >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+            {t('home.leaderboard.title')}
+          </h2>
+        </div>
+        <div className="space-y-2" style={{ opacity: 0.6 }}>
+          {[1, 2, 3].map((rank) => (
+            <div
+              key={rank}
+              className="flex items-center justify-between rounded-lg p-2"
+              style={{
+                background: 'var(--glass-bg-elevated)',
+                border: '1px solid var(--glass-border)',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                  style={{
+                    background: rank === 1 ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'var(--glass-bg)',
+                    color: rank === 1 ? '#000' : 'var(--color-text)',
+                    border: '1px solid var(--glass-border)',
+                  }}
+                >
+                  {rank}
+                </div>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                    —
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+                — {t('profile.chips')}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          {t('common.comingSoon')}
+        </p>
+      </div>
+
+      <div
+        className="rounded-2xl p-4"
+        style={{
+          background: 'var(--glass-bg)',
+          border: '1px solid var(--glass-border)',
+        }}
+      >
         <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-text)' }}>
           {t('home.inviteCode.label', 'Enter invite code')}
         </label>

@@ -11,8 +11,6 @@ import JoinGamePage from './pages/JoinGame'
 import ProfilePage from './pages/Profile'
 import StatsPage from './pages/Stats'
 import WalletPage from './pages/Wallet'
-import SettingsPage from './pages/Settings'
-import HelpPage from './pages/Help'
 import TablePage from './pages/Table'
 import GroupInvitePage from './pages/GroupInvite'
 import GroupJoinPage from './pages/GroupJoin'
@@ -64,8 +62,6 @@ function App() {
                   <Route path="stats" element={<StatsPage />} />
                 </Route>
                 <Route path="wallet" element={<WalletPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="help" element={<HelpPage />} />
                 <Route path="table/:tableId" element={<TablePage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

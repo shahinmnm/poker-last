@@ -17,6 +17,8 @@ interface CreateTableFormState {
   maxPlayers: number
   visibility: TableVisibility
   autoSeatHost: boolean
+  autoStart: boolean
+  tableMode: 'casual' | 'turbo' | 'ranked'
 }
 
 type ViewState = 'idle' | 'loading' | 'success' | 'error'
@@ -40,6 +42,8 @@ export default function CreateGamePage() {
     maxPlayers: 6,
     visibility: defaultVisibility,
     autoSeatHost: defaultVisibility === 'public',
+    autoStart: false,
+    tableMode: 'casual',
   })
   const [status, setStatus] = useState<ViewState>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -239,6 +243,35 @@ export default function CreateGamePage() {
               className="h-4 w-4 rounded border-[color:var(--surface-border)] text-[color:var(--accent-start)] focus:ring-[color:var(--accent-start)]"
             />
           </label>
+
+          <label className="flex items-center justify-between border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)]" style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)', opacity: 0.6 }}>
+            <span>{t('createGame.form.autoStart')}</span>
+            <input
+              type="checkbox"
+              disabled
+              checked={formState.autoStart}
+              onChange={(event) => handleFieldChange('autoStart', event.target.checked)}
+              className="h-4 w-4 rounded border-[color:var(--surface-border)] text-[color:var(--accent-start)] focus:ring-[color:var(--accent-start)]"
+            />
+          </label>
+
+          <div className="space-y-2">
+            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="table-mode">
+              {t('createGame.form.tableMode')} ({t('common.comingSoon')})
+            </label>
+            <select
+              id="table-mode"
+              disabled
+              value={formState.tableMode}
+              onChange={(event) => handleFieldChange('tableMode', event.target.value)}
+              className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+              style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)', opacity: 0.6 }}
+            >
+              <option value="casual">{t('createGame.form.modeOptions.casual')}</option>
+              <option value="turbo">{t('createGame.form.modeOptions.turbo')}</option>
+              <option value="ranked">{t('createGame.form.modeOptions.ranked')}</option>
+            </select>
+          </div>
 
           {status === 'error' && errorMessage && (
             <div className="border border-red-400/40 bg-red-500/10 px-4 py-3 text-red-200" style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}>

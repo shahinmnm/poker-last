@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faUser,
@@ -11,12 +10,15 @@ import {
   faVolumeHigh,
   faPalette,
   faCircleQuestion,
-  faChevronRight,
+  faChevronDown,
+  faChevronUp,
   faMedal,
   faLock,
+  faCheck,
 } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
+import { useTheme } from '../providers/ThemeProvider'
 import { apiFetch } from '../utils/apiClient'
 
 interface UserStats {
@@ -26,13 +28,21 @@ interface UserStats {
   win_rate: number
 }
 
+type DropdownKey = 'language' | 'theme' | 'help' | null
+
 export default function ProfilePage() {
-  const { t } = useTranslation()
-  const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const { user, initData } = useTelegram()
+  const { mode, setMode } = useTheme()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [balance, setBalance] = useState<number>(0)
   const [loading, setLoading] = useState(true)
+  const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null)
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = window.localStorage.getItem('pokerbot.sound')
+    return stored !== 'false'
+  })
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -55,6 +65,30 @@ export default function ProfilePage() {
 
     fetchProfileData()
   }, [initData])
+
+  const toggleDropdown = (key: DropdownKey) => {
+    setOpenDropdown(openDropdown === key ? null : key)
+  }
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng)
+    setOpenDropdown(null)
+  }
+
+  const changeTheme = (newMode: 'light' | 'dark') => {
+    setMode(newMode)
+    setOpenDropdown(null)
+  }
+
+  const toggleSound = () => {
+    const newValue = !soundEnabled
+    setSoundEnabled(newValue)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('pokerbot.sound', String(newValue))
+    }
+  }
+
+  const currentLangBadge = i18n.language === 'fa' ? t('profile.settings.languageBadge.fa') : t('profile.settings.languageBadge.en')
 
   if (loading) {
     return (
@@ -113,7 +147,7 @@ export default function ProfilePage() {
               color: 'var(--color-text)',
             }}
           >
-            {t('profile.edit', 'Edit')}
+            {t('profile.edit')}
           </button>
         </div>
       </div>
@@ -122,17 +156,17 @@ export default function ProfilePage() {
         {[
           {
             icon: faTrophy,
-            label: t('profile.stats.games', 'Games'),
+            label: t('profile.stats.games'),
             value: stats?.hands_played || 0,
           },
           {
             icon: faChartLine,
-            label: t('profile.stats.winRate', 'Win Rate'),
+            label: t('profile.stats.winRate'),
             value: stats ? `${stats.win_rate.toFixed(1)}%` : '0%',
           },
           {
             icon: faCoins,
-            label: t('profile.stats.profit', 'Profit'),
+            label: t('profile.stats.profit'),
             value: stats?.total_profit !== undefined
               ? (stats.total_profit >= 0 ? `+${stats.total_profit}` : stats.total_profit)
               : '0',
@@ -140,7 +174,7 @@ export default function ProfilePage() {
           },
           {
             icon: faCoins,
-            label: t('profile.balance', 'Balance'),
+            label: t('profile.balance'),
             value: balance.toLocaleString(),
             color: 'var(--color-accent)',
           },
@@ -179,13 +213,13 @@ export default function ProfilePage() {
         }}
       >
         <h2 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-          {t('profile.achievements.title', 'Achievements')}
+          {t('profile.achievements.title')}
         </h2>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: t('profile.achievements.firstWin', 'First Win'), locked: true },
-            { label: t('profile.achievements.bigPot', 'Big Pot'), locked: true },
-            { label: t('profile.achievements.streak', 'Streak'), locked: true },
+            { label: t('profile.achievements.firstWin'), locked: true },
+            { label: t('profile.achievements.bigPot'), locked: true },
+            { label: t('profile.achievements.streak'), locked: true },
           ].map((badge, idx) => (
             <div
               key={idx}
@@ -217,38 +251,211 @@ export default function ProfilePage() {
         }}
       >
         <h2 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-          {t('profile.settings.title', 'Settings')}
+          {t('profile.missions.title')}
+        </h2>
+        <div
+          className="rounded-xl p-3"
+          style={{
+            background: 'var(--glass-bg-elevated)',
+            border: '1px solid var(--glass-border)',
+            opacity: 0.6,
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+              {t('profile.missions.playHands', { count: 10 })}
+            </p>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>0/10</span>
+          </div>
+          <div className="h-1.5 rounded-full" style={{ background: 'var(--glass-bg)' }}>
+            <div className="h-full rounded-full" style={{ width: '0%', background: 'var(--color-accent)' }} />
+          </div>
+          <p className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            {t('profile.missions.reward')}: 100 {t('profile.chips')}
+          </p>
+        </div>
+      </div>
+
+      <div
+        className="rounded-2xl p-4"
+        style={{
+          background: 'var(--glass-bg)',
+          border: '1px solid var(--glass-border)',
+        }}
+      >
+        <h2 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          {t('profile.settings.title')}
         </h2>
         <div className="space-y-2">
-          {[
-            { icon: faLanguage, label: t('profile.settings.language', 'Language'), path: '/settings' },
-            { icon: faVolumeHigh, label: t('profile.settings.sound', 'Sound'), path: null },
-            { icon: faPalette, label: t('profile.settings.theme', 'Theme'), path: null },
-            { icon: faCircleQuestion, label: t('profile.settings.help', 'Help'), path: '/help' },
-          ].map((item, idx) => (
+          <div>
             <button
-              key={idx}
-              onClick={() => item.path && navigate(item.path)}
-              disabled={!item.path}
+              onClick={() => toggleDropdown('language')}
               className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-transform active:scale-98"
               style={{
                 background: 'var(--glass-bg-elevated)',
                 border: '1px solid var(--glass-border)',
-                opacity: item.path ? 1 : 0.5,
-                cursor: item.path ? 'pointer' : 'not-allowed',
               }}
             >
               <div className="flex items-center gap-3">
-                <FontAwesomeIcon icon={item.icon} style={{ color: 'var(--color-text-muted)' }} />
+                <FontAwesomeIcon icon={faLanguage} style={{ color: 'var(--color-text-muted)' }} />
                 <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  {item.label}
+                  {t('profile.settings.language')}
                 </span>
               </div>
-              {item.path && (
-                <FontAwesomeIcon icon={faChevronRight} style={{ color: 'var(--color-text-muted)' }} />
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ background: 'var(--glass-bg)', color: 'var(--color-text)' }}>
+                  {currentLangBadge}
+                </span>
+                <FontAwesomeIcon icon={openDropdown === 'language' ? faChevronUp : faChevronDown} className="text-xs" style={{ color: 'var(--color-text-muted)' }} />
+              </div>
             </button>
-          ))}
+            {openDropdown === 'language' && (
+              <div className="mt-2 space-y-1 px-2">
+                {[
+                  { code: 'fa', label: t('languages.fa') },
+                  { code: 'en', label: t('languages.en') },
+                ].map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => changeLanguage(lang.code)}
+                    className="flex w-full items-center justify-between rounded-lg p-2 text-left"
+                    style={{
+                      background: i18n.language === lang.code ? 'var(--glass-bg)' : 'transparent',
+                    }}
+                  >
+                    <span className="text-sm" style={{ color: 'var(--color-text)' }}>{lang.label}</span>
+                    {i18n.language === lang.code && (
+                      <FontAwesomeIcon icon={faCheck} className="text-xs" style={{ color: 'var(--color-accent)' }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <button
+              onClick={() => toggleDropdown('theme')}
+              className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-transform active:scale-98"
+              style={{
+                background: 'var(--glass-bg-elevated)',
+                border: '1px solid var(--glass-border)',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <FontAwesomeIcon icon={faPalette} style={{ color: 'var(--color-text-muted)' }} />
+                <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                  {t('profile.settings.theme')}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  {mode === 'dark' ? t('profile.settings.themeDark') : t('profile.settings.themeLight')}
+                </span>
+                <FontAwesomeIcon icon={openDropdown === 'theme' ? faChevronUp : faChevronDown} className="text-xs" style={{ color: 'var(--color-text-muted)' }} />
+              </div>
+            </button>
+            {openDropdown === 'theme' && (
+              <div className="mt-2 space-y-1 px-2">
+                {[
+                  { value: 'dark', label: t('profile.settings.themeDark') },
+                  { value: 'light', label: t('profile.settings.themeLight') },
+                ].map((themeOption) => (
+                  <button
+                    key={themeOption.value}
+                    onClick={() => changeTheme(themeOption.value as 'light' | 'dark')}
+                    className="flex w-full items-center justify-between rounded-lg p-2 text-left"
+                    style={{
+                      background: mode === themeOption.value ? 'var(--glass-bg)' : 'transparent',
+                    }}
+                  >
+                    <span className="text-sm" style={{ color: 'var(--color-text)' }}>{themeOption.label}</span>
+                    {mode === themeOption.value && (
+                      <FontAwesomeIcon icon={faCheck} className="text-xs" style={{ color: 'var(--color-accent)' }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={toggleSound}
+            className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-transform active:scale-98"
+            style={{
+              background: 'var(--glass-bg-elevated)',
+              border: '1px solid var(--glass-border)',
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <FontAwesomeIcon icon={faVolumeHigh} style={{ color: 'var(--color-text-muted)' }} />
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                {t('profile.settings.sound')}
+              </span>
+            </div>
+            <div
+              className="relative h-5 w-9 rounded-full transition-colors"
+              style={{
+                background: soundEnabled ? 'var(--color-accent)' : 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+              }}
+            >
+              <div
+                className="absolute top-0.5 h-4 w-4 rounded-full transition-transform"
+                style={{
+                  background: 'var(--color-text)',
+                  transform: soundEnabled ? 'translateX(1rem)' : 'translateX(0.125rem)',
+                }}
+              />
+            </div>
+          </button>
+
+          <div>
+            <button
+              onClick={() => toggleDropdown('help')}
+              className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-transform active:scale-98"
+              style={{
+                background: 'var(--glass-bg-elevated)',
+                border: '1px solid var(--glass-border)',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <FontAwesomeIcon icon={faCircleQuestion} style={{ color: 'var(--color-text-muted)' }} />
+                <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                  {t('profile.settings.help')}
+                </span>
+              </div>
+              <FontAwesomeIcon icon={openDropdown === 'help' ? faChevronUp : faChevronDown} className="text-xs" style={{ color: 'var(--color-text-muted)' }} />
+            </button>
+            {openDropdown === 'help' && (
+              <div className="mt-2 space-y-3 px-2">
+                <div className="rounded-lg p-3" style={{ background: 'var(--glass-bg)' }}>
+                  <h4 className="text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
+                    {t('profile.settings.helpRules')}
+                  </h4>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
+                    {t('profile.settings.helpRulesText')}
+                  </p>
+                </div>
+                <div className="rounded-lg p-3" style={{ background: 'var(--glass-bg)' }}>
+                  <h4 className="text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
+                    {t('profile.settings.helpGroupPlay')}
+                  </h4>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
+                    {t('profile.settings.helpGroupPlayText')}
+                  </p>
+                </div>
+                <div className="rounded-lg p-3" style={{ background: 'var(--glass-bg)' }}>
+                  <h4 className="text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
+                    {t('profile.settings.helpSupport')}
+                  </h4>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
+                    {t('profile.settings.helpSupportText')}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
