@@ -1,13 +1,13 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGear } from '@fortawesome/free-solid-svg-icons'
+import { faGear, faPlay } from '@fortawesome/free-solid-svg-icons'
 
 import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
 import Avatar from './ui/Avatar'
-import SmartActionSlot from './SmartActionSlot'
+import PlaySheet from './layout/PlaySheet'
 import AppBackground from './background/AppBackground'
 import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
@@ -19,95 +19,57 @@ const bottomNavItems = bottomNavKeys
   .map((key) => menuTree.find((item) => item.key === key))
   .filter((value): value is NonNullable<typeof value> => Boolean(value))
 
-const activeStatuses = ['active', 'waiting', 'paused']
-
-function pickActiveTable(tables: any[]) {
-  const now = Date.now()
-  const filtered = tables
-    .filter((table) => {
-      const status = (table?.status || '').toString().toLowerCase()
-      if (!activeStatuses.includes(status)) return false
-      const expiresAt = table?.expires_at || table?.expiresAt
-      if (expiresAt) {
-        const expiry = new Date(expiresAt).getTime()
-        if (!Number.isNaN(expiry) && expiry < now) return false
-      }
-      return true
-    })
-    .sort((a, b) => {
-      const aTime = new Date(a?.updated_at || a?.updatedAt || 0).getTime()
-      const bTime = new Date(b?.updated_at || b?.updatedAt || 0).getTime()
-      return bTime - aTime
-    })
-
-  return filtered[0] || null
-}
-
 export default function MainLayout() {
   const { t } = useTranslation()
   const { user, initData } = useTelegram()
   const [balance, setBalance] = useState<number | null>(null)
-  const [activeTables, setActiveTables] = useState<any[]>([])
+  const [isPlaySheetOpen, setIsPlaySheetOpen] = useState(false)
 
   useEffect(() => {
     if (!initData) return
 
-    // Fetch balance and active tables
-    Promise.all([
-      apiFetch<{ balance: number }>('/users/me/balance', { initData }).catch(() => ({ balance: 0 })),
-      apiFetch<{ tables: any[] }>('/users/me/tables', { initData }).catch(() => ({ tables: [] })),
-    ]).then(([balanceData, tablesData]) => {
-      setBalance(balanceData.balance)
-      setActiveTables(tablesData.tables || [])
-    })
+    apiFetch<{ balance: number }>('/users/me/balance', { initData })
+      .then((balanceData) => {
+        setBalance(balanceData.balance)
+      })
+      .catch(() => {
+        setBalance(0)
+      })
   }, [initData])
 
   const displayName = user?.first_name || user?.username || 'Player'
-  const currentActiveTable = useMemo(() => pickActiveTable(activeTables), [activeTables])
-
-  // Determine smart action slot mode
-  const smartActionMode = useMemo(() => {
-    if (currentActiveTable) {
-      return {
-        mode: 'backToTable' as const,
-        to: `/table/${currentActiveTable.table_id || currentActiveTable.id}`,
-        label: 'Resume',
-      }
-    }
-    // Default to quick seat
-    return {
-      mode: 'quickSeat' as const,
-      to: '/lobby',
-      label: 'Quick Seat',
-    }
-  }, [currentActiveTable])
+  const formatBalance = (bal: number) => {
+    if (bal >= 1000000) return `${(bal / 1000000).toFixed(1)}M`
+    if (bal >= 1000) return `${(bal / 1000).toFixed(1)}K`
+    return bal.toString()
+  }
 
   return (
     <>
       <AppBackground />
       <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
-        <header className="sticky top-0 z-30 px-[var(--space-lg)] py-[var(--space-xs)] sm:px-[var(--space-xl)]">
-        <div className="mx-auto w-full max-w-4xl">
-          <div 
-            className="relative flex items-center gap-2.5 px-3 py-2" 
-            style={{ 
-              borderRadius: 'var(--radius-xl)',
-              borderBottomLeftRadius: 'var(--radius-2xl)',
-              borderBottomRightRadius: 'var(--radius-2xl)',
-              background: 'var(--bg-glass)',
-              border: '1px solid var(--color-border-glass)',
-              boxShadow: 'var(--shadow-card)',
-            }}
-          >
-            <Link to="/profile" className="relative flex items-center gap-2.5 z-10">
+        <header 
+          className="sticky top-0 z-30 px-4 py-3"
+          style={{
+            background: 'var(--glass-bg-elevated)',
+            backdropFilter: 'blur(var(--glass-blur))',
+            WebkitBackdropFilter: 'blur(var(--glass-blur))',
+            borderBottom: '1px solid var(--glass-border)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <div className="mx-auto flex w-full max-w-4xl items-center gap-3">
+            <Link to="/profile" className="flex items-center gap-2.5">
               <Avatar size="sm" className="relative" style={{ border: '1px solid rgba(255, 255, 255, 0.3)' }} />
             </Link>
 
-            <div className="relative flex flex-1 items-center justify-between gap-3 z-10">
-              <Link to="/profile" className="flex flex-1 flex-col leading-tight min-w-0">
-                <span className="truncate max-w-[120px] font-semibold text-[14px]" style={{ color: 'var(--color-text)' }}>{displayName}</span>
-                <span className="font-medium text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                  {balance !== null ? `${balance.toLocaleString()} chips` : '...'}
+            <div className="flex flex-1 items-center justify-between gap-3">
+              <Link to="/profile" className="flex flex-col leading-tight min-w-0">
+                <span className="truncate max-w-[120px] font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
+                  {displayName}
+                </span>
+                <span className="font-medium text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  {balance !== null ? formatBalance(balance) : '...'}
                 </span>
               </Link>
 
@@ -117,8 +79,8 @@ export default function MainLayout() {
                   to="/settings"
                   className="flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 ease-out active:scale-95"
                   style={{ 
-                    background: 'var(--bg-glass)',
-                    border: '1px solid var(--color-border-glass)',
+                    background: 'var(--glass-bg)',
+                    border: '1px solid var(--glass-border)',
                     color: 'var(--color-text)',
                   }}
                   aria-label={t('menu.settings.label')}
@@ -128,110 +90,107 @@ export default function MainLayout() {
               </div>
             </div>
           </div>
-        </div>
-      </header>
-      <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-[var(--space-lg)] pb-24 pt-[var(--space-lg)] sm:px-[var(--space-xl)] sm:pt-[var(--space-xl)]">
-        <Outlet />
-      </main>
-      <nav 
-        className="fixed bottom-0 left-0 right-0 z-40 px-[var(--space-md)] pb-[calc(var(--space-sm)+var(--space-xs))] pt-[calc(var(--space-xs)+var(--space-xs))] sm:px-[var(--space-lg)]" 
-        style={{ 
-          height: '60px',
-          background: 'var(--bg-glass)', 
-          borderTop: '1px solid var(--color-border-glass)', 
-          boxShadow: 'var(--shadow-nav)',
-          borderTopLeftRadius: 'var(--radius-2xl)',
-          borderTopRightRadius: 'var(--radius-2xl)',
-        }}
-      >
-        <div className="relative z-10 mx-auto flex w-full max-w-4xl items-center justify-around gap-[var(--space-xs)]">
-          {bottomNavItems.slice(0, 2).map((item) => (
-            <NavLink
-              key={item.key}
-              to={item.path}
-              end={item.key === 'home'}
-              className={({ isActive }) => cn('flex flex-col items-center gap-1 text-[11px] sm:text-[var(--font-size-sm)]', isActive && 'is-active')}
-            >
-              {({ isActive }) => (
-                <div className="flex flex-col items-center gap-1">
-                  <div
-                    className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 ease-out active:scale-95',
-                      isActive 
-                        ? 'bg-accent border border-white/20' 
-                        : 'bg-transparent'
-                    )}
-                    style={{ 
-                      fontSize: 'var(--fs-large)',
-                    }}
-                  >
-                    <FontAwesomeIcon 
-                      icon={item.icon} 
-                      style={{ color: isActive ? '#ffffff' : 'var(--color-text-muted)' }}
-                    />
-                  </div>
-                  <span
-                    className="leading-tight"
-                    style={{
-                      fontSize: 'var(--fs-caption)',
-                      color: isActive ? 'var(--accent-main)' : 'var(--color-text-muted)',
-                    }}
-                  >
-                    {t(item.labelKey)}
-                  </span>
-                </div>
-              )}
-            </NavLink>
-          ))}
-          
-          {/* Smart Action Slot - Dynamic Center Tab */}
-          <SmartActionSlot
-            mode={smartActionMode.mode}
-            to={smartActionMode.to}
-            label={smartActionMode.label}
-          />
+        </header>
 
-          {bottomNavItems.slice(2).map((item) => (
-            <NavLink
-              key={item.key}
-              to={item.path}
-              end={item.key === 'home'}
-              className={({ isActive }) => cn('flex flex-col items-center gap-1 text-[11px] sm:text-[var(--font-size-sm)]', isActive && 'is-active')}
+        <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 pb-24 pt-6">
+          <Outlet />
+        </main>
+
+        <nav 
+          className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-safe pt-3"
+          style={{ 
+            height: '72px',
+            background: 'var(--glass-bg-elevated)',
+            backdropFilter: 'blur(var(--glass-blur))',
+            WebkitBackdropFilter: 'blur(var(--glass-blur))',
+            borderTop: '1px solid var(--glass-border)',
+            boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <div className="relative mx-auto flex w-full max-w-4xl items-center justify-around">
+            {bottomNavItems.slice(0, 2).map((item) => (
+              <NavLink
+                key={item.key}
+                to={item.path}
+                end={item.key === 'home'}
+                className={({ isActive }) => cn('flex flex-col items-center gap-1', isActive && 'is-active')}
+              >
+                {({ isActive }) => (
+                  <>
+                    <div
+                      className={cn(
+                        'flex h-10 w-10 items-center justify-center rounded-full transition-all duration-150 ease-out active:scale-95',
+                        isActive && 'bg-gradient-to-br from-[var(--color-accent-start)] to-[var(--color-accent-end)]'
+                      )}
+                    >
+                      <FontAwesomeIcon 
+                        icon={item.icon} 
+                        style={{ color: isActive ? '#ffffff' : 'var(--color-text-muted)' }}
+                      />
+                    </div>
+                    <span
+                      className="text-xs font-medium"
+                      style={{
+                        color: isActive ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                      }}
+                    >
+                      {t(item.labelKey)}
+                    </span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+            
+            <button
+              onClick={() => setIsPlaySheetOpen(true)}
+              className="flex flex-col items-center gap-1 transition-transform active:scale-95"
             >
-              {({ isActive }) => (
-                <div className="flex flex-col items-center gap-1">
-                  <div
-                    className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 ease-out active:scale-95',
-                      isActive 
-                        ? 'bg-accent border border-white/20' 
-                        : 'bg-transparent'
-                    )}
-                    style={{ 
-                      fontSize: 'var(--fs-large)',
-                    }}
-                  >
-                    <FontAwesomeIcon 
-                      icon={item.icon} 
-                      style={{ color: isActive ? '#ffffff' : 'var(--color-text-muted)' }}
-                    />
-                  </div>
-                  <span
-                    className="leading-tight"
-                    style={{
-                      fontSize: 'var(--fs-caption)',
-                      color: isActive ? 'var(--accent-main)' : 'var(--color-text-muted)',
-                    }}
-                  >
-                    {t(item.labelKey)}
-                  </span>
-                </div>
-              )}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-accent-start)] to-[var(--color-accent-end)] shadow-lg"
+              >
+                <FontAwesomeIcon icon={faPlay} className="text-white text-lg" />
+              </div>
+              <span className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>
+                {t('nav.play', 'Play')}
+              </span>
+            </button>
+
+            {bottomNavItems.slice(2).map((item) => (
+              <NavLink
+                key={item.key}
+                to={item.path}
+                className={({ isActive }) => cn('flex flex-col items-center gap-1', isActive && 'is-active')}
+              >
+                {({ isActive }) => (
+                  <>
+                    <div
+                      className={cn(
+                        'flex h-10 w-10 items-center justify-center rounded-full transition-all duration-150 ease-out active:scale-95',
+                        isActive && 'bg-gradient-to-br from-[var(--color-accent-start)] to-[var(--color-accent-end)]'
+                      )}
+                    >
+                      <FontAwesomeIcon 
+                        icon={item.icon} 
+                        style={{ color: isActive ? '#ffffff' : 'var(--color-text-muted)' }}
+                      />
+                    </div>
+                    <span
+                      className="text-xs font-medium"
+                      style={{
+                        color: isActive ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                      }}
+                    >
+                      {t(item.labelKey)}
+                    </span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
       </div>
+
+      <PlaySheet isOpen={isPlaySheetOpen} onClose={() => setIsPlaySheetOpen(false)} />
     </>
   )
 }
