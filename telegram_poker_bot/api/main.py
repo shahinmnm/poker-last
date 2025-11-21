@@ -386,10 +386,23 @@ async def auto_fold_expired_actions():
                         if not deadline_str:
                             continue
                         
-                        # Parse deadline
-                        deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
-                        if deadline.tzinfo is None:
-                            deadline = deadline.replace(tzinfo=timezone.utc)
+                        # Parse deadline - handle both with and without 'Z' suffix
+                        try:
+                            if deadline_str.endswith('Z'):
+                                deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+                            else:
+                                deadline = datetime.fromisoformat(deadline_str)
+                            
+                            if deadline.tzinfo is None:
+                                deadline = deadline.replace(tzinfo=timezone.utc)
+                        except (ValueError, AttributeError) as e:
+                            logger.warning(
+                                "Failed to parse action_deadline",
+                                table_id=table.id,
+                                deadline_str=deadline_str,
+                                error=str(e),
+                            )
+                            continue
                         
                         # Check if deadline has passed
                         if now < deadline:

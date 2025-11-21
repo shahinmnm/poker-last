@@ -63,13 +63,15 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   }, [initData])
 
   const refetchAll = useCallback(async () => {
+    if (!initData) return
+    
     setLoading(true)
     await Promise.all([
       refetchBalance(),
       refetchStats(),
     ])
     setLoading(false)
-  }, [refetchBalance, refetchStats])
+  }, [initData, refetchBalance, refetchStats])
 
   useEffect(() => {
     if (ready && initData) {
