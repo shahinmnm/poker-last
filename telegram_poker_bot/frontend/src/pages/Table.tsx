@@ -161,6 +161,7 @@ interface LiveTableState {
 
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
+const DEFAULT_TURN_TIMEOUT_SECONDS = 25
 
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
@@ -919,7 +920,7 @@ export default function TablePage() {
                   {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
                     <PlayerTimerRing
                       deadline={liveState.action_deadline}
-                      turnTimeoutSeconds={liveState.turn_timeout_seconds || 25}
+                      turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
                       className="rounded-lg"
                     />
                   )}

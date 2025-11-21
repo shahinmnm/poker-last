@@ -1,9 +1,15 @@
 // telegram_poker_bot/frontend/src/components/PlayerTimerRing.tsx
 import { useEffect, useState } from 'react'
 
+/**
+ * Props for the PlayerTimerRing component
+ */
 interface PlayerTimerRingProps {
+  /** ISO 8601 timestamp string when the player's turn expires (e.g., "2024-01-15T10:30:00Z") */
   deadline: string | null
+  /** Total turn timeout duration in seconds */
   turnTimeoutSeconds: number
+  /** Additional CSS classes to apply to the SVG element */
   className?: string
 }
 
@@ -21,7 +27,15 @@ const COLOR_GREEN = '#10b981'  // emerald-500
 const COLOR_YELLOW = '#eab308' // yellow-500
 const COLOR_RED = '#ef4444'    // red-500
 
-export function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }: PlayerTimerRingProps) {
+/**
+ * A circular timer ring that displays the countdown for a player's turn.
+ * 
+ * The ring counts down clockwise from 100% to 0%, changing colors based on remaining time:
+ * - GREEN: 100% to 50% remaining
+ * - YELLOW: 50% to 25% remaining
+ * - RED: 25% to 0% remaining
+ */
+function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }: PlayerTimerRingProps) {
   const [remainingRatio, setRemainingRatio] = useState(1)
 
   useEffect(() => {
