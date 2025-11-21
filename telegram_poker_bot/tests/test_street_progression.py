@@ -25,6 +25,7 @@ def test_preflop_to_flop_progression():
     seat1.position = 0
     seat1.chips = 1000
     seat1.left_at = None
+    seat1.is_sitting_out_next_hand = False
     seat1.user = user1
 
     seat2 = MagicMock(spec=Seat)
@@ -32,6 +33,7 @@ def test_preflop_to_flop_progression():
     seat2.position = 1
     seat2.chips = 1000
     seat2.left_at = None
+    seat2.is_sitting_out_next_hand = False
     seat2.user = user2
 
     # Create runtime and start hand
@@ -73,6 +75,7 @@ def test_flop_to_turn_progression():
     seat1.position = 0
     seat1.chips = 1000
     seat1.left_at = None
+    seat1.is_sitting_out_next_hand = False
     seat1.user = user1
 
     seat2 = MagicMock(spec=Seat)
@@ -80,6 +83,7 @@ def test_flop_to_turn_progression():
     seat2.position = 1
     seat2.chips = 1000
     seat2.left_at = None
+    seat2.is_sitting_out_next_hand = False
     seat2.user = user2
 
     runtime = PokerKitTableRuntime(table, [seat1, seat2])
@@ -129,6 +133,7 @@ def test_turn_to_river_progression():
     seat1.position = 0
     seat1.chips = 1000
     seat1.left_at = None
+    seat1.is_sitting_out_next_hand = False
     seat1.user = user1
 
     seat2 = MagicMock(spec=Seat)
@@ -136,6 +141,7 @@ def test_turn_to_river_progression():
     seat2.position = 1
     seat2.chips = 1000
     seat2.left_at = None
+    seat2.is_sitting_out_next_hand = False
     seat2.user = user2
 
     runtime = PokerKitTableRuntime(table, [seat1, seat2])
@@ -189,6 +195,7 @@ def test_all_in_preflop_deals_all_streets():
     seat1.position = 0
     seat1.chips = 1000
     seat1.left_at = None
+    seat1.is_sitting_out_next_hand = False
     seat1.user = user1
 
     seat2 = MagicMock(spec=Seat)
@@ -196,6 +203,7 @@ def test_all_in_preflop_deals_all_streets():
     seat2.position = 1
     seat2.chips = 1000
     seat2.left_at = None
+    seat2.is_sitting_out_next_hand = False
     seat2.user = user2
 
     runtime = PokerKitTableRuntime(table, [seat1, seat2])
@@ -234,6 +242,7 @@ def test_fold_before_flop_does_not_deal_cards():
     seat1.position = 0
     seat1.chips = 1000
     seat1.left_at = None
+    seat1.is_sitting_out_next_hand = False
     seat1.user = user1
 
     seat2 = MagicMock(spec=Seat)
@@ -241,6 +250,7 @@ def test_fold_before_flop_does_not_deal_cards():
     seat2.position = 1
     seat2.chips = 1000
     seat2.left_at = None
+    seat2.is_sitting_out_next_hand = False
     seat2.user = user2
 
     runtime = PokerKitTableRuntime(table, [seat1, seat2])

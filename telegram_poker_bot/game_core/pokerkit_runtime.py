@@ -136,7 +136,15 @@ class PokerKitTableRuntime:
         self.hand_no = hand.hand_no
 
         # Build mapping from user_id to player index
-        active_seats = [s for s in self.seats if s.left_at is None]
+        active_seats = [
+            s
+            for s in self.seats
+            if s.left_at is None and not s.is_sitting_out_next_hand
+        ]
+
+        if len(active_seats) < 2:
+            raise ValueError("Cannot start hand: fewer than 2 active players")
+
         self.user_id_to_player_index = {
             seat.user_id: idx for idx, seat in enumerate(active_seats)
         }
@@ -215,7 +223,15 @@ class PokerKitTableRuntime:
         self.hand_no += 1
 
         # Build mapping from user_id to player index
-        active_seats = [s for s in self.seats if s.left_at is None]
+        active_seats = [
+            s
+            for s in self.seats
+            if s.left_at is None and not s.is_sitting_out_next_hand
+        ]
+
+        if len(active_seats) < 2:
+            raise ValueError("Cannot start hand: fewer than 2 active players")
+
         self.user_id_to_player_index = {
             seat.user_id: idx for idx, seat in enumerate(active_seats)
         }
@@ -399,6 +415,25 @@ class PokerKitTableRuntime:
         """
         if not self.engine:
             # No active hand
+            seated_players = []
+            for seat in self.seats:
+                if seat.left_at is None:
+                    seated_players.append(
+                        {
+                            "user_id": seat.user_id,
+                            "seat": seat.position,
+                            "stack": seat.chips,
+                            "bet": 0,
+                            "in_hand": False,
+                            "is_button": False,
+                            "is_small_blind": False,
+                            "is_big_blind": False,
+                            "acted": False,
+                            "display_name": seat.user.username if seat.user else None,
+                            "is_sitting_out_next_hand": seat.is_sitting_out_next_hand,
+                        }
+                    )
+
             return {
                 "type": "table_state",
                 "table_id": self.table.id,
@@ -411,7 +446,7 @@ class PokerKitTableRuntime:
                 "min_raise": 0,
                 "current_actor": None,
                 "action_deadline": None,
-                "players": [],
+                "players": seated_players,
                 "hero": None,
                 "last_action": None,
             }
@@ -447,10 +482,11 @@ class PokerKitTableRuntime:
                     "is_button": player["is_button"],
                     "is_small_blind": player["is_small_blind"],
                     "is_big_blind": player["is_big_blind"],
-                    "acted": not player[
-                        "is_actor"
-                    ],  # If current actor, hasn't acted yet
+                    "acted": not player["is_actor"],
                     "display_name": seat.user.username if seat and seat.user else None,
+                    "is_sitting_out_next_hand": (
+                        seat.is_sitting_out_next_hand if seat else False
+                    ),
                 }
             )
 
