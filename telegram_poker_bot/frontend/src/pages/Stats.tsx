@@ -220,16 +220,17 @@ export default function StatsPage() {
                     </div>
                     <div className="space-y-1">
                       {hand.winners.map((winner, idx) => {
-                        const isUser = winner.user_id === stats.user_id
+                        // Note: We don't have direct user_id in stats, so we can't highlight the current user
+                        // This would require adding user info to the stats or passing it separately
                         return (
                           <div
                             key={idx}
                             className="flex items-center justify-between text-xs"
                           >
-                            <span className={isUser ? "text-emerald-500 font-medium" : "text-gray-600 dark:text-gray-400"}>
-                              {isUser ? t('table.players.youTag') : `Player #${winner.user_id}`} • {HAND_RANK_LABEL[winner.hand_rank] || winner.hand_rank}
+                            <span className="text-gray-600 dark:text-gray-400">
+                              Player #{winner.user_id} • {HAND_RANK_LABEL[winner.hand_rank] || winner.hand_rank}
                             </span>
-                            <span className={isUser ? "text-emerald-500 font-semibold" : "text-gray-500"}>
+                            <span className="text-gray-500">
                               +{winner.amount}
                             </span>
                           </div>
