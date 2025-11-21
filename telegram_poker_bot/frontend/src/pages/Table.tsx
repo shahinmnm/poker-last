@@ -9,6 +9,7 @@ import { useUserData } from '../providers/UserDataProvider'
 import { apiFetch, ApiError } from '../utils/apiClient'
 import Toast from '../components/Toast'
 import Countdown from '../components/Countdown'
+import PlayerTimerRing from '../components/PlayerTimerRing'
 import Card from '../components/ui/Card'
 import PlayingCard from '../components/ui/PlayingCard'
 import Button from '../components/ui/Button'
@@ -126,6 +127,7 @@ interface LiveTableState {
   table_id: number
   hand_id: number | null
   status: string
+  table_status?: string
   street: string | null
   board: string[]
   pot: number
@@ -138,6 +140,7 @@ interface LiveTableState {
   min_raise: number
   current_actor: number | null
   action_deadline?: string | null
+  turn_timeout_seconds?: number
   players: LivePlayerState[]
   hero: LiveHeroState | null
   last_action?: LastAction | null
@@ -415,6 +418,13 @@ export default function TablePage() {
       }
     }, [fetchTable]),
     onStateChange: useCallback((payload: LiveTableState) => {
+      // Check if table has expired
+      if (payload.status === 'expired' || payload.table_status === 'expired') {
+        showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
+        setTimeout(() => navigate('/lobby', { replace: true }), 2000)
+        return
+      }
+
       const isNewHand =
         payload.hand_id !== null && lastHandIdRef.current !== payload.hand_id
 
@@ -446,7 +456,7 @@ export default function TablePage() {
         lastHandIdRef.current = payload.hand_id
         fetchLiveState()
       }
-    }, [fetchLiveState]),
+    }, [fetchLiveState, showToast, navigate, t]),
     onConnect: useCallback(() => {
       console.log('WebSocket connected to table', tableId)
       // Refresh viewer-specific state (including hero cards) after reconnects
@@ -904,33 +914,13 @@ export default function TablePage() {
                       : 'border-white/10 bg-white/5'
                   }`}
                 >
-                  {isActor && !player.is_sitting_out_next_hand && liveState.action_deadline && (
-                    <div className="absolute -top-1 -right-1 w-6 h-6">
-                      <svg className="w-6 h-6 transform -rotate-90" viewBox="0 0 24 24">
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="rgba(52, 211, 153, 0.3)"
-                          strokeWidth="2"
-                          fill="none"
-                        />
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="rgb(52, 211, 153)"
-                          strokeWidth="2"
-                          fill="none"
-                          strokeDasharray="62.83"
-                          strokeDashoffset="0"
-                          className="transition-all duration-1000 ease-linear"
-                          style={{
-                            strokeDashoffset: `${62.83 * (1 - Math.max(0, Math.min(1, (new Date(liveState.action_deadline).getTime() - Date.now()) / 30000)))}`,
-                          }}
-                        />
-                      </svg>
-                    </div>
+                  {/* Timer Ring - Only show for current actor who is not sitting out and not folded */}
+                  {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
+                    <PlayerTimerRing
+                      deadline={liveState.action_deadline}
+                      turnTimeoutSeconds={liveState.turn_timeout_seconds || 25}
+                      className="rounded-lg"
+                    />
                   )}
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-semibold text-[color:var(--text-primary)] truncate">

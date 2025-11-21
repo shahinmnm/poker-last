@@ -24,10 +24,12 @@ from telegram_poker_bot.shared.models import (
     Seat,
     Table,
 )
+from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 
 
 logger = get_logger(__name__)
+settings = get_settings()
 
 
 class PokerKitTableRuntime:
@@ -604,10 +606,11 @@ class PokerKitTableRuntime:
             "min_raise": poker_state["big_blind"],
             "current_actor": current_actor_user_id,
             "action_deadline": (
-                (datetime.now(timezone.utc) + timedelta(seconds=25)).isoformat()
+                (datetime.now(timezone.utc) + timedelta(seconds=settings.turn_timeout_seconds)).isoformat()
                 if current_actor_user_id
                 else None
             ),
+            "turn_timeout_seconds": settings.turn_timeout_seconds,
             "players": players,
             "hero": (
                 {
