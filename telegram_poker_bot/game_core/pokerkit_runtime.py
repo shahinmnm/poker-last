@@ -507,12 +507,12 @@ class PokerKitTableRuntime:
             "type": "table_state",
             "table_id": self.table.id,
             "hand_id": self.hand_no,
-            "status": poker_state["street"],  # Use street as status
+            "status": poker_state["street"],
             "street": poker_state["street"],
             "board": poker_state["board_cards"],
             "pot": poker_state["total_pot"],
             "current_bet": max(self.engine.state.bets) if self.engine.state.bets else 0,
-            "min_raise": poker_state["big_blind"],  # Simple approximation
+            "min_raise": poker_state["big_blind"],
             "current_actor": current_actor_user_id,
             "action_deadline": (
                 (datetime.now(timezone.utc) + timedelta(seconds=25)).isoformat()
@@ -528,7 +528,8 @@ class PokerKitTableRuntime:
                 if viewer_user_id
                 else None
             ),
-            "last_action": None,  # Could track this if needed
+            "last_action": None,
+            "allowed_actions": poker_state.get("allowed_actions", {}),
         }
 
         return payload

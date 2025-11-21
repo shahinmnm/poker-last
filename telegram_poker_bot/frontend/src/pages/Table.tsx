@@ -136,6 +136,18 @@ interface LiveTableState {
   hero: LiveHeroState | null
   last_action?: LastAction | null
   hand_result?: { winners: HandWinnerResult[] } | null
+  allowed_actions?: {
+    can_fold?: boolean
+    can_check?: boolean
+    can_call?: boolean
+    call_amount?: number
+    can_bet?: boolean
+    can_raise?: boolean
+    min_raise_to?: number
+    max_raise_to?: number
+    current_pot?: number
+    player_stack?: number
+  }
 }
 
 const DEFAULT_TOAST = { message: '', visible: false }
@@ -969,15 +981,17 @@ export default function TablePage() {
           <TableActionButtons
             isPlayerTurn={liveState.current_actor === heroId}
             amountToCall={amountToCall}
-            minRaise={liveState.min_raise}
+            minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
+            maxRaise={liveState.allowed_actions?.max_raise_to}
             playerStack={heroPlayer?.stack || 0}
             playerBet={heroPlayer?.bet || 0}
             actionPending={actionPending}
             isSittingOut={heroPlayer?.is_sitting_out_next_hand ?? false}
+            currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
             onFold={() => sendAction('fold')}
             onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
-            onBet={() => sendAction('bet', liveState.min_raise || tableDetails.big_blind)}
-            onRaise={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
+            onBet={(amount) => sendAction('bet', amount)}
+            onRaise={(amount) => sendAction('raise', amount)}
             onAllIn={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
             onToggleSitOut={handleToggleSitOut}
             isSitOutPending={isSitOutPending}

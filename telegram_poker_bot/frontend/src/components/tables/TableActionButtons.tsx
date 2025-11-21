@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import GlassButton from '../ui/GlassButton'
+import BetRaiseModal from './BetRaiseModal'
 
 interface TableActionButtonsProps {
   /** Whether it's the player's turn */
@@ -18,14 +20,18 @@ interface TableActionButtonsProps {
   isSittingOut: boolean
   /** Whether sit-out toggle is pending */
   isSitOutPending?: boolean
+  /** Current pot total for presets */
+  currentPot?: number
+  /** Maximum raise amount */
+  maxRaise?: number
   /** Handler for fold action */
   onFold: () => void
   /** Handler for check/call action */
   onCheckCall: () => void
-  /** Handler for bet action */
-  onBet: () => void
-  /** Handler for raise action */
-  onRaise: () => void
+  /** Handler for bet action with amount */
+  onBet: (amount: number) => void
+  /** Handler for raise action with amount */
+  onRaise: (amount: number) => void
   /** Handler for all-in action */
   onAllIn: () => void
   /** Handler for sit-out toggle */
@@ -35,9 +41,14 @@ interface TableActionButtonsProps {
 export default function TableActionButtons({
   isPlayerTurn,
   amountToCall,
+  minRaise,
+  playerStack,
+  playerBet,
   actionPending,
   isSittingOut,
   isSitOutPending = false,
+  currentPot = 0,
+  maxRaise,
   onFold,
   onCheckCall,
   onBet,
@@ -46,12 +57,18 @@ export default function TableActionButtons({
   onToggleSitOut,
 }: TableActionButtonsProps) {
   const { t } = useTranslation()
+  const [showBetModal, setShowBetModal] = useState(false)
+  const [showRaiseModal, setShowRaiseModal] = useState(false)
 
   const isDisabled = !isPlayerTurn || actionPending
 
+  const canBet = amountToCall === 0
+  const canRaise = amountToCall > 0
+
+  const effectiveMaxRaise = maxRaise ?? (playerStack + playerBet)
+
   return (
     <div className="space-y-2">
-      {/* Header - Compact */}
       <div className="flex items-center justify-between px-0.5">
         <p className="text-[11px] font-semibold text-[color:var(--text-primary)]">
           {t('table.actions.play')}
@@ -65,9 +82,7 @@ export default function TableActionButtons({
         </p>
       </div>
 
-      {/* Button Grid - More Compact */}
       <div className="grid grid-cols-2 gap-1.5">
-        {/* Fold */}
         <GlassButton
           variant="fold"
           onClick={onFold}
@@ -76,7 +91,6 @@ export default function TableActionButtons({
           {t('table.actions.fold')}
         </GlassButton>
 
-        {/* Check or Call */}
         <GlassButton
           variant="check"
           onClick={onCheckCall}
@@ -87,26 +101,27 @@ export default function TableActionButtons({
             : t('table.actions.check')}
         </GlassButton>
 
-        {/* Bet */}
-        <GlassButton
-          variant="bet"
-          onClick={onBet}
-          disabled={isDisabled}
-        >
-          {t('table.actions.bet')}
-        </GlassButton>
+        {canBet && (
+          <GlassButton
+            variant="bet"
+            onClick={() => setShowBetModal(true)}
+            disabled={isDisabled}
+          >
+            {t('table.actions.bet')}
+          </GlassButton>
+        )}
 
-        {/* Raise */}
-        <GlassButton
-          variant="raise"
-          onClick={onRaise}
-          disabled={isDisabled}
-        >
-          {t('table.actions.raise')}
-        </GlassButton>
+        {canRaise && (
+          <GlassButton
+            variant="raise"
+            onClick={() => setShowRaiseModal(true)}
+            disabled={isDisabled}
+          >
+            {t('table.actions.raise')}
+          </GlassButton>
+        )}
 
-        {/* All-In - spans both columns */}
-        <div className="col-span-2">
+        <div className={canBet || canRaise ? '' : 'col-span-2'}>
           <GlassButton
             variant="allIn"
             onClick={onAllIn}
@@ -118,7 +133,6 @@ export default function TableActionButtons({
         </div>
       </div>
 
-      {/* Sit-Out Toggle */}
       <div className="mt-3 pt-3 border-t border-white/10">
         <button
           onClick={() => onToggleSitOut(!isSittingOut)}
@@ -137,6 +151,27 @@ export default function TableActionButtons({
           </div>
         </button>
       </div>
+
+      <BetRaiseModal
+        isOpen={showBetModal}
+        onClose={() => setShowBetModal(false)}
+        actionType="bet"
+        currentPot={currentPot}
+        minAmount={minRaise}
+        maxAmount={effectiveMaxRaise}
+        onSubmit={(amount) => onBet(amount)}
+      />
+
+      <BetRaiseModal
+        isOpen={showRaiseModal}
+        onClose={() => setShowRaiseModal(false)}
+        actionType="raise"
+        currentPot={currentPot}
+        minAmount={minRaise}
+        maxAmount={effectiveMaxRaise}
+        onSubmit={(amount) => onRaise(amount)}
+      />
     </div>
   )
 }
+

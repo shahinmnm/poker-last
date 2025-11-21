@@ -350,16 +350,16 @@ class PokerEngineAdapter:
         - can_raise: bool
         - min_raise_to: int
         - max_raise_to: int
+        - current_pot: int (total pot for betting presets)
+        - player_stack: int (current stack for all-in calculations)
         """
         if player_index != self.state.actor_index:
             return {}
 
         actions = {}
 
-        # Can fold (almost always, unless checking is free)
         actions["can_fold"] = self.state.can_fold()
 
-        # Can check or call
         can_check_call = self.state.can_check_or_call()
         current_bet = max(self.state.bets) if self.state.bets else 0
         player_bet = self.state.bets[player_index]
@@ -369,7 +369,6 @@ class PokerEngineAdapter:
         actions["can_call"] = can_check_call and call_amount > 0
         actions["call_amount"] = call_amount if actions["can_call"] else 0
 
-        # Can bet/raise
         can_bet_raise = self.state.can_complete_bet_or_raise_to()
         actions["can_bet"] = can_bet_raise and current_bet == 0
         actions["can_raise"] = can_bet_raise and current_bet > 0
@@ -388,6 +387,10 @@ class PokerEngineAdapter:
         else:
             actions["min_raise_to"] = 0
             actions["max_raise_to"] = 0
+
+        pot_total = sum(pot.amount for pot in self.state.pots) + sum(self.state.bets)
+        actions["current_pot"] = pot_total
+        actions["player_stack"] = self.state.stacks[player_index]
 
         return actions
 

@@ -684,6 +684,12 @@
       "rebuy": "Rebuy",
       "sitOut": "Sit Out",
       "sitOutNextHand": "Sit out next hand",
+      "presets": {
+        "halfPot": "½ Pot",
+        "twoThirdsPot": "⅔ Pot",
+        "pot": "Pot",
+        "allIn": "All-In"
+      },
       "lastAction": {
         "fold": "FOLD",
         "check": "CHECK",
