@@ -1,35 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCoins, faArrowUp, faArrowDown, faTicket } from '@fortawesome/free-solid-svg-icons'
 
-import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch } from '../utils/apiClient'
+import { useUserData } from '../providers/UserDataProvider'
 
 export default function WalletPage() {
   const { t } = useTranslation()
-  const { initData } = useTelegram()
-  const [balance, setBalance] = useState<number>(0)
-  const [loading, setLoading] = useState(true)
+  const { balance, loading } = useUserData()
   const [promoCode, setPromoCode] = useState('')
-
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!initData) return
-
-      try {
-        setLoading(true)
-        const balanceData = await apiFetch<{ balance: number }>('/users/me/balance', { initData })
-        setBalance(balanceData.balance)
-      } catch (err) {
-        console.error('Error fetching balance:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchBalance()
-  }, [initData])
 
   const formatBalance = (amount: number) => {
     if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`
@@ -37,7 +16,7 @@ export default function WalletPage() {
     return amount.toLocaleString()
   }
 
-  if (loading) {
+  if (loading || balance === null) {
     return (
       <div
         className="flex min-h-[40vh] items-center justify-center rounded-2xl"

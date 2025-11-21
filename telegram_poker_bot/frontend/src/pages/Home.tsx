@@ -14,6 +14,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
+import { useUserData } from '../providers/UserDataProvider'
 import { apiFetch } from '../utils/apiClient'
 import Card from '../components/ui/Card'
 
@@ -40,19 +41,13 @@ interface TableInfo {
   visibility?: string
 }
 
-interface UserStats {
-  hands_played: number
-  win_rate: number
-  total_profit: number
-}
-
 export default function HomePage() {
   const { ready, initData } = useTelegram()
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { stats } = useUserData()
   const [activeTable, setActiveTable] = useState<ActiveTable | null>(null)
   const [publicTables, setPublicTables] = useState<TableInfo[]>([])
-  const [stats, setStats] = useState<UserStats | null>(null)
   const [inviteCode, setInviteCode] = useState('')
 
   useEffect(() => {
@@ -75,10 +70,6 @@ export default function HomePage() {
           setPublicTables(tables.slice(0, 3))
         })
         .catch(() => setPublicTables([])),
-      
-      apiFetch<UserStats>('/users/me/stats', { initData })
-        .then((data) => setStats(data))
-        .catch(() => setStats(null)),
     ])
   }, [ready, initData])
 

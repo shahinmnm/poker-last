@@ -5,17 +5,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChartLine, faArrowTrendUp, faArrowTrendDown, faHandFist, faTableCellsLarge, faTrophy, faCoins, faArrowLeft } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
+import { useUserData } from '../providers/UserDataProvider'
 import { apiFetch } from '../utils/apiClient'
-
-interface UserStats {
-  hands_played: number
-  tables_played: number
-  total_profit: number
-  biggest_pot: number
-  win_rate: number
-  current_streak: number
-  first_game_date: string | null
-}
 
 interface GameHistory {
   table_id: number
@@ -32,38 +23,35 @@ interface GameHistory {
 export default function StatsPage() {
   const { t } = useTranslation()
   const { initData } = useTelegram()
-  const [stats, setStats] = useState<UserStats | null>(null)
+  const { stats, loading: statsLoading } = useUserData()
   const [history, setHistory] = useState<GameHistory[]>([])
-  const [loading, setLoading] = useState(true)
+  const [historyLoading, setHistoryLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchStatsData = async () => {
+    const fetchHistory = async () => {
       if (!initData) {
         return
       }
 
       try {
-        setLoading(true)
+        setHistoryLoading(true)
         setError(null)
 
-        const [statsData, historyData] = await Promise.all([
-          apiFetch<UserStats>('/users/me/stats', { initData }),
-          apiFetch<{ games: GameHistory[] }>('/users/me/history', { initData }),
-        ])
-
-        setStats(statsData)
+        const historyData = await apiFetch<{ games: GameHistory[] }>('/users/me/history', { initData })
         setHistory(historyData.games)
       } catch (err) {
-        console.error('Error fetching stats data:', err)
-        setError('Failed to load statistics')
+        console.error('Error fetching history data:', err)
+        setError('Failed to load history')
       } finally {
-        setLoading(false)
+        setHistoryLoading(false)
       }
     }
 
-    fetchStatsData()
+    fetchHistory()
   }, [initData])
+
+  const loading = statsLoading || historyLoading
 
   if (loading) {
     return (
