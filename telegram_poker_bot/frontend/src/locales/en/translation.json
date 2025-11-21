@@ -719,7 +719,34 @@
       "handNo": "Hand #{{number}}",
       "pot": "Pot",
       "winner": "Winner",
-      "winners": "Winners"
+      "winners": "Winners",
+      "viewDetails": "View Details",
+      "timeline": "Action Timeline",
+      "streets": {
+        "preflop": "Pre-Flop",
+        "flop": "Flop",
+        "turn": "Turn",
+        "river": "River",
+        "showdown": "Showdown"
+      },
+      "actions": {
+        "hand_started": "Hand Started",
+        "deal_flop": "Dealt Flop",
+        "deal_turn": "Dealt Turn",
+        "deal_river": "Dealt River",
+        "fold": "Folded",
+        "check": "Checked",
+        "call": "Called",
+        "bet": "Bet",
+        "raise": "Raised",
+        "all_in": "Went All-In",
+        "showdown": "Showdown",
+        "hand_ended": "Hand Ended"
+      },
+      "potSize": "Pot: {{amount}}",
+      "board": "Board",
+      "noBoard": "No community cards",
+      "system": "System"
     },
     "invite": {
       "title": "Invite Friends",
