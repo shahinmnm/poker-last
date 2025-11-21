@@ -11,6 +11,16 @@ interface PlayerTimerRingProps {
 const SIZE = 64
 const STROKE_WIDTH = 2
 
+// Timer update and color thresholds
+const UPDATE_INTERVAL_MS = 250
+const COLOR_YELLOW_THRESHOLD = 0.5  // Switch from green to yellow at 50% remaining
+const COLOR_RED_THRESHOLD = 0.25    // Switch from yellow to red at 25% remaining
+
+// Color values (Tailwind colors)
+const COLOR_GREEN = '#10b981'  // emerald-500
+const COLOR_YELLOW = '#eab308' // yellow-500
+const COLOR_RED = '#ef4444'    // red-500
+
 export function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }: PlayerTimerRingProps) {
   const [remainingRatio, setRemainingRatio] = useState(1)
 
@@ -31,8 +41,8 @@ export function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }
     // Update immediately
     updateTimer()
 
-    // Update every 250ms for smooth animation with reasonable CPU usage
-    const interval = setInterval(updateTimer, 250)
+    // Update periodically for smooth animation
+    const interval = setInterval(updateTimer, UPDATE_INTERVAL_MS)
 
     return () => clearInterval(interval)
   }, [deadline, turnTimeoutSeconds])
@@ -42,16 +52,13 @@ export function PlayerTimerRing({ deadline, turnTimeoutSeconds, className = '' }
   }
 
   // Calculate color based on remaining ratio
-  // GREEN: 100% to 50%
-  // YELLOW: 50% to 25%
-  // RED: 25% to 0%
   let strokeColor: string
-  if (remainingRatio > 0.5) {
-    strokeColor = '#10b981' // emerald-500 green
-  } else if (remainingRatio > 0.25) {
-    strokeColor = '#eab308' // yellow-500
+  if (remainingRatio > COLOR_YELLOW_THRESHOLD) {
+    strokeColor = COLOR_GREEN
+  } else if (remainingRatio > COLOR_RED_THRESHOLD) {
+    strokeColor = COLOR_YELLOW
   } else {
-    strokeColor = '#ef4444' // red-500
+    strokeColor = COLOR_RED
   }
 
   const radius = (SIZE - STROKE_WIDTH) / 2

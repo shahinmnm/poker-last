@@ -328,7 +328,9 @@ async def check_table_inactivity():
                                     if all_sitting_out and table.last_action_at:
                                         # If all players are sitting out, use a shorter timeout
                                         sit_out_duration = now - table.last_action_at
-                                        if sit_out_duration > timedelta(minutes=5):
+                                        if sit_out_duration > timedelta(
+                                            minutes=settings.table_all_sitout_timeout_minutes
+                                        ):
                                             should_expire = True
                                             reason = f"all players sitting out ({sit_out_duration.total_seconds():.0f}s)"
                                 
