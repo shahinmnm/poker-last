@@ -310,6 +310,35 @@ class HandHistory(Base):
     )
 
 
+class HandHistoryEvent(Base):
+    """Hand history event model for detailed action-by-action tracking."""
+
+    __tablename__ = "hand_history_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    hand_id = Column(
+        Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    sequence = Column(Integer, nullable=False)
+    street = Column(String(20), nullable=False)  # preflop, flop, turn, river, showdown
+    action_type = Column(String(30), nullable=False)  # deal_flop, bet, raise, fold, etc.
+    actor_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    amount = Column(Integer, nullable=True)  # bet/raise/call amount
+    pot_size = Column(Integer, nullable=False, default=0)
+    board_cards = Column(JSONB, nullable=True)  # Board cards at this point
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_hand_events_hand_seq", "hand_id", "sequence"),
+        Index("idx_hand_events_table", "table_id"),
+    )
+
+
 class Message(Base):
     """Table anchor message model."""
 

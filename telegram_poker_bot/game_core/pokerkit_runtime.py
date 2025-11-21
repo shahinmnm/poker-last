@@ -20,6 +20,7 @@ from telegram_poker_bot.shared.models import (
     ActionType,
     Hand,
     HandStatus,
+    HandHistoryEvent,
     Seat,
     Table,
 )
@@ -54,6 +55,66 @@ class PokerKitTableRuntime:
         self.engine: Optional[PokerEngineAdapter] = None
         self.user_id_to_player_index: Dict[int, int] = {}
         self.current_hand: Optional[Hand] = None
+        self.event_sequence = 0
+        self._pending_deal_event: Optional[str] = None
+
+    async def _log_hand_event(
+        self,
+        db: AsyncSession,
+        action_type: str,
+        actor_user_id: Optional[int] = None,
+        amount: Optional[int] = None,
+    ) -> None:
+        """
+        Log a hand history event to the database.
+
+        Args:
+            db: Database session
+            action_type: Type of action (e.g., "hand_started", "deal_flop", "bet", "fold")
+            actor_user_id: User ID of the player performing the action (None for system events)
+            amount: Amount for bet/raise/call actions
+        """
+        if not self.current_hand or not self.engine:
+            return
+
+        # Determine current street
+        street_index = self.engine.state.street_index if self.engine.state.street_index is not None else 0
+        street_names = ["preflop", "flop", "turn", "river"]
+        street = street_names[street_index] if 0 <= street_index < len(street_names) else "showdown"
+
+        # Calculate pot size
+        pot_size = sum(pot.amount for pot in self.engine.state.pots) + sum(self.engine.state.bets)
+
+        # Get board cards
+        board_cards = []
+        if self.engine.state.board_cards:
+            for card_list in self.engine.state.board_cards:
+                if card_list and len(card_list) > 0:
+                    board_cards.append(repr(card_list[0]))
+
+        # Create event
+        event = HandHistoryEvent(
+            hand_id=self.current_hand.id,
+            table_id=self.table.id,
+            sequence=self.event_sequence,
+            street=street,
+            action_type=action_type,
+            actor_user_id=actor_user_id,
+            amount=amount,
+            pot_size=pot_size,
+            board_cards=board_cards if board_cards else None,
+        )
+        db.add(event)
+        self.event_sequence += 1
+
+        logger.debug(
+            "Logged hand event",
+            table_id=self.table.id,
+            hand_id=self.current_hand.id,
+            sequence=event.sequence,
+            action_type=action_type,
+            actor_user_id=actor_user_id,
+        )
 
     async def load_or_create_hand(self, db: AsyncSession) -> Hand:
         """
@@ -193,10 +254,16 @@ class PokerKitTableRuntime:
         # Deal hole cards
         self.engine.deal_new_hand()
 
+        # Reset event sequence for new hand
+        self.event_sequence = 0
+
         # Persist engine state to DB
         hand.engine_state_json = self.engine.to_persistence_state()
         hand.status = HandStatus.PREFLOP
         await db.flush()
+
+        # Log hand started event
+        await self._log_hand_event(db, "hand_started")
 
         logger.info(
             "Hand started with PokerKit and persisted",
@@ -292,18 +359,21 @@ class PokerKitTableRuntime:
             if street_index == 1 and current_board_count == 0:
                 # On flop street but no cards dealt yet -> deal flop
                 self.engine.deal_flop()
+                self._pending_deal_event = "deal_flop"
                 logger.debug(
                     "Auto-dealt flop", table_id=self.table.id, hand_no=self.hand_no
                 )
             elif street_index == 2 and current_board_count == 3:
                 # On turn street but only 3 cards -> deal turn
                 self.engine.deal_turn()
+                self._pending_deal_event = "deal_turn"
                 logger.debug(
                     "Auto-dealt turn", table_id=self.table.id, hand_no=self.hand_no
                 )
             elif street_index == 3 and current_board_count == 4:
                 # On river street but only 4 cards -> deal river
                 self.engine.deal_river()
+                self._pending_deal_event = "deal_river"
                 logger.debug(
                     "Auto-dealt river", table_id=self.table.id, hand_no=self.hand_no
                 )
@@ -741,6 +811,25 @@ class PokerKitTableRuntimeManager:
             # Process the action
             result = runtime.handle_action(user_id, action, amount)
 
+            # Log action event if pending deal event
+            if hasattr(runtime, '_pending_deal_event') and runtime._pending_deal_event:
+                await runtime._log_hand_event(db, runtime._pending_deal_event)
+                runtime._pending_deal_event = None
+
+            # Log player action event
+            action_type_map = {
+                ActionType.FOLD: "fold",
+                ActionType.CHECK: "check",
+                ActionType.CALL: "call",
+                ActionType.BET: "bet",
+                ActionType.RAISE: "raise",
+                ActionType.ALL_IN: "all_in",
+            }
+            event_action_type = action_type_map.get(action, str(action.value))
+            await runtime._log_hand_event(
+                db, event_action_type, actor_user_id=user_id, amount=amount
+            )
+
             # Persist engine state after action
             if runtime.engine is None:
                 raise ValueError("Engine not initialized")
@@ -826,6 +915,10 @@ class PokerKitTableRuntimeManager:
                         table_id=table_id,
                         hand_no=runtime.hand_no,
                     )
+
+                # Log showdown/hand_ended events
+                await runtime._log_hand_event(db, "showdown")
+                await runtime._log_hand_event(db, "hand_ended")
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faChartLine, faArrowTrendUp, faArrowTrendDown, faHandFist, faTableCellsLarge, faTrophy, faCoins, faArrowLeft } from '@fortawesome/free-solid-svg-icons'
+import { faChartLine, faArrowTrendUp, faArrowTrendDown, faHandFist, faTableCellsLarge, faTrophy, faCoins, faArrowLeft, faClock } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { useUserData } from '../providers/UserDataProvider'
@@ -20,12 +20,42 @@ interface GameHistory {
   big_blind: number
 }
 
+interface HandHistoryWinner {
+  user_id: number
+  amount: number
+  hand_rank: string
+  best_hand_cards: string[]
+}
+
+interface HandHistoryItem {
+  hand_no: number
+  table_id: number
+  board: string[]
+  winners: HandHistoryWinner[]
+  pot_total: number
+  created_at: string | null
+}
+
+const HAND_RANK_LABEL: Record<string, string> = {
+  high_card: 'High Card',
+  pair: 'Pair',
+  two_pair: 'Two Pair',
+  three_of_a_kind: 'Three of a Kind',
+  straight: 'Straight',
+  flush: 'Flush',
+  full_house: 'Full House',
+  four_of_a_kind: 'Four of a Kind',
+  straight_flush: 'Straight Flush',
+}
+
 export default function StatsPage() {
   const { t } = useTranslation()
   const { initData } = useTelegram()
   const { stats, loading: statsLoading } = useUserData()
   const [history, setHistory] = useState<GameHistory[]>([])
+  const [recentHands, setRecentHands] = useState<HandHistoryItem[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
+  const [handsLoading, setHandsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -49,6 +79,27 @@ export default function StatsPage() {
     }
 
     fetchHistory()
+  }, [initData])
+
+  useEffect(() => {
+    const fetchHands = async () => {
+      if (!initData) {
+        return
+      }
+
+      try {
+        setHandsLoading(true)
+
+        const handsData = await apiFetch<{ hands: HandHistoryItem[] }>('/users/me/hands?limit=5', { initData })
+        setRecentHands(handsData.hands)
+      } catch (err) {
+        console.error('Error fetching hands data:', err)
+      } finally {
+        setHandsLoading(false)
+      }
+    }
+
+    fetchHands()
   }, [initData])
 
   const loading = statsLoading || historyLoading
@@ -137,6 +188,59 @@ export default function StatsPage() {
               </div>
             </div>
           </section>
+
+          {!handsLoading && recentHands.length > 0 && (
+            <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <FontAwesomeIcon icon={faClock} />
+                {t('table.recentHands.title')}
+              </h2>
+              <div className="mt-4 space-y-3">
+                {recentHands.map((hand) => (
+                  <div
+                    key={`${hand.table_id}-${hand.hand_no}`}
+                    className="rounded-xl border border-slate-200 p-4 dark:border-gray-700"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="font-semibold text-sm">
+                          {t('table.recentHands.handNo', { number: hand.hand_no })} • Table #{hand.table_id}
+                        </p>
+                        {hand.board.length > 0 && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {t('table.recentHands.board')}: {hand.board.join(' ')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                          {t('table.recentHands.pot')}: {hand.pot_total}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      {hand.winners.map((winner, idx) => {
+                        const isUser = winner.user_id === stats.user_id
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between text-xs"
+                          >
+                            <span className={isUser ? "text-emerald-500 font-medium" : "text-gray-600 dark:text-gray-400"}>
+                              {isUser ? t('table.players.youTag') : `Player #${winner.user_id}`} • {HAND_RANK_LABEL[winner.hand_rank] || winner.hand_rank}
+                            </span>
+                            <span className={isUser ? "text-emerald-500 font-semibold" : "text-gray-500"}>
+                              +{winner.amount}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {history.length > 0 && (
             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">

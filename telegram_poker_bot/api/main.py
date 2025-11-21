@@ -1792,7 +1792,7 @@ async def get_table_hand_history(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get hand history for a table."""
+    """Get hand history summaries for a table."""
     from telegram_poker_bot.shared.models import HandHistory
 
     result = await db.execute(
@@ -1807,6 +1807,108 @@ async def get_table_hand_history(
         "hands": [
             {
                 "hand_no": h.hand_no,
+                "board": h.payload_json.get("board", []),
+                "winners": h.payload_json.get("winners", []),
+                "pot_total": h.payload_json.get("pot_total", 0),
+                "created_at": h.created_at.isoformat() if h.created_at else None,
+            }
+            for h in histories
+        ]
+    }
+
+
+@api_app.get("/hands/{hand_id}/history")
+async def get_hand_detailed_history(
+    hand_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get detailed action timeline for a specific hand."""
+    from telegram_poker_bot.shared.models import Hand, HandHistoryEvent, User
+
+    # Get hand details
+    hand_result = await db.execute(
+        select(Hand).where(Hand.id == hand_id)
+    )
+    hand = hand_result.scalar_one_or_none()
+    if not hand:
+        raise HTTPException(status_code=404, detail="Hand not found")
+
+    # Get hand history events
+    events_result = await db.execute(
+        select(HandHistoryEvent)
+        .where(HandHistoryEvent.hand_id == hand_id)
+        .order_by(HandHistoryEvent.sequence.asc())
+    )
+    events = events_result.scalars().all()
+
+    # Get usernames for actors
+    user_ids = {e.actor_user_id for e in events if e.actor_user_id}
+    users_result = await db.execute(
+        select(User).where(User.id.in_(user_ids))
+    )
+    users = {u.id: u.username for u in users_result.scalars().all()}
+
+    return {
+        "hand": {
+            "hand_id": hand.id,
+            "hand_no": hand.hand_no,
+            "table_id": hand.table_id,
+            "started_at": hand.started_at.isoformat() if hand.started_at else None,
+            "ended_at": hand.ended_at.isoformat() if hand.ended_at else None,
+        },
+        "events": [
+            {
+                "id": e.id,
+                "sequence": e.sequence,
+                "street": e.street,
+                "action_type": e.action_type,
+                "actor_user_id": e.actor_user_id,
+                "actor_display_name": users.get(e.actor_user_id),
+                "amount": e.amount,
+                "pot_size": e.pot_size,
+                "board_cards": e.board_cards,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in events
+        ],
+    }
+
+
+@api_app.get("/users/me/hands")
+async def get_user_hands(
+    limit: int = Query(default=20, ge=1, le=100),
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get recent hands for the current user."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+
+    user = await ensure_user(db, auth)
+    
+    from telegram_poker_bot.shared.models import HandHistory, Seat
+
+    # Find hands where user was seated
+    result = await db.execute(
+        select(HandHistory)
+        .join(Seat, Seat.table_id == HandHistory.table_id)
+        .where(Seat.user_id == user.id)
+        .order_by(HandHistory.created_at.desc())
+        .limit(limit)
+        .distinct()
+    )
+    histories = result.scalars().all()
+
+    return {
+        "hands": [
+            {
+                "hand_no": h.hand_no,
+                "table_id": h.table_id,
                 "board": h.payload_json.get("board", []),
                 "winners": h.payload_json.get("winners", []),
                 "pot_total": h.payload_json.get("pot_total", 0),
