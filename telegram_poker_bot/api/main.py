@@ -43,6 +43,7 @@ from telegram_poker_bot.shared.models import (
     Group,
     GroupGameInviteStatus,
     TableStatus,
+    Seat,
 )
 from telegram_poker_bot.shared.types import GameMode, TableCreateRequest, TableVisibility
 from telegram_poker_bot.shared.services.group_invites import (
@@ -169,6 +170,12 @@ class ActionRequest(BaseModel):
 
     action_type: str
     amount: Optional[int] = None
+
+
+class SitOutRequest(BaseModel):
+    """Sit-out request model."""
+
+    sit_out: bool
 
 
 # WebSocket connection manager
@@ -1001,6 +1008,46 @@ async def leave_table(
         return {"success": True, "table_id": table_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_app.post("/tables/{table_id}/sitout")
+async def toggle_sitout(
+    table_id: int,
+    request: SitOutRequest,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, auth)
+    
+    result = await db.execute(
+        select(Seat).where(
+            Seat.table_id == table_id,
+            Seat.user_id == user.id,
+            Seat.left_at.is_(None),
+        )
+    )
+    seat = result.scalar_one_or_none()
+    
+    if not seat:
+        raise HTTPException(status_code=400, detail="Not seated at this table")
+    
+    seat.is_sitting_out_next_hand = request.sit_out
+    await db.commit()
+    
+    await manager.broadcast(table_id, {
+        "type": "player_sitout_changed",
+        "user_id": user.id,
+        "is_sitting_out": request.sit_out,
+    })
+    
+    return {"success": True, "is_sitting_out_next_hand": request.sit_out}
 
 
 @api_app.post("/tables/{table_id}/start")

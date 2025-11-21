@@ -188,6 +188,7 @@ class Seat(Base):
     chips = Column(Integer, nullable=False, default=0)
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     left_at = Column(DateTime(timezone=True), nullable=True)
+    is_sitting_out_next_hand = Column(Boolean, nullable=False, server_default="false", default=False)
 
     # Relationships
     table = relationship("Table", back_populates="seats")
