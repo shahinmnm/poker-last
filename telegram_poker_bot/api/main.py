@@ -36,8 +36,6 @@ from telegram_poker_bot.shared.logging import configure_logging, get_logger
 from telegram_poker_bot.shared.database import get_db
 from telegram_poker_bot.shared.models import (
     Table,
-    Hand,
-    Action,
     ActionType,
     User,
     Group,
@@ -45,7 +43,11 @@ from telegram_poker_bot.shared.models import (
     TableStatus,
     Seat,
 )
-from telegram_poker_bot.shared.types import GameMode, TableCreateRequest, TableVisibility
+from telegram_poker_bot.shared.types import (
+    GameMode,
+    TableCreateRequest,
+    TableVisibility,
+)
 from telegram_poker_bot.shared.services.group_invites import (
     create_invite,
     fetch_invite_by_game_id,
@@ -92,7 +94,11 @@ api_app = FastAPI(
 # CORS middleware
 api_app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins.split(",") if "," in settings.cors_origins else [settings.cors_origins],
+    allow_origins=(
+        settings.cors_origins.split(",")
+        if "," in settings.cors_origins
+        else [settings.cors_origins]
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -181,10 +187,12 @@ class SitOutRequest(BaseModel):
 # WebSocket connection manager
 class ConnectionManager:
     """Manages WebSocket connections."""
-    
+
     def __init__(self):
-        self.active_connections: Dict[int, List[WebSocket]] = {}  # table_id -> [websockets]
-    
+        self.active_connections: Dict[int, List[WebSocket]] = (
+            {}
+        )  # table_id -> [websockets]
+
     async def connect(self, websocket: WebSocket, table_id: int):
         """Connect a WebSocket to a table."""
         await websocket.accept()
@@ -192,7 +200,7 @@ class ConnectionManager:
             self.active_connections[table_id] = []
         self.active_connections[table_id].append(websocket)
         logger.info("WebSocket connected", table_id=table_id)
-    
+
     def disconnect(self, websocket: WebSocket, table_id: int):
         """Disconnect a WebSocket from a table."""
         if table_id in self.active_connections:
@@ -200,7 +208,7 @@ class ConnectionManager:
             if not self.active_connections[table_id]:
                 del self.active_connections[table_id]
         logger.info("WebSocket disconnected", table_id=table_id)
-    
+
     async def broadcast(self, table_id: int, message: Dict[str, Any]):
         """Broadcast message to all connections for a table."""
         if table_id in self.active_connections:
@@ -211,28 +219,36 @@ class ConnectionManager:
                 except Exception as e:
                     logger.error("Error broadcasting", table_id=table_id, error=str(e))
                     disconnected.append(connection)
-            
+
             # Remove disconnected connections
             for conn in disconnected:
                 self.disconnect(conn, table_id)
-    
+
     async def close_all_connections(self, table_id: int):
         """Close all WebSocket connections for a table (e.g., when table is deleted)."""
         if table_id not in self.active_connections:
             return
-        
+
         connections = self.active_connections[table_id].copy()
         for connection in connections:
             try:
                 await connection.close()
             except Exception as e:
-                logger.warning("Error closing WebSocket connection", table_id=table_id, error=str(e))
-        
+                logger.warning(
+                    "Error closing WebSocket connection",
+                    table_id=table_id,
+                    error=str(e),
+                )
+
         # Clear all connections for this table
         if table_id in self.active_connections:
             del self.active_connections[table_id]
-        
-        logger.info("Closed all WebSocket connections", table_id=table_id, count=len(connections))
+
+        logger.info(
+            "Closed all WebSocket connections",
+            table_id=table_id,
+            count=len(connections),
+        )
 
 
 manager = ConnectionManager()
@@ -241,7 +257,7 @@ manager = ConnectionManager()
 def verify_telegram_init_data(init_data: str) -> Optional[UserAuth]:
     """
     Verify Telegram Mini App init data.
-    
+
     Design Note:
     - Validates Telegram WebApp initData signature
     - Extracts user information securely
@@ -257,28 +273,24 @@ def verify_telegram_init_data(init_data: str) -> Optional[UserAuth]:
         hash_value = params.pop("hash", None)
         if not hash_value:
             return None
-        
+
         # Create data check string
         data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(params.items()))
-        
+
         # Calculate secret key
         secret_key = hmac.new(
-            "WebAppData".encode(),
-            settings.telegram_bot_token.encode(),
-            hashlib.sha256
+            "WebAppData".encode(), settings.telegram_bot_token.encode(), hashlib.sha256
         ).digest()
-        
+
         # Verify signature
         calculated_hash = hmac.new(
-            secret_key,
-            data_check_string.encode(),
-            hashlib.sha256
+            secret_key, data_check_string.encode(), hashlib.sha256
         ).hexdigest()
-        
+
         if calculated_hash != hash_value:
             logger.warning("Invalid Telegram init data hash")
             return None
-        
+
         # Parse user data
         user_raw = params.get("user")
         user_data = json.loads(user_raw or "{}")
@@ -410,11 +422,17 @@ async def get_current_user_profile(
 ):
     """Return registration status for the current Telegram user."""
     if not x_telegram_init_data:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Telegram init data")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Telegram init data",
+        )
 
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram init data")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram init data",
+        )
 
     user = await find_user_by_tg_id(db, auth.user_id)
     language = sanitize_language(auth.language_code)
@@ -446,11 +464,17 @@ async def register_current_user(
 ):
     """Ensure the Telegram user has a persisted profile."""
     if not x_telegram_init_data:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Telegram init data")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Telegram init data",
+        )
 
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram init data")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram init data",
+        )
 
     user = await ensure_user(db, auth)
     language = user.language or sanitize_language(auth.language_code)
@@ -481,16 +505,22 @@ async def create_group_game_invite(
 ):
     """
     Create a new Telegram group invite link for poker tables.
-    
+
     This creates an invite that users can share to groups, allowing friends
     to join a specific poker table with configured stakes.
     """
     if not x_telegram_init_data:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Telegram init data")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Telegram init data",
+        )
 
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram init data")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram init data",
+        )
 
     user = await ensure_user(db, auth)
     language = user.language or sanitize_language(auth.language_code)
@@ -561,17 +591,19 @@ async def get_group_game_invite(
 ):
     """
     Retrieve public metadata about a group game invite.
-    
+
     Includes table configuration and current player count.
     """
     invite = await fetch_invite_by_game_id(db, game_id)
     if not invite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found"
+        )
 
     # Get table info if available
     table_id = invite.metadata_json.get("table_id")
     group_title = None
-    
+
     if table_id:
         try:
             table_info = await table_service.get_table_info(db, table_id)
@@ -605,20 +637,28 @@ async def attend_group_game_invite(
 ):
     """
     Signal the user's intent to join the specified group invite.
-    
+
     This endpoint handles seating the user at the table associated with the invite.
     """
     if not x_telegram_init_data:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Telegram init data")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Telegram init data",
+        )
 
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram init data")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram init data",
+        )
 
     user = await ensure_user(db, auth)
     invite = await fetch_invite_by_game_id(db, game_id)
     if not invite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found"
+        )
 
     language = user.language or sanitize_language(auth.language_code)
     translator = get_translation(language)
@@ -631,7 +671,7 @@ async def attend_group_game_invite(
             message=translator("group_invite_join_expired"),
             group_title=None,
         )
-    
+
     if invite.status == GroupGameInviteStatus.CONSUMED:
         return GroupInviteJoinResponse(
             game_id=invite.game_id,
@@ -643,23 +683,26 @@ async def attend_group_game_invite(
     # Get table from invite metadata
     table_id = invite.metadata_json.get("table_id")
     if not table_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No table associated with invite")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No table associated with invite",
+        )
 
     # Attempt to seat user at table
     try:
         seat = await table_service.seat_user_at_table(db, table_id, user.id)
         await db.commit()
-        
+
         # Get table info
         table_info = await table_service.get_table_info(db, table_id)
-        
+
         message = translator(
             "group_invite_seat_success",
             table_name=table_info.get("table_name", f"Table #{table_id}"),
             position=seat.position + 1,
             chips=seat.chips,
         )
-        
+
         return GroupInviteJoinResponse(
             game_id=invite.game_id,
             status="seated",
@@ -840,9 +883,15 @@ async def create_table(
     starting_stack: Optional[int] = Query(default=None, ge=1),
     max_players: Optional[int] = Query(default=None, ge=2, le=9),
     table_name: Optional[str] = Query(default=None),
-    visibility: Optional[str] = Query(default=None, description="Table visibility: public or private"),
-    is_private: Optional[bool] = Query(default=None, description="Legacy flag for privacy"),
-    auto_seat_host: Optional[bool] = Query(default=None, description="Whether to seat the creator immediately"),
+    visibility: Optional[str] = Query(
+        default=None, description="Table visibility: public or private"
+    ),
+    is_private: Optional[bool] = Query(
+        default=None, description="Legacy flag for privacy"
+    ),
+    auto_seat_host: Optional[bool] = Query(
+        default=None, description="Whether to seat the creator immediately"
+    ),
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -881,9 +930,13 @@ async def create_table(
 
     if visibility_override:
         if visibility_override not in {"public", "private"}:
-            raise HTTPException(status_code=400, detail=f"Invalid visibility: {visibility_override}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid visibility: {visibility_override}"
+            )
         updates["visibility"] = (
-            TableVisibility.PUBLIC if visibility_override == "public" else TableVisibility.PRIVATE
+            TableVisibility.PUBLIC
+            if visibility_override == "public"
+            else TableVisibility.PRIVATE
         )
 
     if auto_seat_host is not None:
@@ -920,7 +973,9 @@ async def create_table(
         matchmaking_pool = await get_matchmaking_pool()
         await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
     except Exception as exc:  # pragma: no cover - defensive logging
-        logger.warning("Failed to invalidate public table cache after create", error=str(exc))
+        logger.warning(
+            "Failed to invalidate public table cache after create", error=str(exc)
+        )
 
     table_info = await table_service.get_table_info(
         db,
@@ -939,30 +994,35 @@ async def sit_at_table(
     """Sit at a table."""
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, auth)
-    
+
     try:
         seat = await table_service.seat_user_at_table(db, table_id, user.id)
         await db.commit()
 
         # Broadcast player joined event to all connected clients
-        await manager.broadcast(table_id, {
-            "type": "player_joined",
-            "user_id": user.id,
-            "position": seat.position,
-            "chips": seat.chips,
-        })
+        await manager.broadcast(
+            table_id,
+            {
+                "type": "player_joined",
+                "user_id": user.id,
+                "position": seat.position,
+                "chips": seat.chips,
+            },
+        )
 
         try:
             matchmaking_pool = await get_matchmaking_pool()
             await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
         except Exception as exc:  # pragma: no cover - defensive logging
-            logger.warning("Failed to invalidate public table cache after seat", error=str(exc))
+            logger.warning(
+                "Failed to invalidate public table cache after seat", error=str(exc)
+            )
 
         return {
             "success": True,
@@ -995,16 +1055,21 @@ async def leave_table(
         await db.commit()
 
         # Broadcast player left event to all connected clients
-        await manager.broadcast(table_id, {
-            "type": "player_left",
-            "user_id": user.id,
-        })
+        await manager.broadcast(
+            table_id,
+            {
+                "type": "player_left",
+                "user_id": user.id,
+            },
+        )
 
         try:
             matchmaking_pool = await get_matchmaking_pool()
             await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
         except Exception as exc:  # pragma: no cover - defensive logging
-            logger.warning("Failed to invalidate public table cache after leave", error=str(exc))
+            logger.warning(
+                "Failed to invalidate public table cache after leave", error=str(exc)
+            )
         return {"success": True, "table_id": table_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1019,13 +1084,13 @@ async def toggle_sitout(
 ):
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, auth)
-    
+
     result = await db.execute(
         select(Seat).where(
             Seat.table_id == table_id,
@@ -1034,19 +1099,22 @@ async def toggle_sitout(
         )
     )
     seat = result.scalar_one_or_none()
-    
+
     if not seat:
         raise HTTPException(status_code=400, detail="Not seated at this table")
-    
+
     seat.is_sitting_out_next_hand = request.sit_out
     await db.commit()
-    
-    await manager.broadcast(table_id, {
-        "type": "player_sitout_changed",
-        "user_id": user.id,
-        "is_sitting_out": request.sit_out,
-    })
-    
+
+    await manager.broadcast(
+        table_id,
+        {
+            "type": "player_sitout_changed",
+            "user_id": user.id,
+            "is_sitting_out": request.sit_out,
+        },
+    )
+
     return {"success": True, "is_sitting_out_next_hand": request.sit_out}
 
 
@@ -1073,7 +1141,9 @@ async def start_table(
 
         await manager.broadcast(table_id, state)
 
-        logger.info("Game started and broadcasted", table_id=table_id, started_by=user.id)
+        logger.info(
+            "Game started and broadcasted", table_id=table_id, started_by=user.id
+        )
 
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
@@ -1084,7 +1154,9 @@ async def start_table(
         matchmaking_pool = await get_matchmaking_pool()
         await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
     except Exception as exc:  # pragma: no cover - defensive logging
-        logger.warning("Failed to invalidate public table cache after start", error=str(exc))
+        logger.warning(
+            "Failed to invalidate public table cache after start", error=str(exc)
+        )
 
     # Return viewer-specific state (with hero cards) to the caller
     viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
@@ -1122,14 +1194,14 @@ async def delete_table(
 ):
     """
     Delete a table (host only).
-    
+
     Behavior:
     - Only the table creator (host) can delete the table
     - Closes all WebSocket connections for this table
     - Marks the table as ENDED (soft-delete)
     - Invalidates the public table cache
     - Returns 204 No Content on success
-    
+
     Status codes:
     - 204: Table deleted successfully
     - 401: Missing or invalid authentication
@@ -1137,56 +1209,66 @@ async def delete_table(
     - 404: Table not found
     """
     if not x_telegram_init_data:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Telegram init data")
-    
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Telegram init data",
+        )
+
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram init data")
-    
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram init data",
+        )
+
     user = await ensure_user(db, auth)
-    
+
     # Load table from database
     result = await db.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
-    
+
     if not table:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Table not found"
+        )
+
     # Check permissions: only the creator (host) can delete
     config = table.config_json or {}
     creator_user_id = table.creator_user_id or config.get("creator_user_id")
-    
+
     if creator_user_id is None or creator_user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the table creator can delete this table"
+            detail="Only the table creator can delete this table",
         )
-    
+
     # Close all WebSocket connections for this table
     await manager.close_all_connections(table_id)
-    
+
     # Mark table as ENDED (soft-delete) instead of hard deletion
     # This preserves historical data while making the table inactive
     table.status = TableStatus.ENDED
     table.updated_at = datetime.now(timezone.utc)
     await db.flush()
-    
+
     logger.info(
         "Table deleted",
         table_id=table_id,
         deleted_by=user.id,
         creator_user_id=creator_user_id,
     )
-    
+
     await db.commit()
-    
+
     # Invalidate public table cache
     try:
         matchmaking_pool = await get_matchmaking_pool()
         await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
     except Exception as exc:  # pragma: no cover - defensive logging
-        logger.warning("Failed to invalidate public table cache after delete", error=str(exc))
-    
+        logger.warning(
+            "Failed to invalidate public table cache after delete", error=str(exc)
+        )
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -1198,14 +1280,14 @@ async def get_my_stats(
     """Get current user's statistics."""
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, auth)
     stats = await user_service.get_user_stats(db, user.id)
-    
+
     return stats
 
 
@@ -1217,19 +1299,19 @@ async def get_my_balance(
     """Get current user's chip balance."""
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, auth)
-    
+
     # Ensure wallet exists
     await user_service.ensure_wallet(db, user.id)
     await db.commit()
-    
+
     balance = await user_service.get_user_balance(db, user.id)
-    
+
     return {"balance": balance}
 
 
@@ -1241,20 +1323,20 @@ async def get_my_avatar(
     """Generate and return the current user's avatar image."""
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, auth)
-    
+
     # Generate avatar
     avatar_bytes = generate_avatar(
         user_id=user.id,
         username=user.username or auth.username or auth.first_name,
-        size=256
+        size=256,
     )
-    
+
     # Return as PNG image with caching headers
     return Response(
         content=avatar_bytes,
@@ -1262,7 +1344,7 @@ async def get_my_avatar(
         headers={
             "Cache-Control": "public, max-age=86400",  # Cache for 24 hours
             "ETag": f"avatar-{user.id}-v1",
-        }
+        },
     )
 
 
@@ -1274,14 +1356,14 @@ async def get_my_tables(
     """Get current user's active tables."""
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, auth)
     tables = await user_service.get_active_tables(db, user.id)
-    
+
     return {"tables": tables}
 
 
@@ -1294,14 +1376,14 @@ async def get_my_history(
     """Get current user's game history."""
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     auth = verify_telegram_init_data(x_telegram_init_data)
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, auth)
     games = await user_service.get_recent_games(db, user.id, limit=limit)
-    
+
     return {"games": games}
 
 
@@ -1316,13 +1398,13 @@ async def submit_action(
     # Verify user
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     user_auth = verify_telegram_init_data(x_telegram_init_data)
     if not user_auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
 
     user = await ensure_user(db, user_auth)
-    
+
     # Process action
     action_type = ActionType(action.action_type)
 
@@ -1355,12 +1437,12 @@ async def submit_action(
 async def websocket_endpoint(websocket: WebSocket, table_id: int):
     """
     WebSocket endpoint for real-time table updates.
-    
+
     Path: /ws/{table_id}
     - Frontend connects to this endpoint for live table updates
     - Example: /ws/5 connects to table ID 5
     - Upgrades HTTP GET request to WebSocket connection (101 Switching Protocols)
-    
+
     Design Note:
     - Maintains persistent connection for live updates
     - Broadcasts state changes to all connected clients
@@ -1369,10 +1451,10 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
     - Implements ping/pong heartbeat to keep connection alive
     """
     await manager.connect(websocket, table_id)
-    
+
     # Task for sending periodic pings to keep connection alive
     ping_task = None
-    
+
     async def send_pings():
         """Send ping messages every 30 seconds to prevent timeout."""
         try:
@@ -1385,32 +1467,34 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
                     break
         except asyncio.CancelledError:
             pass
-    
+
     try:
         # Start ping task
         ping_task = asyncio.create_task(send_pings())
-        
+
         while True:
             try:
                 # Keep connection alive and handle incoming messages
                 data = await websocket.receive_text()
-                
+
                 # Parse message
                 try:
                     message = json.loads(data) if data else {}
-                    msg_type = message.get("type") if isinstance(message, dict) else None
-                    
+                    msg_type = (
+                        message.get("type") if isinstance(message, dict) else None
+                    )
+
                     # Handle pong responses
                     if msg_type == "pong":
                         logger.debug("Received pong from client", table_id=table_id)
                         continue
-                    
+
                     # Echo back or acknowledge other messages
                     await websocket.send_json({"type": "ack", "data": data})
                 except json.JSONDecodeError:
                     # Non-JSON messages - just echo back
                     await websocket.send_json({"type": "pong", "data": data})
-                    
+
             except WebSocketDisconnect:
                 # Normal disconnect from client
                 logger.info("WebSocket client disconnected normally", table_id=table_id)
@@ -1421,14 +1505,14 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
                     "WebSocket receive error (continuing)",
                     table_id=table_id,
                     error=str(e),
-                    error_type=type(e).__name__
+                    error_type=type(e).__name__,
                 )
                 # Only break on critical errors
                 if isinstance(e, (ConnectionError, RuntimeError)):
                     break
                 # Otherwise continue the loop
                 await asyncio.sleep(0.1)
-                
+
     except Exception as e:
         logger.error("WebSocket fatal error", table_id=table_id, error=str(e))
     finally:
@@ -1439,7 +1523,7 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
                 await ping_task
             except asyncio.CancelledError:
                 pass
-        
+
         # Disconnect from manager
         manager.disconnect(websocket, table_id)
         logger.info("WebSocket connection closed", table_id=table_id)
@@ -1464,14 +1548,14 @@ else:
     # Mount longer paths first so more specific prefixes take precedence.
     for prefix in sorted(mount_targets, key=len, reverse=True):
         container_app.mount(prefix, api_app)
-    
+
     # Register WebSocket endpoint directly on container app to ensure it's accessible
     # WebSocket connections don't work properly when only registered in mounted sub-apps
     @container_app.websocket("/ws/{table_id}")
     async def container_websocket_endpoint(websocket: WebSocket, table_id: int):
         """WebSocket endpoint registered on container app for proper routing."""
         await websocket_endpoint(websocket, table_id)
-    
+
     app = container_app
 
 

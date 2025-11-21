@@ -1,8 +1,6 @@
 """Database models for the Telegram Poker Bot."""
 
-from datetime import datetime
 from enum import Enum as PyEnum
-from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
@@ -13,11 +11,10 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    Text,
     Index,
     event,
 )
-from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -134,7 +131,9 @@ class Table(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     mode = Column(Enum(GameMode), nullable=False, index=True)
-    group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=True)
+    group_id = Column(
+        Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=True
+    )
     status = Column(
         Enum(
             TableStatus,
@@ -160,9 +159,21 @@ class Table(Base):
 
     # Relationships
     group = relationship("Group", back_populates="tables")
-    seats = relationship("Seat", back_populates="table", cascade="all, delete-orphan", order_by="Seat.position")
-    hands = relationship("Hand", back_populates="table", cascade="all, delete-orphan", order_by="Hand.hand_no")
-    messages = relationship("Message", back_populates="table", cascade="all, delete-orphan")
+    seats = relationship(
+        "Seat",
+        back_populates="table",
+        cascade="all, delete-orphan",
+        order_by="Seat.position",
+    )
+    hands = relationship(
+        "Hand",
+        back_populates="table",
+        cascade="all, delete-orphan",
+        order_by="Hand.hand_no",
+    )
+    messages = relationship(
+        "Message", back_populates="table", cascade="all, delete-orphan"
+    )
     creator = relationship(
         "User",
         back_populates="tables_created",
@@ -182,13 +193,19 @@ class Seat(Base):
     __tablename__ = "seats"
 
     id = Column(Integer, primary_key=True, index=True)
-    table_id = Column(Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     position = Column(Integer, nullable=False)  # 0-7 (8 max players)
     chips = Column(Integer, nullable=False, default=0)
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     left_at = Column(DateTime(timezone=True), nullable=True)
-    is_sitting_out_next_hand = Column(Boolean, nullable=False, server_default="false", default=False)
+    is_sitting_out_next_hand = Column(
+        Boolean, nullable=False, server_default="false", default=False
+    )
 
     # Relationships
     table = relationship("Table", back_populates="seats")
@@ -207,7 +224,9 @@ class Hand(Base):
     __tablename__ = "hands"
 
     id = Column(Integer, primary_key=True, index=True)
-    table_id = Column(Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True)
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     hand_no = Column(Integer, nullable=False)  # Sequential hand number per table
     status = Column(Enum(HandStatus), nullable=False, default=HandStatus.PREFLOP)
     engine_state_json = Column(JSONB, nullable=False)  # Serialized PokerKit State
@@ -216,8 +235,18 @@ class Hand(Base):
 
     # Relationships
     table = relationship("Table", back_populates="hands")
-    actions = relationship("Action", back_populates="hand", cascade="all, delete-orphan", order_by="Action.created_at")
-    pots = relationship("Pot", back_populates="hand", cascade="all, delete-orphan", order_by="Pot.pot_index")
+    actions = relationship(
+        "Action",
+        back_populates="hand",
+        cascade="all, delete-orphan",
+        order_by="Action.created_at",
+    )
+    pots = relationship(
+        "Pot",
+        back_populates="hand",
+        cascade="all, delete-orphan",
+        order_by="Pot.pot_index",
+    )
 
     __table_args__ = (Index("idx_hands_table_hand_no", "table_id", "hand_no"),)
 
@@ -228,8 +257,12 @@ class Action(Base):
     __tablename__ = "actions"
 
     id = Column(Integer, primary_key=True, index=True)
-    hand_id = Column(Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    hand_id = Column(
+        Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     type = Column(Enum(ActionType), nullable=False)
     amount = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -247,7 +280,9 @@ class Pot(Base):
     __tablename__ = "pots"
 
     id = Column(Integer, primary_key=True, index=True)
-    hand_id = Column(Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=False, index=True)
+    hand_id = Column(
+        Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     pot_index = Column(Integer, nullable=False)  # 0 = main pot, 1+ = side pots
     size = Column(Integer, nullable=False)
 
@@ -263,10 +298,14 @@ class Message(Base):
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True, index=True)
-    table_id = Column(Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True)
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     tg_chat_id = Column(BigInteger, nullable=False, index=True)
     tg_message_id = Column(Integer, nullable=False)
-    anchor = Column(Boolean, default=True, nullable=False)  # True for table anchor messages
+    anchor = Column(
+        Boolean, default=True, nullable=False
+    )  # True for table anchor messages
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -289,8 +328,12 @@ class GroupGameInvite(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     game_id = Column(String(64), nullable=False, unique=True, index=True)
-    creator_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True)
+    creator_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    group_id = Column(
+        Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status = Column(
         Enum(
             GroupGameInviteStatus,
@@ -342,7 +385,13 @@ class Wallet(Base):
     __tablename__ = "wallets"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
     balance = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -354,8 +403,12 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    type = Column(String(50), nullable=False)  # 'deposit', 'withdrawal', 'game_payout', etc.
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    type = Column(
+        String(50), nullable=False
+    )  # 'deposit', 'withdrawal', 'game_payout', etc.
     amount = Column(Integer, nullable=False)
     status = Column(String(50), nullable=False, default="pending")
     metadata_json = Column(JSONB, default=dict)
