@@ -1,6 +1,6 @@
 """FastAPI service for Mini App - REST + WebSocket API."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from functools import lru_cache
 from typing import Optional, List, Dict, Any
 import asyncio
@@ -42,6 +42,7 @@ from telegram_poker_bot.shared.models import (
     GroupGameInviteStatus,
     TableStatus,
     Seat,
+    HandStatus,
 )
 from telegram_poker_bot.shared.types import (
     GameMode,
@@ -57,7 +58,7 @@ from telegram_poker_bot.shared.services.group_invites import (
 from telegram_poker_bot.shared.services import user_service, table_service
 from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.bot.i18n import get_translation
-from telegram_poker_bot.game_core import get_matchmaking_pool
+from telegram_poker_bot.game_core import get_matchmaking_pool, get_redis_client
 from telegram_poker_bot.game_core.pokerkit_runtime import get_pokerkit_runtime_manager
 
 settings = get_settings()
@@ -261,84 +262,111 @@ _inactivity_check_task: Optional[asyncio.Task] = None
 async def check_table_inactivity():
     """
     Background task that checks for inactive tables and marks them as expired.
-    
+
     Rules:
     - Pre-game: Tables expire if expires_at is in the past (10-min fixed timeout)
     - Post-game: Tables expire if last_action_at + INACTIVITY_TIMEOUT is in the past
-    
+
+    Uses distributed lock to prevent duplicate execution in multi-worker environments.
     Runs every 30 seconds.
     """
     from telegram_poker_bot.shared.database import get_db_session
-    
-    INACTIVITY_TIMEOUT_MINUTES = 10  # Configurable inactivity timeout
-    
+
+    INACTIVITY_TIMEOUT_MINUTES = 10
+    LOCK_KEY = "background:check_table_inactivity"
+    LOCK_TTL = 25
+
     logger.info("Table inactivity check task started")
-    
+
     while True:
         try:
-            await asyncio.sleep(30)  # Check every 30 seconds
-            
-            now = datetime.now(timezone.utc)
-            
-            async with get_db_session() as db:
-                # Get all active/waiting tables
-                result = await db.execute(
-                    select(Table).where(
-                        Table.status.in_([TableStatus.ACTIVE, TableStatus.WAITING])
-                    )
-                )
-                tables = result.scalars().all()
-                
-                for table in tables:
-                    try:
-                        should_expire = False
-                        reason = ""
-                        
-                        # Check pre-game expiry (fixed 10-min timeout)
-                        if table.status == TableStatus.WAITING and table.expires_at:
-                            if table.expires_at <= now:
-                                should_expire = True
-                                reason = "pre-game timeout"
-                        
-                        # Check post-game inactivity
-                        elif table.status == TableStatus.ACTIVE:
-                            if table.last_action_at:
-                                inactivity_duration = now - table.last_action_at
-                                inactivity_timeout = timedelta(minutes=INACTIVITY_TIMEOUT_MINUTES)
-                                
-                                if inactivity_duration > inactivity_timeout:
-                                    should_expire = True
-                                    reason = f"inactivity ({inactivity_duration.total_seconds():.0f}s)"
-                            # If no last_action_at set yet, give it some time
-                            elif table.created_at:
-                                age = now - table.created_at
-                                if age > timedelta(minutes=INACTIVITY_TIMEOUT_MINUTES):
-                                    should_expire = True
-                                    reason = "no activity since creation"
-                        
-                        if should_expire:
-                            table.status = TableStatus.EXPIRED
-                            table.updated_at = now
-                            await db.flush()
-                            
-                            logger.info(
-                                "Table expired due to inactivity",
-                                table_id=table.id,
-                                reason=reason,
-                            )
-                            
-                            # Close all WebSocket connections for this table
-                            await manager.close_all_connections(table.id)
-                    
-                    except Exception as e:
-                        logger.error(
-                            "Error checking inactivity for table",
-                            table_id=table.id,
-                            error=str(e),
+            await asyncio.sleep(30)
+
+            redis_client = await get_redis_client()
+            lock_acquired = await redis_client.set(LOCK_KEY, "1", nx=True, ex=LOCK_TTL)
+
+            if not lock_acquired:
+                logger.debug("Inactivity check lock held by another worker, skipping")
+                continue
+
+            try:
+                now = datetime.now(timezone.utc)
+
+                async with get_db_session() as db:
+                    result = await db.execute(
+                        select(Table).where(
+                            Table.status.in_([TableStatus.ACTIVE, TableStatus.WAITING])
                         )
-                
-                await db.commit()
-                        
+                    )
+                    tables = result.scalars().all()
+
+                    for table in tables:
+                        try:
+                            should_expire = False
+                            reason = ""
+
+                            if table.status == TableStatus.WAITING and table.expires_at:
+                                if table.expires_at <= now:
+                                    should_expire = True
+                                    reason = "pre-game timeout"
+
+                            elif table.status == TableStatus.ACTIVE:
+                                if table.last_action_at:
+                                    inactivity_duration = now - table.last_action_at
+                                    inactivity_timeout = timedelta(
+                                        minutes=INACTIVITY_TIMEOUT_MINUTES
+                                    )
+
+                                    if inactivity_duration > inactivity_timeout:
+                                        should_expire = True
+                                        reason = f"inactivity ({inactivity_duration.total_seconds():.0f}s)"
+                                elif table.created_at:
+                                    age = now - table.created_at
+                                    if age > timedelta(
+                                        minutes=INACTIVITY_TIMEOUT_MINUTES
+                                    ):
+                                        should_expire = True
+                                        reason = "no activity since creation"
+
+                            if should_expire:
+                                table.status = TableStatus.EXPIRED
+                                table.updated_at = now
+                                await db.flush()
+
+                                logger.info(
+                                    "Table expired due to inactivity",
+                                    table_id=table.id,
+                                    reason=reason,
+                                )
+
+                                runtime_mgr = get_pokerkit_runtime_manager()
+                                try:
+                                    expired_state = await runtime_mgr.get_state(
+                                        db, table.id, viewer_user_id=None
+                                    )
+                                    expired_state["status"] = "expired"
+                                    expired_state["table_status"] = "expired"
+                                    await manager.broadcast(table.id, expired_state)
+                                except Exception as broadcast_err:
+                                    logger.error(
+                                        "Failed to broadcast expired state",
+                                        table_id=table.id,
+                                        error=str(broadcast_err),
+                                    )
+
+                                await manager.close_all_connections(table.id)
+
+                        except Exception as e:
+                            logger.error(
+                                "Error checking inactivity for table",
+                                table_id=table.id,
+                                error=str(e),
+                            )
+
+                    await db.commit()
+            finally:
+                await redis_client.delete(LOCK_KEY)
+
         except asyncio.CancelledError:
             logger.info("Table inactivity check task cancelled")
             break
@@ -349,103 +377,190 @@ async def check_table_inactivity():
 async def auto_fold_expired_actions():
     """
     Background task that checks for expired action deadlines and auto-folds.
-    
+
+    Production-hardened implementation:
+    - Uses distributed lock for multi-worker safety
+    - Re-validates all conditions before folding (idempotent)
+    - Excludes sit-out players from auto-fold
+    - Race-safe with proper state checks
+
     Runs every 2 seconds to check all active tables with pending actions.
-    When a player exceeds their action_deadline, automatically folds for them.
     """
     from telegram_poker_bot.shared.database import get_db_session
-    
+
+    LOCK_KEY = "background:auto_fold"
+    LOCK_TTL = 5
+
     logger.info("Auto-fold background task started")
-    
+
     while True:
         try:
-            await asyncio.sleep(2)  # Check every 2 seconds
-            
-            now = datetime.now(timezone.utc)
-            
-            # Get all active tables
-            async with get_db_session() as db:
-                result = await db.execute(
-                    select(Table).where(
-                        Table.status == TableStatus.ACTIVE
+            await asyncio.sleep(2)
+
+            redis_client = await get_redis_client()
+            lock_acquired = await redis_client.set(LOCK_KEY, "1", nx=True, ex=LOCK_TTL)
+
+            if not lock_acquired:
+                logger.debug("Auto-fold lock held by another worker, skipping")
+                continue
+
+            try:
+                now = datetime.now(timezone.utc)
+
+                async with get_db_session() as db:
+                    result = await db.execute(
+                        select(Table).where(Table.status == TableStatus.ACTIVE)
                     )
-                )
-                active_tables = result.scalars().all()
-                
-                for table in active_tables:
-                    try:
-                        # Get table state to check action_deadline
-                        runtime_mgr = get_pokerkit_runtime_manager()
-                        state = await runtime_mgr.get_state(db, table.id, viewer_user_id=None)
-                        
-                        # Check if there's an active actor with a deadline
-                        if not state.get("current_actor"):
-                            continue
-                        
-                        deadline_str = state.get("action_deadline")
-                        if not deadline_str:
-                            continue
-                        
-                        # Parse deadline - handle both with and without 'Z' suffix
+                    active_tables = result.scalars().all()
+
+                    for table in active_tables:
                         try:
-                            if deadline_str.endswith('Z'):
-                                deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
-                            else:
-                                deadline = datetime.fromisoformat(deadline_str)
-                            
-                            if deadline.tzinfo is None:
-                                deadline = deadline.replace(tzinfo=timezone.utc)
-                        except (ValueError, AttributeError) as e:
-                            logger.warning(
-                                "Failed to parse action_deadline",
+                            runtime_mgr = get_pokerkit_runtime_manager()
+                            state = await runtime_mgr.get_state(
+                                db, table.id, viewer_user_id=None
+                            )
+
+                            if not state.get("current_actor"):
+                                continue
+
+                            deadline_str = state.get("action_deadline")
+                            if not deadline_str:
+                                continue
+
+                            try:
+                                if deadline_str.endswith("Z"):
+                                    deadline = datetime.fromisoformat(
+                                        deadline_str.replace("Z", "+00:00")
+                                    )
+                                else:
+                                    deadline = datetime.fromisoformat(deadline_str)
+
+                                if deadline.tzinfo is None:
+                                    deadline = deadline.replace(tzinfo=timezone.utc)
+                            except (ValueError, AttributeError) as e:
+                                logger.warning(
+                                    "Failed to parse action_deadline",
+                                    table_id=table.id,
+                                    deadline_str=deadline_str,
+                                    error=str(e),
+                                )
+                                continue
+
+                            if now < deadline:
+                                continue
+
+                            current_actor_user_id = state["current_actor"]
+
+                            result_seats = await db.execute(
+                                select(Seat).where(
+                                    Seat.table_id == table.id,
+                                    Seat.user_id == current_actor_user_id,
+                                    Seat.left_at.is_(None),
+                                )
+                            )
+                            actor_seat = result_seats.scalar_one_or_none()
+
+                            if not actor_seat:
+                                logger.warning(
+                                    "Current actor has no seat",
+                                    table_id=table.id,
+                                    user_id=current_actor_user_id,
+                                )
+                                continue
+
+                            if actor_seat.is_sitting_out_next_hand:
+                                logger.debug(
+                                    "Skipping auto-fold for sitting out player",
+                                    table_id=table.id,
+                                    user_id=current_actor_user_id,
+                                )
+                                continue
+
+                            result_hand = await db.execute(
+                                select(HandStatus)
+                                .select_from(
+                                    select(HandStatus).select_from(
+                                        select(Table)
+                                        .join(Table.hands)
+                                        .where(
+                                            Table.id == table.id,
+                                            HandStatus != HandStatus.ENDED,
+                                        )
+                                    )
+                                )
+                                .limit(1)
+                            )
+                            hand_status = result_hand.scalar_one_or_none()
+
+                            if hand_status == HandStatus.ENDED:
+                                logger.debug(
+                                    "Hand already ended, skipping auto-fold",
+                                    table_id=table.id,
+                                )
+                                continue
+
+                            fresh_state = await runtime_mgr.get_state(
+                                db, table.id, viewer_user_id=None
+                            )
+
+                            if (
+                                fresh_state.get("current_actor")
+                                != current_actor_user_id
+                            ):
+                                logger.debug(
+                                    "Actor changed before auto-fold, skipping",
+                                    table_id=table.id,
+                                    original_actor=current_actor_user_id,
+                                    current_actor=fresh_state.get("current_actor"),
+                                )
+                                continue
+
+                            if fresh_state.get(
+                                "status"
+                            ) == "waiting" or not fresh_state.get("current_actor"):
+                                logger.debug(
+                                    "Table no longer active or no actor, skipping",
+                                    table_id=table.id,
+                                )
+                                continue
+
+                            logger.info(
+                                "Auto-folding player due to timeout",
                                 table_id=table.id,
-                                deadline_str=deadline_str,
+                                user_id=current_actor_user_id,
+                                deadline=deadline_str,
+                            )
+
+                            public_state = await runtime_mgr.handle_action(
+                                db,
+                                table_id=table.id,
+                                user_id=current_actor_user_id,
+                                action=ActionType.FOLD,
+                                amount=None,
+                            )
+
+                            table.last_action_at = now
+                            await db.flush()
+
+                            await db.commit()
+
+                            await manager.broadcast(table.id, public_state)
+
+                        except Exception as e:
+                            logger.error(
+                                "Error auto-folding for table",
+                                table_id=table.id,
                                 error=str(e),
                             )
-                            continue
-                        
-                        # Check if deadline has passed
-                        if now < deadline:
-                            continue
-                        
-                        # Deadline passed - auto-fold for current actor
-                        current_actor_user_id = state["current_actor"]
-                        
-                        logger.info(
-                            "Auto-folding player due to timeout",
-                            table_id=table.id,
-                            user_id=current_actor_user_id,
-                            deadline=deadline_str,
-                        )
-                        
-                        # Execute fold action
-                        public_state = await runtime_mgr.handle_action(
-                            db,
-                            table_id=table.id,
-                            user_id=current_actor_user_id,
-                            action=ActionType.FOLD,
-                            amount=None,
-                        )
-                        
-                        await db.commit()
-                        
-                        # Broadcast to all connected clients
-                        await manager.broadcast(table.id, public_state)
-                        
-                    except Exception as e:
-                        logger.error(
-                            "Error auto-folding for table",
-                            table_id=table.id,
-                            error=str(e),
-                        )
-                        # Continue to next table
-                        
+                            await db.rollback()
+            finally:
+                await redis_client.delete(LOCK_KEY)
+
         except asyncio.CancelledError:
             logger.info("Auto-fold background task cancelled")
             break
         except Exception as e:
             logger.error("Error in auto-fold background task", error=str(e))
-            # Continue running despite errors
 
 
 @api_app.on_event("startup")
@@ -461,21 +576,21 @@ async def startup_event():
 async def shutdown_event():
     """Clean up background tasks on application shutdown."""
     global _auto_fold_task, _inactivity_check_task
-    
+
     if _auto_fold_task:
         _auto_fold_task.cancel()
         try:
             await _auto_fold_task
         except asyncio.CancelledError:
             pass
-    
+
     if _inactivity_check_task:
         _inactivity_check_task.cancel()
         try:
             await _inactivity_check_task
         except asyncio.CancelledError:
             pass
-    
+
     logger.info("Stopped background tasks")
 
 
@@ -1228,9 +1343,14 @@ async def sit_at_table(
 
     try:
         seat = await table_service.seat_user_at_table(db, table_id, user.id)
+
+        result = await db.execute(select(Table).where(Table.id == table_id))
+        table = result.scalar_one_or_none()
+        if table:
+            table.last_action_at = datetime.now(timezone.utc)
+
         await db.commit()
 
-        # Broadcast player joined event to all connected clients
         await manager.broadcast(
             table_id,
             {
@@ -1244,7 +1364,7 @@ async def sit_at_table(
         try:
             matchmaking_pool = await get_matchmaking_pool()
             await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
-        except Exception as exc:  # pragma: no cover - defensive logging
+        except Exception as exc:
             logger.warning(
                 "Failed to invalidate public table cache after seat", error=str(exc)
             )
@@ -1277,9 +1397,14 @@ async def leave_table(
 
     try:
         await table_service.leave_table(db, table_id, user.id)
+
+        result = await db.execute(select(Table).where(Table.id == table_id))
+        table = result.scalar_one_or_none()
+        if table:
+            table.last_action_at = datetime.now(timezone.utc)
+
         await db.commit()
 
-        # Broadcast player left event to all connected clients
         await manager.broadcast(
             table_id,
             {
@@ -1291,7 +1416,7 @@ async def leave_table(
         try:
             matchmaking_pool = await get_matchmaking_pool()
             await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
-        except Exception as exc:  # pragma: no cover - defensive logging
+        except Exception as exc:
             logger.warning(
                 "Failed to invalidate public table cache after leave", error=str(exc)
             )
@@ -1329,6 +1454,12 @@ async def toggle_sitout(
         raise HTTPException(status_code=400, detail="Not seated at this table")
 
     seat.is_sitting_out_next_hand = request.sit_out
+
+    table_result = await db.execute(select(Table).where(Table.id == table_id))
+    table = table_result.scalar_one_or_none()
+    if table:
+        table.last_action_at = datetime.now(timezone.utc)
+
     await db.commit()
 
     await manager.broadcast(
@@ -1620,7 +1751,6 @@ async def submit_action(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit a poker action."""
-    # Verify user
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
 
@@ -1630,7 +1760,6 @@ async def submit_action(
 
     user = await ensure_user(db, user_auth)
 
-    # Process action
     action_type = ActionType(action.action_type)
 
     try:
@@ -1642,10 +1771,8 @@ async def submit_action(
             amount=action.amount,
         )
 
-        # Broadcast public state (without hero cards)
         await manager.broadcast(table_id, public_state)
 
-        # Return viewer-specific state so the acting player sees their hole cards
         viewer_state = await get_pokerkit_runtime_manager().get_state(
             db, table_id, user.id
         )
@@ -1656,6 +1783,38 @@ async def submit_action(
     except Exception as e:
         logger.error("Error processing action", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_app.get("/tables/{table_id}/hands")
+async def get_table_hand_history(
+    table_id: int,
+    limit: int = Query(default=10, ge=1, le=50),
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get hand history for a table."""
+    from telegram_poker_bot.shared.models import HandHistory
+
+    result = await db.execute(
+        select(HandHistory)
+        .where(HandHistory.table_id == table_id)
+        .order_by(HandHistory.hand_no.desc())
+        .limit(limit)
+    )
+    histories = result.scalars().all()
+
+    return {
+        "hands": [
+            {
+                "hand_no": h.hand_no,
+                "board": h.payload_json.get("board", []),
+                "winners": h.payload_json.get("winners", []),
+                "pot_total": h.payload_json.get("pot_total", 0),
+                "created_at": h.created_at.isoformat() if h.created_at else None,
+            }
+            for h in histories
+        ]
+    }
 
 
 @api_app.websocket("/ws/{table_id}")

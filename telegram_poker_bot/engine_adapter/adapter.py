@@ -129,7 +129,7 @@ class PokerEngineAdapter:
         5. Captures pre-showdown stacks for winner calculation
         """
         self._deck = self._create_shuffled_deck()
-        
+
         # Capture stacks before the hand starts
         self._pre_showdown_stacks = list(self.state.stacks)
 
@@ -350,16 +350,16 @@ class PokerEngineAdapter:
         - can_raise: bool
         - min_raise_to: int
         - max_raise_to: int
+        - current_pot: int (total pot for betting presets)
+        - player_stack: int (current stack for all-in calculations)
         """
         if player_index != self.state.actor_index:
             return {}
 
         actions = {}
 
-        # Can fold (almost always, unless checking is free)
         actions["can_fold"] = self.state.can_fold()
 
-        # Can check or call
         can_check_call = self.state.can_check_or_call()
         current_bet = max(self.state.bets) if self.state.bets else 0
         player_bet = self.state.bets[player_index]
@@ -369,7 +369,6 @@ class PokerEngineAdapter:
         actions["can_call"] = can_check_call and call_amount > 0
         actions["call_amount"] = call_amount if actions["can_call"] else 0
 
-        # Can bet/raise
         can_bet_raise = self.state.can_complete_bet_or_raise_to()
         actions["can_bet"] = can_bet_raise and current_bet == 0
         actions["can_raise"] = can_bet_raise and current_bet > 0
@@ -388,6 +387,10 @@ class PokerEngineAdapter:
         else:
             actions["min_raise_to"] = 0
             actions["max_raise_to"] = 0
+
+        pot_total = sum(pot.amount for pot in self.state.pots) + sum(self.state.bets)
+        actions["current_pot"] = pot_total
+        actions["player_stack"] = self.state.stacks[player_index]
 
         return actions
 
@@ -484,27 +487,23 @@ class PokerEngineAdapter:
         winners = []
         total_won = 0
         total_lost = 0
-        
-        # Calculate stack changes for each player
+
         for player_idx in range(self.player_count):
             stack_before = self._pre_showdown_stacks[player_idx]
             stack_after = self.state.stacks[player_idx]
             stack_change = stack_after - stack_before
-            
-            # Track total winnings and losses for validation
+
             if stack_change > 0:
                 total_won += stack_change
             elif stack_change < 0:
                 total_lost += abs(stack_change)
-            
-            # Only include players who won chips (stack increased)
+
             if stack_change > 0:
-                # Get hand evaluation data for this player
                 hand_data = self._get_player_hand_data(player_idx)
 
                 winners.append(
                     {
-                        "pot_index": 0,  # Single pot for simplicity
+                        "pot_index": 0,
                         "player_index": player_idx,
                         "amount": stack_change,
                         "hand_score": hand_data["hand_score"],
@@ -513,18 +512,35 @@ class PokerEngineAdapter:
                     }
                 )
 
-        # Sort by amount won (descending) so main winner is first
         winners.sort(key=lambda w: w["amount"], reverse=True)
-        
-        # Validate pot integrity: total winnings should equal total losses (zero-sum)
-        if abs(total_won - total_lost) > 1:  # Allow 1 chip rounding error
+
+        if abs(total_won - total_lost) > 1:
+            pots_breakdown = [
+                {
+                    "pot_index": idx,
+                    "amount": pot.amount,
+                    "eligible_players": list(pot.player_indices),
+                }
+                for idx, pot in enumerate(self.state.pots)
+            ]
+
             logger.warning(
-                "Pot integrity check failed",
+                "Pot integrity check failed - total winnings do not match total losses",
                 total_won=total_won,
                 total_lost=total_lost,
                 difference=total_won - total_lost,
-                pre_stacks=self._pre_showdown_stacks,
-                post_stacks=list(self.state.stacks),
+                stacks_before=self._pre_showdown_stacks,
+                stacks_after=list(self.state.stacks),
+                winners_list=[
+                    {
+                        "player_index": w["player_index"],
+                        "amount": w["amount"],
+                        "hand_rank": w["hand_rank"],
+                    }
+                    for w in winners
+                ],
+                pots=pots_breakdown,
+                player_count=self.player_count,
             )
 
         return winners

@@ -502,17 +502,33 @@ class PokerKitTableRuntime:
             viewer_player = poker_state["players"][viewer_player_index]
             hero_cards = viewer_player.get("hole_cards", [])
 
+        # Convert pots to use user_ids instead of player_indices
+        pots_with_user_ids = []
+        for pot in poker_state.get("pots", []):
+            pots_with_user_ids.append(
+                {
+                    "pot_index": pot["pot_index"],
+                    "amount": pot["amount"],
+                    "eligible_user_ids": [
+                        user_id_by_index[idx]
+                        for idx in pot.get("player_indices", [])
+                        if idx in user_id_by_index
+                    ],
+                }
+            )
+
         # Build payload
         payload = {
             "type": "table_state",
             "table_id": self.table.id,
             "hand_id": self.hand_no,
-            "status": poker_state["street"],  # Use street as status
+            "status": poker_state["street"],
             "street": poker_state["street"],
             "board": poker_state["board_cards"],
             "pot": poker_state["total_pot"],
+            "pots": pots_with_user_ids,
             "current_bet": max(self.engine.state.bets) if self.engine.state.bets else 0,
-            "min_raise": poker_state["big_blind"],  # Simple approximation
+            "min_raise": poker_state["big_blind"],
             "current_actor": current_actor_user_id,
             "action_deadline": (
                 (datetime.now(timezone.utc) + timedelta(seconds=25)).isoformat()
@@ -528,7 +544,8 @@ class PokerKitTableRuntime:
                 if viewer_user_id
                 else None
             ),
-            "last_action": None,  # Could track this if needed
+            "last_action": None,
+            "allowed_actions": poker_state.get("allowed_actions", {}),
         }
 
         return payload
@@ -684,12 +701,12 @@ class PokerKitTableRuntimeManager:
             config = runtime.table.config_json or {}
             small_blind = config.get("small_blind", 25)
             big_blind = config.get("big_blind", 50)
-            
+
             # Update last_action_at and clear expires_at since game is starting
             runtime.table.last_action_at = datetime.now(timezone.utc)
             runtime.table.expires_at = None  # No fixed expiry after game starts
             await db.flush()
-            
+
             return await runtime.start_new_hand(db, small_blind, big_blind)
 
     async def handle_action(
@@ -762,7 +779,53 @@ class PokerKitTableRuntimeManager:
                         hand_no=runtime.hand_no,
                         error=str(e),
                     )
-                    # Don't fail the action - just log the error
+
+                from telegram_poker_bot.shared.models import HandHistory
+
+                board_cards = runtime.engine.state.board_cards if runtime.engine else []
+                formatted_board = []
+                if board_cards:
+                    for card_list in board_cards:
+                        if card_list and len(card_list) > 0:
+                            formatted_board.append(repr(card_list[0]))
+
+                hand_history_payload = {
+                    "hand_no": runtime.hand_no,
+                    "board": formatted_board,
+                    "winners": [
+                        {
+                            "user_id": w["user_id"],
+                            "amount": w["amount"],
+                            "hand_rank": w["hand_rank"],
+                            "best_hand_cards": w.get("best_hand_cards", []),
+                        }
+                        for w in result["hand_result"]["winners"]
+                    ],
+                    "pot_total": (
+                        sum(pot.amount for pot in runtime.engine.state.pots)
+                        if runtime.engine
+                        else 0
+                    ),
+                }
+
+                existing_history = await db.execute(
+                    select(HandHistory).where(
+                        HandHistory.table_id == table_id,
+                        HandHistory.hand_no == runtime.hand_no,
+                    )
+                )
+                if not existing_history.scalar_one_or_none():
+                    history = HandHistory(
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                        payload_json=hand_history_payload,
+                    )
+                    db.add(history)
+                    logger.info(
+                        "Saved hand history",
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                    )
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index

@@ -20,6 +20,7 @@ import ExpiredTableView from '../components/tables/ExpiredTableView'
 import InviteSection from '../components/tables/InviteSection'
 import TableActionButtons from '../components/tables/TableActionButtons'
 import HandResultPanel from '../components/tables/HandResultPanel'
+import RecentHandsModal from '../components/tables/RecentHandsModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import type { TableStatusTone } from '../components/lobby/types'
 
@@ -128,6 +129,11 @@ interface LiveTableState {
   street: string | null
   board: string[]
   pot: number
+  pots?: Array<{
+    pot_index: number
+    amount: number
+    eligible_user_ids: number[]
+  }>
   current_bet: number
   min_raise: number
   current_actor: number | null
@@ -136,6 +142,18 @@ interface LiveTableState {
   hero: LiveHeroState | null
   last_action?: LastAction | null
   hand_result?: { winners: HandWinnerResult[] } | null
+  allowed_actions?: {
+    can_fold?: boolean
+    can_check?: boolean
+    can_call?: boolean
+    call_amount?: number
+    can_bet?: boolean
+    can_raise?: boolean
+    min_raise_to?: number
+    max_raise_to?: number
+    current_pot?: number
+    player_stack?: number
+  }
 }
 
 const DEFAULT_TOAST = { message: '', visible: false }
@@ -161,6 +179,7 @@ export default function TablePage() {
   const [actionPending, setActionPending] = useState(false)
   const [isSitOutPending, setIsSitOutPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
+  const [showRecentHands, setShowRecentHands] = useState(false)
   
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<number, HTMLElement>>(new Map())
@@ -790,8 +809,23 @@ export default function TablePage() {
               </p>
             </div>
             <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10" ref={potAreaRef}>
-              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.pot')}</p>
-              <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
+              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">
+                {liveState.pots && liveState.pots.length > 1 ? t('table.pots.title') : t('table.pot')}
+              </p>
+              {liveState.pots && liveState.pots.length > 1 ? (
+                <div className="space-y-0.5">
+                  {liveState.pots.map((pot) => (
+                    <div key={pot.pot_index} className="text-xs">
+                      <span className="text-[color:var(--text-muted)]">
+                        #{pot.pot_index + 1}:
+                      </span>{' '}
+                      <span className="font-bold text-emerald-400">{pot.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.blinds')}</p>
@@ -969,15 +1003,17 @@ export default function TablePage() {
           <TableActionButtons
             isPlayerTurn={liveState.current_actor === heroId}
             amountToCall={amountToCall}
-            minRaise={liveState.min_raise}
+            minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
+            maxRaise={liveState.allowed_actions?.max_raise_to}
             playerStack={heroPlayer?.stack || 0}
             playerBet={heroPlayer?.bet || 0}
             actionPending={actionPending}
             isSittingOut={heroPlayer?.is_sitting_out_next_hand ?? false}
+            currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
             onFold={() => sendAction('fold')}
             onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
-            onBet={() => sendAction('bet', liveState.min_raise || tableDetails.big_blind)}
-            onRaise={() => sendAction('raise', Math.max(liveState.current_bet + liveState.min_raise, tableDetails.big_blind))}
+            onBet={(amount) => sendAction('bet', amount)}
+            onRaise={(amount) => sendAction('raise', amount)}
             onAllIn={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
             onToggleSitOut={handleToggleSitOut}
             isSitOutPending={isSitOutPending}
@@ -1000,6 +1036,22 @@ export default function TablePage() {
             </div>
           )}
         </Card>
+      )}
+
+      {liveState && tableDetails.status === 'active' && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowRecentHands(true)}
+            className="rounded-xl px-4 py-2 text-sm font-medium transition-all"
+            style={{
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            {t('table.recentHands.title')}
+          </button>
+        </div>
       )}
 
       {/* Invite Code Section (for private tables) */}
@@ -1184,6 +1236,13 @@ export default function TablePage() {
           )}
         </div>
       </Card>
+
+      <RecentHandsModal
+        isOpen={showRecentHands}
+        onClose={() => setShowRecentHands(false)}
+        tableId={parseInt(tableId || '0', 10)}
+        initData={initData ?? undefined}
+      />
     </div>
   )
 }

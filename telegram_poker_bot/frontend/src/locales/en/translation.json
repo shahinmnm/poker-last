@@ -612,6 +612,11 @@
     "chips": "{{amount}} chips",
     "statusLabel": "Game Status",
     "pot": "Pot: {{amount}}",
+    "pots": {
+      "title": "Pots",
+      "mainPot": "Main Pot",
+      "sidePot": "Side Pot #{{number}}"
+    },
     "blinds": "Blinds",
     "turnCountdown": "Action timer",
     "waitingForBoard": "Waiting for board...",
@@ -684,6 +689,12 @@
       "rebuy": "Rebuy",
       "sitOut": "Sit Out",
       "sitOutNextHand": "Sit out next hand",
+      "presets": {
+        "halfPot": "½ Pot",
+        "twoThirdsPot": "⅔ Pot",
+        "pot": "Pot",
+        "allIn": "All-In"
+      },
       "lastAction": {
         "fold": "FOLD",
         "check": "CHECK",
@@ -696,6 +707,17 @@
     "messages": {
       "readyToStart": "Ready to shuffle up.",
       "waitForPlayers": "Need {{count}} more player(s) to start.",
+      "handCompleted": "Hand {{handNo}} complete",
+      "newHandStarting": "New hand starting..."
+    },
+    "recentHands": {
+      "title": "Recent Hands",
+      "empty": "No hand history yet",
+      "handNo": "Hand #{{number}}",
+      "pot": "Pot",
+      "winner": "Winner",
+      "winners": "Winners"
+    },
       "waitingForHost": "Waiting for the host to start the game.",
       "joinPrompt": "Grab a seat before the action begins.",
       "tableFull": "Table is full at the moment."
