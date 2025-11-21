@@ -70,6 +70,7 @@ class PokerEngineAdapter:
         self.big_blind = big_blind
         self.mode = mode
         self._deck: List[str] = []
+        self._pre_showdown_stacks: Optional[List[int]] = None
 
         # Create PokerKit state with automations
         self.state: State = NoLimitTexasHoldem.create_state(
@@ -125,8 +126,12 @@ class PokerEngineAdapter:
         2. Deals 2 hole cards to each player via PokerKit
         3. Stores remaining deck for future board dealing
         4. Applies initial button index if provided (for hand rotation)
+        5. Captures pre-showdown stacks for winner calculation
         """
         self._deck = self._create_shuffled_deck()
+        
+        # Capture stacks before the hand starts
+        self._pre_showdown_stacks = list(self.state.stacks)
 
         # Deal 2 hole cards to each player
         for player_idx in range(self.player_count):
@@ -455,10 +460,10 @@ class PokerEngineAdapter:
         """
         Get hand winners after hand completion with enriched showdown information.
 
-        Returns list of pot results with winners, amounts, and hand evaluation data:
-        - pot_index: Index of the pot won
+        Returns list of winners with their winnings calculated from stack changes:
+        - pot_index: Always 0 (main pot) for simplicity
         - player_index: Index of winning player
-        - amount: Amount won from this pot
+        - amount: Amount won (stack increase from start of hand)
         - hand_score: Numeric hand strength (higher = stronger)
         - hand_rank: Symbolic hand rank name (e.g., "flush", "two_pair")
         - best_hand_cards: List of 5 cards forming the best hand
@@ -469,27 +474,39 @@ class PokerEngineAdapter:
             logger.warning("get_winners called while hand still active")
             return []
 
+        if self._pre_showdown_stacks is None:
+            logger.warning(
+                "get_winners called but pre-showdown stacks not captured - "
+                "deal_new_hand may not have been called properly"
+            )
+            return []
+
         winners = []
-        for pot_idx, pot in enumerate(self.state.pots):
-            if pot.player_indices:
-                # Pot has been awarded to these players
-                num_winners = len(pot.player_indices)
-                share_per_winner = pot.amount // num_winners if num_winners > 0 else 0
+        
+        # Calculate stack changes for each player
+        for player_idx in range(self.player_count):
+            stack_before = self._pre_showdown_stacks[player_idx]
+            stack_after = self.state.stacks[player_idx]
+            stack_change = stack_after - stack_before
+            
+            # Only include players who won chips (stack increased)
+            if stack_change > 0:
+                # Get hand evaluation data for this player
+                hand_data = self._get_player_hand_data(player_idx)
 
-                for player_idx in pot.player_indices:
-                    # Get hand evaluation data for this player
-                    hand_data = self._get_player_hand_data(player_idx)
+                winners.append(
+                    {
+                        "pot_index": 0,  # Single pot for simplicity
+                        "player_index": player_idx,
+                        "amount": stack_change,
+                        "hand_score": hand_data["hand_score"],
+                        "hand_rank": hand_data["hand_rank"],
+                        "best_hand_cards": hand_data["best_hand_cards"],
+                    }
+                )
 
-                    winners.append(
-                        {
-                            "pot_index": pot_idx,
-                            "player_index": player_idx,
-                            "amount": share_per_winner,
-                            "hand_score": hand_data["hand_score"],
-                            "hand_rank": hand_data["hand_rank"],
-                            "best_hand_cards": hand_data["best_hand_cards"],
-                        }
-                    )
+        # Sort by amount won (descending) so main winner is first
+        winners.sort(key=lambda w: w["amount"], reverse=True)
 
         return winners
 

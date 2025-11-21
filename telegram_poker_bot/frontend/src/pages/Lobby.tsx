@@ -85,7 +85,15 @@ export default function LobbyPage() {
     }
   }
 
-  const currentTables = activeTab === 'my' ? myTables : activeTab === 'public' ? publicTables : []
+  const currentTables = (activeTab === 'my' ? myTables : activeTab === 'public' ? publicTables : []).filter((table) => {
+    // Filter out expired tables
+    if (table.status === 'expired') return false
+    if (table.expires_at) {
+      const expiryTime = new Date(table.expires_at).getTime()
+      if (expiryTime <= Date.now()) return false
+    }
+    return true
+  })
 
   if (!ready || loading) {
     return (

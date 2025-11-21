@@ -14,6 +14,10 @@ interface TableActionButtonsProps {
   playerBet: number
   /** Whether an action is currently pending */
   actionPending: boolean
+  /** Whether the player is sitting out next hand */
+  isSittingOut: boolean
+  /** Whether sit-out toggle is pending */
+  isSitOutPending?: boolean
   /** Handler for fold action */
   onFold: () => void
   /** Handler for check/call action */
@@ -24,17 +28,22 @@ interface TableActionButtonsProps {
   onRaise: () => void
   /** Handler for all-in action */
   onAllIn: () => void
+  /** Handler for sit-out toggle */
+  onToggleSitOut: (sitOut: boolean) => void
 }
 
 export default function TableActionButtons({
   isPlayerTurn,
   amountToCall,
   actionPending,
+  isSittingOut,
+  isSitOutPending = false,
   onFold,
   onCheckCall,
   onBet,
   onRaise,
   onAllIn,
+  onToggleSitOut,
 }: TableActionButtonsProps) {
   const { t } = useTranslation()
 
@@ -109,21 +118,22 @@ export default function TableActionButtons({
         </div>
       </div>
 
-      {/* Sit-Out Toggle - Disabled Stub */}
+      {/* Sit-Out Toggle */}
       <div className="mt-3 pt-3 border-t border-white/10">
         <button
-          disabled
-          aria-disabled="true"
-          className="w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-opacity opacity-50 cursor-not-allowed"
+          onClick={() => onToggleSitOut(!isSittingOut)}
+          disabled={isSitOutPending}
+          className="w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
           style={{
-            background: 'var(--glass-bg-elevated)',
-            border: '1px solid var(--glass-border)',
-            color: 'var(--color-text-muted)',
+            background: isSittingOut ? 'var(--glass-bg-elevated)' : 'var(--glass-bg)',
+            border: `1px solid ${isSittingOut ? 'rgba(251, 146, 60, 0.3)' : 'var(--glass-border)'}`,
+            color: isSittingOut ? 'rgb(251, 146, 60)' : 'var(--color-text-primary)',
+            opacity: isSitOutPending ? 0.6 : 1,
+            cursor: isSitOutPending ? 'wait' : 'pointer',
           }}
         >
-          <div className="flex flex-col items-center gap-0.5">
-            <span>{t('table.actions.sitOutNextHand')}</span>
-            <span className="text-[10px] opacity-70">{t('common.comingSoon')}</span>
+          <div className="flex items-center justify-center gap-1.5">
+            <span>{isSittingOut ? '✓ ' : ''}{t('table.actions.sitOutNextHand')}</span>
           </div>
         </button>
       </div>
