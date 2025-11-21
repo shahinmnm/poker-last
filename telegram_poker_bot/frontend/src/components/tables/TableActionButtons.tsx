@@ -108,6 +108,25 @@ export default function TableActionButtons({
           </GlassButton>
         </div>
       </div>
+
+      {/* Sit-Out Toggle - Disabled Stub */}
+      <div className="mt-3 pt-3 border-t border-white/10">
+        <button
+          disabled
+          aria-disabled="true"
+          className="w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-opacity opacity-50 cursor-not-allowed"
+          style={{
+            background: 'var(--glass-bg-elevated)',
+            border: '1px solid var(--glass-border)',
+            color: 'var(--color-text-muted)',
+          }}
+        >
+          <div className="flex flex-col items-center gap-0.5">
+            <span>{t('table.actions.sitOutNextHand')}</span>
+            <span className="text-[10px] opacity-70">{t('common.comingSoon')}</span>
+          </div>
+        </button>
+      </div>
     </div>
   )
 }
