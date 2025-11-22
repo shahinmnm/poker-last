@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { faUser, faCoins, faUserGroup, faClock } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { useTableWebSocket } from '../hooks/useTableWebSocket'
@@ -17,10 +16,7 @@ import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import ConnectionStatus from '../components/ui/ConnectionStatus'
-import TableSummary from '../components/tables/TableSummary'
 import ExpiredTableView from '../components/tables/ExpiredTableView'
-import InviteSection from '../components/tables/InviteSection'
-import TableActionButtons from '../components/tables/TableActionButtons'
 import HandResultPanel from '../components/tables/HandResultPanel'
 import RecentHandsModal from '../components/tables/RecentHandsModal'
 import TableExpiredModal from '../components/tables/TableExpiredModal'
@@ -28,7 +24,6 @@ import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import GameControls from '../components/tables/GameControls'
-import type { TableStatusTone } from '../components/lobby/types'
 
 interface TablePlayer {
   user_id: number
@@ -189,7 +184,6 @@ export default function TablePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [toast, setToast] = useState(DEFAULT_TOAST)
   const [liveState, setLiveState] = useState<LiveTableState | null>(null)
-  const [handResult, setHandResult] = useState<LiveTableState['hand_result'] | null>(null)
   const [lastHandResult, setLastHandResult] =
     useState<LiveTableState['hand_result'] | null>(null)
   const [actionPending, setActionPending] = useState(false)
@@ -209,15 +203,6 @@ export default function TablePage() {
   const lastHandResultRef = useRef<LiveTableState['hand_result'] | null>(null)
   const lastCompletedHandIdRef = useRef<number | null>(null)
   const lastHandResultHandIdRef = useRef<number | null>(null)
-
-  const dateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }),
-    [],
-  )
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true })
@@ -241,8 +226,6 @@ export default function TablePage() {
       incomingResult: LiveTableState['hand_result'] | null,
       isSameHand = false,
     ) => {
-      setHandResult(incomingResult ?? null)
-
       if (incomingResult) {
         setLastHandResult(incomingResult)
         if (handId !== null) {
@@ -904,9 +887,6 @@ export default function TablePage() {
     )
   }
 
-  const createdAtText = tableDetails.created_at
-    ? dateFormatter.format(new Date(tableDetails.created_at))
-    : null
   const viewerIsCreator = tableDetails.viewer?.is_creator ?? false
   const viewerIsSeated = tableDetails.viewer?.is_seated ?? false
   
@@ -923,20 +903,10 @@ export default function TablePage() {
   const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
   const tableName = tableDetails.table_name || `Table #${tableDetails.table_id}`
-  const hostName = tableDetails.host?.display_name || tableDetails.host?.username || null
-  const statusLabel = t(`table.status.${tableDetails.status.toLowerCase()}` as const, {
-    defaultValue: tableDetails.status,
-  })
-  const statusTone: TableStatusTone =
-    tableDetails.status.toLowerCase() === 'active'
-      ? 'running'
-      : tableDetails.status.toLowerCase() === 'ended'
-      ? 'finished'
-      : 'waiting'
   const heroCards = liveState?.hero?.cards ?? []
 
   return (
-    <div className="space-y-3">
+    <div className="h-screen w-screen overflow-hidden bg-slate-900 relative">
       <Toast message={toast.message} visible={toast.visible} />
       
       {/* Chip Animations */}
@@ -954,380 +924,298 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <TableSummary
-        tableName={tableName}
-        chipLabel={`${tableDetails.small_blind}/${tableDetails.big_blind}`}
-        statusBadge={{ label: statusLabel, tone: statusTone }}
-        meta={[
-          {
-            icon: faUser,
-            label: t('table.meta.host'),
-            value: hostName || t('table.meta.unknown'),
-          },
-          {
-            icon: faCoins,
-            label: t('table.meta.stakes'),
-            value: `${tableDetails.small_blind}/${tableDetails.big_blind} • ${t('table.stacks', { amount: tableDetails.starting_stack })}`,
-          },
-          {
-            icon: faUserGroup,
-            label: t('table.meta.players'),
-            value: `${tableDetails.player_count} / ${tableDetails.max_players}`,
-          },
-          {
-            icon: faClock,
-            label: t('table.meta.created'),
-            value: createdAtText || '—',
-          },
-        ]}
-        badges={[
-          tableDetails.visibility
-            ? {
-                label: t(`table.visibility.${tableDetails.visibility}` as const, {
-                  defaultValue: tableDetails.visibility,
-                }),
-                tone: 'visibility',
-              }
-            : undefined,
-          viewerIsCreator
-            ? { label: t('table.labels.youHost'), tone: 'host' }
-            : viewerIsSeated
-            ? { label: t('table.labels.seated'), tone: 'seated' }
-            : undefined,
-        ].filter(Boolean) as { label: string; tone: 'visibility' | 'host' | 'seated' }[]}
-        subtext={tableDetails.group_title ? t('table.groupTag', { value: tableDetails.group_title }) : undefined}
-        expiresAt={tableDetails.expires_at ?? null}
-        statusComponent={<ConnectionStatus status={wsStatus} />}
-      />
-
-      {liveState && (
-        <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg relative overflow-hidden">
-          {isInterHand ? (
-            <div className="flex flex-col items-center justify-center space-y-6 py-8">
-              <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
-              <InterHandVoting
-                players={liveState.players}
-                readyPlayerIds={liveState.ready_players ?? []}
-                deadline={liveState.inter_hand_wait_deadline}
-                durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
-                onReady={handleReady}
-                isReady={(liveState.ready_players ?? []).includes(heroId ?? -1)}
-              />
-            </div>
-          ) : (
-            <>
-              {/* Game Status Header - Compact */}
-              <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
-                <div className="flex-1">
-                  <p className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)] mb-0.5">
-                    {t('table.statusLabel')}
-                  </p>
-                  <p className="text-base font-semibold text-[color:var(--text-primary)]">
-                    {liveState.hand_result
-                      ? 'SHOWDOWN'
-                      : liveState.street
-                      ? liveState.street.charAt(0).toUpperCase() + liveState.street.slice(1)
-                      : 'Waiting'}
-                  </p>
-                </div>
-                <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10" ref={potAreaRef}>
-                  <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">
-                    {liveState.pots && liveState.pots.length > 1
-                      ? t('table.pots.title')
-                      : t('table.pot', { amount: liveState.pot })}
-                  </p>
-                  {liveState.pots && liveState.pots.length > 1 ? (
-                    <div className="space-y-0.5">
-                      {liveState.pots.map((pot) => (
-                        <div key={pot.pot_index} className="text-xs">
-                          <span className="text-[color:var(--text-muted)]">
-                            #{pot.pot_index + 1}:
-                          </span>{' '}
-                          <span className="font-bold text-emerald-400">{pot.amount}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.blinds')}</p>
-                  <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                    {`${tableDetails.small_blind}/${tableDetails.big_blind}`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Community Cards */}
-              <div className="py-2.5">
-                <div className="flex items-center justify-center gap-1">
-                  {liveState.board && liveState.board.length > 0 ? (
-                    liveState.board.map((card, idx) => {
-                      const isWinningCard =
-                        liveState.hand_result?.winners?.some((winner) => winner.best_hand_cards?.includes(card)) ?? false
-                      return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
-                    })
-                  ) : (
-                    <div className="rounded-lg bg-black/20 px-2.5 py-1.5 text-[10px] text-[color:var(--text-muted)]">
-                      {t('table.waitingForBoard')}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Hand Result Panel */}
-              <HandResultPanel liveState={liveState} currentUserId={heroId} />
-
-              {/* Players Grid - More Compact */}
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 py-2.5 border-t border-white/10">
-                {liveState.players.map((player) => {
-                  const isActor = player.user_id === liveState.current_actor
-                  const isHero = player.user_id === heroId
-                  const isLastActor = liveState.last_action?.user_id === player.user_id
-
-                  const getLastActionText = () => {
-                    if (!isLastActor || !liveState.last_action) return null
-                    const action = liveState.last_action.action
-                    const amount = liveState.last_action.amount
-
-                    if (action === 'fold') return t('table.actions.lastAction.fold')
-                    if (action === 'check') return t('table.actions.lastAction.check')
-                    if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
-                    if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
-                    if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
-                    if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
-                    return null
-                  }
-
-                  const lastActionText = getLastActionText()
-
-                  return (
-                    <div
-                      key={`${player.user_id}-${player.seat}`}
-                      ref={(el) => {
-                        if (el) {
-                          playerTileRefs.current.set(player.user_id, el)
-                        } else {
-                          playerTileRefs.current.delete(player.user_id)
-                        }
-                      }}
-                      className={`rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-all relative ${
-                        isActor
-                          ? 'border-white/25 bg-emerald-500/10 shadow-md shadow-emerald-500/20'
-                          : isHero
-                          ? 'border-sky-400/50 bg-sky-500/10'
-                          : 'border-white/10 bg-white/5'
-                      }`}
-                    >
-                      {/* Timer Border - Only show for current actor who is not sitting out and not folded */}
-                      {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
-                        <PlayerRectTimer
-                          deadline={liveState.action_deadline}
-                          turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                          className="rounded-lg"
-                        />
-                      )}
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-[color:var(--text-primary)] truncate">
-                          {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
-                        </span>
-                        <div className="flex gap-0.5 text-[9px] uppercase tracking-wide">
-                          {player.is_button && (
-                            <span className="rounded-full bg-amber-500/20 text-amber-300 px-1.5 py-0.5">D</span>
-                          )}
-                          {player.is_small_blind && (
-                            <span className="rounded-full bg-white/10 px-1.5 py-0.5">SB</span>
-                          )}
-                          {player.is_big_blind && (
-                            <span className="rounded-full bg-white/10 px-1.5 py-0.5">BB</span>
-                          )}
-                          {isHero && (
-                            <span className="rounded-full bg-sky-500/20 text-sky-300 px-1.5 py-0.5">YOU</span>
-                          )}
-                        </div>
-                      </div>
-                      {player.is_sitting_out_next_hand && (
-                        <div className="mt-0.5">
-                          <span className="text-[8px] uppercase tracking-wide text-orange-400/80 bg-orange-500/10 px-1.5 py-0.5 rounded">
-                            {t('table.sitOut')}
-                          </span>
-                        </div>
-                      )}
-                      <div className="mt-1 flex items-center justify-between text-[10px]">
-                        <span className="text-[color:var(--text-muted)]">
-                          {t('table.chips', { amount: player.stack })}
-                        </span>
-                        {player.bet > 0 && (
-                          <span className="text-amber-400 font-semibold">
-                            {t('table.betAmount', { amount: player.bet })}
-                          </span>
-                        )}
-                      </div>
-                      {!player.in_hand && (
-                        <p className="mt-0.5 text-[9px] text-rose-400/80">{t('table.folded')}</p>
-                      )}
-                      {lastActionText && player.in_hand && (
-                        <p className="mt-0.5 text-[9px] font-semibold" style={{ color: isLastActor ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
-                          {lastActionText}
-                        </p>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Hero Cards - Compact - Only show during active hand */}
-              {liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
-                <div className="pt-2.5 border-t border-white/10">
-                  <div className="flex flex-col items-center gap-1.5 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-2.5 py-2 text-center">
-                    <p className="text-[9px] uppercase tracking-wider text-[color:var(--text-muted)]">
-                      {t('table.yourHand')}
-                    </p>
-                    <div className="flex gap-1.5">
-                      {heroCards.length ? (
-                        heroCards.map((card, idx) => {
-                          const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
-                          const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                          return <PlayingCard key={`hero-${idx}`} card={card} size="md" highlighted={isWinningCard} />
-                        })
-                      ) : (
-                        <span className="text-[10px] text-[color:var(--text-muted)]">
-                          {t('table.waitingForHand')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </Card>
-      )}
-
-      {liveState && viewerIsSeated && (
-        <Card className="glass-panel border border-white/10 bg-white/5">
-          <TableActionButtons
-            isPlayerTurn={liveState.current_actor === heroId}
-            amountToCall={amountToCall}
-            minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
-            maxRaise={liveState.allowed_actions?.max_raise_to}
-            playerStack={heroPlayer?.stack || 0}
-            playerBet={heroPlayer?.bet || 0}
-            actionPending={actionPending}
-            currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
-            onFold={() => sendAction('fold')}
-            onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
-            onBet={(amount) => sendAction('bet', amount)}
-            onRaise={(amount) => sendAction('raise', amount)}
-            onAllIn={() => sendAction('raise', (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0))}
-          />
-          {heroPlayer && heroPlayer.stack < (tableDetails.starting_stack * 0.2) && (
-            <div className="mt-3 pt-3 border-t border-white/10">
-              <button
-                disabled
-                className="w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-opacity"
-                style={{
-                  background: 'var(--glass-bg-elevated)',
-                  border: '1px solid var(--glass-border)',
-                  color: 'var(--color-text-muted)',
-                  opacity: 0.6,
-                  cursor: 'not-allowed',
-                }}
-              >
-                {t('table.actions.rebuy')} ({t('common.comingSoon')})
-              </button>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {liveState && tableDetails.status === 'active' && (
-        <div className="flex justify-center">
-          <button
-            onClick={() => setShowRecentHands(true)}
-            className="rounded-xl px-4 py-2 text-sm font-medium transition-all"
-            style={{
-              background: 'var(--glass-bg)',
-              border: '1px solid var(--glass-border)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            {t('table.recentHands.title')}
-          </button>
-        </div>
-      )}
-
-      {/* Invite Code Section (for private tables) */}
-      {tableDetails.visibility === 'private' && tableDetails.invite_code && (viewerIsCreator || viewerIsSeated) && (
-        <InviteSection
-          inviteCode={tableDetails.invite_code}
-          expiresAt={tableDetails.expires_at}
-          onCopySuccess={() => showToast(t('table.invite.copied'))}
-          onCopyError={() => showToast(t('table.errors.actionFailed'))}
-        />
-      )}
-
-      {/* Countdown Timer (only for WAITING tables - no countdown after game starts) */}
-      {tableDetails.expires_at && tableDetails.status === 'waiting' && (
-        <Card>
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h3 className="text-xs font-semibold text-[color:var(--text-primary)]">
-                {t('table.expiration.title', { defaultValue: 'Table Expires In' })}
-              </h3>
-              <p className="mt-0.5 text-[10px] text-[color:var(--text-muted)]">
-                {t('table.expiration.hint', { defaultValue: 'This table will automatically close when time runs out.' })}
-              </p>
-            </div>
-            <div className="text-right">
+      {/* Compact HUD Header */}
+      <div className="absolute top-0 left-0 right-0 z-50 px-4 py-3 bg-black/40 backdrop-blur-md border-b border-white/10">
+        <div className="flex items-center justify-between gap-3">
+          {/* Left: Table Name & ID */}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white truncate">{tableName}</p>
+            <p className="text-[10px] text-gray-400">
+              {tableDetails.small_blind}/{tableDetails.big_blind}
+            </p>
+          </div>
+          
+          {/* Center: Countdown Timer (if waiting) */}
+          {tableDetails.expires_at && tableDetails.status === 'waiting' && (
+            <div className="text-center">
               <Countdown 
                 expiresAt={tableDetails.expires_at} 
-                className="text-lg font-bold text-[color:var(--text-primary)]"
+                className="text-sm font-bold text-amber-400"
                 onExpire={() => {
                   showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
                   setTimeout(() => navigate('/lobby'), EXPIRED_TABLE_REDIRECT_DELAY_MS)
                 }}
               />
+              <p className="text-[8px] text-gray-500 uppercase">Expires</p>
             </div>
-          </div>
-        </Card>
-      )}
-
-      <Card>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">
-            {t('table.players.title')}
-          </h2>
-          <Button variant="ghost" size="sm" onClick={fetchTable}>
-            {t('table.actions.refresh')}
-          </Button>
-        </div>
-        {players.length === 0 ? (
-          <p className="mt-2 rounded-lg border border-dashed border-[color:var(--surface-border)] px-3 py-3 text-xs text-[color:var(--text-muted)]">
-            {t('table.players.empty')}
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {players.map((player) => (
-              <li
-                key={`${player.user_id}-${player.position}`}
-                className="flex items-center justify-between rounded-lg border border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] px-3 py-2.5 text-xs"
+          )}
+          
+          {/* Right: Start Game or Exit Button */}
+          <div className="flex items-center gap-2">
+            <ConnectionStatus status={wsStatus} />
+            {viewerIsCreator && tableDetails.status === 'waiting' && canStart ? (
+              <Button
+                variant="primary"
+                size="sm"
+                glow
+                onClick={handleStart}
+                disabled={isStarting}
               >
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[color:var(--text-primary)] truncate">
-                    {t('table.players.seat', { index: player.position + 1 })}
-                  </p>
-                  <p className="text-[10px] text-[color:var(--text-muted)] truncate">
-                    {player.display_name || player.username || t('table.meta.unknown')}
-                  </p>
+                {isStarting ? t('table.actions.starting') : t('table.actions.start')}
+              </Button>
+            ) : (
+              <button
+                onClick={() => navigate('/lobby')}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                title="Exit"
+              >
+                <span className="text-white text-sm">✕</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Arena - Main Content */}
+      {liveState ? (
+        <div className="absolute inset-0 flex flex-col" style={{ top: '64px', bottom: viewerIsSeated ? '72px' : '0' }}>
+          {/* Felt Background */}
+          <div className="flex-1 relative bg-gradient-radial from-green-900/90 via-green-950 to-black">
+            
+            {/* Inter-Hand Wait Overlay */}
+            {isInterHand ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/50 backdrop-blur-sm">
+                <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
+                <div className="mt-6">
+                  <InterHandVoting
+                    players={liveState.players}
+                    readyPlayerIds={liveState.ready_players ?? []}
+                    deadline={liveState.inter_hand_wait_deadline}
+                    durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
+                    onReady={handleReady}
+                    isReady={(liveState.ready_players ?? []).includes(heroId ?? -1)}
+                  />
                 </div>
-                <div className="flex items-center gap-2 text-right ml-2">
-                  <div>
-                    <p className="font-semibold text-[color:var(--text-primary)] text-xs">
-                      {t('table.chips', { amount: player.chips })}
-                    </p>
-                    <div className="mt-0.5 flex gap-1 justify-end">
+              </div>
+            ) : (
+              <>
+                {/* Villains (Top Center) */}
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
+                  <div className="flex gap-3">
+                    {liveState.players
+                      .filter((p) => p.user_id !== heroId)
+                      .slice(0, 3)
+                      .map((player) => {
+                        const isActor = player.user_id === liveState.current_actor
+                        const isLastActor = liveState.last_action?.user_id === player.user_id
+
+                        const getLastActionText = () => {
+                          if (!isLastActor || !liveState.last_action) return null
+                          const action = liveState.last_action.action
+                          const amount = liveState.last_action.amount
+
+                          if (action === 'fold') return t('table.actions.lastAction.fold')
+                          if (action === 'check') return t('table.actions.lastAction.check')
+                          if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
+                          if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
+                          if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
+                          if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
+                          return null
+                        }
+
+                        const lastActionText = getLastActionText()
+
+                        return (
+                          <div
+                            key={`villain-${player.user_id}`}
+                            ref={(el) => {
+                              if (el) {
+                                playerTileRefs.current.set(player.user_id, el)
+                              } else {
+                                playerTileRefs.current.delete(player.user_id)
+                              }
+                            }}
+                            className="flex flex-col items-center"
+                          >
+                            {/* Player Avatar */}
+                            <div className={`relative w-14 h-14 rounded-full border-3 ${isActor ? 'border-emerald-500 animate-pulse' : 'border-white/30'} bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}>
+                              {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
+                                <PlayerRectTimer
+                                  deadline={liveState.action_deadline}
+                                  turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                                  className="rounded-full"
+                                />
+                              )}
+                              <span className="text-white font-bold text-sm z-10">
+                                {player.display_name?.[0]?.toUpperCase() || '?'}
+                              </span>
+                              {!player.in_hand && (
+                                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                                  <span className="text-white text-[8px] font-bold">FOLD</span>
+                                </div>
+                              )}
+                            </div>
+                            {/* Info Capsule */}
+                            <div className="mt-2 rounded-full bg-black/70 backdrop-blur-sm px-2 py-1 border border-white/20 min-w-[70px] text-center">
+                              <div className="text-white font-bold text-[10px]">{player.stack}</div>
+                              <div className="text-gray-400 text-[8px] truncate max-w-[70px]">
+                                {player.display_name || `P${player.seat + 1}`}
+                              </div>
+                            </div>
+                            {/* Bet Badge */}
+                            {player.bet > 0 && (
+                              <div className="mt-1 bg-amber-500/90 text-black font-bold text-[9px] px-2 py-0.5 rounded-full">
+                                {player.bet}
+                              </div>
+                            )}
+                            {/* Last Action */}
+                            {lastActionText && player.in_hand && (
+                              <p className="mt-1 text-[8px] font-semibold text-emerald-400">
+                                {lastActionText}
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+
+                {/* Board Center */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+                  <div className="flex flex-col items-center gap-3">
+                    {/* Pot */}
+                    <div className="rounded-full bg-black/80 backdrop-blur-sm px-4 py-2 border-2 border-amber-500/50" ref={potAreaRef}>
+                      {liveState.pots && liveState.pots.length > 1 ? (
+                        <div className="space-y-0.5">
+                          {liveState.pots.map((pot) => (
+                            <div key={pot.pot_index} className="text-center">
+                              <span className="text-[10px] text-gray-400">#{pot.pot_index + 1}: </span>
+                              <span className="text-sm font-bold text-emerald-400">{pot.amount}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-[10px] text-gray-400">POT</p>
+                          <p className="text-lg font-bold text-emerald-400">{liveState.pot}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Community Cards */}
+                    <div className="flex gap-1.5">
+                      {liveState.board && liveState.board.length > 0 ? (
+                        liveState.board.map((card, idx) => {
+                          const isWinningCard =
+                            liveState.hand_result?.winners?.some((winner) => winner.best_hand_cards?.includes(card)) ?? false
+                          return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
+                        })
+                      ) : (
+                        <div className="rounded-lg bg-black/30 backdrop-blur-sm px-4 py-2 text-[10px] text-gray-400 border border-white/10">
+                          {t('table.waitingForBoard')}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Hand Result */}
+                    {liveState.hand_result && (
+                      <div className="mt-2">
+                        <HandResultPanel liveState={liveState} currentUserId={heroId} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Hero (Bottom Center) */}
+                {heroPlayer && (
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+                    <div
+                      ref={(el) => {
+                        if (el && heroId) {
+                          playerTileRefs.current.set(heroId, el)
+                        } else if (heroId) {
+                          playerTileRefs.current.delete(heroId)
+                        }
+                      }}
+                      className="flex flex-col items-center"
+                    >
+                      {/* Hero Cards */}
+                      {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
+                        <div className="flex gap-2 mb-2">
+                          {heroCards.map((card, idx) => {
+                            const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
+                            const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                            return (
+                              <div
+                                key={`hero-card-${idx}`}
+                                className="transition-transform"
+                                style={{
+                                  transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
+                                }}
+                              >
+                                <PlayingCard card={card} size="md" highlighted={isWinningCard} />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      
+                      {/* Hero Avatar */}
+                      <div className={`relative w-20 h-20 rounded-full border-4 ${heroPlayer.user_id === liveState.current_actor ? 'border-emerald-500 animate-pulse' : 'border-sky-500'} bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}>
+                        {heroPlayer.user_id === liveState.current_actor && !heroPlayer.is_sitting_out_next_hand && heroPlayer.in_hand && liveState.action_deadline && (
+                          <PlayerRectTimer
+                            deadline={liveState.action_deadline}
+                            turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                            className="rounded-full"
+                          />
+                        )}
+                        <span className="text-white font-bold text-xl z-10">
+                          {heroPlayer.display_name?.[0]?.toUpperCase() || 'YOU'}
+                        </span>
+                      </div>
+                      
+                      {/* Hero Info */}
+                      <div className="mt-2 rounded-full bg-black/80 backdrop-blur-sm px-4 py-1.5 border-2 border-sky-500/50 min-w-[100px] text-center">
+                        <div className="text-white font-bold text-sm">{heroPlayer.stack}</div>
+                        <div className="text-sky-400 text-[10px] font-semibold">YOU</div>
+                      </div>
+                      
+                      {/* Hero Bet */}
+                      {heroPlayer.bet > 0 && (
+                        <div className="mt-2 bg-amber-500/90 text-black font-bold text-xs px-3 py-1 rounded-full">
+                          BET: {heroPlayer.bet}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Waiting Lobby - No Live State Yet */
+        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ top: '64px' }}>
+          <div className="max-w-md w-full px-6">
+            <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 text-center">
+              <h2 className="text-xl font-bold text-white mb-4">
+                {tableDetails.status === 'waiting' ? t('table.status.waiting') : t('table.status.loading')}
+              </h2>
+              
+              {/* Player list in waiting state */}
+              <div className="mb-6">
+                <p className="text-sm text-gray-400 mb-3">
+                  {t('table.meta.players')}: {tableDetails.player_count} / {tableDetails.max_players}
+                </p>
+                <div className="space-y-2">
+                  {players.map((player) => (
+                    <div
+                      key={`waiting-${player.user_id}-${player.position}`}
+                      className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 border border-white/10"
+                    >
+                      <span className="text-white text-sm font-medium">
+                        {player.display_name || player.username || `Player ${player.position + 1}`}
+                      </span>
                       {player.is_host && (
                         <Badge variant="success" size="sm">
                           {t('table.players.hostTag')}
@@ -1339,106 +1227,69 @@ export default function TablePage() {
                         </Badge>
                       )}
                     </div>
-                  </div>
+                  ))}
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <Card>
-        <h2 className="text-sm font-semibold text-[color:var(--text-primary)] mb-3">
-          {viewerIsCreator ? t('table.actions.titleHost') : t('table.actions.titleGuest')}
-        </h2>
-        <div className="flex flex-col gap-3">
-          {/* Join/Leave seat actions */}
-          <div className="flex flex-col gap-1.5">
-            {viewerIsSeated ? (
-              <Button
-                variant="secondary"
-                size="md"
-                block
-                onClick={handleLeave}
-                disabled={!canLeave || isLeaving}
-              >
-                {isLeaving ? t('table.actions.leaving') : t('table.actions.leave')}
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="md"
-                block
-                onClick={handleSeat}
-                disabled={!canJoin || isSeating}
-              >
-                {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat')}
-              </Button>
-            )}
-            <p className="text-[10px] text-[color:var(--text-muted)] px-1">
-              {viewerIsSeated
-                ? viewerIsCreator
-                  ? canStart
-                    ? t('table.messages.readyToStart')
-                    : t('table.messages.waitForPlayers', { count: missingPlayers })
-                  : tableDetails.status === 'active' && handResult
-                  ? t('table.messages.waitingForNextHand', 'Waiting for players to join next hand...')
-                  : t('table.messages.waitingForHost')
-                : canJoin
-                ? t('table.messages.joinPrompt')
-                : t('table.messages.tableFull')}
-            </p>
-          </div>
-
-          {/* Host-only actions */}
-          {viewerIsCreator && (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <Button
-                  variant="primary"
-                  size="md"
-                  block
-                  glow={canStart}
-                  onClick={handleStart}
-                  disabled={!canStart || isStarting || tableDetails.status === 'active'}
-                >
-                  {isStarting
-                    ? t('table.actions.starting')
-                    : t('table.actions.start')
-                  }
-                </Button>
-                {!canStart && missingPlayers > 0 && (
-                  <p className="text-[10px] text-amber-400 px-1">
-                    ⚠️ {t('table.messages.waitForPlayers', { count: missingPlayers })}
-                  </p>
-                )}
-                {canStart && tableDetails.status === 'active' && handResult && (
-                  <p className="text-[10px] text-emerald-400 px-1">
-                    ✓ {t('table.messages.readyForNextHand', 'Ready to deal next hand')}
-                  </p>
-                )}
-                {canStart && tableDetails.status !== 'active' && (
-                  <p className="text-[10px] text-emerald-400 px-1">
-                    ✓ {t('table.messages.readyToStart')}
-                  </p>
-                )}
               </div>
 
-              {/* Delete table section */}
-              <Button
-                variant="danger"
-                size="sm"
-                block
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={isDeleting}
-              >
-                {t('table.actions.delete')}
-              </Button>
-            </>
-          )}
-        </div>
-      </Card>
+              {/* Action buttons */}
+              {viewerIsSeated ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-400">
+                    {viewerIsCreator
+                      ? canStart
+                        ? t('table.messages.readyToStart')
+                        : t('table.messages.waitForPlayers', { count: missingPlayers })
+                      : t('table.messages.waitingForHost')}
+                  </p>
+                  {canLeave && (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      block
+                      onClick={handleLeave}
+                      disabled={isLeaving}
+                    >
+                      {isLeaving ? t('table.actions.leaving') : t('table.actions.leave')}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-400">
+                    {canJoin ? t('table.messages.joinPrompt') : t('table.messages.tableFull')}
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    block
+                    onClick={handleSeat}
+                    disabled={!canJoin || isSeating}
+                  >
+                    {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat')}
+                  </Button>
+                </div>
+              )}
 
+              {/* Delete button for host */}
+              {viewerIsCreator && (
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    block
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isDeleting}
+                  >
+                    {t('table.actions.delete')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
       <RecentHandsModal
         isOpen={showRecentHands}
         onClose={() => setShowRecentHands(false)}
