@@ -185,6 +185,8 @@ export default function TablePage() {
   const [isSitOutPending, setIsSitOutPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
+  const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
+  const autoActionTimerRef = useRef<number | null>(null)
   
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<number, HTMLElement>>(new Map())
@@ -573,39 +575,42 @@ export default function TablePage() {
     }
   }
 
-  const sendAction = async (actionType: 'fold' | 'check' | 'call' | 'bet' | 'raise', amount?: number) => {
-    if (!tableId || !initData) {
-      showToast(t('table.errors.unauthorized'))
-      return
-    }
-    try {
-      setActionPending(true)
-      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/actions`, {
-        method: 'POST',
-        initData,
-        body: {
-          action_type: actionType,
-          amount,
-        },
-      })
-      setLiveState(state)
-      setHandResult(state.hand_result ?? null)
-      await fetchLiveState()
-    } catch (err) {
-      console.error('Error sending action', err)
-      if (err instanceof ApiError) {
-        const message =
-          (typeof err.data === 'object' && err.data && 'detail' in err.data
-            ? String((err.data as { detail?: unknown }).detail)
-            : null) || t('table.errors.actionFailed')
-        showToast(message)
-      } else {
-        showToast(t('table.errors.actionFailed'))
+  const sendAction = useCallback(
+    async (actionType: 'fold' | 'check' | 'call' | 'bet' | 'raise', amount?: number) => {
+      if (!tableId || !initData) {
+        showToast(t('table.errors.unauthorized'))
+        return
       }
-    } finally {
-      setActionPending(false)
-    }
-  }
+      try {
+        setActionPending(true)
+        const state = await apiFetch<LiveTableState>(`/tables/${tableId}/actions`, {
+          method: 'POST',
+          initData,
+          body: {
+            action_type: actionType,
+            amount,
+          },
+        })
+        setLiveState(state)
+        setHandResult(state.hand_result ?? null)
+        await fetchLiveState()
+      } catch (err) {
+        console.error('Error sending action', err)
+        if (err instanceof ApiError) {
+          const message =
+            (typeof err.data === 'object' && err.data && 'detail' in err.data
+              ? String((err.data as { detail?: unknown }).detail)
+              : null) || t('table.errors.actionFailed')
+          showToast(message)
+        } else {
+          showToast(t('table.errors.actionFailed'))
+        }
+      } finally {
+        setActionPending(false)
+      }
+    },
+    [fetchLiveState, initData, showToast, t, tableId],
+  )
 
   const handleToggleSitOut = async (sitOut: boolean) => {
     if (!tableId || !initData) {
@@ -637,6 +642,56 @@ export default function TablePage() {
       setIsSitOutPending(false)
     }
   }
+
+  const heroId = liveState?.hero?.user_id ?? null
+  const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
+  const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
+
+  useEffect(() => {
+    if (liveState?.hand_id !== autoTimeoutRef.current.handId) {
+      autoTimeoutRef.current = { handId: liveState?.hand_id ?? null, count: 0 }
+    }
+  }, [liveState?.hand_id])
+
+  useEffect(() => {
+    if (autoActionTimerRef.current) {
+      clearTimeout(autoActionTimerRef.current)
+      autoActionTimerRef.current = null
+    }
+
+    if (!liveState || !heroId || liveState.current_actor !== heroId || !liveState.action_deadline) {
+      return undefined
+    }
+
+    const canCheck = amountToCall === 0 || Boolean(liveState.allowed_actions?.can_check)
+    const deadlineMs = new Date(liveState.action_deadline).getTime()
+    const delay = Math.max(0, deadlineMs - Date.now())
+
+    const handleAutoAction = () => {
+      const timeoutCount =
+        autoTimeoutRef.current.handId === liveState.hand_id ? autoTimeoutRef.current.count : 0
+
+      if (timeoutCount === 0 && canCheck) {
+        sendAction('check')
+      } else {
+        sendAction('fold')
+      }
+
+      autoTimeoutRef.current = {
+        handId: liveState.hand_id ?? null,
+        count: timeoutCount + 1,
+      }
+    }
+
+    autoActionTimerRef.current = window.setTimeout(handleAutoAction, delay)
+
+    return () => {
+      if (autoActionTimerRef.current) {
+        clearTimeout(autoActionTimerRef.current)
+        autoActionTimerRef.current = null
+      }
+    }
+  }, [amountToCall, heroId, liveState, sendAction])
 
   const handleDeleteTable = async () => {
     if (!tableId) {
@@ -744,9 +799,6 @@ export default function TablePage() {
       : tableDetails.status.toLowerCase() === 'ended'
       ? 'finished'
       : 'waiting'
-  const heroId = liveState?.hero?.user_id ?? null
-  const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
-  const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
   const heroCards = liveState?.hero?.cards ?? []
 
   return (
@@ -910,7 +962,7 @@ export default function TablePage() {
                   }}
                   className={`rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-all relative ${
                     isActor
-                      ? 'border-emerald-400/70 bg-emerald-500/10 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400/70'
+                      ? 'border-white/25 bg-emerald-500/10 shadow-md shadow-emerald-500/20'
                       : isHero
                       ? 'border-sky-400/50 bg-sky-500/10'
                       : 'border-white/10 bg-white/5'
