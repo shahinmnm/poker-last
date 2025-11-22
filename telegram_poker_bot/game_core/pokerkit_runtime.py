@@ -976,6 +976,17 @@ class PokerKitTableRuntimeManager:
             # Process the action
             result = runtime.handle_action(user_id, action, amount)
 
+            # Reset timeout counter for player when they act normally (not via timeout)
+            # This ensures consecutive timeout tracking is accurate
+            timeout_tracking = runtime.current_hand.timeout_tracking or {}
+            user_key = str(user_id)
+            if user_key in timeout_tracking:
+                timeout_tracking[user_key]["count"] = 0
+                timeout_tracking[user_key]["last_action_at"] = datetime.now(
+                    timezone.utc
+                ).isoformat()
+                runtime.current_hand.timeout_tracking = timeout_tracking
+
             # Log action event if pending deal event
             if hasattr(runtime, "_pending_deal_event") and runtime._pending_deal_event:
                 await runtime._log_hand_event(db, runtime._pending_deal_event)
