@@ -62,7 +62,9 @@ class PokerKitTableRuntime:
         self.event_sequence = 0
         self._pending_deal_event: Optional[str] = None
         self.last_hand_result: Optional[Dict[str, Any]] = None
-        self.inter_hand_wait_start: Optional[datetime] = None  # Track inter-hand wait phase
+        self.inter_hand_wait_start: Optional[datetime] = (
+            None  # Track inter-hand wait phase
+        )
         self.ready_players: Set[int] = set()
 
     def _get_active_players_in_hand(self) -> List[Seat]:
@@ -945,11 +947,18 @@ class PokerKitTableRuntimeManager:
         async with lock:
             runtime = await self.ensure_table(db, table_id)
 
-            if not runtime.current_hand or runtime.current_hand.status != HandStatus.INTER_HAND_WAIT:
+            if (
+                not runtime.current_hand
+                or runtime.current_hand.status != HandStatus.INTER_HAND_WAIT
+            ):
                 raise ValueError("READY is only available during inter-hand wait phase")
 
             seat = next(
-                (s for s in runtime.seats if s.user_id == user_id and s.left_at is None),
+                (
+                    s
+                    for s in runtime.seats
+                    if s.user_id == user_id and s.left_at is None
+                ),
                 None,
             )
             if not seat:
@@ -960,8 +969,10 @@ class PokerKitTableRuntimeManager:
             big_blind = config.get("big_blind", settings.big_blind)
             ante = config.get("ante", 0)
 
-            has_sufficient, required = await table_lifecycle.check_player_balance_requirements(
-                seat, small_blind, big_blind, ante
+            has_sufficient, required = (
+                await table_lifecycle.check_player_balance_requirements(
+                    seat, small_blind, big_blind, ante
+                )
             )
             if not has_sufficient:
                 raise ValueError(
@@ -990,7 +1001,10 @@ class PokerKitTableRuntimeManager:
         async with lock:
             runtime = await self.ensure_table(db, table_id)
 
-            if not runtime.current_hand or runtime.current_hand.status != HandStatus.INTER_HAND_WAIT:
+            if (
+                not runtime.current_hand
+                or runtime.current_hand.status != HandStatus.INTER_HAND_WAIT
+            ):
                 return {"status": "no_inter_hand"}
 
             active_seats = [s for s in runtime.seats if s.left_at is None]
@@ -1074,10 +1088,16 @@ class PokerKitTableRuntimeManager:
             # SPECIAL HANDLING: READY action during INTER_HAND_WAIT phase
             if action == ActionType.READY:
                 if runtime.current_hand.status != HandStatus.INTER_HAND_WAIT:
-                    raise ValueError("READY action only allowed during inter-hand wait phase")
+                    raise ValueError(
+                        "READY action only allowed during inter-hand wait phase"
+                    )
 
                 user_seat = next(
-                    (s for s in runtime.seats if s.user_id == user_id and s.left_at is None),
+                    (
+                        s
+                        for s in runtime.seats
+                        if s.user_id == user_id and s.left_at is None
+                    ),
                     None,
                 )
 
@@ -1089,8 +1109,10 @@ class PokerKitTableRuntimeManager:
                 big_blind = config.get("big_blind", settings.big_blind)
                 ante = config.get("ante", 0)
 
-                has_sufficient, required = await table_lifecycle.check_player_balance_requirements(
-                    user_seat, small_blind, big_blind, ante
+                has_sufficient, required = (
+                    await table_lifecycle.check_player_balance_requirements(
+                        user_seat, small_blind, big_blind, ante
+                    )
                 )
                 if not has_sufficient:
                     raise ValueError(
@@ -1257,7 +1279,8 @@ class PokerKitTableRuntimeManager:
                 result["inter_hand_wait"] = True
                 result["inter_hand_wait_seconds"] = settings.post_hand_delay_seconds
                 result["inter_hand_wait_deadline"] = (
-                    runtime.inter_hand_wait_start + timedelta(seconds=settings.post_hand_delay_seconds)
+                    runtime.inter_hand_wait_start
+                    + timedelta(seconds=settings.post_hand_delay_seconds)
                 ).isoformat()
 
                 # Note: We do NOT check self-destruct conditions here anymore
@@ -1298,7 +1321,9 @@ class PokerKitTableRuntimeManager:
                 state["inter_hand_wait_seconds"] = result.get(
                     "inter_hand_wait_seconds", settings.post_hand_delay_seconds
                 )
-                state["inter_hand_wait_deadline"] = result.get("inter_hand_wait_deadline")
+                state["inter_hand_wait_deadline"] = result.get(
+                    "inter_hand_wait_deadline"
+                )
 
             # Propagate table_ended status if present
             if "table_ended" in result:
