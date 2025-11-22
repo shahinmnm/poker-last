@@ -399,11 +399,16 @@ async def check_table_inactivity():
 async def auto_fold_expired_actions():
     """
     Background task that checks for expired action deadlines and auto-folds.
-
+    
+    Implements Rule C: Per-turn timeout enforcement
+    - Timeout #1: auto-check if legal, otherwise auto-fold
+    - Timeout #2 (consecutive): always auto-fold
+    
     Production-hardened implementation:
     - Uses distributed lock for multi-worker safety
     - Re-validates all conditions before folding (idempotent)
     - Excludes sit-out players from auto-fold
+    - Tracks consecutive timeouts per player in hand
     - Race-safe with proper state checks
 
     Runs every 2 seconds to check all active tables with pending actions.
@@ -498,29 +503,30 @@ async def auto_fold_expired_actions():
                                 )
                                 continue
 
-                            result_hand = await db.execute(
-                                select(HandStatus)
-                                .select_from(
-                                    select(HandStatus).select_from(
-                                        select(Table)
-                                        .join(Table.hands)
-                                        .where(
-                                            Table.id == table.id,
-                                            HandStatus != HandStatus.ENDED,
-                                        )
-                                    )
-                                )
-                                .limit(1)
+                            # Get current hand for timeout tracking
+                            from telegram_poker_bot.shared.models import Hand
+                            
+                            hand_result = await db.execute(
+                                select(Hand).where(
+                                    Hand.table_id == table.id,
+                                    Hand.status != HandStatus.ENDED,
+                                ).order_by(Hand.hand_no.desc()).limit(1)
                             )
-                            hand_status = result_hand.scalar_one_or_none()
+                            current_hand = hand_result.scalar_one_or_none()
 
-                            if hand_status == HandStatus.ENDED:
+                            if not current_hand:
                                 logger.debug(
-                                    "Hand already ended, skipping auto-fold",
+                                    "No active hand found for timeout",
                                     table_id=table.id,
                                 )
                                 continue
 
+                            # Check consecutive timeout count
+                            timeout_tracking = current_hand.timeout_tracking or {}
+                            user_key = str(current_actor_user_id)
+                            timeout_count = timeout_tracking.get(user_key, {}).get("count", 0)
+
+                            # Re-validate current state
                             fresh_state = await runtime_mgr.get_state(
                                 db, table.id, viewer_user_id=None
                             )
@@ -546,21 +552,57 @@ async def auto_fold_expired_actions():
                                 )
                                 continue
 
-                            logger.info(
-                                "Auto-folding player due to timeout",
-                                table_id=table.id,
-                                user_id=current_actor_user_id,
-                                deadline=deadline_str,
-                            )
+                            # Determine action based on timeout count and legal actions
+                            # Rule C:
+                            # - First timeout: check if legal, otherwise fold
+                            # - Second consecutive timeout: always fold
+                            auto_action = ActionType.FOLD  # Default
+                            
+                            if timeout_count == 0:
+                                # First timeout - check if CHECK is legal
+                                legal_actions = fresh_state.get("legal_actions", [])
+                                if "check" in legal_actions:
+                                    auto_action = ActionType.CHECK
+                                    logger.info(
+                                        "Auto-checking player (first timeout, check is legal)",
+                                        table_id=table.id,
+                                        user_id=current_actor_user_id,
+                                        deadline=deadline_str,
+                                    )
+                                else:
+                                    logger.info(
+                                        "Auto-folding player (first timeout, check not legal)",
+                                        table_id=table.id,
+                                        user_id=current_actor_user_id,
+                                        deadline=deadline_str,
+                                    )
+                            else:
+                                # Consecutive timeout - always fold
+                                logger.info(
+                                    "Auto-folding player (consecutive timeout)",
+                                    table_id=table.id,
+                                    user_id=current_actor_user_id,
+                                    timeout_count=timeout_count + 1,
+                                    deadline=deadline_str,
+                                )
 
+                            # Execute auto-action
                             public_state = await runtime_mgr.handle_action(
                                 db,
                                 table_id=table.id,
                                 user_id=current_actor_user_id,
-                                action=ActionType.FOLD,
+                                action=auto_action,
                                 amount=None,
                             )
 
+                            # Update timeout tracking
+                            if user_key not in timeout_tracking:
+                                timeout_tracking[user_key] = {"count": 0, "last_timeout_at": None}
+                            
+                            timeout_tracking[user_key]["count"] = timeout_count + 1
+                            timeout_tracking[user_key]["last_timeout_at"] = now.isoformat()
+                            current_hand.timeout_tracking = timeout_tracking
+                            
                             table.last_action_at = now
                             await db.flush()
 

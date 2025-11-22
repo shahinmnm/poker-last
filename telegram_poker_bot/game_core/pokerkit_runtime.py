@@ -1046,6 +1046,28 @@ class PokerKitTableRuntimeManager:
                 # Log showdown/hand_ended events
                 await runtime._log_hand_event(db, "showdown")
                 await runtime._log_hand_event(db, "hand_ended")
+                
+                # CRITICAL: Check self-destruct conditions after hand completion (Rule D)
+                from telegram_poker_bot.shared.services import table_lifecycle
+                
+                should_self_destruct, reason = await table_lifecycle.compute_poststart_inactivity(
+                    db, runtime.table
+                )
+                
+                if should_self_destruct:
+                    logger.info(
+                        "Table self-destructing after hand completion",
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                        reason=reason,
+                    )
+                    await table_lifecycle.mark_table_completed_and_cleanup(
+                        db, runtime.table, reason
+                    )
+                    # Add self-destruct flag to result so frontend knows table is ending
+                    result["table_ended"] = True
+                    result["table_status"] = "ended"
+                    result["end_reason"] = reason
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index
@@ -1075,6 +1097,12 @@ class PokerKitTableRuntimeManager:
             # Add hand_result if present
             if "hand_result" in result:
                 state["hand_result"] = result["hand_result"]
+            
+            # Propagate table_ended status if present
+            if "table_ended" in result:
+                state["table_ended"] = result["table_ended"]
+                state["table_status"] = result.get("table_status", "ended")
+                state["end_reason"] = result.get("end_reason", "completed")
 
             return state
 
