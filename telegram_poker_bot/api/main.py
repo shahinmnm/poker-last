@@ -1621,6 +1621,124 @@ async def start_table(
     return viewer_state
 
 
+@api_app.post("/tables/{table_id}/next-hand")
+async def start_next_hand(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Start the next hand after proper validation and delay.
+
+    This endpoint:
+    1. Validates minimum player count (>= 2)
+    2. Checks each player's balance against requirements
+    3. Sets players with insufficient balance to sitting_out
+    4. Marks table as expired if < 2 active players remain
+    """
+    from telegram_poker_bot.shared.services import table_lifecycle
+    from telegram_poker_bot.shared.config import get_settings
+
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    user_auth = verify_telegram_init_data(x_telegram_init_data)
+    if not user_auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, user_auth)
+
+    # Get table configuration
+    table_result = await db.execute(select(Table).where(Table.id == table_id))
+    table = table_result.scalar_one_or_none()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    config = table.config_json or {}
+    small_blind = config.get("small_blind", get_settings().small_blind)
+    big_blind = config.get("big_blind", get_settings().big_blind)
+    ante = config.get("ante", 0)
+
+    # Get all active seats
+    seats_result = await db.execute(
+        select(Seat).where(
+            Seat.table_id == table_id,
+            Seat.left_at.is_(None),
+        )
+    )
+    active_seats = seats_result.scalars().all()
+
+    # Track which players have insufficient balance
+    insufficient_balance_players = []
+
+    # Check each player's balance
+    for seat in active_seats:
+        has_sufficient, required = (
+            await table_lifecycle.check_player_balance_requirements(
+                seat, small_blind, big_blind, ante
+            )
+        )
+        if not has_sufficient:
+            # Set player to sitting out
+            seat.is_sitting_out_next_hand = True
+            insufficient_balance_players.append(
+                {
+                    "user_id": seat.user_id,
+                    "required": required,
+                    "current": seat.chips,
+                }
+            )
+            logger.info(
+                "Player set to sitting out due to insufficient balance",
+                table_id=table_id,
+                user_id=seat.user_id,
+                required=required,
+                current=seat.chips,
+            )
+
+    await db.flush()
+
+    # Count remaining active players (not sitting out)
+    playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
+
+    if len(playing_seats) < 2:
+        # Not enough players to continue - mark table as expired
+        reason = f"lack of minimum players ({len(playing_seats)}/2 required)"
+        await table_lifecycle.mark_table_expired(db, table, reason)
+        await db.commit()
+
+        return {
+            "status": "table_expired",
+            "reason": reason,
+            "insufficient_balance_players": insufficient_balance_players,
+        }
+
+    # Start the next hand
+    try:
+        state = await get_pokerkit_runtime_manager().start_game(db, table_id)
+        await db.commit()
+
+        await manager.broadcast(table_id, state)
+
+        logger.info(
+            "Next hand started",
+            table_id=table_id,
+            players=len(playing_seats),
+            insufficient_balance_count=len(insufficient_balance_players),
+        )
+
+        # Return viewer-specific state
+        viewer_state = await get_pokerkit_runtime_manager().get_state(
+            db, table_id, user.id
+        )
+        viewer_state["insufficient_balance_players"] = insufficient_balance_players
+
+        return viewer_state
+
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @api_app.get("/tables/{table_id}/state")
 async def get_table_state(
     table_id: int,

@@ -22,6 +22,9 @@ import InviteSection from '../components/tables/InviteSection'
 import TableActionButtons from '../components/tables/TableActionButtons'
 import HandResultPanel from '../components/tables/HandResultPanel'
 import RecentHandsModal from '../components/tables/RecentHandsModal'
+import PostHandModal from '../components/tables/PostHandModal'
+import TableExpiredModal from '../components/tables/TableExpiredModal'
+import InsufficientBalanceModal from '../components/tables/InsufficientBalanceModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import type { TableStatusTone } from '../components/lobby/types'
 
@@ -162,6 +165,7 @@ interface LiveTableState {
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
 const DEFAULT_TURN_TIMEOUT_SECONDS = 25
+const POST_HAND_DELAY_SECONDS = 5 // Must match backend config
 
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
@@ -185,6 +189,17 @@ export default function TablePage() {
   const [isSitOutPending, setIsSitOutPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
+  
+  // Post-hand modal states
+  const [showPostHandModal, setShowPostHandModal] = useState(false)
+  const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
+  const [tableExpiredReason, setTableExpiredReason] = useState('')
+  const [showInsufficientBalanceModal, setShowInsufficientBalanceModal] = useState(false)
+  const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState<{
+    required: number
+    current: number
+  } | null>(null)
+  
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
   
@@ -330,7 +345,13 @@ export default function TablePage() {
     refetchUserData().catch((err) => {
       console.warn('Failed to refetch user data after hand completion', err)
     })
-  }, [liveState?.hand_result, liveState?.hand_id, refetchUserData])
+    
+    // Show post-hand modal to allow player to choose sit-out or keep playing
+    // Only show if table is still active and not expired
+    if (tableDetails?.status === 'active' && !tableDetails.is_expired) {
+      setShowPostHandModal(true)
+    }
+  }, [liveState?.hand_result, liveState?.hand_id, refetchUserData, tableDetails?.status, tableDetails?.is_expired])
 
   const fetchTable = useCallback(async () => {
     if (!tableId) {
@@ -384,6 +405,60 @@ export default function TablePage() {
       console.warn('Unable to fetch live state', err)
     }
   }, [tableId])
+
+  // Handle post-hand modal completion - start next hand
+  const handlePostHandComplete = useCallback(async () => {
+    setShowPostHandModal(false)
+    
+    if (!tableId || !initData) {
+      return
+    }
+    
+    try {
+      const result = await apiFetch<any>(`/tables/${tableId}/next-hand`, {
+        method: 'POST',
+        initData,
+      })
+      
+      // Check if table expired
+      if (result.status === 'table_expired') {
+        setTableExpiredReason(result.reason)
+        setShowTableExpiredModal(true)
+        return
+      }
+      
+      // Check for insufficient balance players
+      if (result.insufficient_balance_players?.length > 0) {
+        const currentUserId = liveState?.hero?.user_id
+        const myBalanceIssue = result.insufficient_balance_players.find(
+          (p: any) => p.user_id === currentUserId
+        )
+        
+        if (myBalanceIssue) {
+          setInsufficientBalanceInfo({
+            required: myBalanceIssue.required,
+            current: myBalanceIssue.current,
+          })
+          setShowInsufficientBalanceModal(true)
+        }
+      }
+      
+      // Refresh table state
+      await fetchTable()
+      await fetchLiveState()
+    } catch (err) {
+      console.error('Error starting next hand:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.nextHandFailed', 'Failed to start next hand')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.nextHandFailed', 'Failed to start next hand'))
+      }
+    }
+  }, [tableId, initData, liveState?.hero?.user_id, fetchTable, fetchLiveState, showToast, t])
 
   // Refresh table data once auth context (initData) becomes available so the
   // viewer-specific fields (like seat status and hero cards) are populated.
@@ -1303,6 +1378,31 @@ export default function TablePage() {
         onClose={() => setShowRecentHands(false)}
         tableId={parseInt(tableId || '0', 10)}
         initData={initData ?? undefined}
+      />
+      
+      <PostHandModal
+        isOpen={showPostHandModal}
+        delaySeconds={POST_HAND_DELAY_SECONDS}
+        onComplete={handlePostHandComplete}
+        onSitOut={() => handleToggleSitOut(true)}
+        onKeepPlaying={() => handleToggleSitOut(false)}
+        isSittingOut={heroPlayer?.is_sitting_out_next_hand ?? false}
+      />
+      
+      <TableExpiredModal
+        isOpen={showTableExpiredModal}
+        reason={tableExpiredReason}
+        onClose={() => {
+          setShowTableExpiredModal(false)
+          navigate('/lobby')
+        }}
+      />
+      
+      <InsufficientBalanceModal
+        isOpen={showInsufficientBalanceModal}
+        required={insufficientBalanceInfo?.required ?? 0}
+        current={insufficientBalanceInfo?.current ?? 0}
+        onClose={() => setShowInsufficientBalanceModal(false)}
       />
     </div>
   )
