@@ -99,7 +99,74 @@ async def test_check_player_balance_requirements_sufficient():
     )
 
     assert has_sufficient is True
-    assert required == small_blind + big_blind + ante
+    assert required == small_blind + big_blind
+
+
+@pytest.mark.asyncio
+async def test_compute_prestart_expiry_private_table_with_invite_code():
+    """Test that private tables with invite_code get 60-minute TTL (Rule 7)."""
+    # Create a private table with invite_code that should be expired
+    table = Table(
+        id=10,
+        status=TableStatus.WAITING,
+        is_public=False,
+        invite_code="ABC123",  # Private table indicator
+        expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),  # Already expired
+        config_json={},
+    )
+
+    db = None
+
+    should_expire, reason = await table_lifecycle.compute_prestart_expiry(db, table)
+
+    assert should_expire is True
+    # Private tables should mention 60 minutes
+    assert "60 minute" in reason.lower()
+    assert "join window expired" in reason.lower()
+
+
+@pytest.mark.asyncio
+async def test_compute_prestart_expiry_public_table_without_invite_code():
+    """Test that public tables without invite_code get 10-minute TTL (Rule 1)."""
+    # Create a public table without invite_code that should be expired
+    table = Table(
+        id=11,
+        status=TableStatus.WAITING,
+        is_public=True,
+        invite_code=None,  # No invite code = public table
+        expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),  # Already expired
+        config_json={},
+    )
+
+    db = None
+
+    should_expire, reason = await table_lifecycle.compute_prestart_expiry(db, table)
+
+    assert should_expire is True
+    # Public tables should mention 10 minutes
+    assert "10 minute" in reason.lower()
+    assert "join window expired" in reason.lower()
+
+
+@pytest.mark.asyncio
+async def test_compute_prestart_expiry_private_table_not_expired():
+    """Test that private tables with 60-min TTL don't expire prematurely."""
+    # Create a private table that's been waiting for 15 minutes (still valid with 60-min TTL)
+    table = Table(
+        id=12,
+        status=TableStatus.WAITING,
+        is_public=False,
+        invite_code="XYZ789",
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=45),  # Still 45 min left
+        config_json={},
+    )
+
+    db = None
+
+    should_expire, reason = await table_lifecycle.compute_prestart_expiry(db, table)
+
+    assert should_expire is False
+    assert reason is None + ante
 
 
 @pytest.mark.asyncio
