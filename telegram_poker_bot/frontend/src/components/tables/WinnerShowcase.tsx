@@ -1,7 +1,9 @@
 import PlayingCard from '../ui/PlayingCard'
 
 interface WinnerShowcaseProps {
-  handResult: { winners?: Array<{ user_id: number; amount: number; hand_rank?: string; best_hand_cards?: string[] }> } | null
+  handResult?: {
+    winners?: Array<{ user_id: number; amount: number; hand_rank?: string; best_hand_cards?: string[] }>
+  } | null
   players: Array<{ user_id: number; display_name?: string | null; username?: string | null }>
 }
 
