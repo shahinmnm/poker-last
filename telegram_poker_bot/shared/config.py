@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     turn_timeout_seconds: int = 25
     table_inactivity_timeout_minutes: int = 10
     table_all_sitout_timeout_minutes: int = 5
+    
+    # Table Lifecycle Configuration
+    public_table_prestart_ttl_minutes: int = 10  # 10 minutes for public tables to start
+    private_table_prestart_ttl_minutes: int = 60  # 60 minutes for private tables to start
+    post_hand_delay_seconds: int = 5  # Delay after hand ends before starting next hand
 
     # Mini App
     webapp_secret: str = "test-webapp-secret"

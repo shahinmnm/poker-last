@@ -64,8 +64,9 @@ async def compute_prestart_expiry(
     Check if a pre-start table should be expired.
 
     Rule A: Pre-start join TTL
-    - From creation, table has 10 minutes to start
-    - If game hasn't started by 10 minutes, mark EXPIRED
+    - PUBLIC tables: 10 minutes to start
+    - PRIVATE tables: 60 minutes to start
+    - If game hasn't started by the limit, mark EXPIRED
 
     Args:
         db: Database session
@@ -74,6 +75,8 @@ async def compute_prestart_expiry(
     Returns:
         (should_expire, reason) tuple
     """
+    from telegram_poker_bot.shared.config import get_settings
+    
     # Only applies to WAITING tables
     if table.status != TableStatus.WAITING:
         return False, None
@@ -82,7 +85,15 @@ async def compute_prestart_expiry(
     if table.expires_at:
         now = datetime.now(timezone.utc)
         if table.expires_at <= now:
-            return True, "pre-game timeout (10 minute join window expired)"
+            settings = get_settings()
+            # Determine table type for reason message
+            ttl_minutes = (
+                settings.public_table_prestart_ttl_minutes
+                if table.is_public
+                else settings.private_table_prestart_ttl_minutes
+            )
+            table_type = "public" if table.is_public else "private"
+            return True, f"pre-game timeout ({ttl_minutes} minute join window expired for {table_type} table)"
 
     return False, None
 
@@ -94,7 +105,7 @@ async def compute_poststart_inactivity(
     Check if an active table should be expired due to inactivity.
 
     Rule D: Self-destruct on dead tables
-    - Not enough active players to continue
+    - Not enough active players to continue (< 2 active players)
     - All remaining players are folded/sit-out/inactive
 
     Args:
@@ -108,7 +119,7 @@ async def compute_poststart_inactivity(
     if table.status != TableStatus.ACTIVE:
         return False, None
 
-    # Get active seats (not left, not sitting out)
+    # Get active seats (not left)
     result = await db.execute(
         select(Seat).where(
             Seat.table_id == table.id,
@@ -126,7 +137,7 @@ async def compute_poststart_inactivity(
     if len(playing_seats) < 2:
         return True, f"insufficient active players (need 2, have {len(playing_seats)})"
 
-    # Check if all players are sitting out
+    # Additional check: If ALL players are sitting out (should be caught above but being explicit)
     if len(playing_seats) == 0:
         return True, "all players sitting out"
 
@@ -203,6 +214,28 @@ async def mark_table_completed_and_cleanup(
         table_id=table.id,
         reason=reason,
     )
+
+
+async def check_player_balance_requirements(
+    seat: Seat, small_blind: int, big_blind: int, ante: int = 0
+) -> Tuple[bool, int]:
+    """
+    Check if a player has sufficient balance to play the next hand.
+
+    A player needs at least (small_blind + big_blind + ante) to participate.
+
+    Args:
+        seat: Player's seat
+        small_blind: Small blind amount
+        big_blind: Big blind amount
+        ante: Ante amount (default 0)
+
+    Returns:
+        (has_sufficient_balance, required_amount) tuple
+    """
+    required_amount = small_blind + big_blind + ante
+    has_sufficient = seat.chips >= required_amount
+    return has_sufficient, required_amount
 
 
 async def check_and_enforce_lifecycle(
