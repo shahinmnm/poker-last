@@ -2047,6 +2047,15 @@ async def submit_action(
         await manager.broadcast(table_id, public_state)
 
         if public_state.get("inter_hand_wait"):
+            # Broadcast hand_ended message to all clients for inter-hand visibility
+            hand_ended_message = {
+                "type": "hand_ended",
+                "table_id": table_id,
+                "winners": public_state.get("hand_result", {}).get("winners", []),
+                "hand_status": "INTER_HAND_WAIT",
+                "next_hand_in": public_state.get("inter_hand_wait_seconds", 20),
+            }
+            await manager.broadcast(table_id, hand_ended_message)
             _schedule_inter_hand_completion(table_id)
 
         viewer_state = await get_pokerkit_runtime_manager().get_state(
