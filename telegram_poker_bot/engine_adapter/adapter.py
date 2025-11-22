@@ -388,6 +388,38 @@ class PokerEngineAdapter:
 
         return actions
 
+    def _auto_advance_streets(self) -> None:
+        """
+        Automatically advance through streets when betting rounds complete.
+        
+        This handles dealing community cards when actor_indices becomes empty.
+        """
+        # Loop while hand is not complete and there's no one to act
+        while not self.is_hand_complete() and not self.state.actor_indices:
+            street_index = self.state.street_index
+            if street_index is None or not self.state.status:
+                break
+
+            # Count current board cards
+            current_board_count = sum(len(cards) for cards in self.state.board_cards)
+
+            # Deal community cards based on street and current board
+            if street_index == 1 and current_board_count == 0:
+                # Flop street but no cards -> deal flop
+                self.deal_flop()
+                logger.debug("Auto-dealt flop")
+            elif street_index == 2 and current_board_count == 3:
+                # Turn street but only 3 cards -> deal turn
+                self.deal_turn()
+                logger.debug("Auto-dealt turn")
+            elif street_index == 3 and current_board_count == 4:
+                # River street but only 4 cards -> deal river
+                self.deal_river()
+                logger.debug("Auto-dealt river")
+            else:
+                # No more streets to deal or cards already dealt
+                break
+
     def fold(self) -> Operation:
         """
         Player folds.
@@ -399,6 +431,10 @@ class PokerEngineAdapter:
 
         operation = self.state.fold()
         logger.info("Player folded", player_index=self.state.actor_index)
+        
+        # Auto-advance streets if needed
+        self._auto_advance_streets()
+        
         return operation
 
     def check_or_call(self) -> Operation:
@@ -417,6 +453,10 @@ class PokerEngineAdapter:
         amount = operation.amount if hasattr(operation, "amount") else 0
         action_name = "checked" if amount == 0 else f"called {amount}"
         logger.info(f"Player {action_name}", player_index=actor_idx, amount=amount)
+        
+        # Auto-advance streets if needed
+        self._auto_advance_streets()
+        
         return operation
 
     def bet_or_raise(self, amount: int) -> Operation:
@@ -441,6 +481,10 @@ class PokerEngineAdapter:
             operation.player_index if hasattr(operation, "player_index") else None
         )
         logger.info("Player bet/raised", player_index=actor_idx, amount=amount)
+        
+        # Auto-advance streets if needed
+        self._auto_advance_streets()
+        
         return operation
 
     def is_hand_complete(self) -> bool:
