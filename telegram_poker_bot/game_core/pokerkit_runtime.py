@@ -61,6 +61,25 @@ class PokerKitTableRuntime:
         self._pending_deal_event: Optional[str] = None
         self.last_hand_result: Optional[Dict[str, Any]] = None
 
+    def _get_active_players_in_hand(self) -> List[Seat]:
+        """
+        Get active players for a hand in canonical order.
+        
+        Players are ordered by seat position (not by user_id or join time).
+        This ensures stable ordering throughout hand lifecycle.
+        
+        Returns:
+            List of active Seat objects, ordered by position
+        """
+        active_seats = [
+            s
+            for s in self.seats
+            if s.left_at is None and not s.is_sitting_out_next_hand
+        ]
+        # Sort by position to ensure canonical ordering
+        active_seats.sort(key=lambda s: s.position)
+        return active_seats
+
     async def _log_hand_event(
         self,
         db: AsyncSession,
@@ -215,16 +234,14 @@ class PokerKitTableRuntime:
         self.hand_no = hand.hand_no
         self.last_hand_result = None
 
-        # Build mapping from user_id to player index
-        active_seats = [
-            s
-            for s in self.seats
-            if s.left_at is None and not s.is_sitting_out_next_hand
-        ]
+        # Build canonical active players list ordered by seat position
+        active_seats = self._get_active_players_in_hand()
 
         if len(active_seats) < 2:
             raise ValueError("Cannot start hand: fewer than 2 active players")
 
+        # Build stable mapping from user_id to player index
+        # This mapping MUST remain stable for the entire hand lifecycle
         self.user_id_to_player_index = {
             seat.user_id: idx for idx, seat in enumerate(active_seats)
         }
@@ -233,8 +250,10 @@ class PokerKitTableRuntime:
         starting_stacks = [seat.chips for seat in active_seats]
 
         # Determine button index for this hand
-        # For multi-hand support, rotate button from previous hand
-        button_index = None
+        # Hand #1: Use lowest occupied seat index as button (default 0)
+        # Hand #n>1: Rotate button clockwise from previous hand
+        button_index = 0  # Default for first hand
+        
         if self.hand_no > 1:
             # Get the previous completed hand to find the button position
             prev_hand_result = await db.execute(
@@ -259,8 +278,15 @@ class PokerKitTableRuntime:
                     prev_button=prev_button,
                     new_button=button_index,
                 )
+            else:
+                # Fallback if no previous hand found
+                logger.info(
+                    "No previous hand found, using button_index=0",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                )
 
-        # Create PokerKit engine with optional button rotation
+        # Create PokerKit engine with explicit button index
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
             starting_stacks=starting_stacks,
@@ -276,8 +302,11 @@ class PokerKitTableRuntime:
         # Reset event sequence for new hand
         self.event_sequence = 0
 
-        # Persist engine state to DB
-        hand.engine_state_json = self.engine.to_persistence_state()
+        # Persist engine state to DB with player order
+        persistence_state = self.engine.to_persistence_state()
+        # Store the canonical player order (user_ids in player_index order)
+        persistence_state["hand_player_order"] = [seat.user_id for seat in active_seats]
+        hand.engine_state_json = persistence_state
         hand.status = HandStatus.PREFLOP
         await db.flush()
 
@@ -290,6 +319,8 @@ class PokerKitTableRuntime:
             hand_no=self.hand_no,
             players=len(active_seats),
             button_index=button_index,
+            actor_index=self.engine.state.actor_index,
+            actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
         )
 
         # Return initial state
@@ -297,7 +328,7 @@ class PokerKitTableRuntime:
 
     def start_hand(self, small_blind: int, big_blind: int) -> Dict[str, Any]:
         """
-        Start a new hand using PokerKit engine.
+        Start a new hand using PokerKit engine (deprecated - use start_new_hand).
 
         Args:
             small_blind: Small blind amount
@@ -308,16 +339,13 @@ class PokerKitTableRuntime:
         """
         self.hand_no += 1
 
-        # Build mapping from user_id to player index
-        active_seats = [
-            s
-            for s in self.seats
-            if s.left_at is None and not s.is_sitting_out_next_hand
-        ]
+        # Build canonical active players list ordered by seat position
+        active_seats = self._get_active_players_in_hand()
 
         if len(active_seats) < 2:
             raise ValueError("Cannot start hand: fewer than 2 active players")
 
+        # Build stable mapping from user_id to player index
         self.user_id_to_player_index = {
             seat.user_id: idx for idx, seat in enumerate(active_seats)
         }
@@ -325,13 +353,17 @@ class PokerKitTableRuntime:
         # Get starting stacks
         starting_stacks = [seat.chips for seat in active_seats]
 
-        # Create PokerKit engine
+        # Use button_index=0 for first hand (this is deprecated sync method)
+        button_index = 0
+
+        # Create PokerKit engine with explicit button index
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
             starting_stacks=starting_stacks,
             small_blind=small_blind,
             big_blind=big_blind,
             mode=Mode.TOURNAMENT,
+            button_index=button_index,
         )
 
         # Deal hole cards
@@ -342,6 +374,7 @@ class PokerKitTableRuntime:
             table_id=self.table.id,
             hand_no=self.hand_no,
             players=len(active_seats),
+            button_index=button_index,
         )
 
         # Return initial state
@@ -369,6 +402,11 @@ class PokerKitTableRuntime:
             if street_index is None:
                 break
 
+            # Only advance if betting round is truly complete (no pending actions)
+            # Check that state.status is still active
+            if not self.engine.state.status:
+                break
+
             # Count current board cards to determine what to deal
             current_board_count = sum(
                 len(cards) for cards in self.engine.state.board_cards
@@ -380,21 +418,33 @@ class PokerKitTableRuntime:
                 self.engine.deal_flop()
                 self._pending_deal_event = "deal_flop"
                 logger.debug(
-                    "Auto-dealt flop", table_id=self.table.id, hand_no=self.hand_no
+                    "Auto-dealt flop",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    actor_index=self.engine.state.actor_index,
+                    actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
                 )
             elif street_index == 2 and current_board_count == 3:
                 # On turn street but only 3 cards -> deal turn
                 self.engine.deal_turn()
                 self._pending_deal_event = "deal_turn"
                 logger.debug(
-                    "Auto-dealt turn", table_id=self.table.id, hand_no=self.hand_no
+                    "Auto-dealt turn",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    actor_index=self.engine.state.actor_index,
+                    actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
                 )
             elif street_index == 3 and current_board_count == 4:
                 # On river street but only 4 cards -> deal river
                 self.engine.deal_river()
                 self._pending_deal_event = "deal_river"
                 logger.debug(
-                    "Auto-dealt river", table_id=self.table.id, hand_no=self.hand_no
+                    "Auto-dealt river",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    actor_index=self.engine.state.actor_index,
+                    actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
                 )
             else:
                 # Either preflop (street_index=0), or cards already dealt, or hand complete
@@ -420,14 +470,41 @@ class PokerKitTableRuntime:
         # Validate it's this player's turn
         player_index = self.user_id_to_player_index.get(user_id)
         if player_index is None:
-            raise ValueError("User not seated")
+            raise ValueError("User not seated in this hand")
 
         actor_index = self.engine.state.actor_index
+        
+        # Log current state before action
+        logger.info(
+            "Action requested",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+            user_id=user_id,
+            player_index=player_index,
+            action=action.value,
+            amount=amount,
+            current_actor_index=actor_index,
+            actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
+            street_index=self.engine.state.street_index,
+        )
+
+        # Auto-advance if actor_index is None (betting round complete)
         if actor_index is None:
-            raise ValueError("No player to act")
+            logger.info(
+                "No current actor - attempting auto-advance",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+            )
+            self._auto_advance_street_and_showdown()
+            actor_index = self.engine.state.actor_index
+
+        if actor_index is None:
+            raise ValueError("No player to act - hand may be complete")
 
         if player_index != actor_index:
-            raise ValueError("Not your turn")
+            raise ValueError(
+                f"Not your turn - current actor is player_index={actor_index}, you are player_index={player_index}"
+            )
 
         # Process action via PokerKit
         if action == ActionType.FOLD:
@@ -447,11 +524,18 @@ class PokerKitTableRuntime:
         else:
             raise ValueError(f"Unsupported action: {action}")
 
+        # Log state after action
         logger.info(
             "Action processed via PokerKit",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
             user_id=user_id,
+            player_index=player_index,
             action=action.value,
             amount=amount,
+            new_actor_index=self.engine.state.actor_index,
+            new_actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
+            street_index=self.engine.state.street_index,
         )
 
         # Auto-advance streets and handle showdown
@@ -765,18 +849,37 @@ class PokerKitTableRuntimeManager:
                     runtime.hand_no = hand.hand_no
                     runtime.current_hand = hand
 
-                    # Rebuild user_id_to_player_index mapping
-                    active_seats = [s for s in runtime.seats if s.left_at is None]
-                    runtime.user_id_to_player_index = {
-                        seat.user_id: idx for idx, seat in enumerate(active_seats)
-                    }
+                    # Rebuild user_id_to_player_index mapping from stored order
+                    # CRITICAL: Use stored hand_player_order, NOT current seat order
+                    hand_player_order = hand.engine_state_json.get("hand_player_order")
+                    
+                    if hand_player_order:
+                        # Restore mapping from stored player order
+                        runtime.user_id_to_player_index = {
+                            user_id: idx for idx, user_id in enumerate(hand_player_order)
+                        }
+                        logger.info(
+                            "Restored engine from DB with stored player order",
+                            table_id=table_id,
+                            hand_no=hand.hand_no,
+                            status=hand.status.value,
+                            player_order=hand_player_order,
+                        )
+                    else:
+                        # Fallback: rebuild from current seats (may be incorrect if seating changed)
+                        # This is a compatibility path for old hands without hand_player_order
+                        active_seats = [s for s in runtime.seats if s.left_at is None]
+                        active_seats.sort(key=lambda s: s.position)
+                        runtime.user_id_to_player_index = {
+                            seat.user_id: idx for idx, seat in enumerate(active_seats)
+                        }
+                        logger.warning(
+                            "Restored engine from DB without stored player order - using current seats",
+                            table_id=table_id,
+                            hand_no=hand.hand_no,
+                            status=hand.status.value,
+                        )
 
-                    logger.info(
-                        "Restored engine from DB",
-                        table_id=table_id,
-                        hand_no=hand.hand_no,
-                        status=hand.status.value,
-                    )
                 except Exception as e:
                     logger.error(
                         "Failed to restore engine from DB",
