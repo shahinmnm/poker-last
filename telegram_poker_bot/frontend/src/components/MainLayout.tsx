@@ -80,7 +80,7 @@ export default function MainLayout() {
           </div>
         </header>
 
-        <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 pb-24 pt-6">
+        <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-y-auto px-4 pb-24 pt-6">
           <Outlet />
         </main>
 
