@@ -148,6 +148,9 @@ interface LiveTableState {
   hero: LiveHeroState | null
   last_action?: LastAction | null
   hand_result?: { winners: HandWinnerResult[] } | null
+  inter_hand_wait?: boolean
+  inter_hand_wait_seconds?: number
+  inter_hand_wait_deadline?: string | null
   allowed_actions?: {
     can_fold?: boolean
     can_check?: boolean
@@ -332,26 +335,26 @@ export default function TablePage() {
   }, [liveState?.hand_result, getElementCenter])
 
   // Auto-refresh balance and stats when a hand completes
+  // Also show the ready modal when entering inter-hand wait phase
   useEffect(() => {
-    if (!liveState?.hand_result?.winners?.length) return
-    if (!liveState.hand_id) return
-    
-    // Check if this is a new completed hand
-    if (lastCompletedHandIdRef.current === liveState.hand_id) return
-    
-    lastCompletedHandIdRef.current = liveState.hand_id
-    
-    // Refetch balance and stats
-    refetchUserData().catch((err) => {
-      console.warn('Failed to refetch user data after hand completion', err)
-    })
-    
-    // Show post-hand modal to allow player to choose sit-out or keep playing
-    // Only show if table is still active and not expired
-    if (tableDetails?.status === 'active' && !tableDetails.is_expired) {
-      setShowPostHandModal(true)
+    // Show modal when entering inter-hand wait phase
+    if (liveState?.inter_hand_wait && liveState?.hand_result?.winners?.length) {
+      if (lastCompletedHandIdRef.current !== liveState.hand_id) {
+        lastCompletedHandIdRef.current = liveState.hand_id
+        
+        // Refetch balance and stats
+        refetchUserData().catch((err) => {
+          console.warn('Failed to refetch user data after hand completion', err)
+        })
+        
+        // Show post-hand ready modal
+        // Only show if table is still active and not expired
+        if (tableDetails?.status === 'active' && !tableDetails.is_expired) {
+          setShowPostHandModal(true)
+        }
+      }
     }
-  }, [liveState?.hand_result, liveState?.hand_id, refetchUserData, tableDetails?.status, tableDetails?.is_expired])
+  }, [liveState?.inter_hand_wait, liveState?.hand_result, liveState?.hand_id, refetchUserData, tableDetails?.status, tableDetails?.is_expired])
 
   const fetchTable = useCallback(async () => {
     if (!tableId) {
@@ -459,6 +462,41 @@ export default function TablePage() {
       }
     }
   }, [tableId, initData, liveState?.hero?.user_id, fetchTable, fetchLiveState, showToast, t])
+
+  // Handle player signaling ready for next hand
+  const handleReady = useCallback(async () => {
+    if (!tableId || !initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    
+    try {
+      // Send READY action
+      await apiFetch(`/tables/${tableId}/actions`, {
+        method: 'POST',
+        initData,
+        body: {
+          action_type: 'ready',
+        },
+      })
+      
+      // Refresh live state to reflect ready status
+      await fetchLiveState()
+      
+      showToast(t('table.toast.ready', 'You\'re ready for the next hand!'))
+    } catch (err) {
+      console.error('Error signaling ready:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    }
+  }, [tableId, initData, fetchLiveState, showToast, t])
 
   // Refresh table data once auth context (initData) becomes available so the
   // viewer-specific fields (like seat status and hero cards) are populated.
@@ -1382,11 +1420,10 @@ export default function TablePage() {
       
       <PostHandModal
         isOpen={showPostHandModal}
-        delaySeconds={POST_HAND_DELAY_SECONDS}
+        delaySeconds={liveState?.inter_hand_wait_seconds ?? POST_HAND_DELAY_SECONDS}
         onComplete={handlePostHandComplete}
-        onSitOut={() => handleToggleSitOut(true)}
-        onKeepPlaying={() => handleToggleSitOut(false)}
-        isSittingOut={heroPlayer?.is_sitting_out_next_hand ?? false}
+        onReady={handleReady}
+        isReady={!(heroPlayer?.is_sitting_out_next_hand ?? true)}
       />
       
       <TableExpiredModal

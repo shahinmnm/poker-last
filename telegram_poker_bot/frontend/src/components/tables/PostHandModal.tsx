@@ -8,18 +8,16 @@ interface PostHandModalProps {
   isOpen: boolean
   delaySeconds: number
   onComplete: () => void
-  onSitOut: () => void
-  onKeepPlaying: () => void
-  isSittingOut: boolean
+  onReady: () => void
+  isReady: boolean
 }
 
 export default function PostHandModal({
   isOpen,
   delaySeconds,
   onComplete,
-  onSitOut,
-  onKeepPlaying,
-  isSittingOut,
+  onReady,
+  isReady,
 }: PostHandModalProps) {
   const { t } = useTranslation()
   const [remainingTime, setRemainingTime] = useState(delaySeconds)
@@ -53,13 +51,9 @@ export default function PostHandModal({
     return () => clearInterval(interval)
   }, [isOpen, delaySeconds, onComplete])
 
-  const handleSitOut = useCallback(() => {
-    onSitOut()
-  }, [onSitOut])
-
-  const handleKeepPlaying = useCallback(() => {
-    onKeepPlaying()
-  }, [onKeepPlaying])
+  const handleReady = useCallback(() => {
+    onReady()
+  }, [onReady])
 
   return (
     <Modal
@@ -71,7 +65,10 @@ export default function PostHandModal({
       <div className="space-y-4">
         <div className="text-center">
           <p className="text-body text-[color:var(--color-text-muted)]">
-            {t('table.postHand.message', 'Get ready for the next hand')}
+            {isReady
+              ? t('table.postHand.readyMessage', 'You\'re ready!')
+              : t('table.postHand.message', 'Click to play next hand or sit out automatically')
+            }
           </p>
           <div className="mt-4 text-4xl font-bold text-[color:var(--color-primary)]">
             {remainingTime}s
@@ -86,33 +83,29 @@ export default function PostHandModal({
           />
         </div>
 
-        {/* Action buttons */}
-        <div className="flex gap-3">
+        {/* Action button */}
+        <div className="flex flex-col gap-3">
           <Button
-            variant={isSittingOut ? 'primary' : 'secondary'}
+            variant={isReady ? 'secondary' : 'primary'}
             size="md"
-            onClick={handleKeepPlaying}
-            disabled={isSittingOut}
+            onClick={handleReady}
+            disabled={isReady}
+            glow={!isReady}
             block
           >
-            {t('table.postHand.keepPlaying', 'Keep Playing')}
+            {isReady
+              ? t('table.postHand.readyConfirmed', '✓ Ready')
+              : t('table.postHand.ready', "I'm Ready")
+            }
           </Button>
-          <Button
-            variant={isSittingOut ? 'secondary' : 'danger'}
-            size="md"
-            onClick={handleSitOut}
-            disabled={!isSittingOut}
-            block
-          >
-            {t('table.postHand.sitOut', 'Sit Out')}
-          </Button>
-        </div>
 
-        {isSittingOut && (
-          <p className="text-center text-xs text-amber-400">
-            {t('table.postHand.sittingOutNote', 'You will sit out the next hand')}
+          <p className="text-center text-xs text-[color:var(--color-text-muted)]">
+            {isReady
+              ? t('table.postHand.readyNote', 'You will play in the next hand')
+              : t('table.postHand.autoSitOutNote', 'You will sit out if you don\'t click')
+            }
           </p>
-        )}
+        </div>
       </div>
     </Modal>
   )

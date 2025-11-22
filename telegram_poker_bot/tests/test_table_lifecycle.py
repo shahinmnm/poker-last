@@ -27,13 +27,14 @@ async def test_compute_prestart_expiry_public_table():
     should_expire, reason = await table_lifecycle.compute_prestart_expiry(db, table)
 
     assert should_expire is True
-    assert "public table" in reason.lower()
-    assert f"{settings.public_table_prestart_ttl_minutes}" in reason
+    # Now ALL tables have the same 10-minute limit
+    assert "10 minute" in reason.lower()
+    assert "join window expired" in reason.lower()
 
 
 @pytest.mark.asyncio
 async def test_compute_prestart_expiry_private_table():
-    """Test that private tables expire after configured time."""
+    """Test that private tables also expire after the same configured time."""
     settings = get_settings()
 
     # Create a private table that should be expired
@@ -51,8 +52,9 @@ async def test_compute_prestart_expiry_private_table():
     should_expire, reason = await table_lifecycle.compute_prestart_expiry(db, table)
 
     assert should_expire is True
-    assert "private table" in reason.lower()
-    assert f"{settings.private_table_prestart_ttl_minutes}" in reason
+    # Now ALL tables (public and private) have the same 10-minute limit
+    assert "10 minute" in reason.lower()
+    assert "join window expired" in reason.lower()
 
 
 @pytest.mark.asyncio
