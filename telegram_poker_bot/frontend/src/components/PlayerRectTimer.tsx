@@ -170,7 +170,7 @@ function PlayerRectTimer({ deadline, turnTimeoutSeconds, className = '' }: Playe
           strokeLinejoin="round"
           strokeDasharray={`${perimeter} ${perimeter}`}
           strokeDashoffset={dashOffset}
-          transform={`rotate(-90 ${width / 2} ${height / 2})`}
+          transform={`rotate(90 ${width / 2} ${height / 2})`}
           style={{
             transition: `stroke-dashoffset ${PROGRESS_TRANSITION_MS}ms linear, stroke ${COLOR_TRANSITION_MS}ms ease`,
           }}
