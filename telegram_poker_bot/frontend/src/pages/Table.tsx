@@ -808,6 +808,17 @@ export default function TablePage() {
     }
   }, [amountToCall, heroId, liveState, sendAction])
 
+  // Control bottom navigation visibility based on seated status
+  useEffect(() => {
+    // Hide bottom nav when seated and playing, show it when spectating
+    const viewerIsSeated = tableDetails?.viewer?.is_seated ?? false
+    setShowBottomNav(!viewerIsSeated)
+    // Restore bottom nav on unmount
+    return () => {
+      setShowBottomNav(true)
+    }
+  }, [tableDetails?.viewer?.is_seated, setShowBottomNav])
+
   const handleDeleteTable = async () => {
     if (!tableId) {
       return
@@ -923,16 +934,6 @@ export default function TablePage() {
       ? 'finished'
       : 'waiting'
   const heroCards = liveState?.hero?.cards ?? []
-
-  // Control bottom navigation visibility based on seated status
-  useEffect(() => {
-    // Hide bottom nav when seated and playing, show it when spectating
-    setShowBottomNav(!viewerIsSeated)
-    // Restore bottom nav on unmount
-    return () => {
-      setShowBottomNav(true)
-    }
-  }, [viewerIsSeated, setShowBottomNav])
 
   return (
     <div className="space-y-3">
