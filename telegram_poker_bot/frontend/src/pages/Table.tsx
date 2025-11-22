@@ -8,14 +8,11 @@ import { useUserData } from '../providers/UserDataProvider'
 import { useLayout } from '../providers/LayoutProvider'
 import { apiFetch, ApiError } from '../utils/apiClient'
 import Toast from '../components/Toast'
-import Countdown from '../components/Countdown'
-import PlayerRectTimer from '../components/PlayerRectTimer'
 import Card from '../components/ui/Card'
 import PlayingCard from '../components/ui/PlayingCard'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
-import ConnectionStatus from '../components/ui/ConnectionStatus'
 import ExpiredTableView from '../components/tables/ExpiredTableView'
 import HandResultPanel from '../components/tables/HandResultPanel'
 import RecentHandsModal from '../components/tables/RecentHandsModal'
@@ -25,6 +22,8 @@ import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import GameControls from '../components/tables/GameControls'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
+import SmartTableHeader from '../components/tables/SmartTableHeader'
+import PlayerAvatar from '../components/tables/PlayerAvatar'
 
 interface TablePlayer {
   user_id: number
@@ -489,7 +488,7 @@ export default function TablePage() {
   }, [tableId]) // Only depend on tableId, not the fetch functions (which are stable via useCallback)
 
   // WebSocket connection with stable hook
-  const { status: wsStatus } = useTableWebSocket({
+  useTableWebSocket({
     tableId: tableId || '',
     enabled: !!tableId,
     onMessage: useCallback((payload: any) => {
@@ -743,8 +742,14 @@ export default function TablePage() {
   const heroId = liveState?.hero?.user_id ?? null
   const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
   const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
-  const normalizedStatus = (liveState?.status ?? '').toString().toLowerCase()
+  const tableStatus = (liveState?.status ?? tableDetails.status ?? '').toString().toLowerCase()
+  const normalizedStatus = tableStatus
   const isInterHand = normalizedStatus === 'inter_hand_wait' || liveState?.inter_hand_wait
+  const inviteUrl = tableDetails.invite?.game_id
+    ? `${window.location.origin}/table/${tableDetails.invite.game_id}`
+    : `${window.location.origin}/table/${tableDetails.table_id}`
+  const currentActorName = liveState?.players.find((p) => p.user_id === liveState.current_actor)?.display_name
+  const isMyTurn = liveState?.current_actor === heroId
 
   useEffect(() => {
     if (liveState?.hand_id !== autoTimeoutRef.current.handId) {
@@ -903,8 +908,78 @@ export default function TablePage() {
   const canLeave = tableDetails.permissions?.can_leave ?? false
   const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
-  const tableName = tableDetails.table_name || `Table #${tableDetails.table_id}`
   const heroCards = liveState?.hero?.cards ?? []
+
+  const renderActionDock = () => {
+    if (isInterHand) return null
+
+    if (tableStatus === 'waiting') {
+      return (
+        <div className="absolute inset-0 flex items-end justify-center pb-12 z-40 pointer-events-none">
+          <div className="flex flex-col items-center gap-4 pointer-events-auto">
+            {viewerIsCreator ? (
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={isStarting || !canStart}
+                className="min-h-[52px] px-8 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 text-black font-bold text-lg shadow-2xl shadow-emerald-500/40 hover:from-emerald-400 hover:to-emerald-300 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed animate-pulse"
+              >
+                {isStarting ? t('table.actions.starting') : 'START GAME'}
+              </button>
+            ) : viewerIsSeated ? (
+              <div className="px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
+                Waiting for host to start...
+              </div>
+            ) : (
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={handleSeat}
+                disabled={!canJoin || isSeating}
+                className="min-h-[52px] px-8"
+              >
+                {isSeating ? t('table.actions.joining') : 'SIT DOWN'}
+              </Button>
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    if (tableStatus === 'active' && liveState && viewerIsSeated) {
+      if (isMyTurn) {
+        return (
+          <div className="absolute bottom-0 left-0 right-0 z-50">
+            <div className="backdrop-blur-xl bg-black/40 border-t border-white/10 shadow-2xl">
+              <GameControls
+                isPlayerTurn
+                amountToCall={amountToCall}
+                minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
+                maxRaise={liveState.allowed_actions?.max_raise_to || (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0)}
+                currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
+                actionPending={actionPending}
+                onFold={() => sendAction('fold')}
+                onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
+                onBet={(amount) => sendAction('bet', amount)}
+                onRaise={(amount) => sendAction('raise', amount)}
+              />
+            </div>
+          </div>
+        )
+      }
+
+      const waitingFor = currentActorName || 'another player'
+      return (
+        <div className="absolute bottom-0 left-0 right-0 z-40">
+          <div className="backdrop-blur-xl bg-black/50 border-t border-white/10 py-4 px-6 text-center text-white/80">
+            Waiting for {waitingFor}...
+          </div>
+        </div>
+      )
+    }
+
+    return null
+  }
 
   return (
     <PokerFeltBackground>
@@ -925,72 +1000,16 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      {/* HUD Header - Floating Glass Bar */}
-      <div className="absolute top-4 left-4 right-4 z-50">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl px-4 py-3 shadow-xl">
-          <div className="flex items-center justify-between gap-4">
-            {/* Left: Table Info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white truncate">{tableName}</p>
-              <p className="text-xs text-white/70">
-                Blinds: {tableDetails.small_blind}/{tableDetails.big_blind}
-              </p>
-            </div>
-            
-            {/* Center: Connection Status & Timer */}
-            <div className="flex items-center gap-3">
-              <ConnectionStatus status={wsStatus} />
-              {tableDetails.expires_at && tableDetails.status === 'waiting' && (
-                <div className="text-center">
-                  <Countdown 
-                    expiresAt={tableDetails.expires_at} 
-                    className="text-sm font-bold text-amber-400"
-                    onExpire={() => {
-                      showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
-                      setTimeout(() => navigate('/lobby'), EXPIRED_TABLE_REDIRECT_DELAY_MS)
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-            
-            {/* Right: Settings, Exit, and START BUTTON */}
-            <div className="flex items-center gap-2">
-              {/* START BUTTON - Critical: Show if host and waiting */}
-              {viewerIsCreator && tableDetails.status === 'waiting' && canStart && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  glow
-                  onClick={handleStart}
-                  disabled={isStarting}
-                  className="animate-pulse"
-                >
-                  {isStarting ? t('table.actions.starting') : '▶ START GAME'}
-                </Button>
-              )}
-              
-              {/* Settings Icon (Gear) - Opens menu modal */}
-              <button
-                onClick={() => setShowRecentHands(true)}
-                className="w-9 h-9 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all border border-white/20"
-                title="Recent Hands"
-              >
-                <span className="text-white text-sm">📋</span>
-              </button>
-              
-              {/* Exit Button (X) */}
-              <button
-                onClick={() => navigate('/lobby')}
-                className="w-9 h-9 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all border border-white/20"
-                title="Exit Table"
-              >
-                <span className="text-white text-lg font-bold">✕</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <SmartTableHeader
+        tableId={tableDetails.table_id}
+        status={liveState?.status ?? tableDetails.status}
+        smallBlind={tableDetails.small_blind}
+        bigBlind={tableDetails.big_blind}
+        hostName={tableDetails.host?.display_name || tableDetails.host?.username}
+        createdAt={tableDetails.created_at}
+        inviteUrl={inviteUrl}
+        onLeave={canLeave ? handleLeave : undefined}
+      />
 
       {/* Arena - Game Content */}
       {liveState ? (
@@ -1014,8 +1033,8 @@ export default function TablePage() {
           ) : (
             <>
               {/* Villains (Top Center) */}
-              <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-10">
-                <div className="flex gap-4">
+              <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20">
+                <div className="flex gap-6">
                   {liveState.players
                     .filter((p) => p.user_id !== heroId)
                     .slice(0, 3)
@@ -1049,46 +1068,21 @@ export default function TablePage() {
                               playerTileRefs.current.delete(player.user_id)
                             }
                           }}
-                          className="relative flex flex-col items-center"
+                          className="relative flex flex-col items-center gap-1"
                         >
-                          {/* Player Avatar */}
-                          <div className={`relative w-16 h-16 rounded-full border-3 ${isActor ? 'border-emerald-400 shadow-lg shadow-emerald-500/50' : 'border-white/30'} bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}>
-                            {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
-                              <PlayerRectTimer
-                                deadline={liveState.action_deadline}
-                                turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                                className="rounded-full"
-                              />
-                            )}
-                            <span className="text-white font-bold text-lg z-10">
-                              {player.display_name?.[0]?.toUpperCase() || '?'}
-                            </span>
-                            {/* FOLD Overlay - Covers avatar only */}
-                            {!player.in_hand && (
-                              <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-20 rounded-full">
-                                <span className="text-white/90 text-xs font-bold tracking-wide">FOLD</span>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Info Capsule - Overlaps bottom edge of avatar */}
-                          <div className="relative -mt-3 z-20 rounded-full backdrop-blur-xl bg-black/70 px-3 py-1.5 border border-white/20 min-w-[80px] text-center shadow-lg">
-                            <div className="text-white font-bold text-xs">{player.stack}</div>
-                            <div className="text-gray-300 text-[9px] truncate max-w-[75px]">
-                              {player.display_name || `P${player.seat + 1}`}
-                            </div>
-                          </div>
-                          
-                          {/* Bet Badge */}
-                          {player.bet > 0 && (
-                            <div className="mt-1.5 bg-amber-500/95 backdrop-blur-sm text-black font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-md">
-                              {player.bet}
-                            </div>
-                          )}
-                          
-                          {/* Last Action */}
+                          <PlayerAvatar
+                            name={player.display_name || player.username || `P${(player.seat ?? player.position ?? 0) + 1}`}
+                            stack={player.stack}
+                            isActive={Boolean(isActor && player.in_hand)}
+                            hasFolded={!player.in_hand}
+                            betAmount={player.bet}
+                            deadline={isActor ? liveState.action_deadline : null}
+                            turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                            offsetTop
+                          />
+
                           {lastActionText && player.in_hand && (
-                            <p className="mt-1 text-[9px] font-semibold text-emerald-300 uppercase tracking-wide">
+                            <p className="text-[9px] font-semibold text-emerald-300 uppercase tracking-wide">
                               {lastActionText}
                             </p>
                           )}
@@ -1099,7 +1093,7 @@ export default function TablePage() {
               </div>
 
               {/* Board Center - Pot & Community Cards */}
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
                 <div className="flex flex-col items-center gap-4">
                   {/* Pot - Floating Pill */}
                   <div className="rounded-full backdrop-blur-xl bg-black/80 px-5 py-2.5 border-2 border-amber-500/60 shadow-2xl" ref={potAreaRef}>
@@ -1146,7 +1140,7 @@ export default function TablePage() {
 
               {/* Hero (Bottom Center) */}
               {heroPlayer && (
-                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
+                <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20">
                   <div
                     ref={(el) => {
                       if (el && heroId) {
@@ -1177,33 +1171,18 @@ export default function TablePage() {
                         })}
                       </div>
                     )}
-                    
-                    {/* Hero Avatar */}
-                    <div className={`relative w-20 h-20 rounded-full border-4 ${heroPlayer.user_id === liveState.current_actor ? 'border-emerald-400 shadow-xl shadow-emerald-500/50' : 'border-sky-500 shadow-xl shadow-sky-500/30'} bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}>
-                      {heroPlayer.user_id === liveState.current_actor && !heroPlayer.is_sitting_out_next_hand && heroPlayer.in_hand && liveState.action_deadline && (
-                        <PlayerRectTimer
-                          deadline={liveState.action_deadline}
-                          turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                          className="rounded-full"
-                        />
-                      )}
-                      <span className="text-white font-bold text-2xl z-10">
-                        {heroPlayer.display_name?.[0]?.toUpperCase() || 'Y'}
-                      </span>
-                    </div>
-                    
-                    {/* Hero Info - Overlaps bottom edge */}
-                    <div className="relative -mt-4 z-20 rounded-full backdrop-blur-xl bg-black/80 px-4 py-2 border-2 border-sky-500/70 min-w-[110px] text-center shadow-xl">
-                      <div className="text-white font-bold text-sm">{heroPlayer.stack}</div>
-                      <div className="text-sky-300 text-[10px] font-semibold uppercase tracking-wide">You</div>
-                    </div>
-                    
-                    {/* Hero Bet */}
-                    {heroPlayer.bet > 0 && (
-                      <div className="mt-2.5 backdrop-blur-sm bg-amber-500/95 text-black font-bold text-xs px-3.5 py-1 rounded-full shadow-lg">
-                        BET: {heroPlayer.bet}
-                      </div>
-                    )}
+
+                    <PlayerAvatar
+                      name={heroPlayer.display_name || 'You'}
+                      stack={heroPlayer.stack}
+                      isHero
+                      isActive={Boolean(heroPlayer.in_hand && heroPlayer.user_id === liveState.current_actor)}
+                      hasFolded={!heroPlayer.in_hand}
+                      betAmount={heroPlayer.bet}
+                      deadline={heroPlayer.user_id === liveState.current_actor ? liveState.action_deadline : null}
+                      turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                      size="lg"
+                    />
                   </div>
                 </div>
               )}
@@ -1325,25 +1304,7 @@ export default function TablePage() {
         }}
       />
 
-      {/* Bottom Action Dock - Glass */}
-      {liveState && viewerIsSeated && !isInterHand && (
-        <div className="absolute bottom-0 left-0 right-0 z-50">
-          <div className="backdrop-blur-xl bg-black/40 border-t border-white/10 shadow-2xl">
-            <GameControls
-              isPlayerTurn={liveState.current_actor === heroId}
-              amountToCall={amountToCall}
-              minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
-              maxRaise={liveState.allowed_actions?.max_raise_to || (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0)}
-              currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
-              actionPending={actionPending}
-              onFold={() => sendAction('fold')}
-              onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
-              onBet={(amount) => sendAction('bet', amount)}
-              onRaise={(amount) => sendAction('raise', amount)}
-            />
-          </div>
-        </div>
-      )}
+      {renderActionDock()}
     </PokerFeltBackground>
   )
 }
