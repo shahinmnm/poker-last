@@ -102,7 +102,6 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
       setStatus('connecting')
 
       socket.onopen = () => {
-        console.log('[WebSocket] Connected to table', tableId)
         setStatus('connected')
         reconnectAttemptsRef.current = 0
         onConnectRef.current?.()
@@ -141,17 +140,15 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
             onStateChangeRef.current?.(payload)
           }
         } catch (error) {
-          console.warn('[WebSocket] Failed to parse message:', error)
+          // Failed to parse message - ignore
         }
       }
 
-      socket.onerror = (error) => {
-        console.error('[WebSocket] Error:', error)
+      socket.onerror = () => {
         setStatus('error')
       }
 
-      socket.onclose = (event) => {
-        console.log('[WebSocket] Disconnected from table', tableId, 'code:', event.code)
+      socket.onclose = () => {
         setStatus('disconnected')
         onDisconnectRef.current?.()
 
@@ -167,15 +164,12 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
           const delay = Math.min(1000 * Math.pow(2, attempt), 30000) // Max 30 seconds
           reconnectAttemptsRef.current += 1
 
-          console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${attempt + 1})`)
-          
           reconnectTimeoutRef.current = setTimeout(() => {
             connect()
           }, delay)
         }
       }
     } catch (error) {
-      console.error('[WebSocket] Failed to create connection:', error)
       setStatus('error')
     }
   }, [tableId, enabled])
@@ -183,9 +177,8 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
   const sendMessage = useCallback((data: any) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify(data))
-    } else {
-      console.warn('[WebSocket] Cannot send message: socket not connected')
     }
+    // Silently ignore if not connected
   }, [])
 
   const reconnect = useCallback(() => {

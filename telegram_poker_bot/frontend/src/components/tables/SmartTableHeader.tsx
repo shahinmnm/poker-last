@@ -63,7 +63,7 @@ export default function SmartTableHeader({
     try {
       await navigator.clipboard.writeText(inviteLink)
     } catch (err) {
-      console.error('Failed to copy invite link', err)
+      // Silently handle copy failure
     }
   }
 
