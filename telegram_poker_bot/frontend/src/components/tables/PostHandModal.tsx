@@ -44,6 +44,8 @@ export default function PostHandModal({
 
       if (remaining <= 0) {
         clearInterval(interval)
+        // Rule 4 & 5: Auto-trigger next hand when countdown reaches 0
+        // If user didn't click "I'm Ready", they will sit out (backend default behavior)
         onComplete()
       }
     }, 50) // Update every 50ms for smooth animation
