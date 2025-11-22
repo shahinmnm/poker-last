@@ -1,7 +1,6 @@
 """Tests for unified hand completion refactoring."""
 
 import pytest
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from telegram_poker_bot.shared.models import (
