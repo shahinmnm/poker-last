@@ -12,6 +12,7 @@ import AppBackground from './background/AppBackground'
 import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
 import { useUserData } from '../providers/UserDataProvider'
+import { useLayout } from '../providers/LayoutProvider'
 
 const bottomNavKeys = ['home', 'lobby', 'wallet', 'profile'] as const
 
@@ -23,6 +24,7 @@ export default function MainLayout() {
   const { t } = useTranslation()
   const { user } = useTelegram()
   const { balance } = useUserData()
+  const { showBottomNav } = useLayout()
   const [isPlaySheetOpen, setIsPlaySheetOpen] = useState(false)
 
   const displayName = user?.first_name || user?.username || 'Player'
@@ -84,17 +86,18 @@ export default function MainLayout() {
           <Outlet />
         </main>
 
-        <nav 
-          className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-safe pt-3"
-          style={{ 
-            height: '72px',
-            background: 'var(--glass-bg-elevated)',
-            backdropFilter: 'blur(var(--glass-blur))',
-            WebkitBackdropFilter: 'blur(var(--glass-blur))',
-            borderTop: '1px solid var(--glass-border)',
-            boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
-          }}
-        >
+        {showBottomNav && (
+          <nav 
+            className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-safe pt-3"
+            style={{ 
+              height: '72px',
+              background: 'var(--glass-bg-elevated)',
+              backdropFilter: 'blur(var(--glass-blur))',
+              WebkitBackdropFilter: 'blur(var(--glass-blur))',
+              borderTop: '1px solid var(--glass-border)',
+              boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+            }}
+          >
           <div className="relative mx-auto flex w-full max-w-4xl items-center justify-around">
             {bottomNavItems.slice(0, 2).map((item) => (
               <NavLink
@@ -176,6 +179,7 @@ export default function MainLayout() {
             ))}
           </div>
         </nav>
+        )}
       </div>
 
       <PlaySheet isOpen={isPlaySheetOpen} onClose={() => setIsPlaySheetOpen(false)} />
