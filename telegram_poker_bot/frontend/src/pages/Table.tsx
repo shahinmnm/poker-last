@@ -783,10 +783,18 @@ export default function TablePage() {
     : null
   const viewerIsCreator = tableDetails.viewer?.is_creator ?? false
   const viewerIsSeated = tableDetails.viewer?.is_seated ?? false
-  const canStart = tableDetails.permissions?.can_start ?? false
+  
+  // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
+  const livePlayerCount = liveState?.players?.length ?? tableDetails.player_count
+  const hasActiveHand = liveState?.hand_id !== null && liveState?.status !== 'waiting'
+  const canStart = viewerIsCreator && 
+                   livePlayerCount >= 2 && 
+                   (tableDetails.status === 'waiting' || 
+                    (tableDetails.status === 'active' && !hasActiveHand))
+  
   const canJoin = tableDetails.permissions?.can_join ?? false
   const canLeave = tableDetails.permissions?.can_leave ?? false
-  const missingPlayers = Math.max(0, 2 - tableDetails.player_count)
+  const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
   const tableName = tableDetails.table_name || `Table #${tableDetails.table_id}`
   const hostName = tableDetails.host?.display_name || tableDetails.host?.username || null
@@ -1117,8 +1125,8 @@ export default function TablePage() {
         />
       )}
 
-      {/* Countdown Timer (for all tables) */}
-      {tableDetails.expires_at && (
+      {/* Countdown Timer (only for WAITING tables - no countdown after game starts) */}
+      {tableDetails.expires_at && tableDetails.status === 'waiting' && (
         <Card>
           <div className="flex items-center justify-between">
             <div className="flex-1">
