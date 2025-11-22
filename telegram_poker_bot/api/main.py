@@ -33,7 +33,7 @@ from telegram.error import TelegramError
 
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.logging import configure_logging, get_logger
-from telegram_poker_bot.shared.database import get_db
+from telegram_poker_bot.shared.database import get_db, get_db_session
 from telegram_poker_bot.shared.models import (
     Table,
     ActionType,
@@ -257,6 +257,63 @@ manager = ConnectionManager()
 
 _auto_fold_task: Optional[asyncio.Task] = None
 _inactivity_check_task: Optional[asyncio.Task] = None
+_inter_hand_tasks: Dict[int, asyncio.Task] = {}
+
+
+def _cancel_inter_hand_task(table_id: int) -> None:
+    """Cancel any pending inter-hand task for the table."""
+
+    task = _inter_hand_tasks.pop(table_id, None)
+    if task:
+        task.cancel()
+
+
+async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> None:
+    """Broadcast the outcome of the inter-hand phase."""
+
+    if not result:
+        return
+
+    if result.get("table_ended"):
+        await manager.broadcast(
+            table_id,
+            {
+                "type": "table_ended",
+                "reason": result.get("reason", "Not enough players"),
+            },
+        )
+        await manager.close_all_connections(table_id)
+        return
+
+    if result.get("state"):
+        await manager.broadcast(table_id, result["state"])
+
+
+async def _auto_complete_inter_hand(table_id: int) -> None:
+    """Automatically resolve the inter-hand phase when the timer expires."""
+
+    try:
+        await asyncio.sleep(settings.post_hand_delay_seconds)
+        async with get_db_session() as session:
+            result = await get_pokerkit_runtime_manager().complete_inter_hand_phase(
+                session, table_id
+            )
+            await session.commit()
+
+        await _handle_inter_hand_result(table_id, result)
+    except asyncio.CancelledError:
+        return
+    finally:
+        _inter_hand_tasks.pop(table_id, None)
+
+
+def _schedule_inter_hand_completion(table_id: int) -> None:
+    """Schedule or reset the inter-hand countdown task for a table."""
+
+    _cancel_inter_hand_task(table_id)
+    _inter_hand_tasks[table_id] = asyncio.create_task(
+        _auto_complete_inter_hand(table_id)
+    )
 
 
 async def check_table_inactivity():
@@ -1592,6 +1649,60 @@ async def toggle_sitout(
     return {"success": True, "is_sitting_out_next_hand": request.sit_out}
 
 
+@api_app.post("/tables/{table_id}/ready")
+async def mark_ready(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark the current player as ready for the next hand."""
+
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, auth)
+
+    runtime_mgr = get_pokerkit_runtime_manager()
+
+    try:
+        ready_info = await runtime_mgr.mark_player_ready(db, table_id, user.id)
+    except ValueError as exc:
+        message = str(exc)
+        if "Insufficient balance" in message:
+            message = "Insufficient Balance"
+        raise HTTPException(status_code=400, detail=message)
+
+    await manager.broadcast(
+        table_id,
+        {
+            "type": "player_ready",
+            "user_id": user.id,
+            "ready_players": ready_info.get("ready_players", []),
+        },
+    )
+
+    all_ready = set(ready_info.get("ready_players", [])) >= set(
+        ready_info.get("seated_user_ids", [])
+    )
+
+    if all_ready:
+        _cancel_inter_hand_task(table_id)
+        result = await runtime_mgr.complete_inter_hand_phase(db, table_id)
+        await db.commit()
+        await _handle_inter_hand_result(table_id, result)
+
+        if result.get("table_ended"):
+            return {"table_ended": True, "reason": result.get("reason")}
+
+        return result.get("state", {})
+
+    return {"ready_players": ready_info.get("ready_players", [])}
+
+
 @api_app.post("/tables/{table_id}/start")
 async def start_table(
     table_id: int,
@@ -1657,9 +1768,6 @@ async def start_next_hand(
     4. Marks table as expired if < 2 active players remain after balance checks
     5. Starts the next hand if all conditions are met
     """
-    from telegram_poker_bot.shared.services import table_lifecycle
-    from telegram_poker_bot.shared.config import get_settings
-
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
 
@@ -1669,99 +1777,21 @@ async def start_next_hand(
 
     user = await ensure_user(db, user_auth)
 
-    # Get table configuration
-    table_result = await db.execute(select(Table).where(Table.id == table_id))
-    table = table_result.scalar_one_or_none()
-    if not table:
-        raise HTTPException(status_code=404, detail="Table not found")
-
-    config = table.config_json or {}
-    small_blind = config.get("small_blind", get_settings().small_blind)
-    big_blind = config.get("big_blind", get_settings().big_blind)
-    ante = config.get("ante", 0)
-
-    # Get all active seats
-    seats_result = await db.execute(
-        select(Seat).where(
-            Seat.table_id == table_id,
-            Seat.left_at.is_(None),
-        )
-    )
-    active_seats = seats_result.scalars().all()
-
-    # Track which players have insufficient balance
-    insufficient_balance_players = []
-
-    # Rule 8: Balance Validation
-    # Check each player who is NOT sitting out for sufficient balance
-    for seat in active_seats:
-        if not seat.is_sitting_out_next_hand:
-            has_sufficient, required = (
-                await table_lifecycle.check_player_balance_requirements(
-                    seat, small_blind, big_blind, ante
-                )
-            )
-            if not has_sufficient:
-                # Set player to sitting out due to insufficient balance
-                seat.is_sitting_out_next_hand = True
-                insufficient_balance_players.append(
-                    {
-                        "user_id": seat.user_id,
-                        "required": required,
-                        "current": seat.chips,
-                    }
-                )
-                logger.info(
-                    "Player set to sitting out due to insufficient balance",
-                    table_id=table_id,
-                    user_id=seat.user_id,
-                    required=required,
-                    current=seat.chips,
-                )
-
-    await db.flush()
-
-    # Count remaining active players (not sitting out) after balance checks
-    playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
-
-    # Rule 5 & 6: Min Player Deletion
-    # Check if we have minimum players AFTER the inter-hand ready phase
-    if len(playing_seats) < 2:
-        # Not enough players to continue - mark table as expired
-        reason = f"lack of minimum players ({len(playing_seats)}/2 required)"
-        await table_lifecycle.mark_table_expired(db, table, reason)
-        await db.commit()
-
-        return {
-            "status": "table_expired",
-            "reason": reason,
-            "insufficient_balance_players": insufficient_balance_players,
-        }
-
-    # Start the next hand
     try:
-        state = await get_pokerkit_runtime_manager().start_game(db, table_id)
+        result = await get_pokerkit_runtime_manager().complete_inter_hand_phase(
+            db, table_id
+        )
         await db.commit()
-
-        await manager.broadcast(table_id, state)
-
-        logger.info(
-            "Next hand started after inter-hand phase",
-            table_id=table_id,
-            players=len(playing_seats),
-            insufficient_balance_count=len(insufficient_balance_players),
-        )
-
-        # Return viewer-specific state
-        viewer_state = await get_pokerkit_runtime_manager().get_state(
-            db, table_id, user.id
-        )
-        viewer_state["insufficient_balance_players"] = insufficient_balance_players
-
-        return viewer_state
-
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+    await _handle_inter_hand_result(table_id, result)
+
+    if result.get("table_ended"):
+        return {"table_ended": True, "reason": result.get("reason")}
+
+    viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
+    return viewer_state
 
 
 @api_app.get("/tables/{table_id}/state")
@@ -1838,6 +1868,8 @@ async def delete_table(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the table creator can delete this table",
         )
+
+    _cancel_inter_hand_task(table_id)
 
     # Close all WebSocket connections for this table
     await manager.close_all_connections(table_id)
@@ -2013,6 +2045,9 @@ async def submit_action(
         )
 
         await manager.broadcast(table_id, public_state)
+
+        if public_state.get("inter_hand_wait"):
+            _schedule_inter_hand_completion(table_id)
 
         viewer_state = await get_pokerkit_runtime_manager().get_state(
             db, table_id, user.id

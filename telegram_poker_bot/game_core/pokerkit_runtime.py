@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -23,6 +23,7 @@ from telegram_poker_bot.shared.models import (
     HandHistoryEvent,
     Seat,
     Table,
+    TableStatus,
 )
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
@@ -61,6 +62,7 @@ class PokerKitTableRuntime:
         self._pending_deal_event: Optional[str] = None
         self.last_hand_result: Optional[Dict[str, Any]] = None
         self.inter_hand_wait_start: Optional[datetime] = None  # Track inter-hand wait phase
+        self.ready_players: Set[int] = set()
 
     def _get_active_players_in_hand(self) -> List[Seat]:
         """
@@ -244,6 +246,7 @@ class PokerKitTableRuntime:
         hand = await self.load_or_create_hand(db)
         self.hand_no = hand.hand_no
         self.last_hand_result = None
+        self.ready_players = set()
 
         # Build canonical active players list ordered by seat position
         active_seats = self._get_active_players_in_hand()
@@ -658,6 +661,7 @@ class PokerKitTableRuntime:
                 "players": seated_players,
                 "hero": None,
                 "last_action": None,
+                "ready_players": list(self.ready_players),
             }
 
         # Get viewer player index
@@ -759,6 +763,7 @@ class PokerKitTableRuntime:
             ),
             "last_action": None,
             "allowed_actions": poker_state.get("allowed_actions", {}),
+            "ready_players": list(self.ready_players),
         }
 
         if self.last_hand_result and (not self.engine or not self.engine.state.status):
@@ -930,6 +935,97 @@ class PokerKitTableRuntimeManager:
 
         return runtime
 
+    async def mark_player_ready(
+        self, db: AsyncSession, table_id: int, user_id: int
+    ) -> Dict[str, Any]:
+        """Mark a player as ready during the inter-hand wait phase."""
+
+        lock = self._get_lock_for_table(table_id)
+        async with lock:
+            runtime = await self.ensure_table(db, table_id)
+
+            if not runtime.current_hand or runtime.current_hand.status != HandStatus.INTER_HAND_WAIT:
+                raise ValueError("READY is only available during inter-hand wait phase")
+
+            seat = next(
+                (s for s in runtime.seats if s.user_id == user_id and s.left_at is None),
+                None,
+            )
+            if not seat:
+                raise ValueError("User not seated at this table")
+
+            config = runtime.table.config_json or {}
+            small_blind = config.get("small_blind", settings.small_blind)
+            big_blind = config.get("big_blind", settings.big_blind)
+            ante = config.get("ante", 0)
+
+            has_sufficient, required = await table_lifecycle.check_player_balance_requirements(
+                seat, small_blind, big_blind, ante
+            )
+            if not has_sufficient:
+                raise ValueError(
+                    f"Insufficient balance: need {required}, have {seat.chips}"
+                )
+
+            runtime.ready_players.add(user_id)
+            seat.is_sitting_out_next_hand = False
+            runtime.table.last_action_at = datetime.now(timezone.utc)
+
+            await db.flush()
+
+            seated_user_ids = [s.user_id for s in runtime.seats if s.left_at is None]
+
+            return {
+                "ready_players": list(runtime.ready_players),
+                "seated_user_ids": seated_user_ids,
+            }
+
+    async def complete_inter_hand_phase(
+        self, db: AsyncSession, table_id: int
+    ) -> Dict[str, Any]:
+        """Resolve the inter-hand wait phase by starting or ending the table."""
+
+        lock = self._get_lock_for_table(table_id)
+        async with lock:
+            runtime = await self.ensure_table(db, table_id)
+
+            if not runtime.current_hand or runtime.current_hand.status != HandStatus.INTER_HAND_WAIT:
+                return {"status": "no_inter_hand"}
+
+            active_seats = [s for s in runtime.seats if s.left_at is None]
+            ready_ids = set(runtime.ready_players)
+
+            for seat in active_seats:
+                seat.is_sitting_out_next_hand = seat.user_id not in ready_ids
+
+            runtime.current_hand.status = HandStatus.ENDED
+            runtime.inter_hand_wait_start = None
+            runtime.table.last_action_at = datetime.now(timezone.utc)
+
+            await db.flush()
+
+            playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
+
+            if len(playing_seats) < 2:
+                runtime.table.status = TableStatus.ENDED
+                runtime.table.updated_at = datetime.now(timezone.utc)
+                runtime.ready_players = set()
+                await db.flush()
+
+                return {"table_ended": True, "reason": "Not enough players"}
+
+            config = runtime.table.config_json or {}
+            small_blind = config.get("small_blind", settings.small_blind)
+            big_blind = config.get("big_blind", settings.big_blind)
+
+            runtime.table.last_action_at = datetime.now(timezone.utc)
+
+            state = await runtime.start_new_hand(db, small_blind, big_blind)
+
+            runtime.ready_players = set()
+
+            return {"state": state}
+
     async def start_game(self, db: AsyncSession, table_id: int) -> Dict:
         lock = self._get_lock_for_table(table_id)
         async with lock:
@@ -976,21 +1072,31 @@ class PokerKitTableRuntimeManager:
 
             # SPECIAL HANDLING: READY action during INTER_HAND_WAIT phase
             if action == ActionType.READY:
-                # Verify we're in the inter-hand wait phase
                 if runtime.current_hand.status != HandStatus.INTER_HAND_WAIT:
                     raise ValueError("READY action only allowed during inter-hand wait phase")
 
-                # Find the user's seat and mark them as NOT sitting out
-                user_seat = None
-                for seat in runtime.seats:
-                    if seat.user_id == user_id and seat.left_at is None:
-                        user_seat = seat
-                        break
+                user_seat = next(
+                    (s for s in runtime.seats if s.user_id == user_id and s.left_at is None),
+                    None,
+                )
 
                 if user_seat is None:
                     raise ValueError("User not seated at this table")
 
-                # Mark player as ready (not sitting out)
+                config = runtime.table.config_json or {}
+                small_blind = config.get("small_blind", settings.small_blind)
+                big_blind = config.get("big_blind", settings.big_blind)
+                ante = config.get("ante", 0)
+
+                has_sufficient, required = await table_lifecycle.check_player_balance_requirements(
+                    user_seat, small_blind, big_blind, ante
+                )
+                if not has_sufficient:
+                    raise ValueError(
+                        f"Insufficient balance: need {required}, have {user_seat.chips}"
+                    )
+
+                runtime.ready_players.add(user_id)
                 user_seat.is_sitting_out_next_hand = False
                 await db.flush()
 
@@ -1001,8 +1107,8 @@ class PokerKitTableRuntimeManager:
                     hand_no=runtime.hand_no,
                 )
 
-                # Return current state
                 state = runtime.to_payload(user_id)
+                state["ready_players"] = list(runtime.ready_players)
                 state["ready_confirmed"] = True
                 return state
 
@@ -1055,6 +1161,7 @@ class PokerKitTableRuntimeManager:
 
                 runtime.current_hand.status = HandStatus.INTER_HAND_WAIT
                 runtime.inter_hand_wait_start = datetime.now(timezone.utc)
+                runtime.ready_players = set()
 
                 # Default ALL players to sitting out for next hand
                 # They must actively signal "READY" to participate
@@ -1187,7 +1294,9 @@ class PokerKitTableRuntimeManager:
             # Propagate inter-hand wait status if present
             if "inter_hand_wait" in result:
                 state["inter_hand_wait"] = result["inter_hand_wait"]
-                state["inter_hand_wait_seconds"] = result.get("inter_hand_wait_seconds", 5)
+                state["inter_hand_wait_seconds"] = result.get(
+                    "inter_hand_wait_seconds", settings.post_hand_delay_seconds
+                )
                 state["inter_hand_wait_deadline"] = result.get("inter_hand_wait_deadline")
 
             # Propagate table_ended status if present
