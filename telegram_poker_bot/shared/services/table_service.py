@@ -42,7 +42,7 @@ async def check_and_mark_expired_table(db: AsyncSession, table: Table) -> bool:
     Check if a table should be marked as expired and update its status.
 
     Returns True if table was expired, False otherwise.
-    
+
     DEPRECATED: Use table_lifecycle.check_and_enforce_lifecycle instead.
     This wrapper maintained for backward compatibility.
     """

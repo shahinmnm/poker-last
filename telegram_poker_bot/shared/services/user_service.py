@@ -256,7 +256,7 @@ async def get_recent_games(
 ) -> List[Dict[str, Any]]:
     """
     Get user's recent game history.
-    
+
     Rule E: History visibility only after deletion/completion
     - Only shows tables with status ENDED or EXPIRED
     - Active/waiting tables do not appear in history
@@ -269,7 +269,9 @@ async def get_recent_games(
         .where(
             Seat.user_id == user_id,
             Seat.left_at.isnot(None),  # Completed sessions
-            Table.status.in_([TableStatus.ENDED, TableStatus.EXPIRED]),  # Only completed/expired tables
+            Table.status.in_(
+                [TableStatus.ENDED, TableStatus.EXPIRED]
+            ),  # Only completed/expired tables
         )
         .order_by(Seat.left_at.desc())
         .limit(limit)

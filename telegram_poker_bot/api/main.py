@@ -267,7 +267,7 @@ async def check_table_inactivity():
     - Pre-game: Tables expire if expires_at is in the past (Rule A)
     - Post-game: Tables self-destruct if insufficient active players (Rule D)
     - All-sit-out: Tables where ALL players are sitting out expire after 5 minutes
-    
+
     Uses distributed lock to prevent duplicate execution in multi-worker environments.
     Runs every 30 seconds.
     """
@@ -304,10 +304,12 @@ async def check_table_inactivity():
                     for table in tables:
                         try:
                             # Use canonical lifecycle check
-                            was_expired, reason = await table_lifecycle.check_and_enforce_lifecycle(
-                                db, table
+                            was_expired, reason = (
+                                await table_lifecycle.check_and_enforce_lifecycle(
+                                    db, table
+                                )
                             )
-                            
+
                             if was_expired:
                                 logger.info(
                                     "Table lifecycle action taken",
@@ -323,7 +325,9 @@ async def check_table_inactivity():
                                         db, table.id, viewer_user_id=None
                                     )
                                     final_state["status"] = table.status.value.lower()
-                                    final_state["table_status"] = table.status.value.lower()
+                                    final_state["table_status"] = (
+                                        table.status.value.lower()
+                                    )
                                     await manager.broadcast(table.id, final_state)
                                 except Exception as broadcast_err:
                                     logger.error(
@@ -333,7 +337,7 @@ async def check_table_inactivity():
                                     )
 
                                 await manager.close_all_connections(table.id)
-                            
+
                             # Additional check for all-sit-out timeout (post-start only)
                             elif table.status == TableStatus.ACTIVE:
                                 seats_result = await db.execute(
@@ -343,12 +347,13 @@ async def check_table_inactivity():
                                     )
                                 )
                                 active_seats = seats_result.scalars().all()
-                                
+
                                 if active_seats:
                                     all_sitting_out = all(
-                                        seat.is_sitting_out_next_hand for seat in active_seats
+                                        seat.is_sitting_out_next_hand
+                                        for seat in active_seats
                                     )
-                                    
+
                                     if all_sitting_out and table.last_action_at:
                                         sit_out_duration = now - table.last_action_at
                                         if sit_out_duration > timedelta(
@@ -363,20 +368,30 @@ async def check_table_inactivity():
                                                 table_id=table.id,
                                                 reason=reason,
                                             )
-                                            
+
                                             # Broadcast and close
                                             try:
-                                                runtime_mgr = get_pokerkit_runtime_manager()
-                                                final_state = await runtime_mgr.get_state(
-                                                    db, table.id, viewer_user_id=None
+                                                runtime_mgr = (
+                                                    get_pokerkit_runtime_manager()
+                                                )
+                                                final_state = (
+                                                    await runtime_mgr.get_state(
+                                                        db,
+                                                        table.id,
+                                                        viewer_user_id=None,
+                                                    )
                                                 )
                                                 final_state["status"] = "ended"
                                                 final_state["table_status"] = "ended"
-                                                await manager.broadcast(table.id, final_state)
+                                                await manager.broadcast(
+                                                    table.id, final_state
+                                                )
                                             except Exception:
                                                 pass
-                                            
-                                            await manager.close_all_connections(table.id)
+
+                                            await manager.close_all_connections(
+                                                table.id
+                                            )
 
                         except Exception as e:
                             logger.error(
@@ -399,11 +414,11 @@ async def check_table_inactivity():
 async def auto_fold_expired_actions():
     """
     Background task that checks for expired action deadlines and auto-folds.
-    
+
     Implements Rule C: Per-turn timeout enforcement
     - Timeout #1: auto-check if legal, otherwise auto-fold
     - Timeout #2 (consecutive): always auto-fold
-    
+
     Production-hardened implementation:
     - Uses distributed lock for multi-worker safety
     - Re-validates all conditions before folding (idempotent)
@@ -505,12 +520,15 @@ async def auto_fold_expired_actions():
 
                             # Get current hand for timeout tracking
                             from telegram_poker_bot.shared.models import Hand
-                            
+
                             hand_result = await db.execute(
-                                select(Hand).where(
+                                select(Hand)
+                                .where(
                                     Hand.table_id == table.id,
                                     Hand.status != HandStatus.ENDED,
-                                ).order_by(Hand.hand_no.desc()).limit(1)
+                                )
+                                .order_by(Hand.hand_no.desc())
+                                .limit(1)
                             )
                             current_hand = hand_result.scalar_one_or_none()
 
@@ -524,7 +542,9 @@ async def auto_fold_expired_actions():
                             # Check consecutive timeout count
                             timeout_tracking = current_hand.timeout_tracking or {}
                             user_key = str(current_actor_user_id)
-                            timeout_count = timeout_tracking.get(user_key, {}).get("count", 0)
+                            timeout_count = timeout_tracking.get(user_key, {}).get(
+                                "count", 0
+                            )
 
                             # Re-validate current state
                             fresh_state = await runtime_mgr.get_state(
@@ -557,7 +577,7 @@ async def auto_fold_expired_actions():
                             # - First timeout: check if legal, otherwise fold
                             # - Second consecutive timeout: always fold
                             auto_action = ActionType.FOLD  # Default
-                            
+
                             if timeout_count == 0:
                                 # First timeout - check if CHECK is legal
                                 legal_actions = fresh_state.get("legal_actions", [])
@@ -597,12 +617,17 @@ async def auto_fold_expired_actions():
 
                             # Update timeout tracking
                             if user_key not in timeout_tracking:
-                                timeout_tracking[user_key] = {"count": 0, "last_timeout_at": None}
-                            
+                                timeout_tracking[user_key] = {
+                                    "count": 0,
+                                    "last_timeout_at": None,
+                                }
+
                             timeout_tracking[user_key]["count"] = timeout_count + 1
-                            timeout_tracking[user_key]["last_timeout_at"] = now.isoformat()
+                            timeout_tracking[user_key][
+                                "last_timeout_at"
+                            ] = now.isoformat()
                             current_hand.timeout_tracking = timeout_tracking
-                            
+
                             table.last_action_at = now
                             await db.flush()
 
@@ -1900,9 +1925,7 @@ async def get_hand_detailed_history(
     from telegram_poker_bot.shared.models import Hand, HandHistoryEvent, User
 
     # Get hand details
-    hand_result = await db.execute(
-        select(Hand).where(Hand.id == hand_id)
-    )
+    hand_result = await db.execute(select(Hand).where(Hand.id == hand_id))
     hand = hand_result.scalar_one_or_none()
     if not hand:
         raise HTTPException(status_code=404, detail="Hand not found")
@@ -1917,9 +1940,7 @@ async def get_hand_detailed_history(
 
     # Get usernames for actors
     user_ids = {e.actor_user_id for e in events if e.actor_user_id}
-    users_result = await db.execute(
-        select(User).where(User.id.in_(user_ids))
-    )
+    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
     users = {u.id: u.username for u in users_result.scalars().all()}
 
     return {
@@ -1963,7 +1984,7 @@ async def get_user_hands(
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
     user = await ensure_user(db, auth)
-    
+
     from telegram_poker_bot.shared.models import HandHistory, Seat
 
     # Find hands where user was seated
