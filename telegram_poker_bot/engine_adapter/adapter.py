@@ -72,6 +72,18 @@ class PokerEngineAdapter:
         self._deck: List[str] = []
         self._pre_showdown_stacks: Optional[List[int]] = None
 
+        # Determine button index (default to 0 if not provided)
+        if button_index is None:
+            button_index = 0
+        
+        if not (0 <= button_index < player_count):
+            button_index = 0
+            logger.warning(
+                "Invalid button_index provided, defaulting to 0",
+                provided_button_index=button_index,
+                player_count=player_count,
+            )
+
         # Create PokerKit state with automations
         self.state: State = NoLimitTexasHoldem.create_state(
             automations=(
@@ -93,14 +105,12 @@ class PokerEngineAdapter:
             mode=mode,
         )
 
-        # Set button index if provided (for hand rotation)
-        # Note: PokerKit sets button_index internally, but we can override it
-        # after the state is created by modifying the internal attribute
-        if button_index is not None and 0 <= button_index < player_count:
-            # We'll set this after dealing cards to ensure proper initialization
-            self._initial_button_index = button_index
-        else:
-            self._initial_button_index = None
+        # Set button index explicitly after state creation
+        # PokerKit's State has a button_index attribute that we can set
+        if hasattr(self.state, "_button_index"):
+            self.state._button_index = button_index
+        
+        self._initial_button_index = button_index
 
         logger.info(
             "Poker engine initialized",
@@ -125,13 +135,18 @@ class PokerEngineAdapter:
         1. Creates a fresh shuffled deck
         2. Deals 2 hole cards to each player via PokerKit
         3. Stores remaining deck for future board dealing
-        4. Applies initial button index if provided (for hand rotation)
+        4. Ensures button index is set correctly
         5. Captures pre-showdown stacks for winner calculation
         """
         self._deck = self._create_shuffled_deck()
 
         # Capture stacks before the hand starts
         self._pre_showdown_stacks = list(self.state.stacks)
+
+        # Ensure button index is set before dealing
+        if self._initial_button_index is not None:
+            if hasattr(self.state, "_button_index"):
+                self.state._button_index = self._initial_button_index
 
         # Deal 2 hole cards to each player
         for player_idx in range(self.player_count):
@@ -142,17 +157,11 @@ class PokerEngineAdapter:
                 self.state.deal_hole(cards)
                 logger.debug(f"Dealt hole cards to player {player_idx}")
 
-        # Apply button index rotation if this is not the first hand
-        if self._initial_button_index is not None:
-            # After hole cards are dealt, PokerKit has initialized button_index
-            # We can now override it for proper rotation
-            if hasattr(self.state, "_button_index"):
-                self.state._button_index = self._initial_button_index
-                logger.debug(
-                    f"Set button index to {self._initial_button_index} for hand rotation"
-                )
-
-        logger.info("New hand dealt", players=self.player_count)
+        logger.info(
+            "New hand dealt",
+            players=self.player_count,
+            button_index=self.state.button_index if hasattr(self.state, "button_index") else None,
+        )
 
     def deal_flop(self) -> None:
         """Deal the flop (3 community cards)."""
@@ -693,14 +702,17 @@ class PokerEngineAdapter:
         Returns:
             Reconstructed PokerEngineAdapter instance
         """
-        # Create a new adapter instance
+        # Create a new adapter instance with button_index from persisted state
         mode = Mode(data["mode"]) if isinstance(data["mode"], str) else data["mode"]
+        button_index = data.get("button_index", 0)
+        
         adapter = cls(
             player_count=data["player_count"],
             starting_stacks=data["starting_stacks"],
             small_blind=data["small_blind"],
             big_blind=data["big_blind"],
             mode=mode,
+            button_index=button_index,
         )
 
         # Restore deck state
@@ -736,6 +748,7 @@ class PokerEngineAdapter:
             player_count=adapter.player_count,
             street_index=data.get("street_index"),
             status=data.get("status"),
+            button_index=button_index,
         )
 
         return adapter
