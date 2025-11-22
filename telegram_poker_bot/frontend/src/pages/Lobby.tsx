@@ -65,7 +65,7 @@ export default function LobbyPage() {
       setMyTables(myData)
     } catch (error) {
       if (!controller.signal.aborted) {
-        console.error('Error loading tables:', error)
+        // Error loading tables - silently handle
       }
     } finally {
       if (!controller.signal.aborted) {

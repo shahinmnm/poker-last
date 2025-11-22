@@ -349,8 +349,8 @@ export default function TablePage() {
         lastCompletedHandIdRef.current = liveState.hand_id
         
         // Refetch balance and stats
-        refetchUserData().catch((err) => {
-          console.warn('Failed to refetch user data after hand completion', err)
+        refetchUserData().catch(() => {
+          // Silently handle error - not critical
         })
         
       }
@@ -370,7 +370,6 @@ export default function TablePage() {
       })
       setTableDetails(data)
     } catch (err) {
-      console.error('Error fetching table:', err)
       if (err instanceof ApiError) {
         if (err.status === 404) {
           setError(t('table.errors.notFound'))
@@ -413,7 +412,7 @@ export default function TablePage() {
         return nextState
       })
     } catch (err) {
-      console.warn('Unable to fetch live state', err)
+      // Silently handle error - will retry via WebSocket
     }
   }, [syncHandResults, tableId])
 
@@ -456,7 +455,6 @@ export default function TablePage() {
 
       showToast(t('table.toast.ready', "You're joining the next hand"))
     } catch (err) {
-      console.error('Error signaling ready:', err)
       if (err instanceof ApiError) {
         const message =
           (typeof err.data === 'object' && err.data && 'detail' in err.data
@@ -591,12 +589,11 @@ export default function TablePage() {
       }
     }, [fetchLiveState, navigate, showToast, syncHandResults, t]),
     onConnect: useCallback(() => {
-      console.log('WebSocket connected to table', tableId)
       // Refresh viewer-specific state (including hero cards) after reconnects
       fetchLiveState()
     }, [fetchLiveState, tableId]),
     onDisconnect: useCallback(() => {
-      console.log('WebSocket disconnected from table', tableId)
+      // WebSocket disconnected
     }, [tableId]),
   })
 
@@ -618,7 +615,6 @@ export default function TablePage() {
       await fetchTable()
       await fetchLiveState()
     } catch (err) {
-      console.error('Error taking seat:', err)
       if (err instanceof ApiError) {
         const message =
           (typeof err.data === 'object' && err.data && 'detail' in err.data
@@ -650,7 +646,6 @@ export default function TablePage() {
       showToast(t('table.toast.left'))
       await fetchTable()
     } catch (err) {
-      console.error('Error leaving seat:', err)
       if (err instanceof ApiError) {
         const message =
           (typeof err.data === 'object' && err.data && 'detail' in err.data
@@ -685,7 +680,6 @@ export default function TablePage() {
       await fetchLiveState()
       showToast(t('table.toast.started'))
     } catch (err) {
-      console.error('Error starting table:', err)
       if (err instanceof ApiError) {
         if (err.status === 403) {
           showToast(t('table.errors.startNotAllowed'))
@@ -724,7 +718,6 @@ export default function TablePage() {
         syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
         await fetchLiveState()
       } catch (err) {
-        console.error('Error sending action', err)
         if (err instanceof ApiError) {
           const message =
             (typeof err.data === 'object' && err.data && 'detail' in err.data
@@ -832,7 +825,6 @@ export default function TablePage() {
         navigate('/lobby', { replace: true })
       }, 1000)
     } catch (err) {
-      console.error('Error deleting table:', err)
       if (err instanceof ApiError) {
         const message =
           (typeof err.data === 'object' && err.data && 'detail' in err.data

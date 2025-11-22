@@ -95,7 +95,7 @@ export default function RecentHandsModal({
       )
       setHands(data.hands)
     } catch (err) {
-      console.error('Failed to fetch hand history', err)
+      // Silently handle error - UI will show empty state
     } finally {
       setLoading(false)
     }
@@ -113,7 +113,7 @@ export default function RecentHandsModal({
       )
       setHandDetail(data)
     } catch (err) {
-      console.error('Failed to fetch hand detail', err)
+      // Silently handle error - UI will show loading state
     } finally {
       setLoadingDetail(false)
     }
