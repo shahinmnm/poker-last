@@ -92,7 +92,7 @@ export default function PostHandModal({
             variant={isSittingOut ? 'primary' : 'secondary'}
             size="md"
             onClick={handleKeepPlaying}
-            disabled={!isSittingOut}
+            disabled={isSittingOut}
             block
           >
             {t('table.postHand.keepPlaying', 'Keep Playing')}
@@ -101,7 +101,7 @@ export default function PostHandModal({
             variant={isSittingOut ? 'secondary' : 'danger'}
             size="md"
             onClick={handleSitOut}
-            disabled={isSittingOut}
+            disabled={!isSittingOut}
             block
           >
             {t('table.postHand.sitOut', 'Sit Out')}

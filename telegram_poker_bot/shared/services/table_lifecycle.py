@@ -156,6 +156,7 @@ async def mark_table_expired(db: AsyncSession, table: Table, reason: str) -> Non
         table: Table to expire
         reason: Human-readable reason for expiration
     """
+    previous_status = table.status
     table.status = TableStatus.EXPIRED
     table.updated_at = datetime.now(timezone.utc)
     await db.flush()
@@ -165,7 +166,9 @@ async def mark_table_expired(db: AsyncSession, table: Table, reason: str) -> Non
         table_id=table.id,
         reason=reason,
         previous_status=(
-            table.status.value if hasattr(table.status, "value") else str(table.status)
+            previous_status.value
+            if hasattr(previous_status, "value")
+            else str(previous_status)
         ),
     )
 
