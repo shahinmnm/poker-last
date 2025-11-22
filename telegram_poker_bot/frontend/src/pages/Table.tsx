@@ -906,7 +906,10 @@ export default function TablePage() {
   const heroCards = liveState?.hero?.cards ?? []
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-900 relative">
+    <div className="fixed inset-0 w-full h-full overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#008f58] via-[#003d29] to-[#010b08]">
+      {/* Optional Noise Texture Overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}></div>
+      
       <Toast message={toast.message} visible={toast.visible} />
       
       {/* Chip Animations */}
@@ -924,308 +927,326 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      {/* Compact HUD Header */}
-      <div className="absolute top-0 left-0 right-0 z-50 px-4 py-3 bg-black/40 backdrop-blur-md border-b border-white/10">
-        <div className="flex items-center justify-between gap-3">
-          {/* Left: Table Name & ID */}
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white truncate">{tableName}</p>
-            <p className="text-[10px] text-gray-400">
-              {tableDetails.small_blind}/{tableDetails.big_blind}
-            </p>
-          </div>
-          
-          {/* Center: Countdown Timer (if waiting) */}
-          {tableDetails.expires_at && tableDetails.status === 'waiting' && (
-            <div className="text-center">
-              <Countdown 
-                expiresAt={tableDetails.expires_at} 
-                className="text-sm font-bold text-amber-400"
-                onExpire={() => {
-                  showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
-                  setTimeout(() => navigate('/lobby'), EXPIRED_TABLE_REDIRECT_DELAY_MS)
-                }}
-              />
-              <p className="text-[8px] text-gray-500 uppercase">Expires</p>
+      {/* HUD Header - Floating Glass Bar */}
+      <div className="absolute top-4 left-4 right-4 z-50">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl px-4 py-3 shadow-xl">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left: Table Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white truncate">{tableName}</p>
+              <p className="text-xs text-white/70">
+                Blinds: {tableDetails.small_blind}/{tableDetails.big_blind}
+              </p>
             </div>
-          )}
-          
-          {/* Right: Start Game or Exit Button */}
-          <div className="flex items-center gap-2">
-            <ConnectionStatus status={wsStatus} />
-            {viewerIsCreator && tableDetails.status === 'waiting' && canStart ? (
-              <Button
-                variant="primary"
-                size="sm"
-                glow
-                onClick={handleStart}
-                disabled={isStarting}
+            
+            {/* Center: Connection Status & Timer */}
+            <div className="flex items-center gap-3">
+              <ConnectionStatus status={wsStatus} />
+              {tableDetails.expires_at && tableDetails.status === 'waiting' && (
+                <div className="text-center">
+                  <Countdown 
+                    expiresAt={tableDetails.expires_at} 
+                    className="text-sm font-bold text-amber-400"
+                    onExpire={() => {
+                      showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
+                      setTimeout(() => navigate('/lobby'), EXPIRED_TABLE_REDIRECT_DELAY_MS)
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Right: Settings, Exit, and START BUTTON */}
+            <div className="flex items-center gap-2">
+              {/* START BUTTON - Critical: Show if host and waiting */}
+              {viewerIsCreator && tableDetails.status === 'waiting' && canStart && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  glow
+                  onClick={handleStart}
+                  disabled={isStarting}
+                  className="animate-pulse"
+                >
+                  {isStarting ? t('table.actions.starting') : '▶ START GAME'}
+                </Button>
+              )}
+              
+              {/* Settings Icon (Gear) - Opens menu modal */}
+              <button
+                onClick={() => setShowRecentHands(true)}
+                className="w-9 h-9 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all border border-white/20"
+                title="Recent Hands"
               >
-                {isStarting ? t('table.actions.starting') : t('table.actions.start')}
-              </Button>
-            ) : (
+                <span className="text-white text-sm">📋</span>
+              </button>
+              
+              {/* Exit Button (X) */}
               <button
                 onClick={() => navigate('/lobby')}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                title="Exit"
+                className="w-9 h-9 rounded-full backdrop-blur-md bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all border border-white/20"
+                title="Exit Table"
               >
-                <span className="text-white text-sm">✕</span>
+                <span className="text-white text-lg font-bold">✕</span>
               </button>
-            )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Arena - Main Content */}
+      {/* Arena - Game Content */}
       {liveState ? (
-        <div className="absolute inset-0 flex flex-col" style={{ top: '64px', bottom: viewerIsSeated ? '72px' : '0' }}>
-          {/* Felt Background */}
-          <div className="flex-1 relative bg-gradient-radial from-green-900/90 via-green-950 to-black">
-            
-            {/* Inter-Hand Wait Overlay */}
-            {isInterHand ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/50 backdrop-blur-sm">
-                <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
-                <div className="mt-6">
-                  <InterHandVoting
-                    players={liveState.players}
-                    readyPlayerIds={liveState.ready_players ?? []}
-                    deadline={liveState.inter_hand_wait_deadline}
-                    durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
-                    onReady={handleReady}
-                    isReady={(liveState.ready_players ?? []).includes(heroId ?? -1)}
-                  />
-                </div>
+        <div className="absolute inset-0" style={{ paddingTop: '80px', paddingBottom: viewerIsSeated ? '80px' : '0' }}>
+          
+          {/* Inter-Hand Wait Overlay */}
+          {isInterHand ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/50 backdrop-blur-sm">
+              <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
+              <div className="mt-6">
+                <InterHandVoting
+                  players={liveState.players}
+                  readyPlayerIds={liveState.ready_players ?? []}
+                  deadline={liveState.inter_hand_wait_deadline}
+                  durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
+                  onReady={handleReady}
+                  isReady={(liveState.ready_players ?? []).includes(heroId ?? -1)}
+                />
               </div>
-            ) : (
-              <>
-                {/* Villains (Top Center) */}
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-                  <div className="flex gap-3">
-                    {liveState.players
-                      .filter((p) => p.user_id !== heroId)
-                      .slice(0, 3)
-                      .map((player) => {
-                        const isActor = player.user_id === liveState.current_actor
-                        const isLastActor = liveState.last_action?.user_id === player.user_id
+            </div>
+          ) : (
+            <>
+              {/* Villains (Top Center) */}
+              <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-10">
+                <div className="flex gap-4">
+                  {liveState.players
+                    .filter((p) => p.user_id !== heroId)
+                    .slice(0, 3)
+                    .map((player) => {
+                      const isActor = player.user_id === liveState.current_actor
+                      const isLastActor = liveState.last_action?.user_id === player.user_id
 
-                        const getLastActionText = () => {
-                          if (!isLastActor || !liveState.last_action) return null
-                          const action = liveState.last_action.action
-                          const amount = liveState.last_action.amount
+                      const getLastActionText = () => {
+                        if (!isLastActor || !liveState.last_action) return null
+                        const action = liveState.last_action.action
+                        const amount = liveState.last_action.amount
 
-                          if (action === 'fold') return t('table.actions.lastAction.fold')
-                          if (action === 'check') return t('table.actions.lastAction.check')
-                          if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
-                          if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
-                          if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
-                          if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
-                          return null
-                        }
+                        if (action === 'fold') return t('table.actions.lastAction.fold')
+                        if (action === 'check') return t('table.actions.lastAction.check')
+                        if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
+                        if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
+                        if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
+                        if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
+                        return null
+                      }
 
-                        const lastActionText = getLastActionText()
+                      const lastActionText = getLastActionText()
 
-                        return (
-                          <div
-                            key={`villain-${player.user_id}`}
-                            ref={(el) => {
-                              if (el) {
-                                playerTileRefs.current.set(player.user_id, el)
-                              } else {
-                                playerTileRefs.current.delete(player.user_id)
-                              }
-                            }}
-                            className="flex flex-col items-center"
-                          >
-                            {/* Player Avatar */}
-                            <div className={`relative w-14 h-14 rounded-full border-3 ${isActor ? 'border-emerald-500 animate-pulse' : 'border-white/30'} bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}>
-                              {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
-                                <PlayerRectTimer
-                                  deadline={liveState.action_deadline}
-                                  turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                                  className="rounded-full"
-                                />
-                              )}
-                              <span className="text-white font-bold text-sm z-10">
-                                {player.display_name?.[0]?.toUpperCase() || '?'}
-                              </span>
-                              {!player.in_hand && (
-                                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                                  <span className="text-white text-[8px] font-bold">FOLD</span>
-                                </div>
-                              )}
-                            </div>
-                            {/* Info Capsule */}
-                            <div className="mt-2 rounded-full bg-black/70 backdrop-blur-sm px-2 py-1 border border-white/20 min-w-[70px] text-center">
-                              <div className="text-white font-bold text-[10px]">{player.stack}</div>
-                              <div className="text-gray-400 text-[8px] truncate max-w-[70px]">
-                                {player.display_name || `P${player.seat + 1}`}
-                              </div>
-                            </div>
-                            {/* Bet Badge */}
-                            {player.bet > 0 && (
-                              <div className="mt-1 bg-amber-500/90 text-black font-bold text-[9px] px-2 py-0.5 rounded-full">
-                                {player.bet}
-                              </div>
+                      return (
+                        <div
+                          key={`villain-${player.user_id}`}
+                          ref={(el) => {
+                            if (el) {
+                              playerTileRefs.current.set(player.user_id, el)
+                            } else {
+                              playerTileRefs.current.delete(player.user_id)
+                            }
+                          }}
+                          className="relative flex flex-col items-center"
+                        >
+                          {/* Player Avatar */}
+                          <div className={`relative w-16 h-16 rounded-full border-3 ${isActor ? 'border-emerald-400 shadow-lg shadow-emerald-500/50' : 'border-white/30'} bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}>
+                            {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
+                              <PlayerRectTimer
+                                deadline={liveState.action_deadline}
+                                turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                                className="rounded-full"
+                              />
                             )}
-                            {/* Last Action */}
-                            {lastActionText && player.in_hand && (
-                              <p className="mt-1 text-[8px] font-semibold text-emerald-400">
-                                {lastActionText}
-                              </p>
+                            <span className="text-white font-bold text-lg z-10">
+                              {player.display_name?.[0]?.toUpperCase() || '?'}
+                            </span>
+                            {/* FOLD Overlay - Covers avatar only */}
+                            {!player.in_hand && (
+                              <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-20 rounded-full">
+                                <span className="text-white/90 text-xs font-bold tracking-wide">FOLD</span>
+                              </div>
                             )}
                           </div>
-                        )
-                      })}
-                  </div>
-                </div>
-
-                {/* Board Center */}
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-                  <div className="flex flex-col items-center gap-3">
-                    {/* Pot */}
-                    <div className="rounded-full bg-black/80 backdrop-blur-sm px-4 py-2 border-2 border-amber-500/50" ref={potAreaRef}>
-                      {liveState.pots && liveState.pots.length > 1 ? (
-                        <div className="space-y-0.5">
-                          {liveState.pots.map((pot) => (
-                            <div key={pot.pot_index} className="text-center">
-                              <span className="text-[10px] text-gray-400">#{pot.pot_index + 1}: </span>
-                              <span className="text-sm font-bold text-emerald-400">{pot.amount}</span>
+                          
+                          {/* Info Capsule - Overlaps bottom edge of avatar */}
+                          <div className="relative -mt-3 z-20 rounded-full backdrop-blur-xl bg-black/70 px-3 py-1.5 border border-white/20 min-w-[80px] text-center shadow-lg">
+                            <div className="text-white font-bold text-xs">{player.stack}</div>
+                            <div className="text-gray-300 text-[9px] truncate max-w-[75px]">
+                              {player.display_name || `P${player.seat + 1}`}
                             </div>
-                          ))}
+                          </div>
+                          
+                          {/* Bet Badge */}
+                          {player.bet > 0 && (
+                            <div className="mt-1.5 bg-amber-500/95 backdrop-blur-sm text-black font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-md">
+                              {player.bet}
+                            </div>
+                          )}
+                          
+                          {/* Last Action */}
+                          {lastActionText && player.in_hand && (
+                            <p className="mt-1 text-[9px] font-semibold text-emerald-300 uppercase tracking-wide">
+                              {lastActionText}
+                            </p>
+                          )}
                         </div>
-                      ) : (
-                        <div className="text-center">
-                          <p className="text-[10px] text-gray-400">POT</p>
-                          <p className="text-lg font-bold text-emerald-400">{liveState.pot}</p>
-                        </div>
-                      )}
-                    </div>
+                      )
+                    })}
+                </div>
+              </div>
 
-                    {/* Community Cards */}
-                    <div className="flex gap-1.5">
-                      {liveState.board && liveState.board.length > 0 ? (
-                        liveState.board.map((card, idx) => {
-                          const isWinningCard =
-                            liveState.hand_result?.winners?.some((winner) => winner.best_hand_cards?.includes(card)) ?? false
-                          return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
-                        })
-                      ) : (
-                        <div className="rounded-lg bg-black/30 backdrop-blur-sm px-4 py-2 text-[10px] text-gray-400 border border-white/10">
-                          {t('table.waitingForBoard')}
-                        </div>
-                      )}
-                    </div>
+              {/* Board Center - Pot & Community Cards */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+                <div className="flex flex-col items-center gap-4">
+                  {/* Pot - Floating Pill */}
+                  <div className="rounded-full backdrop-blur-xl bg-black/80 px-5 py-2.5 border-2 border-amber-500/60 shadow-2xl" ref={potAreaRef}>
+                    {liveState.pots && liveState.pots.length > 1 ? (
+                      <div className="space-y-1">
+                        {liveState.pots.map((pot) => (
+                          <div key={pot.pot_index} className="text-center">
+                            <span className="text-[11px] text-gray-400">Pot #{pot.pot_index + 1}: </span>
+                            <span className="text-base font-bold text-emerald-400">{pot.amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wider">Pot</p>
+                        <p className="text-xl font-bold text-emerald-400">{liveState.pot}</p>
+                      </div>
+                    )}
+                  </div>
 
-                    {/* Hand Result */}
-                    {liveState.hand_result && (
-                      <div className="mt-2">
-                        <HandResultPanel liveState={liveState} currentUserId={heroId} />
+                  {/* Community Cards */}
+                  <div className="flex gap-2">
+                    {liveState.board && liveState.board.length > 0 ? (
+                      liveState.board.map((card, idx) => {
+                        const isWinningCard =
+                          liveState.hand_result?.winners?.some((winner) => winner.best_hand_cards?.includes(card)) ?? false
+                        return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
+                      })
+                    ) : (
+                      <div className="rounded-xl backdrop-blur-md bg-white/5 px-5 py-3 text-xs text-gray-400 border border-white/10">
+                        {t('table.waitingForBoard')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hand Result */}
+                  {liveState.hand_result && (
+                    <div className="mt-2">
+                      <HandResultPanel liveState={liveState} currentUserId={heroId} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Hero (Bottom Center) */}
+              {heroPlayer && (
+                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
+                  <div
+                    ref={(el) => {
+                      if (el && heroId) {
+                        playerTileRefs.current.set(heroId, el)
+                      } else if (heroId) {
+                        playerTileRefs.current.delete(heroId)
+                      }
+                    }}
+                    className="flex flex-col items-center"
+                  >
+                    {/* Hero Cards */}
+                    {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
+                      <div className="flex gap-2.5 mb-3">
+                        {heroCards.map((card, idx) => {
+                          const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
+                          const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                          return (
+                            <div
+                              key={`hero-card-${idx}`}
+                              className="transition-transform"
+                              style={{
+                                transform: idx === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
+                              }}
+                            >
+                              <PlayingCard card={card} size="md" highlighted={isWinningCard} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Hero Avatar */}
+                    <div className={`relative w-20 h-20 rounded-full border-4 ${heroPlayer.user_id === liveState.current_actor ? 'border-emerald-400 shadow-xl shadow-emerald-500/50' : 'border-sky-500 shadow-xl shadow-sky-500/30'} bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}>
+                      {heroPlayer.user_id === liveState.current_actor && !heroPlayer.is_sitting_out_next_hand && heroPlayer.in_hand && liveState.action_deadline && (
+                        <PlayerRectTimer
+                          deadline={liveState.action_deadline}
+                          turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                          className="rounded-full"
+                        />
+                      )}
+                      <span className="text-white font-bold text-2xl z-10">
+                        {heroPlayer.display_name?.[0]?.toUpperCase() || 'Y'}
+                      </span>
+                    </div>
+                    
+                    {/* Hero Info - Overlaps bottom edge */}
+                    <div className="relative -mt-4 z-20 rounded-full backdrop-blur-xl bg-black/80 px-4 py-2 border-2 border-sky-500/70 min-w-[110px] text-center shadow-xl">
+                      <div className="text-white font-bold text-sm">{heroPlayer.stack}</div>
+                      <div className="text-sky-300 text-[10px] font-semibold uppercase tracking-wide">You</div>
+                    </div>
+                    
+                    {/* Hero Bet */}
+                    {heroPlayer.bet > 0 && (
+                      <div className="mt-2.5 backdrop-blur-sm bg-amber-500/95 text-black font-bold text-xs px-3.5 py-1 rounded-full shadow-lg">
+                        BET: {heroPlayer.bet}
                       </div>
                     )}
                   </div>
                 </div>
-
-                {/* Hero (Bottom Center) */}
-                {heroPlayer && (
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-                    <div
-                      ref={(el) => {
-                        if (el && heroId) {
-                          playerTileRefs.current.set(heroId, el)
-                        } else if (heroId) {
-                          playerTileRefs.current.delete(heroId)
-                        }
-                      }}
-                      className="flex flex-col items-center"
-                    >
-                      {/* Hero Cards */}
-                      {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
-                        <div className="flex gap-2 mb-2">
-                          {heroCards.map((card, idx) => {
-                            const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
-                            const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                            return (
-                              <div
-                                key={`hero-card-${idx}`}
-                                className="transition-transform"
-                                style={{
-                                  transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
-                                }}
-                              >
-                                <PlayingCard card={card} size="md" highlighted={isWinningCard} />
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                      
-                      {/* Hero Avatar */}
-                      <div className={`relative w-20 h-20 rounded-full border-4 ${heroPlayer.user_id === liveState.current_actor ? 'border-emerald-500 animate-pulse' : 'border-sky-500'} bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}>
-                        {heroPlayer.user_id === liveState.current_actor && !heroPlayer.is_sitting_out_next_hand && heroPlayer.in_hand && liveState.action_deadline && (
-                          <PlayerRectTimer
-                            deadline={liveState.action_deadline}
-                            turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                            className="rounded-full"
-                          />
-                        )}
-                        <span className="text-white font-bold text-xl z-10">
-                          {heroPlayer.display_name?.[0]?.toUpperCase() || 'YOU'}
-                        </span>
-                      </div>
-                      
-                      {/* Hero Info */}
-                      <div className="mt-2 rounded-full bg-black/80 backdrop-blur-sm px-4 py-1.5 border-2 border-sky-500/50 min-w-[100px] text-center">
-                        <div className="text-white font-bold text-sm">{heroPlayer.stack}</div>
-                        <div className="text-sky-400 text-[10px] font-semibold">YOU</div>
-                      </div>
-                      
-                      {/* Hero Bet */}
-                      {heroPlayer.bet > 0 && (
-                        <div className="mt-2 bg-amber-500/90 text-black font-bold text-xs px-3 py-1 rounded-full">
-                          BET: {heroPlayer.bet}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+              )}
+            </>
+          )}
         </div>
       ) : (
         /* Waiting Lobby - No Live State Yet */
-        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ top: '64px' }}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingTop: '80px' }}>
           <div className="max-w-md w-full px-6">
-            <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 text-center">
-              <h2 className="text-xl font-bold text-white mb-4">
+            <div className="backdrop-blur-xl bg-white/5 rounded-3xl border border-white/10 p-8 text-center shadow-2xl">
+              <h2 className="text-2xl font-bold text-white mb-6">
                 {tableDetails.status === 'waiting' ? t('table.status.waiting') : t('table.status.loading')}
               </h2>
               
               {/* Player list in waiting state */}
-              <div className="mb-6">
-                <p className="text-sm text-gray-400 mb-3">
+              <div className="mb-8">
+                <p className="text-sm text-white/70 mb-4">
                   {t('table.meta.players')}: {tableDetails.player_count} / {tableDetails.max_players}
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {players.map((player) => (
                     <div
                       key={`waiting-${player.user_id}-${player.position}`}
-                      className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 border border-white/10"
+                      className="flex items-center justify-between backdrop-blur-md bg-white/10 rounded-xl px-4 py-3 border border-white/20 transition-all hover:bg-white/15"
                     >
                       <span className="text-white text-sm font-medium">
                         {player.display_name || player.username || `Player ${player.position + 1}`}
                       </span>
-                      {player.is_host && (
-                        <Badge variant="success" size="sm">
-                          {t('table.players.hostTag')}
-                        </Badge>
-                      )}
-                      {tableDetails.viewer?.user_id === player.user_id && (
-                        <Badge variant="info" size="sm">
-                          {t('table.players.youTag')}
-                        </Badge>
-                      )}
+                      <div className="flex gap-2">
+                        {player.is_host && (
+                          <Badge variant="success" size="sm">
+                            {t('table.players.hostTag')}
+                          </Badge>
+                        )}
+                        {tableDetails.viewer?.user_id === player.user_id && (
+                          <Badge variant="info" size="sm">
+                            {t('table.players.youTag')}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1233,8 +1254,8 @@ export default function TablePage() {
 
               {/* Action buttons */}
               {viewerIsSeated ? (
-                <div className="space-y-3">
-                  <p className="text-xs text-gray-400">
+                <div className="space-y-4">
+                  <p className="text-sm text-white/60">
                     {viewerIsCreator
                       ? canStart
                         ? t('table.messages.readyToStart')
@@ -1254,8 +1275,8 @@ export default function TablePage() {
                   )}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <p className="text-xs text-gray-400">
+                <div className="space-y-4">
+                  <p className="text-sm text-white/60">
                     {canJoin ? t('table.messages.joinPrompt') : t('table.messages.tableFull')}
                   </p>
                   <Button
@@ -1272,7 +1293,7 @@ export default function TablePage() {
 
               {/* Delete button for host */}
               {viewerIsCreator && (
-                <div className="mt-6 pt-6 border-t border-white/10">
+                <div className="mt-8 pt-6 border-t border-white/20">
                   <Button
                     variant="danger"
                     size="sm"
@@ -1306,20 +1327,24 @@ export default function TablePage() {
         }}
       />
 
-      {/* Game Controls - Fixed bottom when seated */}
+      {/* Bottom Action Dock - Glass */}
       {liveState && viewerIsSeated && !isInterHand && (
-        <GameControls
-          isPlayerTurn={liveState.current_actor === heroId}
-          amountToCall={amountToCall}
-          minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
-          maxRaise={liveState.allowed_actions?.max_raise_to || (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0)}
-          currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
-          actionPending={actionPending}
-          onFold={() => sendAction('fold')}
-          onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
-          onBet={(amount) => sendAction('bet', amount)}
-          onRaise={(amount) => sendAction('raise', amount)}
-        />
+        <div className="absolute bottom-0 left-0 right-0 z-50">
+          <div className="backdrop-blur-xl bg-black/40 border-t border-white/10 shadow-2xl">
+            <GameControls
+              isPlayerTurn={liveState.current_actor === heroId}
+              amountToCall={amountToCall}
+              minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
+              maxRaise={liveState.allowed_actions?.max_raise_to || (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0)}
+              currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
+              actionPending={actionPending}
+              onFold={() => sendAction('fold')}
+              onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
+              onBet={(amount) => sendAction('bet', amount)}
+              onRaise={(amount) => sendAction('raise', amount)}
+            />
+          </div>
+        </div>
       )}
     </div>
   )
