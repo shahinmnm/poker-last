@@ -14,7 +14,7 @@ interface PlayerRectTimerProps {
 }
 
 // Timer update and color thresholds
-const UPDATE_INTERVAL_MS = 250
+const UPDATE_INTERVAL_MS = 100
 const COLOR_YELLOW_THRESHOLD = 0.5  // Switch from green to yellow at 50% remaining
 const COLOR_RED_THRESHOLD = 0.25    // Switch from yellow to red at 25% remaining
 
@@ -24,10 +24,11 @@ const COLOR_YELLOW = '#eab308' // yellow-500
 const COLOR_RED = '#ef4444'    // red-500
 
 // Stroke width for the progress border
-const STROKE_WIDTH = 1.5
+const STROKE_WIDTH = 2
+const TRACK_COLOR = 'rgba(255, 255, 255, 0.28)'
 
 // Transition durations for smooth animations
-const PROGRESS_TRANSITION_MS = 100  // Stroke offset animation speed
+const PROGRESS_TRANSITION_MS = 180  // Stroke offset animation speed
 const COLOR_TRANSITION_MS = 200     // Color change animation speed
 
 /**
@@ -43,6 +44,7 @@ const COLOR_TRANSITION_MS = 200     // Color change animation speed
 function PlayerRectTimer({ deadline, turnTimeoutSeconds, className = '' }: PlayerRectTimerProps) {
   const [remainingRatio, setRemainingRatio] = useState(1)
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
+  const [borderRadius, setBorderRadius] = useState(12)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const rectRef = useRef<SVGRectElement | null>(null)
   const [perimeter, setPerimeter] = useState(0)
@@ -55,6 +57,12 @@ function PlayerRectTimer({ deadline, turnTimeoutSeconds, className = '' }: Playe
       if (!containerRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
       setDimensions({ width: rect.width, height: rect.height })
+
+      const computedRadius = window.getComputedStyle(containerRef.current).borderRadius
+      const parsedRadius = Number.parseFloat(computedRadius)
+      if (!Number.isNaN(parsedRadius)) {
+        setBorderRadius(parsedRadius)
+      }
     }
 
     updateDimensions()
@@ -77,11 +85,11 @@ function PlayerRectTimer({ deadline, turnTimeoutSeconds, className = '' }: Playe
       // Fallback: approximate perimeter
       // For rounded rect: perimeter ≈ 2 * (w + h) - 8r + 2πr
       // where r is radius. For rounded-lg (0.75rem = 12px), use that as approximation
-      const r = 12
+      const r = borderRadius
       const approxPerimeter = 2 * (dimensions.width + dimensions.height - 4 * r) + 2 * Math.PI * r
       setPerimeter(approxPerimeter)
     }
-  }, [dimensions.width, dimensions.height])
+  }, [borderRadius, dimensions.width, dimensions.height])
 
   useEffect(() => {
     if (!deadline) {
@@ -121,19 +129,9 @@ function PlayerRectTimer({ deadline, turnTimeoutSeconds, className = '' }: Playe
   }
 
   const { width, height } = dimensions
+  const radius = borderRadius
   
-  // Border radius for rounded-lg (Tailwind: 0.75rem = 12px)
-  const radius = 12
-  
-  // Calculate stroke offset for countdown
-  // We want to start at top-middle and go clockwise
-  // The rect path starts at top-left, so we need to offset by half the top edge
-  const topEdgeLength = Math.max(0, width - 2 * radius)
-  const baseStartOffset = topEdgeLength / 2
-  
-  // The dasharray is the full perimeter, and dashoffset controls how much is hidden
-  // As time decreases, we increase dashoffset to hide more of the stroke
-  const dashOffset = baseStartOffset + (1 - remainingRatio) * perimeter
+  const dashOffset = Math.min(perimeter, Math.max(0, (1 - remainingRatio) * perimeter))
 
   return (
     <div ref={containerRef} className={`absolute inset-0 pointer-events-none ${className}`}>
@@ -143,6 +141,20 @@ function PlayerRectTimer({ deadline, turnTimeoutSeconds, className = '' }: Playe
         height={height}
         viewBox={`0 0 ${width} ${height}`}
       >
+        <rect
+          x={STROKE_WIDTH / 2}
+          y={STROKE_WIDTH / 2}
+          width={width - STROKE_WIDTH}
+          height={height - STROKE_WIDTH}
+          rx={radius}
+          ry={radius}
+          fill="none"
+          stroke={TRACK_COLOR}
+          strokeWidth={STROKE_WIDTH}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.65}
+        />
         <rect
           ref={rectRef}
           x={STROKE_WIDTH / 2}
@@ -156,8 +168,9 @@ function PlayerRectTimer({ deadline, turnTimeoutSeconds, className = '' }: Playe
           strokeWidth={STROKE_WIDTH}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={perimeter}
+          strokeDasharray={`${perimeter} ${perimeter}`}
           strokeDashoffset={dashOffset}
+          transform={`rotate(-90 ${width / 2} ${height / 2})`}
           style={{
             transition: `stroke-dashoffset ${PROGRESS_TRANSITION_MS}ms linear, stroke ${COLOR_TRANSITION_MS}ms ease`,
           }}
