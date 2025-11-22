@@ -169,6 +169,176 @@ class PokerKitTableRuntime:
         finally:
             self.event_sequence += 1
 
+    async def _apply_hand_result_and_cleanup(
+        self, db: AsyncSession, hand_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        SINGLE SOURCE OF TRUTH for hand completion.
+
+        This is the ONLY method that handles hand ending logic.
+        Implements a strictly linear flow:
+        1. Persist data (winners, pot, hand history)
+        2. Set state to INTER_HAND_WAIT
+        3. Reset all players to sitting out (forcing them to vote "Ready")
+        4. Broadcast ONE unified hand_ended event
+        5. Check lifecycle conditions (but don't delete table yet)
+
+        Args:
+            db: Database session
+            hand_result: Hand result dictionary from PokerKit engine
+
+        Returns:
+            Dictionary with hand completion data for broadcasting
+        """
+        if not self.current_hand or not self.engine:
+            raise ValueError("Cannot apply hand result without active hand/engine")
+
+        # Step 1: Persist Data
+        logger.info(
+            "Starting hand completion - persisting data",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+        )
+
+        # 1a. Apply hand results to wallets and stats
+        from telegram_poker_bot.shared.services.user_service import (
+            apply_hand_result_to_wallets_and_stats,
+        )
+
+        try:
+            await apply_hand_result_to_wallets_and_stats(
+                db=db,
+                hand=self.current_hand,
+                table=self.table,
+                seats=self.seats,
+                hand_result=hand_result,
+            )
+            logger.info(
+                "Applied hand result to wallets and stats",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to apply hand result to wallets/stats",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+                error=str(e),
+            )
+
+        # 1b. Save hand history
+        from telegram_poker_bot.shared.models import HandHistory
+
+        board_cards = self.engine.state.board_cards if self.engine else []
+        formatted_board = []
+        if board_cards:
+            for card_list in board_cards:
+                if card_list and len(card_list) > 0:
+                    formatted_board.append(repr(card_list[0]))
+
+        hand_history_payload = {
+            "hand_no": self.hand_no,
+            "board": formatted_board,
+            "winners": [
+                {
+                    "user_id": w["user_id"],
+                    "amount": w["amount"],
+                    "hand_rank": w["hand_rank"],
+                    "best_hand_cards": w.get("best_hand_cards", []),
+                }
+                for w in hand_result["winners"]
+            ],
+            "pot_total": (
+                sum(pot.amount for pot in self.engine.state.pots) if self.engine else 0
+            ),
+        }
+
+        existing_history = await db.execute(
+            select(HandHistory).where(
+                HandHistory.table_id == self.table.id,
+                HandHistory.hand_no == self.hand_no,
+            )
+        )
+        if not existing_history.scalar_one_or_none():
+            history = HandHistory(
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+                payload_json=hand_history_payload,
+            )
+            db.add(history)
+            logger.info(
+                "Saved hand history",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+            )
+
+        # Step 2: Set State to INTER_HAND_WAIT
+        self.current_hand.status = HandStatus.INTER_HAND_WAIT
+        self.inter_hand_wait_start = datetime.now(timezone.utc)
+        self.ready_players = set()
+
+        logger.info(
+            "Hand status set to INTER_HAND_WAIT",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+        )
+
+        # Step 3: Reset Players - Force all to sit out (they must vote "Ready")
+        for seat in self.seats:
+            if seat.left_at is None:
+                seat.is_sitting_out_next_hand = True
+
+        logger.info(
+            "All players set to sit out by default - must signal READY",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+        )
+
+        # Log showdown/hand_ended events
+        await self._log_hand_event(db, "showdown")
+        await self._log_hand_event(db, "hand_ended")
+
+        # Step 4: Build ONE unified hand_ended event for broadcast
+        # This is the ONLY broadcast message for hand completion
+        inter_hand_wait_deadline = self.inter_hand_wait_start + timedelta(
+            seconds=settings.post_hand_delay_seconds
+        )
+
+        hand_ended_event = {
+            "type": "hand_ended",
+            "table_id": self.table.id,
+            "hand_no": self.hand_no,
+            "winners": hand_result["winners"],  # Full details: ID, Rank, Cards, Amount
+            "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)
+            "status": "INTER_HAND_WAIT",
+            "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
+        }
+
+        # Step 5: Lifecycle Check - Should table self-destruct?
+        # Note: We check but don't delete yet - give players the 20s wait period
+        should_end, reason = await table_lifecycle.compute_poststart_inactivity(
+            db, self.table
+        )
+
+        if should_end:
+            logger.warning(
+                "Table will self-destruct after inter-hand wait",
+                table_id=self.table.id,
+                reason=reason,
+            )
+            hand_ended_event["table_will_end"] = True
+            hand_ended_event["end_reason"] = reason
+
+        await db.flush()
+
+        logger.info(
+            "Hand completion finished - returning hand_ended event",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+        )
+
+        return hand_ended_event
+
     async def load_or_create_hand(self, db: AsyncSession) -> Hand:
         """
         Load the current active hand or create a new one.
@@ -1178,113 +1348,21 @@ class PokerKitTableRuntimeManager:
 
             # Update hand status based on result
             if "hand_result" in result:
-                # INTER-HAND PHASE: Instead of immediately ending the hand,
-                # enter INTER_HAND_WAIT state for 5 seconds
-                # During this time, all players default to sitting out unless they signal READY
-
-                runtime.current_hand.status = HandStatus.INTER_HAND_WAIT
-                runtime.inter_hand_wait_start = datetime.now(timezone.utc)
-                runtime.ready_players = set()
-
-                # Default ALL players to sitting out for next hand
-                # They must actively signal "READY" to participate
-                for seat in runtime.seats:
-                    if seat.left_at is None:
-                        seat.is_sitting_out_next_hand = True
-
-                logger.info(
-                    "Hand entering INTER_HAND_WAIT phase - all players set to sit out by default",
-                    table_id=table_id,
-                    hand_no=runtime.hand_no,
+                # UNIFIED HAND COMPLETION: Use single source of truth method
+                # This method handles ALL hand completion logic:
+                # - Persisting winners, pot, and hand history
+                # - Setting INTER_HAND_WAIT state
+                # - Resetting players to sit out
+                # - Checking lifecycle conditions
+                # - Building unified hand_ended event
+                hand_ended_event = await runtime._apply_hand_result_and_cleanup(
+                    db, result["hand_result"]
                 )
 
-                # Apply hand results to wallets and stats
-                from telegram_poker_bot.shared.services.user_service import (
-                    apply_hand_result_to_wallets_and_stats,
-                )
-
-                try:
-                    await apply_hand_result_to_wallets_and_stats(
-                        db=db,
-                        hand=runtime.current_hand,
-                        table=runtime.table,
-                        seats=runtime.seats,
-                        hand_result=result["hand_result"],
-                    )
-                    logger.info(
-                        "Applied hand result to wallets and stats",
-                        table_id=table_id,
-                        hand_no=runtime.hand_no,
-                    )
-                except Exception as e:
-                    logger.error(
-                        "Failed to apply hand result to wallets/stats",
-                        table_id=table_id,
-                        hand_no=runtime.hand_no,
-                        error=str(e),
-                    )
-
-                from telegram_poker_bot.shared.models import HandHistory
-
-                board_cards = runtime.engine.state.board_cards if runtime.engine else []
-                formatted_board = []
-                if board_cards:
-                    for card_list in board_cards:
-                        if card_list and len(card_list) > 0:
-                            formatted_board.append(repr(card_list[0]))
-
-                hand_history_payload = {
-                    "hand_no": runtime.hand_no,
-                    "board": formatted_board,
-                    "winners": [
-                        {
-                            "user_id": w["user_id"],
-                            "amount": w["amount"],
-                            "hand_rank": w["hand_rank"],
-                            "best_hand_cards": w.get("best_hand_cards", []),
-                        }
-                        for w in result["hand_result"]["winners"]
-                    ],
-                    "pot_total": (
-                        sum(pot.amount for pot in runtime.engine.state.pots)
-                        if runtime.engine
-                        else 0
-                    ),
-                }
-
-                existing_history = await db.execute(
-                    select(HandHistory).where(
-                        HandHistory.table_id == table_id,
-                        HandHistory.hand_no == runtime.hand_no,
-                    )
-                )
-                if not existing_history.scalar_one_or_none():
-                    history = HandHistory(
-                        table_id=table_id,
-                        hand_no=runtime.hand_no,
-                        payload_json=hand_history_payload,
-                    )
-                    db.add(history)
-                    logger.info(
-                        "Saved hand history",
-                        table_id=table_id,
-                        hand_no=runtime.hand_no,
-                    )
-
-                # Log showdown/hand_ended events
-                await runtime._log_hand_event(db, "showdown")
-                await runtime._log_hand_event(db, "hand_ended")
-
-                # Add inter_hand_wait flag to result so frontend knows to show ready modal
+                # Store the hand_ended event for broadcasting
+                result["hand_ended_event"] = hand_ended_event
                 result["inter_hand_wait"] = True
                 result["inter_hand_wait_seconds"] = settings.post_hand_delay_seconds
-                result["inter_hand_wait_deadline"] = (
-                    runtime.inter_hand_wait_start
-                    + timedelta(seconds=settings.post_hand_delay_seconds)
-                ).isoformat()
-
-                # Note: We do NOT check self-destruct conditions here anymore
-                # That will be done in the next-hand endpoint after the inter-hand phase
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index
@@ -1315,14 +1393,15 @@ class PokerKitTableRuntimeManager:
             if "hand_result" in result:
                 state["hand_result"] = result["hand_result"]
 
+            # Propagate hand_ended_event if present (from _apply_hand_result_and_cleanup)
+            if "hand_ended_event" in result:
+                state["hand_ended_event"] = result["hand_ended_event"]
+
             # Propagate inter-hand wait status if present
             if "inter_hand_wait" in result:
                 state["inter_hand_wait"] = result["inter_hand_wait"]
                 state["inter_hand_wait_seconds"] = result.get(
                     "inter_hand_wait_seconds", settings.post_hand_delay_seconds
-                )
-                state["inter_hand_wait_deadline"] = result.get(
-                    "inter_hand_wait_deadline"
                 )
 
             # Propagate table_ended status if present
