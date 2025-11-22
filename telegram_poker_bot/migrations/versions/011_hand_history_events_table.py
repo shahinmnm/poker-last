@@ -5,12 +5,18 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision = "011_hand_history_events_table"
-down_revision = "010_add_hand_histories_table"
+down_revision = "011_add_hand_history_events_table"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+
+    if inspector.has_table("hand_history_events"):
+        return
+
     op.create_table(
         "hand_history_events",
         sa.Column("id", sa.Integer(), primary_key=True, index=True),
