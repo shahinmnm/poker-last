@@ -524,6 +524,7 @@ export default function TablePage() {
 
       if (payload?.type === 'hand_ended') {
         // Update state to show inter-hand phase with winner information
+        const winners = payload.winners && payload.winners.length > 0 ? payload.winners : null
         setLiveState((previous) => {
           if (!previous) return previous
           return {
@@ -531,12 +532,12 @@ export default function TablePage() {
             status: 'INTER_HAND_WAIT',
             inter_hand_wait: true,
             inter_hand_wait_seconds: payload.next_hand_in ?? 20,
-            hand_result: payload.winners && payload.winners.length > 0 ? { winners: payload.winners } : previous.hand_result,
+            hand_result: winners ? { winners } : previous.hand_result,
           }
         })
         // Update lastHandResult for the winner showcase
-        if (payload.winners && payload.winners.length > 0) {
-          setLastHandResult({ winners: payload.winners })
+        if (winners) {
+          setLastHandResult({ winners })
         }
         return
       }
