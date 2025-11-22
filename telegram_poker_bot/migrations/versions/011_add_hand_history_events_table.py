@@ -4,7 +4,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
-revision = "011_add_hand_history_events_table"
+revision = "011_add_hand_history_events"
 down_revision = "010_add_hand_histories_table"
 branch_labels = None
 depends_on = None
