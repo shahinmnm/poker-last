@@ -76,7 +76,7 @@ async def compute_prestart_expiry(
         (should_expire, reason) tuple
     """
     from telegram_poker_bot.shared.config import get_settings
-    
+
     # Only applies to WAITING tables
     if table.status != TableStatus.WAITING:
         return False, None
@@ -93,7 +93,10 @@ async def compute_prestart_expiry(
                 else settings.private_table_prestart_ttl_minutes
             )
             table_type = "public" if table.is_public else "private"
-            return True, f"pre-game timeout ({ttl_minutes} minute join window expired for {table_type} table)"
+            return (
+                True,
+                f"pre-game timeout ({ttl_minutes} minute join window expired for {table_type} table)",
+            )
 
     return False, None
 

@@ -69,10 +69,12 @@ class Settings(BaseSettings):
     turn_timeout_seconds: int = 25
     table_inactivity_timeout_minutes: int = 10
     table_all_sitout_timeout_minutes: int = 5
-    
+
     # Table Lifecycle Configuration
     public_table_prestart_ttl_minutes: int = 10  # 10 minutes for public tables to start
-    private_table_prestart_ttl_minutes: int = 60  # 60 minutes for private tables to start
+    private_table_prestart_ttl_minutes: int = (
+        60  # 60 minutes for private tables to start
+    )
     post_hand_delay_seconds: int = 5  # Delay after hand ends before starting next hand
 
     # Mini App
@@ -147,7 +149,9 @@ class Settings(BaseSettings):
             "POSTGRES_DB",
             "POSTGRES_PASSWORD_FILE",
         )
-        component_env_provided = any(os.getenv(var) is not None for var in component_env_vars)
+        component_env_provided = any(
+            os.getenv(var) is not None for var in component_env_vars
+        )
 
         env_database_url = os.getenv("DATABASE_URL")
 
@@ -156,7 +160,9 @@ class Settings(BaseSettings):
         # (for example copied from .env.example) is not kept in sync.
         if component_env_provided or not env_database_url:
             user = quote_plus(self.postgres_user)
-            password = quote_plus(self.postgres_password) if self.postgres_password else ""
+            password = (
+                quote_plus(self.postgres_password) if self.postgres_password else ""
+            )
             auth = f"{user}:{password}" if password else user
             self.database_url = (
                 f"postgresql+asyncpg://{auth}@"
