@@ -52,7 +52,7 @@ class HandHistoryEvent(Base):
 
 ### 2. Database Migration
 
-**File**: `telegram_poker_bot/migrations/versions/011_add_hand_history_events_table.py`
+**File**: `telegram_poker_bot/migrations/versions/011_hand_history_events_table.py`
 
 Creates the `hand_history_events` table with:
 - Primary key and indexes
@@ -478,7 +478,7 @@ npm run build
 1. Check migration applied:
    ```sql
    SELECT * FROM alembic_version;
-   -- Should show: 011_add_hand_history_events_table
+   -- Should show: 011_hand_history_events_table
    ```
 
 2. Play a test hand and verify events logged
@@ -549,7 +549,7 @@ npm run build
 - `telegram_poker_bot/shared/models.py` - Added `HandHistoryEvent` model
 - `telegram_poker_bot/game_core/pokerkit_runtime.py` - Added event logging
 - `telegram_poker_bot/api/main.py` - Added API endpoints
-- `telegram_poker_bot/migrations/versions/011_add_hand_history_events_table.py` - New migration
+- `telegram_poker_bot/migrations/versions/011_hand_history_events_table.py` - New migration
 
 ### Frontend
 - `telegram_poker_bot/frontend/src/components/tables/RecentHandsModal.tsx` - Enhanced modal
