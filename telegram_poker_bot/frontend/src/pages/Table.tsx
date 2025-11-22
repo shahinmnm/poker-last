@@ -6,6 +6,7 @@ import { faUser, faCoins, faUserGroup, faClock } from '@fortawesome/free-solid-s
 import { useTelegram } from '../hooks/useTelegram'
 import { useTableWebSocket } from '../hooks/useTableWebSocket'
 import { useUserData } from '../providers/UserDataProvider'
+import { useLayout } from '../providers/LayoutProvider'
 import { apiFetch, ApiError } from '../utils/apiClient'
 import Toast from '../components/Toast'
 import Countdown from '../components/Countdown'
@@ -26,6 +27,7 @@ import TableExpiredModal from '../components/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
+import GameControls from '../components/tables/GameControls'
 import type { TableStatusTone } from '../components/lobby/types'
 
 interface TablePlayer {
@@ -175,6 +177,7 @@ export default function TablePage() {
   const { initData } = useTelegram()
   const { t } = useTranslation()
   const { refetchAll: refetchUserData } = useUserData()
+  const { setShowBottomNav } = useLayout()
 
   const [tableDetails, setTableDetails] = useState<TableDetails | null>(null)
   const [loading, setLoading] = useState(true)
@@ -921,6 +924,16 @@ export default function TablePage() {
       : 'waiting'
   const heroCards = liveState?.hero?.cards ?? []
 
+  // Control bottom navigation visibility based on seated status
+  useEffect(() => {
+    // Hide bottom nav when seated and playing, show it when spectating
+    setShowBottomNav(!viewerIsSeated)
+    // Restore bottom nav on unmount
+    return () => {
+      setShowBottomNav(true)
+    }
+  }, [viewerIsSeated, setShowBottomNav])
+
   return (
     <div className="space-y-3">
       <Toast message={toast.message} visible={toast.visible} />
@@ -1440,6 +1453,22 @@ export default function TablePage() {
           navigate('/lobby')
         }}
       />
+
+      {/* Game Controls - Fixed bottom when seated */}
+      {liveState && viewerIsSeated && !isInterHand && (
+        <GameControls
+          isPlayerTurn={liveState.current_actor === heroId}
+          amountToCall={amountToCall}
+          minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
+          maxRaise={liveState.allowed_actions?.max_raise_to || (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0)}
+          currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
+          actionPending={actionPending}
+          onFold={() => sendAction('fold')}
+          onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
+          onBet={(amount) => sendAction('bet', amount)}
+          onRaise={(amount) => sendAction('raise', amount)}
+        />
+      )}
     </div>
   )
 }
