@@ -11,6 +11,7 @@ from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram_poker_bot.game_core import pokerkit_runtime as game_runtime
+from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.models import (
     User,
     Table,
@@ -149,10 +150,14 @@ async def create_table_with_config(
             # Fallback to longer code
             invite_code = _generate_invite_code(length=INVITE_CODE_FALLBACK_LENGTH)
 
-    # Set expiration time (10 minutes from now)
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=TABLE_EXPIRATION_MINUTES
+    settings = get_settings()
+    ttl_minutes = (
+        settings.private_table_prestart_ttl_minutes
+        if is_private
+        else settings.public_table_prestart_ttl_minutes
     )
+
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
 
     table = Table(
         mode=mode,

@@ -166,7 +166,7 @@ async def test_compute_prestart_expiry_private_table_not_expired():
     should_expire, reason = await table_lifecycle.compute_prestart_expiry(db, table)
 
     assert should_expire is False
-    assert reason is None + ante
+    assert reason is None
 
 
 @pytest.mark.asyncio
