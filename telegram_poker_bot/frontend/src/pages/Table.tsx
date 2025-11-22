@@ -89,6 +89,7 @@ interface TableDetails {
 interface LivePlayerState {
   user_id: number
   seat: number
+  position?: number | null
   stack: number
   bet: number
   in_hand: boolean
@@ -97,6 +98,7 @@ interface LivePlayerState {
   is_big_blind: boolean
   acted?: boolean
   display_name?: string | null
+  username?: string | null
   is_sitting_out_next_hand?: boolean
 }
 
@@ -742,12 +744,14 @@ export default function TablePage() {
   const heroId = liveState?.hero?.user_id ?? null
   const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
   const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
-  const tableStatus = (liveState?.status ?? tableDetails.status ?? '').toString().toLowerCase()
+  const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
   const isInterHand = normalizedStatus === 'inter_hand_wait' || liveState?.inter_hand_wait
-  const inviteUrl = tableDetails.invite?.game_id
+  const inviteUrl = tableDetails?.invite?.game_id
     ? `${window.location.origin}/table/${tableDetails.invite.game_id}`
-    : `${window.location.origin}/table/${tableDetails.table_id}`
+    : tableDetails?.table_id
+      ? `${window.location.origin}/table/${tableDetails.table_id}`
+      : ''
   const currentActorName = liveState?.players.find((p) => p.user_id === liveState.current_actor)?.display_name
   const isMyTurn = liveState?.current_actor === heroId
 
