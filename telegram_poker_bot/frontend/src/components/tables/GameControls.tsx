@@ -68,10 +68,7 @@ export default function GameControls({
 
   return (
     <>
-      <div
-        className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe pt-3 bg-gray-900 border-t border-white/10 shadow-lg"
-        style={{ height: 'var(--bottom-nav-height, 72px)' }}
-      >
+      <div className="px-4 py-3">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2">
           {/* Fold - Left (Red) */}
           <button

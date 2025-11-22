@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -25,7 +25,11 @@ export default function MainLayout() {
   const { user } = useTelegram()
   const { balance } = useUserData()
   const { showBottomNav } = useLayout()
+  const location = useLocation()
   const [isPlaySheetOpen, setIsPlaySheetOpen] = useState(false)
+
+  // Hide header and nav when on Table page for immersive full-screen experience
+  const isTablePage = location.pathname.startsWith('/table/')
 
   const displayName = user?.first_name || user?.username || 'Player'
   const formatBalance = (bal: number) => {
@@ -38,53 +42,58 @@ export default function MainLayout() {
     <>
       <AppBackground />
       <div className="relative flex h-screen w-screen overflow-hidden flex-col text-[color:var(--color-text)]">
-        <header 
-          className="sticky top-0 z-30 px-4 py-3"
-          style={{
-            background: 'var(--glass-bg-elevated)',
-            borderBottom: '1px solid var(--glass-border)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <div className="mx-auto flex w-full max-w-4xl items-center gap-3">
-            <Link to="/profile" className="flex items-center gap-2.5">
-              <Avatar size="sm" className="relative" style={{ border: '1px solid rgba(255, 255, 255, 0.3)' }} />
-            </Link>
-
-            <div className="flex flex-1 items-center justify-between gap-3">
-              <Link to="/profile" className="flex flex-col leading-tight min-w-0">
-                <span className="truncate max-w-[120px] font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
-                  {displayName}
-                </span>
-                <span className="font-medium text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                  {balance !== null ? formatBalance(balance) : '...'}
-                </span>
+        {!isTablePage && (
+          <header 
+            className="sticky top-0 z-30 px-4 py-3"
+            style={{
+              background: 'var(--glass-bg-elevated)',
+              borderBottom: '1px solid var(--glass-border)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            <div className="mx-auto flex w-full max-w-4xl items-center gap-3">
+              <Link to="/profile" className="flex items-center gap-2.5">
+                <Avatar size="sm" className="relative" style={{ border: '1px solid rgba(255, 255, 255, 0.3)' }} />
               </Link>
 
-              <div className="flex items-center gap-2">
-                <LanguageSelector variant="icon" />
-                <Link
-                  to="/settings"
-                  className="flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 ease-out active:scale-95"
-                  style={{ 
-                    background: 'var(--glass-bg)',
-                    border: '1px solid var(--glass-border)',
-                    color: 'var(--color-text)',
-                  }}
-                  aria-label={t('menu.settings.label')}
-                >
-                  <FontAwesomeIcon icon={faGear} className="text-sm" />
+              <div className="flex flex-1 items-center justify-between gap-3">
+                <Link to="/profile" className="flex flex-col leading-tight min-w-0">
+                  <span className="truncate max-w-[120px] font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
+                    {displayName}
+                  </span>
+                  <span className="font-medium text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    {balance !== null ? formatBalance(balance) : '...'}
+                  </span>
                 </Link>
+
+                <div className="flex items-center gap-2">
+                  <LanguageSelector variant="icon" />
+                  <Link
+                    to="/settings"
+                    className="flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 ease-out active:scale-95"
+                    style={{ 
+                      background: 'var(--glass-bg)',
+                      border: '1px solid var(--glass-border)',
+                      color: 'var(--color-text)',
+                    }}
+                    aria-label={t('menu.settings.label')}
+                  >
+                    <FontAwesomeIcon icon={faGear} className="text-sm" />
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
+        )}
 
-        <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-y-auto px-4 pb-24 pt-6">
+        <main className={cn(
+          "relative mx-auto flex w-full flex-1 flex-col",
+          isTablePage ? "h-full w-full max-w-none overflow-hidden p-0" : "max-w-4xl overflow-y-auto px-4 pb-24 pt-6"
+        )}>
           <Outlet />
         </main>
 
-        {showBottomNav && (
+        {showBottomNav && !isTablePage && (
           <nav 
             className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-safe pt-3"
             style={{ 
