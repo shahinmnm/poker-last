@@ -48,7 +48,7 @@ class HandStatus(PyEnum):
     RIVER = "river"
     SHOWDOWN = "showdown"
     ENDED = "ended"
-    INTER_HAND_WAIT = "inter_hand_wait"  # 5-second wait phase between hands
+    INTER_HAND_WAIT = "inter_hand_wait"  # 20-second wait phase between hands
 
 
 class ActionType(PyEnum):

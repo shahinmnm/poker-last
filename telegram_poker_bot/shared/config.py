@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     private_table_prestart_ttl_minutes: int = (
         60  # 60 minutes for private tables to start
     )
-    post_hand_delay_seconds: int = 5  # Delay after hand ends before starting next hand
+    post_hand_delay_seconds: int = 20  # Delay after hand ends before starting next hand
 
     # Mini App
     webapp_secret: str = "test-webapp-secret"
