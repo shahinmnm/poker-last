@@ -87,12 +87,16 @@ export default function PlayerSpot({
         >
           {/* Avatar Content - Using initials */}
           <span className="text-white font-bold text-lg">
-            {name
-              .split(' ')
-              .map((n) => n[0])
-              .join('')
-              .toUpperCase()
-              .slice(0, 2) || '?'}
+            {name && name.trim()
+              ? name
+                  .trim()
+                  .split(' ')
+                  .filter((n) => n.length > 0)
+                  .map((n) => n[0])
+                  .join('')
+                  .toUpperCase()
+                  .slice(0, 2)
+              : '?'}
           </span>
         </div>
 

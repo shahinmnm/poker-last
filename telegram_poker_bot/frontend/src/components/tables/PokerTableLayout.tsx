@@ -60,7 +60,7 @@ export default function PokerTableLayout({
 
       {/* Hero Area - Bottom (above controls) */}
       {hero && (
-        <div className="absolute bottom-[80px] left-0 right-0 z-10 px-4">
+        <div className="absolute left-0 right-0 z-10 px-4" style={{ bottom: 'var(--bottom-nav-height, 72px)' }}>
           {hero}
         </div>
       )}

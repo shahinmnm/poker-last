@@ -70,7 +70,7 @@ export default function GameControls({
     <>
       <div
         className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe pt-3 bg-gray-900 border-t border-white/10 shadow-lg"
-        style={{ height: '72px' }}
+        style={{ height: 'var(--bottom-nav-height, 72px)' }}
       >
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2">
           {/* Fold - Left (Red) */}
