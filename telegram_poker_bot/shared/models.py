@@ -48,6 +48,7 @@ class HandStatus(PyEnum):
     RIVER = "river"
     SHOWDOWN = "showdown"
     ENDED = "ended"
+    INTER_HAND_WAIT = "inter_hand_wait"  # 5-second wait phase between hands
 
 
 class ActionType(PyEnum):
@@ -59,6 +60,7 @@ class ActionType(PyEnum):
     BET = "bet"
     RAISE = "raise"
     ALL_IN = "all_in"
+    READY = "ready"  # Signal readiness for next hand during inter-hand phase
 
 
 class GroupGameInviteStatus(str, PyEnum):

@@ -1628,13 +1628,14 @@ async def start_next_hand(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Start the next hand after proper validation and delay.
+    Start the next hand after the inter-hand ready phase.
 
     This endpoint:
-    1. Validates minimum player count (>= 2)
+    1. Validates minimum player count (>= 2 active non-sitting-out players)
     2. Checks each player's balance against requirements
     3. Sets players with insufficient balance to sitting_out
-    4. Marks table as expired if < 2 active players remain
+    4. Marks table as expired if < 2 active players remain after balance checks
+    5. Starts the next hand if all conditions are met
     """
     from telegram_poker_bot.shared.services import table_lifecycle
     from telegram_poker_bot.shared.config import get_settings
@@ -1671,36 +1672,40 @@ async def start_next_hand(
     # Track which players have insufficient balance
     insufficient_balance_players = []
 
-    # Check each player's balance
+    # Rule 8: Balance Validation
+    # Check each player who is NOT sitting out for sufficient balance
     for seat in active_seats:
-        has_sufficient, required = (
-            await table_lifecycle.check_player_balance_requirements(
-                seat, small_blind, big_blind, ante
+        if not seat.is_sitting_out_next_hand:
+            has_sufficient, required = (
+                await table_lifecycle.check_player_balance_requirements(
+                    seat, small_blind, big_blind, ante
+                )
             )
-        )
-        if not has_sufficient:
-            # Set player to sitting out
-            seat.is_sitting_out_next_hand = True
-            insufficient_balance_players.append(
-                {
-                    "user_id": seat.user_id,
-                    "required": required,
-                    "current": seat.chips,
-                }
-            )
-            logger.info(
-                "Player set to sitting out due to insufficient balance",
-                table_id=table_id,
-                user_id=seat.user_id,
-                required=required,
-                current=seat.chips,
-            )
+            if not has_sufficient:
+                # Set player to sitting out due to insufficient balance
+                seat.is_sitting_out_next_hand = True
+                insufficient_balance_players.append(
+                    {
+                        "user_id": seat.user_id,
+                        "required": required,
+                        "current": seat.chips,
+                    }
+                )
+                logger.info(
+                    "Player set to sitting out due to insufficient balance",
+                    table_id=table_id,
+                    user_id=seat.user_id,
+                    required=required,
+                    current=seat.chips,
+                )
 
     await db.flush()
 
-    # Count remaining active players (not sitting out)
+    # Count remaining active players (not sitting out) after balance checks
     playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
 
+    # Rule 5 & 6: Min Player Deletion
+    # Check if we have minimum players AFTER the inter-hand ready phase
     if len(playing_seats) < 2:
         # Not enough players to continue - mark table as expired
         reason = f"lack of minimum players ({len(playing_seats)}/2 required)"
@@ -1721,7 +1726,7 @@ async def start_next_hand(
         await manager.broadcast(table_id, state)
 
         logger.info(
-            "Next hand started",
+            "Next hand started after inter-hand phase",
             table_id=table_id,
             players=len(playing_seats),
             insufficient_balance_count=len(insufficient_balance_players),

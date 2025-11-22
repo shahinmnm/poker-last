@@ -60,6 +60,7 @@ class PokerKitTableRuntime:
         self.event_sequence = 0
         self._pending_deal_event: Optional[str] = None
         self.last_hand_result: Optional[Dict[str, Any]] = None
+        self.inter_hand_wait_start: Optional[datetime] = None  # Track inter-hand wait phase
 
     def _get_active_players_in_hand(self) -> List[Seat]:
         """
@@ -972,8 +973,40 @@ class PokerKitTableRuntimeManager:
 
             if runtime.current_hand is None:
                 raise ValueError("No active hand to handle action")
+            
+            # SPECIAL HANDLING: READY action during INTER_HAND_WAIT phase
+            if action == ActionType.READY:
+                # Verify we're in the inter-hand wait phase
+                if runtime.current_hand.status != HandStatus.INTER_HAND_WAIT:
+                    raise ValueError("READY action only allowed during inter-hand wait phase")
+                
+                # Find the user's seat and mark them as NOT sitting out
+                user_seat = None
+                for seat in runtime.seats:
+                    if seat.user_id == user_id and seat.left_at is None:
+                        user_seat = seat
+                        break
+                
+                if user_seat is None:
+                    raise ValueError("User not seated at this table")
+                
+                # Mark player as ready (not sitting out)
+                user_seat.is_sitting_out_next_hand = False
+                await db.flush()
+                
+                logger.info(
+                    "Player signaled READY during inter-hand wait",
+                    table_id=table_id,
+                    user_id=user_id,
+                    hand_no=runtime.hand_no,
+                )
+                
+                # Return current state
+                state = runtime.to_payload(user_id)
+                state["ready_confirmed"] = True
+                return state
 
-            # Process the action
+            # Process normal poker actions
             result = runtime.handle_action(user_id, action, amount)
 
             # Reset timeout counter for player when they act normally (not via timeout)
@@ -1016,8 +1049,24 @@ class PokerKitTableRuntimeManager:
 
             # Update hand status based on result
             if "hand_result" in result:
-                runtime.current_hand.status = HandStatus.ENDED
-                runtime.current_hand.ended_at = datetime.now(timezone.utc)
+                # INTER-HAND PHASE: Instead of immediately ending the hand,
+                # enter INTER_HAND_WAIT state for 5 seconds
+                # During this time, all players default to sitting out unless they signal READY
+                
+                runtime.current_hand.status = HandStatus.INTER_HAND_WAIT
+                runtime.inter_hand_wait_start = datetime.now(timezone.utc)
+                
+                # Default ALL players to sitting out for next hand
+                # They must actively signal "READY" to participate
+                for seat in runtime.seats:
+                    if seat.left_at is None:
+                        seat.is_sitting_out_next_hand = True
+                
+                logger.info(
+                    "Hand entering INTER_HAND_WAIT phase - all players set to sit out by default",
+                    table_id=table_id,
+                    hand_no=runtime.hand_no,
+                )
 
                 # Apply hand results to wallets and stats
                 from telegram_poker_bot.shared.services.user_service import (
@@ -1095,30 +1144,16 @@ class PokerKitTableRuntimeManager:
                 # Log showdown/hand_ended events
                 await runtime._log_hand_event(db, "showdown")
                 await runtime._log_hand_event(db, "hand_ended")
-
-                # CRITICAL: Check self-destruct conditions after hand completion (Rule D)
-                from telegram_poker_bot.shared.services import table_lifecycle
-
-                should_self_destruct, reason = (
-                    await table_lifecycle.compute_poststart_inactivity(
-                        db, runtime.table
-                    )
-                )
-
-                if should_self_destruct:
-                    logger.info(
-                        "Table self-destructing after hand completion",
-                        table_id=table_id,
-                        hand_no=runtime.hand_no,
-                        reason=reason,
-                    )
-                    await table_lifecycle.mark_table_completed_and_cleanup(
-                        db, runtime.table, reason
-                    )
-                    # Add self-destruct flag to result so frontend knows table is ending
-                    result["table_ended"] = True
-                    result["table_status"] = "ended"
-                    result["end_reason"] = reason
+                
+                # Add inter_hand_wait flag to result so frontend knows to show ready modal
+                result["inter_hand_wait"] = True
+                result["inter_hand_wait_seconds"] = settings.post_hand_delay_seconds
+                result["inter_hand_wait_deadline"] = (
+                    runtime.inter_hand_wait_start + timedelta(seconds=settings.post_hand_delay_seconds)
+                ).isoformat()
+                
+                # Note: We do NOT check self-destruct conditions here anymore
+                # That will be done in the next-hand endpoint after the inter-hand phase
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index
@@ -1148,6 +1183,12 @@ class PokerKitTableRuntimeManager:
             # Add hand_result if present
             if "hand_result" in result:
                 state["hand_result"] = result["hand_result"]
+            
+            # Propagate inter-hand wait status if present
+            if "inter_hand_wait" in result:
+                state["inter_hand_wait"] = result["inter_hand_wait"]
+                state["inter_hand_wait_seconds"] = result.get("inter_hand_wait_seconds", 5)
+                state["inter_hand_wait_deadline"] = result.get("inter_hand_wait_deadline")
 
             # Propagate table_ended status if present
             if "table_ended" in result:
