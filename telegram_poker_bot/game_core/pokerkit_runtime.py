@@ -1363,6 +1363,9 @@ class PokerKitTableRuntimeManager:
                 result["hand_ended_event"] = hand_ended_event
                 result["inter_hand_wait"] = True
                 result["inter_hand_wait_seconds"] = settings.post_hand_delay_seconds
+                result["inter_hand_wait_deadline"] = hand_ended_event.get(
+                    "inter_hand_wait_deadline"
+                )
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index
@@ -1402,6 +1405,10 @@ class PokerKitTableRuntimeManager:
                 state["inter_hand_wait"] = result["inter_hand_wait"]
                 state["inter_hand_wait_seconds"] = result.get(
                     "inter_hand_wait_seconds", settings.post_hand_delay_seconds
+                )
+                # THE FIX: Include the deadline for frontend countdown timer
+                state["inter_hand_wait_deadline"] = result.get(
+                    "inter_hand_wait_deadline"
                 )
 
             # Propagate table_ended status if present
