@@ -573,9 +573,9 @@ async def auto_fold_expired_actions():
                                 continue
 
                             # Determine action based on timeout count and legal actions
-                            # Rule C:
+                            # Rule C & Rule 2 (Zombie Cleanup):
                             # - First timeout: check if legal, otherwise fold
-                            # - Second consecutive timeout: always fold
+                            # - Second+ consecutive timeout: always fold AND set to sit out
                             auto_action = ActionType.FOLD  # Default
 
                             if timeout_count == 0:
@@ -627,6 +627,26 @@ async def auto_fold_expired_actions():
                                 "last_timeout_at"
                             ] = now.isoformat()
                             current_hand.timeout_tracking = timeout_tracking
+
+                            # Rule 2: After 2nd consecutive timeout, set player to sit out
+                            if timeout_count + 1 >= 2:
+                                actor_seat.is_sitting_out_next_hand = True
+                                logger.info(
+                                    "Player set to sit out after consecutive timeouts",
+                                    table_id=table.id,
+                                    user_id=current_actor_user_id,
+                                    timeout_count=timeout_count + 1,
+                                )
+                                # Broadcast seat update to all clients
+                                await manager.broadcast(
+                                    table.id,
+                                    {
+                                        "type": "player_sitout_changed",
+                                        "user_id": current_actor_user_id,
+                                        "is_sitting_out": True,
+                                        "reason": "consecutive_timeouts",
+                                    },
+                                )
 
                             table.last_action_at = now
                             await db.flush()

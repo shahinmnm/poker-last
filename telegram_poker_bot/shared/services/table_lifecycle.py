@@ -63,8 +63,9 @@ async def compute_prestart_expiry(
     """
     Check if a pre-start table should be expired.
 
-    Rule A: Pre-start join TTL (UPDATED - STRICT 10-MINUTE LIMIT FOR ALL TABLES)
-    - ALL tables (PUBLIC and PRIVATE): 10 minutes to start
+    Rule 1 & 7: Pre-start join TTL
+    - PUBLIC tables (no invite_code): 10 minutes to start
+    - PRIVATE tables (with invite_code): 60 minutes to start
     - If game hasn't started by the limit, mark EXPIRED
     - Once the game starts (ACTIVE), this timer is disabled
 
@@ -86,8 +87,12 @@ async def compute_prestart_expiry(
         now = datetime.now(timezone.utc)
         if table.expires_at <= now:
             settings = get_settings()
-            # STRICT 10-minute limit for ALL tables
-            ttl_minutes = settings.public_table_prestart_ttl_minutes
+            # Rule 7: Check if table has invite_code (private table)
+            # Private tables get 60 minutes, public tables get 10 minutes
+            if table.invite_code:
+                ttl_minutes = settings.private_table_prestart_ttl_minutes
+            else:
+                ttl_minutes = settings.public_table_prestart_ttl_minutes
             return (
                 True,
                 f"pre-game timeout ({ttl_minutes} minute join window expired)",
@@ -102,15 +107,13 @@ async def compute_poststart_inactivity(
     """
     Check if an active table should be expired due to inactivity.
 
-    Rule D: Self-destruct on dead tables
-    - Not enough active players to continue (< 2 active players)
-    - All remaining players are folded/sit-out/inactive
-
-    Rule 2: Inactivity Trigger
-    - Trigger expiration if ALL players are marked inactive (folded/timed-out/sitting-out)
+    Rule 2: Zombie Cleanup
+    - Players who timeout consecutively are marked as sitting out
+    - If all players fold/timeout/sit-out, table is deleted
 
     Rule 5 & 6: Min Player Deletion
     - This check must occur after the inter-hand phase
+    - Count only active players (those NOT sitting out for next hand)
     - If active_players < 2, mark table as expired immediately
 
     Args:
@@ -136,17 +139,13 @@ async def compute_poststart_inactivity(
     if not active_seats:
         return True, "no active players remaining"
 
-    # Count players who are NOT sitting out
+    # Rule 5 & 6: Count players who are NOT sitting out for next hand
+    # This excludes zombies and players who chose to sit out
     playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
 
-    # Rule 5 & 6: Check minimum player count
+    # Rule 5 & 6: Check minimum player count (must have at least 2 active players)
     if len(playing_seats) < 2:
-        return True, f"lack of minimum players ({len(playing_seats)}/2 required)"
-
-    # Rule 2: Check if ALL players are inactive (sitting out)
-    # This is an additional check for when all players have decided to sit out
-    if len(playing_seats) == 0:
-        return True, "all players sitting out"
+        return True, f"lack of minimum player ({len(playing_seats)}/2 required)"
 
     return False, None
 
