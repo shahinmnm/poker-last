@@ -105,10 +105,10 @@ async def compute_poststart_inactivity(
     Rule D: Self-destruct on dead tables
     - Not enough active players to continue (< 2 active players)
     - All remaining players are folded/sit-out/inactive
-    
+
     Rule 2: Inactivity Trigger
     - Trigger expiration if ALL players are marked inactive (folded/timed-out/sitting-out)
-    
+
     Rule 5 & 6: Min Player Deletion
     - This check must occur after the inter-hand phase
     - If active_players < 2, mark table as expired immediately

@@ -973,34 +973,34 @@ class PokerKitTableRuntimeManager:
 
             if runtime.current_hand is None:
                 raise ValueError("No active hand to handle action")
-            
+
             # SPECIAL HANDLING: READY action during INTER_HAND_WAIT phase
             if action == ActionType.READY:
                 # Verify we're in the inter-hand wait phase
                 if runtime.current_hand.status != HandStatus.INTER_HAND_WAIT:
                     raise ValueError("READY action only allowed during inter-hand wait phase")
-                
+
                 # Find the user's seat and mark them as NOT sitting out
                 user_seat = None
                 for seat in runtime.seats:
                     if seat.user_id == user_id and seat.left_at is None:
                         user_seat = seat
                         break
-                
+
                 if user_seat is None:
                     raise ValueError("User not seated at this table")
-                
+
                 # Mark player as ready (not sitting out)
                 user_seat.is_sitting_out_next_hand = False
                 await db.flush()
-                
+
                 logger.info(
                     "Player signaled READY during inter-hand wait",
                     table_id=table_id,
                     user_id=user_id,
                     hand_no=runtime.hand_no,
                 )
-                
+
                 # Return current state
                 state = runtime.to_payload(user_id)
                 state["ready_confirmed"] = True
@@ -1052,16 +1052,16 @@ class PokerKitTableRuntimeManager:
                 # INTER-HAND PHASE: Instead of immediately ending the hand,
                 # enter INTER_HAND_WAIT state for 5 seconds
                 # During this time, all players default to sitting out unless they signal READY
-                
+
                 runtime.current_hand.status = HandStatus.INTER_HAND_WAIT
                 runtime.inter_hand_wait_start = datetime.now(timezone.utc)
-                
+
                 # Default ALL players to sitting out for next hand
                 # They must actively signal "READY" to participate
                 for seat in runtime.seats:
                     if seat.left_at is None:
                         seat.is_sitting_out_next_hand = True
-                
+
                 logger.info(
                     "Hand entering INTER_HAND_WAIT phase - all players set to sit out by default",
                     table_id=table_id,
@@ -1144,14 +1144,14 @@ class PokerKitTableRuntimeManager:
                 # Log showdown/hand_ended events
                 await runtime._log_hand_event(db, "showdown")
                 await runtime._log_hand_event(db, "hand_ended")
-                
+
                 # Add inter_hand_wait flag to result so frontend knows to show ready modal
                 result["inter_hand_wait"] = True
                 result["inter_hand_wait_seconds"] = settings.post_hand_delay_seconds
                 result["inter_hand_wait_deadline"] = (
                     runtime.inter_hand_wait_start + timedelta(seconds=settings.post_hand_delay_seconds)
                 ).isoformat()
-                
+
                 # Note: We do NOT check self-destruct conditions here anymore
                 # That will be done in the next-hand endpoint after the inter-hand phase
             else:
@@ -1183,7 +1183,7 @@ class PokerKitTableRuntimeManager:
             # Add hand_result if present
             if "hand_result" in result:
                 state["hand_result"] = result["hand_result"]
-            
+
             # Propagate inter-hand wait status if present
             if "inter_hand_wait" in result:
                 state["inter_hand_wait"] = result["inter_hand_wait"]
