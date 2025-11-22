@@ -107,17 +107,32 @@ class PokerKitTableRuntime:
             pot_size=pot_size,
             board_cards=board_cards if board_cards else None,
         )
-        db.add(event)
-        self.event_sequence += 1
+        try:
+            async with db.begin_nested():
+                db.add(event)
+                await db.flush()
 
-        logger.debug(
-            "Logged hand event",
-            table_id=self.table.id,
-            hand_id=self.current_hand.id,
-            sequence=event.sequence,
-            action_type=action_type,
-            actor_user_id=actor_user_id,
-        )
+            logger.debug(
+                "Logged hand event",
+                table_id=self.table.id,
+                hand_id=self.current_hand.id,
+                sequence=event.sequence,
+                action_type=action_type,
+                actor_user_id=actor_user_id,
+            )
+        except Exception as e:  # pragma: no cover - defensive logging path
+            db.expunge(event)
+            logger.warning(
+                "Failed to persist hand history event",
+                table_id=self.table.id,
+                hand_id=self.current_hand.id,
+                sequence=event.sequence,
+                action_type=action_type,
+                actor_user_id=actor_user_id,
+                error=str(e),
+            )
+        finally:
+            self.event_sequence += 1
 
     async def load_or_create_hand(self, db: AsyncSession) -> Hand:
         """
