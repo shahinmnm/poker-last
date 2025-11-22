@@ -24,7 +24,8 @@ import HandResultPanel from '../components/tables/HandResultPanel'
 import RecentHandsModal from '../components/tables/RecentHandsModal'
 import TableExpiredModal from '../components/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
-import InterHandOverlay from '../components/tables/InterHandOverlay'
+import InterHandVoting from '../components/tables/InterHandVoting'
+import WinnerShowcase from '../components/tables/WinnerShowcase'
 import type { TableStatusTone } from '../components/lobby/types'
 
 interface TablePlayer {
@@ -186,6 +187,8 @@ export default function TablePage() {
   const [toast, setToast] = useState(DEFAULT_TOAST)
   const [liveState, setLiveState] = useState<LiveTableState | null>(null)
   const [handResult, setHandResult] = useState<LiveTableState['hand_result'] | null>(null)
+  const [lastHandResult, setLastHandResult] =
+    useState<LiveTableState['hand_result'] | null>(null)
   const [actionPending, setActionPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
@@ -202,6 +205,7 @@ export default function TablePage() {
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<LiveTableState['hand_result'] | null>(null)
   const lastCompletedHandIdRef = useRef<number | null>(null)
+  const lastHandResultHandIdRef = useRef<number | null>(null)
 
   const dateFormatter = useMemo(
     () =>
@@ -227,6 +231,30 @@ export default function TablePage() {
 
   // Track the last hand_id to detect when a new hand starts
   const lastHandIdRef = useRef<number | null>(null)
+
+  const syncHandResults = useCallback(
+    (
+      handId: number | null,
+      incomingResult: LiveTableState['hand_result'] | null,
+      isSameHand = false,
+    ) => {
+      setHandResult(incomingResult ?? null)
+
+      if (incomingResult) {
+        setLastHandResult(incomingResult)
+        if (handId !== null) {
+          lastHandResultHandIdRef.current = handId
+        }
+        return
+      }
+
+      if (!isSameHand) {
+        setLastHandResult(null)
+        lastHandResultHandIdRef.current = handId
+      }
+    },
+    [],
+  )
 
   // Helper to get center position of an element
   const getElementCenter = useCallback((element: HTMLElement | null): { x: number; y: number } | null => {
@@ -393,13 +421,13 @@ export default function TablePage() {
           hand_result: mergedHandResult,
           ready_players: mergedReadyPlayers,
         }
-        setHandResult(mergedHandResult ?? null)
+        syncHandResults(data.hand_id ?? null, mergedHandResult, isSameHand)
         return nextState
       })
     } catch (err) {
       console.warn('Unable to fetch live state', err)
     }
-  }, [tableId])
+  }, [syncHandResults, tableId])
 
   // Handle player signaling ready for next hand
   const handleReady = useCallback(async () => {
@@ -424,6 +452,8 @@ export default function TablePage() {
         setLiveState((previous) => {
           const mergedHero = response.hero ?? previous?.hero ?? null
           const mergedHandResult = response.hand_result ?? previous?.hand_result ?? null
+          const handId = response.hand_id ?? previous?.hand_id ?? null
+          syncHandResults(handId, mergedHandResult, true)
           return { ...response, hero: mergedHero, hand_result: mergedHandResult }
         })
       } else if (response?.ready_players) {
@@ -449,7 +479,7 @@ export default function TablePage() {
         showToast(t('table.errors.actionFailed'))
       }
     }
-  }, [tableId, initData, fetchLiveState, showToast, t])
+  }, [fetchLiveState, initData, showToast, syncHandResults, t, tableId])
 
   // Refresh table data once auth context (initData) becomes available so the
   // viewer-specific fields (like seat status and hero cards) are populated.
@@ -542,7 +572,7 @@ export default function TablePage() {
           ready_players: mergedReadyPlayers,
         }
 
-        setHandResult(mergedHandResult ?? null)
+        syncHandResults(payload.hand_id ?? null, mergedHandResult, isSameHand)
         return nextState
       })
 
@@ -551,7 +581,7 @@ export default function TablePage() {
         lastHandIdRef.current = payload.hand_id
         fetchLiveState()
       }
-    }, [fetchLiveState, showToast, navigate, t]),
+    }, [fetchLiveState, navigate, showToast, syncHandResults, t]),
     onConnect: useCallback(() => {
       console.log('WebSocket connected to table', tableId)
       // Refresh viewer-specific state (including hero cards) after reconnects
@@ -642,7 +672,7 @@ export default function TablePage() {
         initData,
       })
       setLiveState(state)
-      setHandResult(state.hand_result ?? null)
+      syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
       await fetchTable()
       await fetchLiveState()
       showToast(t('table.toast.started'))
@@ -683,7 +713,7 @@ export default function TablePage() {
           },
         })
         setLiveState(state)
-        setHandResult(state.hand_result ?? null)
+        syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
         await fetchLiveState()
       } catch (err) {
         console.error('Error sending action', err)
@@ -700,12 +730,14 @@ export default function TablePage() {
         setActionPending(false)
       }
     },
-    [fetchLiveState, initData, showToast, t, tableId],
+    [fetchLiveState, initData, showToast, syncHandResults, t, tableId],
   )
 
   const heroId = liveState?.hero?.user_id ?? null
   const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
   const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
+  const normalizedStatus = (liveState?.status ?? '').toString().toLowerCase()
+  const isInterHand = normalizedStatus === 'inter_hand_wait' || liveState?.inter_hand_wait
 
   useEffect(() => {
     if (liveState?.hand_id !== autoTimeoutRef.current.handId) {
@@ -936,198 +968,205 @@ export default function TablePage() {
 
       {liveState && (
         <Card className="glass-panel border border-white/10 bg-white/5 shadow-lg relative overflow-hidden">
-          {liveState.inter_hand_wait && (
-            <InterHandOverlay
-              players={liveState.players.map((player) => ({
-                user_id: player.user_id,
-                display_name: player.display_name || t('table.players.seat', { index: player.seat + 1 }),
-              }))}
-              readyPlayerIds={liveState.ready_players ?? []}
-              deadline={liveState.inter_hand_wait_deadline}
-              durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
-              onReady={handleReady}
-              isReady={(liveState.ready_players ?? []).includes(heroId ?? -1)}
-            />
-          )}
-          {/* Game Status Header - Compact */}
-          <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
-            <div className="flex-1">
-              <p className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)] mb-0.5">
-                {t('table.statusLabel')}
-              </p>
-              <p className="text-base font-semibold text-[color:var(--text-primary)]">
-                {liveState.hand_result ? 'SHOWDOWN' : liveState.street ? liveState.street.charAt(0).toUpperCase() + liveState.street.slice(1) : 'Waiting'}
-              </p>
+          {isInterHand ? (
+            <div className="flex flex-col items-center justify-center space-y-6 py-8">
+              <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
+              <InterHandVoting
+                players={liveState.players}
+                readyPlayerIds={liveState.ready_players ?? []}
+                deadline={liveState.inter_hand_wait_deadline}
+                durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
+                onReady={handleReady}
+                isReady={(liveState.ready_players ?? []).includes(heroId ?? -1)}
+              />
             </div>
-            <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10" ref={potAreaRef}>
-              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">
-                {liveState.pots && liveState.pots.length > 1
-                  ? t('table.pots.title')
-                  : t('table.pot', { amount: liveState.pot })}
-              </p>
-              {liveState.pots && liveState.pots.length > 1 ? (
-                <div className="space-y-0.5">
-                  {liveState.pots.map((pot) => (
-                    <div key={pot.pot_index} className="text-xs">
-                      <span className="text-[color:var(--text-muted)]">
-                        #{pot.pot_index + 1}:
-                      </span>{' '}
-                      <span className="font-bold text-emerald-400">{pot.amount}</span>
-                    </div>
-                  ))}
+          ) : (
+            <>
+              {/* Game Status Header - Compact */}
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
+                <div className="flex-1">
+                  <p className="text-[10px] uppercase tracking-wider text-[color:var(--text-muted)] mb-0.5">
+                    {t('table.statusLabel')}
+                  </p>
+                  <p className="text-base font-semibold text-[color:var(--text-primary)]">
+                    {liveState.hand_result
+                      ? 'SHOWDOWN'
+                      : liveState.street
+                      ? liveState.street.charAt(0).toUpperCase() + liveState.street.slice(1)
+                      : 'Waiting'}
+                  </p>
                 </div>
-              ) : (
-                <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
-              )}
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.blinds')}</p>
-              <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                {`${tableDetails.small_blind}/${tableDetails.big_blind}`}
-              </p>
-            </div>
-          </div>
-
-          {/* Community Cards */}
-          <div className="py-2.5">
-            <div className="flex items-center justify-center gap-1">
-              {liveState.board && liveState.board.length > 0 ? (
-                liveState.board.map((card, idx) => {
-                  const isWinningCard =
-                    liveState.hand_result?.winners?.some((winner) => winner.best_hand_cards?.includes(card)) ?? false
-                  return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
-                })
-              ) : (
-                <div className="rounded-lg bg-black/20 px-2.5 py-1.5 text-[10px] text-[color:var(--text-muted)]">
-                  {t('table.waitingForBoard')}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Hand Result Panel */}
-          <HandResultPanel liveState={liveState} currentUserId={heroId} />
-
-          {/* Players Grid - More Compact */}
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 py-2.5 border-t border-white/10">
-            {liveState.players.map((player) => {
-              const isActor = player.user_id === liveState.current_actor
-              const isHero = player.user_id === heroId
-              const isLastActor = liveState.last_action?.user_id === player.user_id
-              
-              const getLastActionText = () => {
-                if (!isLastActor || !liveState.last_action) return null
-                const action = liveState.last_action.action
-                const amount = liveState.last_action.amount
-                
-                if (action === 'fold') return t('table.actions.lastAction.fold')
-                if (action === 'check') return t('table.actions.lastAction.check')
-                if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
-                if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
-                if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
-                if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
-                return null
-              }
-              
-              const lastActionText = getLastActionText()
-              
-              return (
-                <div
-                  key={`${player.user_id}-${player.seat}`}
-                  ref={(el) => {
-                    if (el) {
-                      playerTileRefs.current.set(player.user_id, el)
-                    } else {
-                      playerTileRefs.current.delete(player.user_id)
-                    }
-                  }}
-                  className={`rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-all relative ${
-                    isActor
-                      ? 'border-white/25 bg-emerald-500/10 shadow-md shadow-emerald-500/20'
-                      : isHero
-                      ? 'border-sky-400/50 bg-sky-500/10'
-                      : 'border-white/10 bg-white/5'
-                  }`}
-                >
-                  {/* Timer Border - Only show for current actor who is not sitting out and not folded */}
-                  {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
-                    <PlayerRectTimer
-                      deadline={liveState.action_deadline}
-                      turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                      className="rounded-lg"
-                    />
-                  )}
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-[color:var(--text-primary)] truncate">
-                      {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
-                    </span>
-                    <div className="flex gap-0.5 text-[9px] uppercase tracking-wide">
-                      {player.is_button && (
-                        <span className="rounded-full bg-amber-500/20 text-amber-300 px-1.5 py-0.5">D</span>
-                      )}
-                      {player.is_small_blind && (
-                        <span className="rounded-full bg-white/10 px-1.5 py-0.5">SB</span>
-                      )}
-                      {player.is_big_blind && (
-                        <span className="rounded-full bg-white/10 px-1.5 py-0.5">BB</span>
-                      )}
-                      {isHero && (
-                        <span className="rounded-full bg-sky-500/20 text-sky-300 px-1.5 py-0.5">YOU</span>
-                      )}
+                <div className="text-center px-3 py-1.5 rounded-lg bg-white/5 border border-white/10" ref={potAreaRef}>
+                  <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">
+                    {liveState.pots && liveState.pots.length > 1
+                      ? t('table.pots.title')
+                      : t('table.pot', { amount: liveState.pot })}
+                  </p>
+                  {liveState.pots && liveState.pots.length > 1 ? (
+                    <div className="space-y-0.5">
+                      {liveState.pots.map((pot) => (
+                        <div key={pot.pot_index} className="text-xs">
+                          <span className="text-[color:var(--text-muted)]">
+                            #{pot.pot_index + 1}:
+                          </span>{' '}
+                          <span className="font-bold text-emerald-400">{pot.amount}</span>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  {player.is_sitting_out_next_hand && (
-                    <div className="mt-0.5">
-                      <span className="text-[8px] uppercase tracking-wide text-orange-400/80 bg-orange-500/10 px-1.5 py-0.5 rounded">
-                        {t('table.sitOut')}
-                      </span>
-                    </div>
-                  )}
-                  <div className="mt-1 flex items-center justify-between text-[10px]">
-                    <span className="text-[color:var(--text-muted)]">
-                      {t('table.chips', { amount: player.stack })}
-                    </span>
-                    {player.bet > 0 && (
-                      <span className="text-amber-400 font-semibold">
-                        {t('table.betAmount', { amount: player.bet })}
-                      </span>
-                    )}
-                  </div>
-                  {!player.in_hand && (
-                    <p className="mt-0.5 text-[9px] text-rose-400/80">{t('table.folded')}</p>
-                  )}
-                  {lastActionText && player.in_hand && (
-                    <p className="mt-0.5 text-[9px] font-semibold" style={{ color: isLastActor ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
-                      {lastActionText}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Hero Cards - Compact - Only show during active hand */}
-          {liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
-            <div className="pt-2.5 border-t border-white/10">
-              <div className="flex flex-col items-center gap-1.5 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-2.5 py-2 text-center">
-                <p className="text-[9px] uppercase tracking-wider text-[color:var(--text-muted)]">
-                  {t('table.yourHand')}
-                </p>
-                <div className="flex gap-1.5">
-                  {heroCards.length ? (
-                    heroCards.map((card, idx) => {
-                      const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
-                      const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                      return <PlayingCard key={`hero-${idx}`} card={card} size="md" highlighted={isWinningCard} />
-                    })
                   ) : (
-                    <span className="text-[10px] text-[color:var(--text-muted)]">
-                      {t('table.waitingForHand')}
-                    </span>
-                                )}
+                    <p className="text-sm font-bold text-emerald-400">{liveState.pot}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-[color:var(--text-muted)] mb-0.5">{t('table.blinds')}</p>
+                  <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                    {`${tableDetails.small_blind}/${tableDetails.big_blind}`}
+                  </p>
                 </div>
               </div>
-            </div>
+
+              {/* Community Cards */}
+              <div className="py-2.5">
+                <div className="flex items-center justify-center gap-1">
+                  {liveState.board && liveState.board.length > 0 ? (
+                    liveState.board.map((card, idx) => {
+                      const isWinningCard =
+                        liveState.hand_result?.winners?.some((winner) => winner.best_hand_cards?.includes(card)) ?? false
+                      return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
+                    })
+                  ) : (
+                    <div className="rounded-lg bg-black/20 px-2.5 py-1.5 text-[10px] text-[color:var(--text-muted)]">
+                      {t('table.waitingForBoard')}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Hand Result Panel */}
+              <HandResultPanel liveState={liveState} currentUserId={heroId} />
+
+              {/* Players Grid - More Compact */}
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 py-2.5 border-t border-white/10">
+                {liveState.players.map((player) => {
+                  const isActor = player.user_id === liveState.current_actor
+                  const isHero = player.user_id === heroId
+                  const isLastActor = liveState.last_action?.user_id === player.user_id
+
+                  const getLastActionText = () => {
+                    if (!isLastActor || !liveState.last_action) return null
+                    const action = liveState.last_action.action
+                    const amount = liveState.last_action.amount
+
+                    if (action === 'fold') return t('table.actions.lastAction.fold')
+                    if (action === 'check') return t('table.actions.lastAction.check')
+                    if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
+                    if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
+                    if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
+                    if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
+                    return null
+                  }
+
+                  const lastActionText = getLastActionText()
+
+                  return (
+                    <div
+                      key={`${player.user_id}-${player.seat}`}
+                      ref={(el) => {
+                        if (el) {
+                          playerTileRefs.current.set(player.user_id, el)
+                        } else {
+                          playerTileRefs.current.delete(player.user_id)
+                        }
+                      }}
+                      className={`rounded-lg border px-2 py-1.5 backdrop-blur-sm transition-all relative ${
+                        isActor
+                          ? 'border-white/25 bg-emerald-500/10 shadow-md shadow-emerald-500/20'
+                          : isHero
+                          ? 'border-sky-400/50 bg-sky-500/10'
+                          : 'border-white/10 bg-white/5'
+                      }`}
+                    >
+                      {/* Timer Border - Only show for current actor who is not sitting out and not folded */}
+                      {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
+                        <PlayerRectTimer
+                          deadline={liveState.action_deadline}
+                          turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                          className="rounded-lg"
+                        />
+                      )}
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-[color:var(--text-primary)] truncate">
+                          {player.display_name || t('table.players.seat', { index: player.seat + 1 })}
+                        </span>
+                        <div className="flex gap-0.5 text-[9px] uppercase tracking-wide">
+                          {player.is_button && (
+                            <span className="rounded-full bg-amber-500/20 text-amber-300 px-1.5 py-0.5">D</span>
+                          )}
+                          {player.is_small_blind && (
+                            <span className="rounded-full bg-white/10 px-1.5 py-0.5">SB</span>
+                          )}
+                          {player.is_big_blind && (
+                            <span className="rounded-full bg-white/10 px-1.5 py-0.5">BB</span>
+                          )}
+                          {isHero && (
+                            <span className="rounded-full bg-sky-500/20 text-sky-300 px-1.5 py-0.5">YOU</span>
+                          )}
+                        </div>
+                      </div>
+                      {player.is_sitting_out_next_hand && (
+                        <div className="mt-0.5">
+                          <span className="text-[8px] uppercase tracking-wide text-orange-400/80 bg-orange-500/10 px-1.5 py-0.5 rounded">
+                            {t('table.sitOut')}
+                          </span>
+                        </div>
+                      )}
+                      <div className="mt-1 flex items-center justify-between text-[10px]">
+                        <span className="text-[color:var(--text-muted)]">
+                          {t('table.chips', { amount: player.stack })}
+                        </span>
+                        {player.bet > 0 && (
+                          <span className="text-amber-400 font-semibold">
+                            {t('table.betAmount', { amount: player.bet })}
+                          </span>
+                        )}
+                      </div>
+                      {!player.in_hand && (
+                        <p className="mt-0.5 text-[9px] text-rose-400/80">{t('table.folded')}</p>
+                      )}
+                      {lastActionText && player.in_hand && (
+                        <p className="mt-0.5 text-[9px] font-semibold" style={{ color: isLastActor ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
+                          {lastActionText}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Hero Cards - Compact - Only show during active hand */}
+              {liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
+                <div className="pt-2.5 border-t border-white/10">
+                  <div className="flex flex-col items-center gap-1.5 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-transparent px-2.5 py-2 text-center">
+                    <p className="text-[9px] uppercase tracking-wider text-[color:var(--text-muted)]">
+                      {t('table.yourHand')}
+                    </p>
+                    <div className="flex gap-1.5">
+                      {heroCards.length ? (
+                        heroCards.map((card, idx) => {
+                          const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
+                          const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                          return <PlayingCard key={`hero-${idx}`} card={card} size="md" highlighted={isWinningCard} />
+                        })
+                      ) : (
+                        <span className="text-[10px] text-[color:var(--text-muted)]">
+                          {t('table.waitingForHand')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </Card>
       )}

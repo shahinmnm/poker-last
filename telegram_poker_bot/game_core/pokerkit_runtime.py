@@ -26,6 +26,7 @@ from telegram_poker_bot.shared.models import (
     TableStatus,
 )
 from telegram_poker_bot.shared.config import get_settings
+from telegram_poker_bot.shared.services import table_lifecycle
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 
 
