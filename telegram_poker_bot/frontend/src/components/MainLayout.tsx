@@ -37,13 +37,11 @@ export default function MainLayout() {
   return (
     <>
       <AppBackground />
-      <div className="relative flex min-h-screen flex-col text-[color:var(--color-text)]">
+      <div className="relative flex h-screen w-screen overflow-hidden flex-col text-[color:var(--color-text)]">
         <header 
           className="sticky top-0 z-30 px-4 py-3"
           style={{
             background: 'var(--glass-bg-elevated)',
-            backdropFilter: 'blur(var(--glass-blur))',
-            WebkitBackdropFilter: 'blur(var(--glass-blur))',
             borderBottom: '1px solid var(--glass-border)',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
           }}
@@ -82,7 +80,7 @@ export default function MainLayout() {
           </div>
         </header>
 
-        <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 pb-24 pt-6">
+        <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-y-auto px-4 pb-24 pt-6">
           <Outlet />
         </main>
 
@@ -92,8 +90,6 @@ export default function MainLayout() {
             style={{ 
               height: '72px',
               background: 'var(--glass-bg-elevated)',
-              backdropFilter: 'blur(var(--glass-blur))',
-              WebkitBackdropFilter: 'blur(var(--glass-blur))',
               borderTop: '1px solid var(--glass-border)',
               boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
             }}

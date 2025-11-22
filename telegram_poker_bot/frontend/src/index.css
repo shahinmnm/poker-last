@@ -150,11 +150,6 @@ a {
     box-shadow: var(--shadow-soft);
   }
 
-  :root[data-theme='light'] .app-button--secondary {
-    background: var(--bg-glass);
-    border-color: var(--color-border-glass);
-  }
-
   .app-button--ghost {
     background: transparent;
     color: var(--color-text);
@@ -301,21 +296,6 @@ a {
     transform: scale(0.98);
   }
 
-  /* Light mode adjustments */
-  :root[data-theme='light'] .glass-card {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.50) 0%,
-      rgba(255, 255, 255, 0.30) 100%
-    );
-    box-shadow: var(--shadow-card);
-  }
-
-  :root[data-theme='light'] .glass-card--hover:hover {
-    transform: scale(1.02);
-    box-shadow: var(--shadow-elevated);
-  }
-
   /* ==================== MAIN TILE COMPONENT ==================== */
   /* MainTile - menu tiles with flat modern design */
   .main-tile {
@@ -381,23 +361,6 @@ a {
     margin-top: var(--space-lg);
     position: relative;
     z-index: 1;
-  }
-
-  /* Light mode adjustments */
-  :root[data-theme='light'] .main-tile__label {
-    color: rgba(0, 0, 0, 0.6);
-  }
-
-  :root[data-theme='light'] .main-tile__title {
-    color: #111827;
-  }
-
-  :root[data-theme='light'] .main-tile__subtitle {
-    color: rgba(0, 0, 0, 0.65);
-  }
-
-  :root[data-theme='light'] .main-tile__icon {
-    color: rgba(0, 0, 0, 0.7);
   }
 
   /* ==================== MAIN TILES GRID COMPONENT ==================== */
@@ -536,71 +499,6 @@ a {
     .glass-button--all-in:hover:not(:disabled) {
       box-shadow: var(--shadow-elevated);
     }
-  }
-
-  /* ==================== LIGHT MODE ADJUSTMENTS ==================== */
-  
-  :root[data-theme='light'] .glass-button {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.40) 0%,
-      rgba(255, 255, 255, 0.10) 100%
-    );
-    border-color: rgba(0, 0, 0, 0.10);
-    color: #111827;
-    box-shadow: var(--shadow-button);
-  }
-
-  @media (hover: hover) {
-    :root[data-theme='light'] .glass-button:hover:not(:disabled) {
-      box-shadow: var(--shadow-elevated);
-    }
-  }
-
-  /* Light mode variant adjustments */
-  :root[data-theme='light'] .glass-button--fold {
-    background: linear-gradient(
-      135deg,
-      rgba(148, 163, 184, 0.25) 0%,
-      rgba(100, 116, 139, 0.12) 100%
-    );
-    border-color: rgba(100, 116, 139, 0.20);
-  }
-
-  :root[data-theme='light'] .glass-button--check {
-    background: linear-gradient(
-      135deg,
-      rgba(148, 163, 184, 0.22) 0%,
-      rgba(59, 130, 246, 0.14) 100%
-    );
-    border-color: rgba(59, 130, 246, 0.20);
-  }
-
-  :root[data-theme='light'] .glass-button--bet {
-    background: linear-gradient(
-      135deg,
-      rgba(34, 197, 94, 0.22) 0%,
-      rgba(22, 163, 74, 0.12) 100%
-    );
-    border-color: rgba(22, 163, 74, 0.25);
-  }
-
-  :root[data-theme='light'] .glass-button--raise {
-    background: linear-gradient(
-      135deg,
-      rgba(59, 130, 246, 0.22) 0%,
-      rgba(124, 58, 237, 0.14) 100%
-    );
-    border-color: rgba(59, 130, 246, 0.25);
-  }
-
-  :root[data-theme='light'] .glass-button--all-in {
-    background: linear-gradient(
-      135deg,
-      rgba(239, 68, 68, 0.24) 0%,
-      rgba(249, 115, 22, 0.14) 100%
-    );
-    border-color: rgba(239, 68, 68, 0.30);
   }
 
   /* ==================== ANIMATIONS ==================== */

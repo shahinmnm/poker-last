@@ -1,45 +1,22 @@
 /**
- * AppBackground - Layered glassmorphism-friendly background
+ * AppBackground - Royal Velvet Casino Arena
  * 
- * Creates a multi-layered abstract background that enhances glass components
- * with blurred color blobs, gradients, soft shapes, and neon glows.
- * 
+ * Creates a high-end casino table aesthetic with a radial velvet gradient.
  * Features:
- * - Layer 1: Base gradient (theme-aware)
- * - Layer 2: Large blurred color blobs
- * - Layer 3: Soft shape accents
- * - Layer 4: Subtle noise texture
- * - Full light/dark mode support
- * - Smooth theme transitions
+ * - Layer 1: Royal Velvet Gradient (green spotlight → dark green → void black)
+ * - Layer 2: Subtle noise texture for velvet fabric effect
+ * - No blurs, no light mode, crisp Pro Mode only
  */
 
-import { useTheme } from '../../providers/ThemeProvider'
 import './AppBackground.css'
 
 export default function AppBackground() {
-  const { mode } = useTheme()
-
   return (
-    <div className="app-background" data-theme={mode}>
-      {/* Layer 1: Base gradient */}
+    <div className="app-background">
+      {/* Layer 1: Royal Velvet Gradient */}
       <div className="app-background__base" />
 
-      {/* Layer 2: Large blurred color blobs */}
-      <div className="app-background__blobs">
-        <div className="app-background__blob app-background__blob--1" />
-        <div className="app-background__blob app-background__blob--2" />
-        <div className="app-background__blob app-background__blob--3" />
-        <div className="app-background__blob app-background__blob--4" />
-      </div>
-
-      {/* Layer 3: Soft shape accents */}
-      <div className="app-background__shapes">
-        <div className="app-background__shape app-background__shape--1" />
-        <div className="app-background__shape app-background__shape--2" />
-        <div className="app-background__shape app-background__shape--3" />
-      </div>
-
-      {/* Layer 4: Subtle noise texture */}
+      {/* Layer 2: Subtle noise texture for velvet effect */}
       <div className="app-background__noise" />
     </div>
   )

@@ -72,30 +72,28 @@
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
   --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.25);
 
-  /* ==================== COLORS - DARK THEME (DEFAULT) ==================== */
+  /* ==================== COLORS - PRO MODE THEME (ROYAL VELVET) ==================== */
   color-scheme: dark;
   
-  /* Background colors - Global page background with neon glows */
-  --bg-app: #020617;
-  --bg-app-soft: #050815;
-  --color-bg: #020617;
-  --color-bg-muted: #020b1b;
-  --color-bg-gradient: 
-    radial-gradient(circle 600px at 15% 15%, rgba(139, 92, 246, 0.20) 0%, transparent 50%),
-    radial-gradient(circle 550px at 85% 20%, rgba(236, 72, 153, 0.18) 0%, transparent 50%),
-    radial-gradient(circle 500px at 20% 85%, rgba(251, 191, 36, 0.16) 0%, transparent 50%),
-    radial-gradient(circle 520px at 80% 80%, rgba(59, 130, 246, 0.18) 0%, transparent 50%),
-    linear-gradient(135deg, #020617 0%, #0c1a35 40%, #1a0f2e 70%, #020b1f 100%);
+  /* Background colors - Royal Velvet Gradient */
+  /* Center (Spotlight): #008f58 (Ref: 26017) */
+  /* Mid (Body): #003d29 (Ref: 26702) */
+  /* Edge (Void): #010b08 (Ref: 6726) */
+  --bg-app: radial-gradient(circle at center, #008f58 0%, #003d29 50%, #010b08 100%);
+  --bg-app-soft: #010b08;
+  --color-bg: #010b08;
+  --color-bg-muted: #010b08;
+  --color-bg-gradient: radial-gradient(circle at center, #008f58 0%, #003d29 50%, #010b08 100%);
 
-  /* Surface colors - Glass surfaces with backdrop blur */
-  --surface-elevated: rgba(15, 23, 42, 0.96);
-  --surface-muted: rgba(15, 23, 42, 0.88);
-  --color-surface: rgba(17, 25, 40, 0.40);
-  --color-surface-soft: rgba(17, 25, 40, 0.35);
-  --color-surface-overlay: rgba(15, 23, 42, 0.45);
-  --color-surface-muted: rgba(15, 23, 42, 0.30);
-  --bg-glass: rgba(17, 25, 40, 0.40);
-  --bg-elevated-glass: rgba(17, 25, 40, 0.50);
+  /* Surface colors - Green-tinted Glassmorphism */
+  --surface-elevated: rgba(1, 20, 15, 0.85);
+  --surface-muted: rgba(1, 20, 15, 0.70);
+  --color-surface: rgba(1, 20, 15, 0.6);
+  --color-surface-soft: rgba(1, 20, 15, 0.5);
+  --color-surface-overlay: rgba(1, 20, 15, 0.85);
+  --color-surface-muted: rgba(1, 20, 15, 0.4);
+  --bg-glass: rgba(1, 20, 15, 0.6);
+  --bg-elevated-glass: rgba(1, 20, 15, 0.7);
 
   /* Border colors - Glass borders */
   --border-soft: rgba(148, 163, 184, 0.35);
@@ -106,10 +104,10 @@
 
   /* ==================== UNIFIED GLASS SYSTEM ==================== */
   /* These tokens ensure consistent glassmorphism across ALL pages */
-  --glass-bg: rgba(17, 25, 40, 0.40);
-  --glass-bg-elevated: rgba(17, 25, 40, 0.50);
-  --glass-border: rgba(255, 255, 255, 0.20);
-  --glass-blur: 20px;
+  --glass-bg: rgba(1, 20, 15, 0.6);
+  --glass-bg-elevated: rgba(1, 20, 15, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 0px;
   --glass-radius: var(--radius-2xl);
   --glass-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
@@ -197,123 +195,6 @@
   --shadow-accent-glow: 0 2px 8px rgba(0, 0, 0, 0.12);
 
   /* Navigation colors - Enhanced glass effect */
-  --color-nav-bg: rgba(17, 25, 40, 0.45);
-  --color-nav-border: rgba(255, 255, 255, 0.18);
-}
-
-/* ==================== LIGHT THEME ==================== */
-:root[data-theme='light'] {
-  color-scheme: light;
-
-  /* Background colors - Global page background with soft pastels */
-  --color-bg: #F6F4FF;
-  --color-bg-muted: #F9FAFF;
-  --color-bg-gradient: 
-    radial-gradient(circle 700px at 25% 20%, rgba(230, 220, 255, 0.12) 0%, transparent 50%),
-    radial-gradient(circle 650px at 75% 25%, rgba(255, 220, 235, 0.10) 0%, transparent 50%),
-    radial-gradient(circle 600px at 30% 80%, rgba(255, 235, 205, 0.08) 0%, transparent 50%),
-    radial-gradient(circle 620px at 70% 75%, rgba(220, 240, 255, 0.10) 0%, transparent 50%),
-    linear-gradient(135deg, #F6F4FF 0%, #F9FAFF 40%, #FFF8F0 70%, #FAFAFE 100%);
-
-  /* Surface colors - Glass surfaces for light mode */
-  --color-surface: rgba(255, 255, 255, 0.20);
-  --color-surface-soft: rgba(255, 255, 255, 0.15);
-  --color-surface-overlay: rgba(255, 255, 255, 0.25);
-  --color-surface-muted: rgba(255, 255, 255, 0.18);
-  --bg-glass: rgba(255, 255, 255, 0.20);
-  --bg-elevated-glass: rgba(255, 255, 255, 0.30);
-
-  /* Border colors */
-  --color-border: rgba(0, 0, 0, 0.08);
-  --color-border-subtle: rgba(148, 163, 184, 0.3);
-  --color-border-glass: rgba(0, 0, 0, 0.08);
-
-  /* ==================== UNIFIED GLASS SYSTEM ==================== */
-  /* These tokens ensure consistent glassmorphism across ALL pages */
-  --glass-bg: rgba(255, 255, 255, 0.30);
-  --glass-bg-elevated: rgba(255, 255, 255, 0.40);
-  --glass-border: rgba(0, 0, 0, 0.10);
-  --glass-blur: 20px;
-  --glass-radius: var(--radius-2xl);
-  --glass-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-
-  /* ==================== BUTTON SYSTEM ==================== */
-  /* Unified button tokens matching Home page signature */
-  --btn-radius: var(--radius-pill);
-  --btn-padding-sm: var(--space-sm) calc(var(--space-md) + var(--space-sm));
-  --btn-padding-md: calc(var(--space-sm) + var(--space-xs)) calc(var(--space-lg) + var(--space-sm));
-  --btn-padding-lg: calc(var(--space-md) + var(--space-xs)) calc(var(--space-xl) + var(--space-sm));
-  --btn-shadow: var(--shadow-button);
-
-  /* ==================== TYPOGRAPHY TOKENS ==================== */
-  /* Shared typography for consistent text hierarchy */
-  --fs-body-sm: 0.875rem;
-  --fs-caption: 0.7rem;
-
-  /* Glass effect colors */
-  --color-glass-chip: rgba(15, 23, 42, 0.05);
-  --color-glass-highlight: rgba(255, 255, 255, 0.32);
-
-  /* Text colors - High contrast for light mode */
-  --color-text: #111827;
-  --color-text-muted: #475569;
-  --color-text-inverse: #f9fafb;
-
-  /* Accent colors (poker green + additional accents) */
-  --color-accent: #2cc57a;
-  --color-accent-start: #2cc57a;
-  --color-accent-end: #0ea968;
-  --color-accent-soft: rgba(44, 197, 122, 0.18);
-  --color-accent-hover: #0ea968;
-  --accent-purple: #7C3AED;
-  --accent-blue: #0284C7;
-  --accent-green: #16A34A;
-  --accent-red: #DC2626;
-  --glow-primary: rgba(44, 197, 122, 0.4);
-
-  /* Status colors */
-  --color-success: #16a34a;
-  --color-success-bg: rgba(34, 197, 94, 0.12);
-  --color-success-text: #15803d;
-
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
-  --color-danger-soft: rgba(220, 38, 38, 0.15);
-  --color-danger-glass: rgba(220, 38, 38, 0.12);
-  --color-danger-glass-border: rgba(220, 38, 38, 0.25);
-
-  --color-warning: #ea580c;
-  --color-warning-bg: rgba(249, 115, 22, 0.12);
-  --color-warning-text: #ea580c;
-
-  --color-info: #2563eb;
-  --color-info-bg: rgba(37, 99, 235, 0.12);
-  --color-info-text: #1d4ed8;
-
-  /* Table status colors */
-  --color-status-running-bg: rgba(34, 197, 94, 0.12);
-  --color-status-running-text: #15803d;
-  --color-status-waiting-bg: rgba(37, 99, 235, 0.12);
-  --color-status-waiting-text: #1d4ed8;
-  --color-status-finished-bg: rgba(100, 116, 139, 0.12);
-  --color-status-finished-text: #475569;
-
-  /* Role colors */
-  --color-role-host-bg: rgba(37, 99, 235, 0.14);
-  --color-role-host-text: #1d4ed8;
-  --color-role-seated-bg: rgba(147, 51, 234, 0.12);
-  --color-role-seated-text: #6b21a8;
-
-  /* Component-specific shadows - Light mode */
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-button: 0 2px 6px rgba(0, 0, 0, 0.08);
-  --shadow-glow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.06);
-  --shadow-strong: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-accent-glow: 0 2px 6px rgba(0, 0, 0, 0.08);
-
-  /* Navigation colors - Light mode glass */
-  --color-nav-bg: rgba(255, 255, 255, 0.25);
-  --color-nav-border: rgba(0, 0, 0, 0.08);
+  --color-nav-bg: rgba(1, 20, 15, 0.7);
+  --color-nav-border: rgba(255, 255, 255, 0.1);
 }
