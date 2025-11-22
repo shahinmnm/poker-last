@@ -64,10 +64,10 @@ class PokerKitTableRuntime:
     def _get_active_players_in_hand(self) -> List[Seat]:
         """
         Get active players for a hand in canonical order.
-        
+
         Players are ordered by seat position (not by user_id or join time).
         This ensures stable ordering throughout hand lifecycle.
-        
+
         Returns:
             List of active Seat objects, ordered by position
         """
@@ -100,12 +100,22 @@ class PokerKitTableRuntime:
             return
 
         # Determine current street
-        street_index = self.engine.state.street_index if self.engine.state.street_index is not None else 0
+        street_index = (
+            self.engine.state.street_index
+            if self.engine.state.street_index is not None
+            else 0
+        )
         street_names = ["preflop", "flop", "turn", "river"]
-        street = street_names[street_index] if 0 <= street_index < len(street_names) else "showdown"
+        street = (
+            street_names[street_index]
+            if 0 <= street_index < len(street_names)
+            else "showdown"
+        )
 
         # Calculate pot size
-        pot_size = sum(pot.amount for pot in self.engine.state.pots) + sum(self.engine.state.bets)
+        pot_size = sum(pot.amount for pot in self.engine.state.pots) + sum(
+            self.engine.state.bets
+        )
 
         # Get board cards
         board_cards = []
@@ -253,7 +263,7 @@ class PokerKitTableRuntime:
         # Hand #1: Use lowest occupied seat index as button (default 0)
         # Hand #n>1: Rotate button clockwise from previous hand
         button_index = 0  # Default for first hand
-        
+
         if self.hand_no > 1:
             # Get the previous completed hand to find the button position
             prev_hand_result = await db.execute(
@@ -320,7 +330,11 @@ class PokerKitTableRuntime:
             players=len(active_seats),
             button_index=button_index,
             actor_index=self.engine.state.actor_index,
-            actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
+            actor_indices=(
+                list(self.engine.state.actor_indices)
+                if self.engine.state.actor_indices
+                else []
+            ),
         )
 
         # Return initial state
@@ -422,7 +436,11 @@ class PokerKitTableRuntime:
                     table_id=self.table.id,
                     hand_no=self.hand_no,
                     actor_index=self.engine.state.actor_index,
-                    actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
+                    actor_indices=(
+                        list(self.engine.state.actor_indices)
+                        if self.engine.state.actor_indices
+                        else []
+                    ),
                 )
             elif street_index == 2 and current_board_count == 3:
                 # On turn street but only 3 cards -> deal turn
@@ -433,7 +451,11 @@ class PokerKitTableRuntime:
                     table_id=self.table.id,
                     hand_no=self.hand_no,
                     actor_index=self.engine.state.actor_index,
-                    actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
+                    actor_indices=(
+                        list(self.engine.state.actor_indices)
+                        if self.engine.state.actor_indices
+                        else []
+                    ),
                 )
             elif street_index == 3 and current_board_count == 4:
                 # On river street but only 4 cards -> deal river
@@ -444,7 +466,11 @@ class PokerKitTableRuntime:
                     table_id=self.table.id,
                     hand_no=self.hand_no,
                     actor_index=self.engine.state.actor_index,
-                    actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
+                    actor_indices=(
+                        list(self.engine.state.actor_indices)
+                        if self.engine.state.actor_indices
+                        else []
+                    ),
                 )
             else:
                 # Either preflop (street_index=0), or cards already dealt, or hand complete
@@ -473,7 +499,7 @@ class PokerKitTableRuntime:
             raise ValueError("User not seated in this hand")
 
         actor_index = self.engine.state.actor_index
-        
+
         # Log current state before action
         logger.info(
             "Action requested",
@@ -484,7 +510,11 @@ class PokerKitTableRuntime:
             action=action.value,
             amount=amount,
             current_actor_index=actor_index,
-            actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
+            actor_indices=(
+                list(self.engine.state.actor_indices)
+                if self.engine.state.actor_indices
+                else []
+            ),
             street_index=self.engine.state.street_index,
         )
 
@@ -534,7 +564,11 @@ class PokerKitTableRuntime:
             action=action.value,
             amount=amount,
             new_actor_index=self.engine.state.actor_index,
-            new_actor_indices=list(self.engine.state.actor_indices) if self.engine.state.actor_indices else [],
+            new_actor_indices=(
+                list(self.engine.state.actor_indices)
+                if self.engine.state.actor_indices
+                else []
+            ),
             street_index=self.engine.state.street_index,
         )
 
@@ -705,7 +739,10 @@ class PokerKitTableRuntime:
             "min_raise": poker_state["big_blind"],
             "current_actor": current_actor_user_id,
             "action_deadline": (
-                (datetime.now(timezone.utc) + timedelta(seconds=settings.turn_timeout_seconds)).isoformat()
+                (
+                    datetime.now(timezone.utc)
+                    + timedelta(seconds=settings.turn_timeout_seconds)
+                ).isoformat()
                 if current_actor_user_id
                 else None
             ),
@@ -852,11 +889,12 @@ class PokerKitTableRuntimeManager:
                     # Rebuild user_id_to_player_index mapping from stored order
                     # CRITICAL: Use stored hand_player_order, NOT current seat order
                     hand_player_order = hand.engine_state_json.get("hand_player_order")
-                    
+
                     if hand_player_order:
                         # Restore mapping from stored player order
                         runtime.user_id_to_player_index = {
-                            user_id: idx for idx, user_id in enumerate(hand_player_order)
+                            user_id: idx
+                            for idx, user_id in enumerate(hand_player_order)
                         }
                         logger.info(
                             "Restored engine from DB with stored player order",
@@ -939,7 +977,7 @@ class PokerKitTableRuntimeManager:
             result = runtime.handle_action(user_id, action, amount)
 
             # Log action event if pending deal event
-            if hasattr(runtime, '_pending_deal_event') and runtime._pending_deal_event:
+            if hasattr(runtime, "_pending_deal_event") and runtime._pending_deal_event:
                 await runtime._log_hand_event(db, runtime._pending_deal_event)
                 runtime._pending_deal_event = None
 
@@ -1046,6 +1084,30 @@ class PokerKitTableRuntimeManager:
                 # Log showdown/hand_ended events
                 await runtime._log_hand_event(db, "showdown")
                 await runtime._log_hand_event(db, "hand_ended")
+
+                # CRITICAL: Check self-destruct conditions after hand completion (Rule D)
+                from telegram_poker_bot.shared.services import table_lifecycle
+
+                should_self_destruct, reason = (
+                    await table_lifecycle.compute_poststart_inactivity(
+                        db, runtime.table
+                    )
+                )
+
+                if should_self_destruct:
+                    logger.info(
+                        "Table self-destructing after hand completion",
+                        table_id=table_id,
+                        hand_no=runtime.hand_no,
+                        reason=reason,
+                    )
+                    await table_lifecycle.mark_table_completed_and_cleanup(
+                        db, runtime.table, reason
+                    )
+                    # Add self-destruct flag to result so frontend knows table is ending
+                    result["table_ended"] = True
+                    result["table_status"] = "ended"
+                    result["end_reason"] = reason
             else:
                 # Update status based on street
                 street = runtime.engine.state.street_index
@@ -1075,6 +1137,12 @@ class PokerKitTableRuntimeManager:
             # Add hand_result if present
             if "hand_result" in result:
                 state["hand_result"] = result["hand_result"]
+
+            # Propagate table_ended status if present
+            if "table_ended" in result:
+                state["table_ended"] = result["table_ended"]
+                state["table_status"] = result.get("table_status", "ended")
+                state["end_reason"] = result.get("end_reason", "completed")
 
             return state
 

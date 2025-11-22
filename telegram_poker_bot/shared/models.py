@@ -232,6 +232,9 @@ class Hand(Base):
     engine_state_json = Column(JSONB, nullable=False)  # Serialized PokerKit State
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     ended_at = Column(DateTime(timezone=True), nullable=True)
+    timeout_tracking = Column(
+        JSONB, nullable=True, server_default="{}"
+    )  # Consecutive timeout tracking
 
     # Relationships
     table = relationship("Table", back_populates="hands")
@@ -324,7 +327,9 @@ class HandHistoryEvent(Base):
     )
     sequence = Column(Integer, nullable=False)
     street = Column(String(20), nullable=False)  # preflop, flop, turn, river, showdown
-    action_type = Column(String(30), nullable=False)  # deal_flop, bet, raise, fold, etc.
+    action_type = Column(
+        String(30), nullable=False
+    )  # deal_flop, bet, raise, fold, etc.
     actor_user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
