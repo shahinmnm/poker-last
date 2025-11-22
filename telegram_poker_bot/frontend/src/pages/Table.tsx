@@ -9,7 +9,7 @@ import { useUserData } from '../providers/UserDataProvider'
 import { apiFetch, ApiError } from '../utils/apiClient'
 import Toast from '../components/Toast'
 import Countdown from '../components/Countdown'
-import PlayerTimerRing from '../components/PlayerTimerRing'
+import PlayerRectTimer from '../components/PlayerRectTimer'
 import Card from '../components/ui/Card'
 import PlayingCard from '../components/ui/PlayingCard'
 import Button from '../components/ui/Button'
@@ -916,9 +916,9 @@ export default function TablePage() {
                       : 'border-white/10 bg-white/5'
                   }`}
                 >
-                  {/* Timer Ring - Only show for current actor who is not sitting out and not folded */}
+                  {/* Timer Border - Only show for current actor who is not sitting out and not folded */}
                   {isActor && !player.is_sitting_out_next_hand && player.in_hand && liveState.action_deadline && (
-                    <PlayerTimerRing
+                    <PlayerRectTimer
                       deadline={liveState.action_deadline}
                       turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
                       className="rounded-lg"
