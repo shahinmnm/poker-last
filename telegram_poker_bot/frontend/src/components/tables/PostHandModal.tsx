@@ -65,9 +65,9 @@ export default function PostHandModal({
       <div className="space-y-4">
         <div className="text-center">
           <p className="text-body text-[color:var(--color-text-muted)]">
-            {isReady 
-              ? t('table.postHand.readyMessage', 'You\'re ready for the next hand!')
-              : t('table.postHand.message', 'Click "I\'m Ready" to play the next hand. If you don\'t click, you\'ll sit out.')
+            {isReady
+              ? t('table.postHand.readyMessage', 'You\'re ready!')
+              : t('table.postHand.message', 'Click to play next hand or sit out automatically')
             }
           </p>
           <div className="mt-4 text-4xl font-bold text-[color:var(--color-primary)]">
@@ -93,16 +93,16 @@ export default function PostHandModal({
             glow={!isReady}
             block
           >
-            {isReady 
-              ? t('table.postHand.readyConfirmed', '✓ Ready') 
-              : t('table.postHand.ready', "I'm Ready / Play Next Hand")
+            {isReady
+              ? t('table.postHand.readyConfirmed', '✓ Ready')
+              : t('table.postHand.ready', "I'm Ready")
             }
           </Button>
-          
+
           <p className="text-center text-xs text-[color:var(--color-text-muted)]">
             {isReady
               ? t('table.postHand.readyNote', 'You will play in the next hand')
-              : t('table.postHand.autoSitOutNote', 'Not clicking will automatically sit you out')
+              : t('table.postHand.autoSitOutNote', 'You will sit out if you don\'t click')
             }
           </p>
         </div>

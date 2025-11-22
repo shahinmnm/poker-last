@@ -2,6 +2,8 @@
 
 import pytest
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock
+
 from telegram_poker_bot.shared.models import Table, TableStatus, Seat, Hand, HandStatus
 from telegram_poker_bot.shared.services import table_lifecycle
 
@@ -9,8 +11,6 @@ from telegram_poker_bot.shared.services import table_lifecycle
 @pytest.mark.asyncio
 async def test_all_players_sitting_out_triggers_expiration():
     """Test that table expires when all players are sitting out."""
-    from unittest.mock import AsyncMock, MagicMock
-
     # Create an active table
     table = Table(
         id=1,
@@ -58,8 +58,6 @@ async def test_all_players_sitting_out_triggers_expiration():
 @pytest.mark.asyncio
 async def test_one_active_player_triggers_expiration():
     """Test that table expires when only one player is not sitting out."""
-    from unittest.mock import AsyncMock, MagicMock
-
     # Create an active table
     table = Table(
         id=1,
@@ -108,8 +106,6 @@ async def test_one_active_player_triggers_expiration():
 @pytest.mark.asyncio
 async def test_two_active_players_no_expiration():
     """Test that table does not expire when at least 2 players are active."""
-    from unittest.mock import AsyncMock, MagicMock
-
     # Create an active table
     table = Table(
         id=1,
