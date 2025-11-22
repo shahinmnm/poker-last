@@ -431,10 +431,8 @@ class PokerEngineAdapter:
 
         operation = self.state.fold()
         logger.info("Player folded", player_index=self.state.actor_index)
-        
         # Auto-advance streets if needed
         self._auto_advance_streets()
-        
         return operation
 
     def check_or_call(self) -> Operation:
@@ -453,10 +451,8 @@ class PokerEngineAdapter:
         amount = operation.amount if hasattr(operation, "amount") else 0
         action_name = "checked" if amount == 0 else f"called {amount}"
         logger.info(f"Player {action_name}", player_index=actor_idx, amount=amount)
-        
         # Auto-advance streets if needed
         self._auto_advance_streets()
-        
         return operation
 
     def bet_or_raise(self, amount: int) -> Operation:
@@ -481,10 +477,8 @@ class PokerEngineAdapter:
             operation.player_index if hasattr(operation, "player_index") else None
         )
         logger.info("Player bet/raised", player_index=actor_idx, amount=amount)
-        
         # Auto-advance streets if needed
         self._auto_advance_streets()
-        
         return operation
 
     def is_hand_complete(self) -> bool:
@@ -746,7 +740,7 @@ class PokerEngineAdapter:
         adapter._deck = data.get("deck", [])
 
         # Restore pre-showdown stacks if available
-        if data.get("stacks"):
+        if data.get("stacks") is not None:
             adapter._pre_showdown_stacks = list(data["stacks"])
 
         # Restore hole cards
