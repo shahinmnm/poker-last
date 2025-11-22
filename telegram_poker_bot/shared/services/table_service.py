@@ -22,6 +22,7 @@ from telegram_poker_bot.shared.models import (
     GroupGameInviteStatus,
 )
 from telegram_poker_bot.shared.logging import get_logger
+from telegram_poker_bot.shared.services import table_lifecycle
 
 logger = get_logger(__name__)
 
@@ -41,26 +42,12 @@ async def check_and_mark_expired_table(db: AsyncSession, table: Table) -> bool:
     Check if a table should be marked as expired and update its status.
 
     Returns True if table was expired, False otherwise.
+    
+    DEPRECATED: Use table_lifecycle.check_and_enforce_lifecycle instead.
+    This wrapper maintained for backward compatibility.
     """
-    now = datetime.now(timezone.utc)
-
-    # Skip tables that are already ended or expired
-    if table.status in {TableStatus.ENDED, TableStatus.EXPIRED}:
-        return table.status == TableStatus.EXPIRED
-
-    # Check time-based expiration
-    if table.expires_at and table.expires_at <= now:
-        table.status = TableStatus.EXPIRED
-        table.updated_at = now
-        await db.flush()
-        logger.info(
-            "Table marked as expired (time limit)",
-            table_id=table.id,
-            expires_at=table.expires_at.isoformat(),
-        )
-        return True
-
-    return False
+    was_expired, _ = await table_lifecycle.check_and_enforce_lifecycle(db, table)
+    return was_expired
 
 
 def _generate_invite_code(length: int = INVITE_CODE_LENGTH) -> str:
@@ -733,9 +720,9 @@ async def list_available_tables(
             Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
         )
 
-        # Filter out expired tables (both time-based and status-based)
-        # Time-based: expires_at is in the past (pre-game only)
-        # Status-based: status == EXPIRED (caught by status filter above)
+        # Filter out expired and ended tables using lifecycle rules
+        # Exclude EXPIRED and ENDED statuses (they're not in the status filter above)
+        # For WAITING tables, also check expires_at
         query = query.where(or_(Table.expires_at.is_(None), Table.expires_at > now))
 
         if mode:
@@ -956,6 +943,8 @@ async def start_table(
     # Transition table to ACTIVE if it was WAITING
     if table.status == TableStatus.WAITING:
         table.status = TableStatus.ACTIVE
+        # Clear expires_at when game starts (Rule B: no post-start wall-clock expiry)
+        table.expires_at = None
 
     table.updated_at = datetime.now(timezone.utc)
     await db.flush()

@@ -256,6 +256,10 @@ async def get_recent_games(
 ) -> List[Dict[str, Any]]:
     """
     Get user's recent game history.
+    
+    Rule E: History visibility only after deletion/completion
+    - Only shows tables with status ENDED or EXPIRED
+    - Active/waiting tables do not appear in history
 
     Returns list of completed games with results.
     """
@@ -265,6 +269,7 @@ async def get_recent_games(
         .where(
             Seat.user_id == user_id,
             Seat.left_at.isnot(None),  # Completed sessions
+            Table.status.in_([TableStatus.ENDED, TableStatus.EXPIRED]),  # Only completed/expired tables
         )
         .order_by(Seat.left_at.desc())
         .limit(limit)
@@ -280,13 +285,15 @@ async def get_recent_games(
             {
                 "table_id": table.id,
                 "mode": table.mode.value,
-                "joined_at": seat.joined_at.isoformat(),
-                "left_at": seat.left_at.isoformat(),
+                "status": table.status.value,
+                "joined_at": seat.joined_at.isoformat() if seat.joined_at else None,
+                "left_at": seat.left_at.isoformat() if seat.left_at else None,
                 "starting_chips": starting_chips,
                 "ending_chips": seat.chips,
                 "profit": profit,
                 "small_blind": config.get("small_blind", 25),
                 "big_blind": config.get("big_blind", 50),
+                "table_name": config.get("table_name", f"Table #{table.id}"),
             }
         )
 
