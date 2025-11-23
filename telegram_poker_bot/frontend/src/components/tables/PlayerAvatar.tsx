@@ -17,7 +17,7 @@ interface PlayerAvatarProps {
 const sizeMap: Record<NonNullable<PlayerAvatarProps['size']>, number> = {
   sm: 56,
   md: 72,
-  lg: 88,
+  lg: 96, // Hero is 20% larger (was 88, now 96 for better visual hierarchy)
 }
 
 export default function PlayerAvatar({
@@ -83,9 +83,10 @@ export default function PlayerAvatar({
 
   const ringColor = useMemo(() => {
     if (!isActive) return 'stroke-transparent'
+    // Color transitions: green (>50%) -> amber (20-50%) -> red pulsing (<20%)
     if (progress > 0.5) return 'stroke-emerald-400'
     if (progress > 0.2) return 'stroke-amber-400'
-    return 'stroke-red-500'
+    return 'stroke-red-500 animate-pulse'
   }, [isActive, progress])
 
   return (
@@ -104,15 +105,15 @@ export default function PlayerAvatar({
             cx={dimension / 2}
             cy={dimension / 2}
             r={radius}
-            className="stroke-white/15 fill-transparent"
-            strokeWidth={4}
+            className="stroke-white/10 fill-transparent"
+            strokeWidth={3}
           />
           <circle
             cx={dimension / 2}
             cy={dimension / 2}
             r={radius}
             className={`${ringColor} fill-transparent transition-all duration-300 ease-linear`}
-            strokeWidth={4}
+            strokeWidth={3}
             strokeDasharray={circumference}
             strokeDashoffset={circumference * (1 - progress)}
             strokeLinecap="round"
@@ -133,15 +134,16 @@ export default function PlayerAvatar({
       </div>
 
       <div className={`rounded-full px-3 py-1 border ${isHero ? 'border-sky-400/60 bg-black/70' : 'border-white/20 bg-black/60'} backdrop-blur-sm min-w-[88px] text-center`}>
-        <div className="text-white font-bold text-sm">{stack}</div>
+        <div className="text-white font-bold text-sm font-mono">{stack}</div>
         <div className={`text-[10px] uppercase tracking-wide ${isHero ? 'text-sky-200' : 'text-gray-300'} truncate max-w-[120px]`}>
           {isHero ? 'You' : name}
         </div>
       </div>
 
       {typeof betAmount === 'number' && betAmount > 0 && (
-        <div className="px-3 py-1 rounded-full bg-amber-500/90 text-black font-semibold text-xs shadow-lg">
-          Bet: {betAmount}
+        <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/95 backdrop-blur-sm text-black font-bold text-xs shadow-lg border border-amber-300">
+          <span className="text-[10px]">💰</span>
+          <span>{betAmount}</span>
         </div>
       )}
 
