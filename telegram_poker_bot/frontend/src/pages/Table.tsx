@@ -210,6 +210,20 @@ export default function TablePage() {
       showToast(message)
     },
   })
+
+  // Helper to wrap actions with pending state management
+  const withPendingState = useCallback(<T extends unknown[]>(
+    action: (...args: T) => Promise<void>
+  ) => {
+    return async (...args: T) => {
+      setActionPending(true)
+      try {
+        await action(...args)
+      } finally {
+        setActionPending(false)
+      }
+    }
+  }, [])
   
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
@@ -944,46 +958,11 @@ export default function TablePage() {
             currentPot={tableActions.currentPot}
             actionPending={actionPending}
             canBet={tableActions.canBet}
-            onFold={async () => {
-              setActionPending(true)
-              try {
-                await tableActions.onFold()
-              } finally {
-                setActionPending(false)
-              }
-            }}
-            onCheck={async () => {
-              setActionPending(true)
-              try {
-                await tableActions.onCheck()
-              } finally {
-                setActionPending(false)
-              }
-            }}
-            onCall={async () => {
-              setActionPending(true)
-              try {
-                await tableActions.onCall()
-              } finally {
-                setActionPending(false)
-              }
-            }}
-            onBet={async (amount) => {
-              setActionPending(true)
-              try {
-                await tableActions.onBet(amount)
-              } finally {
-                setActionPending(false)
-              }
-            }}
-            onRaise={async (amount) => {
-              setActionPending(true)
-              try {
-                await tableActions.onRaise(amount)
-              } finally {
-                setActionPending(false)
-              }
-            }}
+            onFold={withPendingState(tableActions.onFold)}
+            onCheck={withPendingState(tableActions.onCheck)}
+            onCall={withPendingState(tableActions.onCall)}
+            onBet={withPendingState(tableActions.onBet)}
+            onRaise={withPendingState(tableActions.onRaise)}
           />
         )
       }

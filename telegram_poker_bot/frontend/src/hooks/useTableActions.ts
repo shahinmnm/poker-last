@@ -12,7 +12,7 @@
  * })
  */
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { apiFetch, ApiError } from '../utils/apiClient'
 
@@ -263,19 +263,33 @@ export function useTableActions({
     [sendAction, validateBetAmount, onActionError, t]
   )
 
-  // Derive useful state for UI
-  const heroId = gameState?.hero?.user_id ?? null
-  const heroPlayer = gameState?.players.find((p) => p.user_id === heroId)
-  const amountToCall = Math.max((gameState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
-  const isMyTurn = gameState?.current_actor === heroId
-  const canCheck = amountToCall === 0 || Boolean(gameState?.allowed_actions?.can_check)
-  const canBet = amountToCall === 0 && Boolean(gameState?.allowed_actions?.can_bet)
-  const canRaise = amountToCall > 0 && Boolean(gameState?.allowed_actions?.can_raise)
-  const minRaise = gameState?.allowed_actions?.min_raise_to || gameState?.min_raise || 0
-  const maxRaise =
-    gameState?.allowed_actions?.max_raise_to ||
-    (heroPlayer ? heroPlayer.stack + heroPlayer.bet : 0)
-  const currentPot = gameState?.allowed_actions?.current_pot || gameState?.pot || 0
+  // Derive useful state for UI (memoized for performance)
+  const derivedState = useMemo(() => {
+    const heroId = gameState?.hero?.user_id ?? null
+    const heroPlayer = gameState?.players.find((p) => p.user_id === heroId)
+    const amountToCall = Math.max((gameState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
+    const isMyTurn = gameState?.current_actor === heroId
+    const canCheck = amountToCall === 0 || Boolean(gameState?.allowed_actions?.can_check)
+    const canBet = amountToCall === 0 && Boolean(gameState?.allowed_actions?.can_bet)
+    const canRaise = amountToCall > 0 && Boolean(gameState?.allowed_actions?.can_raise)
+    const minRaise = gameState?.allowed_actions?.min_raise_to || gameState?.min_raise || 0
+    const maxRaise =
+      gameState?.allowed_actions?.max_raise_to ||
+      (heroPlayer ? heroPlayer.stack + heroPlayer.bet : 0)
+    const currentPot = gameState?.allowed_actions?.current_pot || gameState?.pot || 0
+
+    return {
+      isMyTurn,
+      canCheck,
+      canBet,
+      canRaise,
+      amountToCall,
+      minRaise,
+      maxRaise,
+      currentPot,
+      heroPlayer,
+    }
+  }, [gameState])
 
   return {
     // Actions
@@ -289,14 +303,6 @@ export function useTableActions({
     validateBetAmount,
     
     // State
-    isMyTurn,
-    canCheck,
-    canBet,
-    canRaise,
-    amountToCall,
-    minRaise,
-    maxRaise,
-    currentPot,
-    heroPlayer,
+    ...derivedState,
   }
 }

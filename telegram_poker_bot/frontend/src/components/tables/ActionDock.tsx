@@ -91,12 +91,7 @@ export default function ActionDock({
     }
   }
 
-  // Don't render anything if not seated
-  if (!isPlayerTurn && !actionPending) {
-    return null
-  }
-
-  // If betting controls are open, show them instead
+  // Show betting controls if open
   if (showBettingControls) {
     return (
       <BettingControls
