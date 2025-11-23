@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent
@@ -54,8 +54,44 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _cleanup_stale_alembic_version_type(connection) -> None:
+    """Remove an orphaned alembic_version type to prevent duplicate type errors."""
+
+    type_exists = connection.execute(
+        text(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_type t
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE t.typname = 'alembic_version'
+                AND n.nspname = current_schema()
+            )
+            """
+        )
+    ).scalar()
+
+    table_exists = connection.execute(
+        text(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_name = 'alembic_version'
+                AND table_schema = current_schema()
+            )
+            """
+        )
+    ).scalar()
+
+    if type_exists and not table_exists:
+        connection.execute(text("DROP TYPE IF EXISTS alembic_version"))
+
+
 def do_run_migrations(connection):
     """Run migrations with connection."""
+    _cleanup_stale_alembic_version_type(connection)
+
     context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():
