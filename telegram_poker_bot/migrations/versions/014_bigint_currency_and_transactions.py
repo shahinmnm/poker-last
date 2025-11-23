@@ -9,6 +9,7 @@ Create Date: 2025-01-23 16:00:00.000000
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "014_bigint_currency_and_transactions"
@@ -85,31 +86,11 @@ def upgrade() -> None:
         existing_nullable=False,
     )
 
-    # 8. Create TransactionType enum (idempotent for reruns)
-    op.execute(
-        """
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1
-                FROM pg_type t
-                JOIN pg_namespace n ON n.oid = t.typnamespace
-                WHERE t.typname = 'transactiontype'
-            ) THEN
-                CREATE TYPE transactiontype AS ENUM (
-                    'deposit', 'withdrawal', 'buy_in', 'cash_out',
-                    'game_win', 'game_payout', 'rake'
-                );
-            END IF;
-        END
-        $$;
-        """
-    )
-
-    # 9. Drop and recreate transactions table with new schema
+    # 8. Drop old transactions table
     op.drop_table("transactions")
 
-    transaction_type_enum = sa.Enum(
+    # 9. Create TransactionType enum (idempotent for reruns)
+    transaction_type_enum = postgresql.ENUM(
         "deposit",
         "withdrawal",
         "buy_in",
@@ -118,9 +99,11 @@ def upgrade() -> None:
         "game_payout",
         "rake",
         name="transactiontype",
-        create_type=False,  # Use existing enum, created above if missing
+        create_type=False,
     )
+    transaction_type_enum.create(op.get_bind(), checkfirst=True)
 
+    # 10. Create new transactions table with enhanced schema
     op.create_table(
         "transactions",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -137,7 +120,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("reference_id", sa.String(length=255), nullable=True),
-        sa.Column("metadata_json", JSONB, server_default=sa.text("'{}'::jsonb"), nullable=True),
+        sa.Column(
+            "metadata_json", JSONB, server_default=sa.text("'{}'::jsonb"), nullable=True
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -173,8 +158,12 @@ def downgrade() -> None:
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("type", sa.String(length=50), nullable=False),
         sa.Column("amount", sa.Integer(), nullable=False),
-        sa.Column("status", sa.String(length=50), nullable=False, server_default="pending"),
-        sa.Column("metadata_json", JSONB, server_default=sa.text("'{}'::jsonb"), nullable=True),
+        sa.Column(
+            "status", sa.String(length=50), nullable=False, server_default="pending"
+        ),
+        sa.Column(
+            "metadata_json", JSONB, server_default=sa.text("'{}'::jsonb"), nullable=True
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
