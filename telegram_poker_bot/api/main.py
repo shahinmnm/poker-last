@@ -1934,7 +1934,7 @@ async def get_my_stats(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get current user's statistics."""
+    """Get current user's statistics from pre-aggregated UserPokerStats table."""
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
 
@@ -1943,7 +1943,8 @@ async def get_my_stats(
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
 
     user = await ensure_user(db, auth)
-    stats = await user_service.get_user_stats(db, user.id)
+    # Use optimized aggregated stats instead of runtime queries
+    stats = await user_service.get_user_stats_from_aggregated(db, user.id)
 
     return stats
 
