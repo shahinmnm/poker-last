@@ -711,7 +711,10 @@
       "newHandStarting": "New hand starting...",
       "waitingForHost": "Waiting for the host to start the game.",
       "joinPrompt": "Grab a seat before the action begins.",
-      "tableFull": "Table is full at the moment."
+      "tableFull": "Table is full at the moment.",
+      "waitingForOther": "another player",
+      "waitingFor": "Waiting for {{player}}...",
+      "notEnoughPlayers": "Not enough players"
     },
     "recentHands": {
       "title": "Recent Hands",
@@ -797,6 +800,15 @@
       "warning": "This action cannot be undone. All players will be removed.",
       "confirm": "Delete",
       "cancel": "Cancel"
+    },
+    "playerStatus": {
+      "waiting": "WAITING",
+      "seated": "SEATED",
+      "sitOut": "SIT OUT",
+      "active": "ACTIVE"
+    },
+    "playerPopover": {
+      "lastAction": "Last Action"
     }
   },
   "nav": {

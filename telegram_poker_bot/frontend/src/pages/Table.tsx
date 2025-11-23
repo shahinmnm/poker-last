@@ -915,8 +915,10 @@ export default function TablePage() {
   const heroCards = liveState?.hero?.cards ?? []
 
   const renderActionDock = () => {
+    // Never show during inter-hand voting phase
     if (isInterHand) return null
 
+    // Waiting state - show start/join buttons
     if (tableStatus === 'waiting') {
       return (
         <div className="absolute inset-0 flex items-end justify-center pb-12 z-40 pointer-events-none">
@@ -928,11 +930,11 @@ export default function TablePage() {
                 disabled={isStarting || !canStart}
                 className="min-h-[52px] px-8 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 text-black font-bold text-lg shadow-2xl shadow-emerald-500/40 hover:from-emerald-400 hover:to-emerald-300 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed animate-pulse"
               >
-                {isStarting ? t('table.actions.starting') : 'START GAME'}
+                {isStarting ? t('table.actions.starting') : t('table.actions.start', { defaultValue: 'START GAME' })}
               </button>
             ) : viewerIsSeated ? (
               <div className="px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
-                Waiting for host to start...
+                {t('table.messages.waitingForHost')}
               </div>
             ) : (
               <Button
@@ -942,7 +944,7 @@ export default function TablePage() {
                 disabled={!canJoin || isSeating}
                 className="min-h-[52px] px-8"
               >
-                {isSeating ? t('table.actions.joining') : 'SIT DOWN'}
+                {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat', { defaultValue: 'SIT DOWN' })}
               </Button>
             )}
           </div>
@@ -950,7 +952,9 @@ export default function TablePage() {
       )
     }
 
-    if (tableStatus === 'active' && liveState && viewerIsSeated) {
+    // Active hand - show action controls when seated and hand is active
+    const hasActiveHand = liveState?.hand_id !== null && !isInterHand
+    if (tableStatus === 'active' && liveState && viewerIsSeated && hasActiveHand) {
       if (isMyTurn) {
         return (
           <div className="absolute bottom-0 left-0 right-0 z-50">
@@ -972,11 +976,11 @@ export default function TablePage() {
         )
       }
 
-      const waitingFor = currentActorName || 'another player'
+      const waitingFor = currentActorName || t('table.messages.waitingForOther', { defaultValue: 'another player' })
       return (
         <div className="absolute bottom-0 left-0 right-0 z-40">
           <div className="backdrop-blur-xl bg-black/50 border-t border-white/10 py-4 px-6 text-center text-white/80">
-            Waiting for {waitingFor}...
+            {t('table.messages.waitingFor', { player: waitingFor, defaultValue: `Waiting for ${waitingFor}...` })}
           </div>
         </div>
       )
@@ -1036,44 +1040,72 @@ export default function TablePage() {
             </div>
           ) : (
             <>
-              {/* Villains (Top Center) */}
-              <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20">
-                <div className="flex gap-6">
-                  {liveState.players
-                    .filter((p) => p.user_id !== heroId)
-                    .slice(0, 3)
-                    .map((player) => {
-                      const isActor = player.user_id === liveState.current_actor
-                      const isLastActor = liveState.last_action?.user_id === player.user_id
+              {/* Villains - 8-Player Ring Layout */}
+              <div className="absolute inset-0 pointer-events-none" style={{ paddingTop: '80px', paddingBottom: '80px' }}>
+                {liveState.players
+                  .filter((p) => p.user_id !== heroId)
+                  .map((player, index) => {
+                    const isActor = player.user_id === liveState.current_actor
+                    const isLastActor = liveState.last_action?.user_id === player.user_id
+                    const totalOthers = liveState.players.filter((p) => p.user_id !== heroId).length
+                    
+                    // Compute position in a ring layout (excluding hero at bottom)
+                    // For up to 7 other players, arrange in semicircle from left to right
+                    const angle = totalOthers > 1 
+                      ? (Math.PI / (totalOthers + 1)) * (index + 1) // spread across top half
+                      : Math.PI / 2 // single opponent at top center
+                    
+                    const radiusX = 42 // horizontal radius percentage
+                    const radiusY = 38 // vertical radius percentage
+                    const left = 50 + radiusX * Math.cos(angle)
+                    const top = 50 - radiusY * Math.sin(angle)
 
-                      const getLastActionText = () => {
-                        if (!isLastActor || !liveState.last_action) return null
-                        const action = liveState.last_action.action
-                        const amount = liveState.last_action.amount
+                    const getLastActionText = () => {
+                      if (!isLastActor || !liveState.last_action) return null
+                      const action = liveState.last_action.action
+                      const amount = liveState.last_action.amount
 
-                        if (action === 'fold') return t('table.actions.lastAction.fold')
-                        if (action === 'check') return t('table.actions.lastAction.check')
-                        if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
-                        if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
-                        if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
-                        if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
-                        return null
-                      }
+                      if (action === 'fold') return t('table.actions.lastAction.fold')
+                      if (action === 'check') return t('table.actions.lastAction.check')
+                      if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
+                      if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
+                      if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
+                      if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
+                      return null
+                    }
 
-                      const lastActionText = getLastActionText()
+                    const lastActionText = getLastActionText()
+                    
+                    // Determine position label (BTN, SB, BB)
+                    const positionLabel = player.is_button ? 'BTN' : player.is_small_blind ? 'SB' : player.is_big_blind ? 'BB' : undefined
+                    
+                    // Determine status
+                    const playerStatus = player.is_sitting_out_next_hand 
+                      ? 'sit_out' 
+                      : !player.in_hand && liveState.hand_id 
+                        ? 'folded' 
+                        : liveState.hand_id 
+                          ? 'active' 
+                          : 'waiting'
 
-                      return (
-                        <div
-                          key={`villain-${player.user_id}`}
-                          ref={(el) => {
-                            if (el) {
-                              playerTileRefs.current.set(player.user_id, el)
-                            } else {
-                              playerTileRefs.current.delete(player.user_id)
-                            }
-                          }}
-                          className="relative flex flex-col items-center gap-1"
-                        >
+                    return (
+                      <div
+                        key={`villain-${player.user_id}`}
+                        ref={(el) => {
+                          if (el) {
+                            playerTileRefs.current.set(player.user_id, el)
+                          } else {
+                            playerTileRefs.current.delete(player.user_id)
+                          }
+                        }}
+                        className="absolute pointer-events-auto"
+                        style={{
+                          left: `${left}%`,
+                          top: `${top}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      >
+                        <div className="flex flex-col items-center gap-1">
                           <PlayerAvatar
                             name={player.display_name || player.username || `P${(player.seat ?? player.position ?? 0) + 1}`}
                             stack={player.stack}
@@ -1082,38 +1114,52 @@ export default function TablePage() {
                             betAmount={player.bet}
                             deadline={isActor ? liveState.action_deadline : null}
                             turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                            offsetTop
+                            size="sm"
+                            offsetTop={top < 50}
+                            seatNumber={player.seat ?? player.position}
+                            positionLabel={positionLabel}
+                            lastAction={lastActionText}
+                            isSittingOut={player.is_sitting_out_next_hand}
+                            status={playerStatus}
                           />
-
                           {lastActionText && player.in_hand && (
-                            <p className="text-[9px] font-semibold text-emerald-300 uppercase tracking-wide">
+                            <p className="text-[8px] font-semibold text-emerald-300 uppercase tracking-wide">
                               {lastActionText}
                             </p>
                           )}
                         </div>
-                      )
-                    })}
-                </div>
+                      </div>
+                    )
+                  })}
               </div>
 
               {/* Board Center - Pot & Community Cards */}
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
                 <div className="flex flex-col items-center gap-4">
-                  {/* Pot - Floating Pill */}
-                  <div className="rounded-full backdrop-blur-xl bg-black/80 px-5 py-2.5 border-2 border-amber-500/60 shadow-2xl" ref={potAreaRef}>
+                  {/* Pot - Stacked Chip Glass Capsule */}
+                  <div 
+                    className="rounded-full backdrop-blur-xl bg-black/70 px-4 py-2 border border-amber-500/40 shadow-2xl transition-transform duration-150" 
+                    ref={potAreaRef}
+                    style={{
+                      boxShadow: '0 0 20px rgba(245, 158, 11, 0.15), 0 4px 12px rgba(0, 0, 0, 0.4)',
+                    }}
+                  >
                     {liveState.pots && liveState.pots.length > 1 ? (
-                      <div className="space-y-1">
-                        {liveState.pots.map((pot) => (
-                          <div key={pot.pot_index} className="text-center">
-                            <span className="text-[11px] text-gray-400">Pot #{pot.pot_index + 1}: </span>
-                            <span className="text-base font-bold text-emerald-400">{pot.amount}</span>
-                          </div>
-                        ))}
+                      <div className="text-center">
+                        <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-bold mb-0.5">{t('table.pots.title', { defaultValue: 'Pots' })}</p>
+                        <div className="space-y-0.5">
+                          {liveState.pots.map((pot, idx) => (
+                            <div key={pot.pot_index} className="flex items-baseline justify-center gap-1.5">
+                              <span className="text-[9px] text-gray-400">#{idx + 1}</span>
+                              <span className="text-sm font-bold text-emerald-400">{pot.amount}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wider">Pot</p>
-                        <p className="text-xl font-bold text-emerald-400">{liveState.pot}</p>
+                        <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-bold">{t('table.pot', { amount: '', defaultValue: 'POT' }).replace(/:.*/,'')}</p>
+                        <p className="text-lg font-bold text-emerald-400 leading-tight">{liveState.pot}</p>
                       </div>
                     )}
                   </div>
@@ -1185,7 +1231,11 @@ export default function TablePage() {
                       betAmount={heroPlayer.bet}
                       deadline={heroPlayer.user_id === liveState.current_actor ? liveState.action_deadline : null}
                       turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                      size="lg"
+                      size="md"
+                      seatNumber={heroPlayer.seat ?? heroPlayer.position}
+                      positionLabel={heroPlayer.is_button ? 'BTN' : heroPlayer.is_small_blind ? 'SB' : heroPlayer.is_big_blind ? 'BB' : undefined}
+                      isSittingOut={heroPlayer.is_sitting_out_next_hand}
+                      status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
                     />
                   </div>
                 </div>
