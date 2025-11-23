@@ -1964,13 +1964,66 @@ async def get_my_balance(
 
     user = await ensure_user(db, auth)
 
-    # Ensure wallet exists
-    await user_service.ensure_wallet(db, user.id)
-    await db.commit()
+    # Use wallet_service to get balance
+    from telegram_poker_bot.shared.services.wallet_service import get_wallet_balance
 
-    balance = await user_service.get_user_balance(db, user.id)
+    balance = await get_wallet_balance(db, user.id)
 
     return {"balance": balance}
+
+
+@api_app.get("/users/me/transactions")
+async def get_my_transactions(
+    x_telegram_init_data: Optional[str] = Header(None),
+    limit: int = Query(
+        50, ge=1, le=100, description="Number of transactions to return"
+    ),
+    offset: int = Query(0, ge=0, description="Number of transactions to skip"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get current user's transaction history.
+
+    Returns paginated list of transactions ordered by created_at desc.
+    """
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, auth)
+
+    # Get transaction history using wallet_service
+    from telegram_poker_bot.shared.services.wallet_service import (
+        get_transaction_history,
+    )
+
+    transactions = await get_transaction_history(
+        db, user.id, limit=limit, offset=offset
+    )
+
+    # Format transactions for response
+    transactions_data = [
+        {
+            "id": t.id,
+            "type": t.type.value if hasattr(t.type, "value") else str(t.type),
+            "amount": t.amount,
+            "balance_after": t.balance_after,
+            "reference_id": t.reference_id,
+            "metadata": t.metadata_json or {},
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        }
+        for t in transactions
+    ]
+
+    return {
+        "transactions": transactions_data,
+        "count": len(transactions_data),
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @api_app.get("/users/me/avatar")

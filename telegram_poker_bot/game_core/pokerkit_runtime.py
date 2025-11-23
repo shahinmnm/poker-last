@@ -86,6 +86,79 @@ class PokerKitTableRuntime:
         active_seats.sort(key=lambda s: s.position)
         return active_seats
 
+    def _calculate_and_apply_rake(self, hand_result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate rake (commission) and apply it to winner payouts.
+
+        Implements 5% rake with configurable cap.
+        Rake is deducted proportionally from winners' shares.
+
+        Args:
+            hand_result: Hand result dictionary with winners info
+
+        Returns:
+            Updated hand result with rake deducted and rake_amount added
+        """
+        if not self.engine:
+            return hand_result
+
+        winners = hand_result.get("winners", [])
+        if not winners:
+            return hand_result
+
+        # Calculate total pot from PokerKit state
+        total_pot = sum(pot.amount for pot in self.engine.state.pots)
+
+        # Calculate rake: 5% of pot, capped at MAX_RAKE_CAP
+        # Use integer arithmetic to avoid floating-point precision errors
+        # Convert percentage to basis points: 5% = 500 basis points
+        rake_basis_points = int(settings.rake_percentage * 10000)
+        rake_amount = min(
+            (total_pot * rake_basis_points) // 10000, settings.max_rake_cap
+        )
+
+        if rake_amount <= 0:
+            # No rake to apply
+            hand_result["rake_amount"] = 0
+            return hand_result
+
+        # Calculate total winnings to determine proportional deduction
+        total_winnings = sum(w["amount"] for w in winners)
+
+        if total_winnings <= 0:
+            # No winnings, no rake
+            hand_result["rake_amount"] = 0
+            return hand_result
+
+        # Apply rake proportionally to each winner
+        remaining_rake = rake_amount
+        for i, winner in enumerate(winners):
+            if i == len(winners) - 1:
+                # Last winner gets the remaining rake to avoid rounding errors
+                winner_rake = remaining_rake
+            else:
+                # Calculate proportional rake for this winner using integer arithmetic
+                winner_rake = (winner["amount"] * rake_amount) // total_winnings
+                remaining_rake -= winner_rake
+
+            # Deduct rake from winner's amount
+            winner["amount"] = max(0, winner["amount"] - winner_rake)
+            winner["rake_deducted"] = winner_rake
+
+        hand_result["rake_amount"] = rake_amount
+        hand_result["total_pot"] = total_pot
+
+        logger.info(
+            "Rake calculated and applied",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+            total_pot=total_pot,
+            rake_amount=rake_amount,
+            rake_percentage=settings.rake_percentage,
+        )
+
+        return hand_result
+
     async def _log_hand_event(
         self,
         db: AsyncSession,
@@ -177,11 +250,12 @@ class PokerKitTableRuntime:
 
         This is the ONLY method that handles hand ending logic.
         Implements a strictly linear flow:
-        1. Persist data (winners, pot, hand history)
-        2. Set state to INTER_HAND_WAIT
-        3. Reset all players to sitting out (forcing them to vote "Ready")
-        4. Broadcast ONE unified hand_ended event
-        5. Check lifecycle conditions (but don't delete table yet)
+        1. Calculate and apply rake to winner payouts
+        2. Persist data (winners, pot, hand history, rake)
+        3. Set state to INTER_HAND_WAIT
+        4. Reset all players to sitting out (forcing them to vote "Ready")
+        5. Broadcast ONE unified hand_ended event
+        6. Check lifecycle conditions (but don't delete table yet)
 
         Args:
             db: Database session
@@ -192,6 +266,41 @@ class PokerKitTableRuntime:
         """
         if not self.current_hand or not self.engine:
             raise ValueError("Cannot apply hand result without active hand/engine")
+
+        # Step 0: Calculate and Apply Rake
+        logger.info(
+            "Calculating rake for hand completion",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+        )
+        hand_result = self._calculate_and_apply_rake(hand_result)
+
+        # Record rake transaction if applicable
+        rake_amount = hand_result.get("rake_amount", 0)
+        if rake_amount > 0:
+            from telegram_poker_bot.shared.services.wallet_service import record_rake
+
+            try:
+                await record_rake(
+                    db=db,
+                    amount=rake_amount,
+                    hand_id=self.current_hand.id,
+                    table_id=self.table.id,
+                    reference_id=f"hand_{self.hand_no}",
+                )
+                logger.info(
+                    "Recorded rake transaction",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    rake_amount=rake_amount,
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to record rake transaction",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    error=str(e),
+                )
 
         # Step 1: Persist Data
         logger.info(
@@ -245,12 +354,12 @@ class PokerKitTableRuntime:
                     "amount": w["amount"],
                     "hand_rank": w["hand_rank"],
                     "best_hand_cards": w.get("best_hand_cards", []),
+                    "rake_deducted": w.get("rake_deducted", 0),
                 }
                 for w in hand_result["winners"]
             ],
-            "pot_total": (
-                sum(pot.amount for pot in self.engine.state.pots) if self.engine else 0
-            ),
+            "pot_total": hand_result.get("total_pot", 0),
+            "rake_amount": hand_result.get("rake_amount", 0),
         }
 
         existing_history = await db.execute(
@@ -332,7 +441,11 @@ class PokerKitTableRuntime:
             "type": "hand_ended",
             "table_id": self.table.id,
             "hand_no": self.hand_no,
-            "winners": hand_result["winners"],  # Full details: ID, Rank, Cards, Amount
+            "winners": hand_result[
+                "winners"
+            ],  # Full details: ID, Rank, Cards, Amount (post-rake)
+            "rake_amount": hand_result.get("rake_amount", 0),  # Rake deducted from pot
+            "total_pot": hand_result.get("total_pot", 0),  # Total pot before rake
             "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)
             "status": "INTER_HAND_WAIT",
             "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),

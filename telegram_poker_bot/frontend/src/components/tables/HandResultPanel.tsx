@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { formatCurrency } from '../../utils/currency'
 
 interface HandWinnerResult {
   user_id: number
@@ -7,6 +8,7 @@ interface HandWinnerResult {
   hand_score: number
   hand_rank: string
   best_hand_cards: string[]
+  rake_deducted?: number
 }
 
 interface LivePlayerState {
@@ -37,7 +39,11 @@ interface LiveTableState {
   players: LivePlayerState[]
   hero: { user_id: number; cards: string[] } | null
   last_action?: Record<string, unknown> | null
-  hand_result?: { winners: HandWinnerResult[] } | null
+  hand_result?: {
+    winners: HandWinnerResult[]
+    rake_amount?: number
+    total_pot?: number
+  } | null
 }
 
 interface HandResultPanelProps {
@@ -80,6 +86,8 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
 
     const winners = liveState.hand_result.winners
     const currentUserWinner = winners.find((w) => w.user_id === currentUserId)
+    const rakeAmount = liveState.hand_result.rake_amount || 0
+    const totalPot = liveState.hand_result.total_pot || liveState.pot
     
     // Group winners by pot_index
     const winnersByPot = winners.reduce((acc, winner) => {
@@ -101,6 +109,8 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
       potIndices,
       hasSidePots,
       isCurrentUserWinner: !!currentUserWinner,
+      rakeAmount,
+      totalPot,
     }
   }, [liveState, currentUserId])
 
@@ -108,10 +118,26 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
     return null
   }
 
-  const { winnersByPot, potIndices, hasSidePots, isCurrentUserWinner } = result
+  const { winnersByPot, potIndices, hasSidePots, isCurrentUserWinner, rakeAmount, totalPot } = result
 
   return (
     <div className="my-2 rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[3%] p-3 backdrop-blur-sm">
+      {/* Pot and Rake Summary */}
+      {totalPot > 0 && (
+        <div className="mb-2 pb-2 border-b border-white/10">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-[color:var(--text-muted)]">Total Pot:</span>
+            <span className="font-semibold text-sky-300">{formatCurrency(totalPot)}</span>
+          </div>
+          {rakeAmount > 0 && (
+            <div className="flex items-center justify-between text-[10px] mt-1">
+              <span className="text-rose-400/70">Rake (5%):</span>
+              <span className="font-medium text-rose-400/70">-{formatCurrency(rakeAmount)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2">
         {potIndices.map((potIndex) => {
           const potWinners = winnersByPot[potIndex]
@@ -144,7 +170,7 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
                   )}
                 </div>
                 <span className={`text-[13px] font-bold ${isUserWinner || mainWinner.amount > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {potWinners.length > 1 ? 'Split' : mainWinner.amount === 0 ? 'Split Pot' : `+${mainWinner.amount}`}
+                  {potWinners.length > 1 ? 'Split' : mainWinner.amount === 0 ? 'Split Pot' : `+${formatCurrency(mainWinner.amount)}`}
                 </span>
               </div>
               

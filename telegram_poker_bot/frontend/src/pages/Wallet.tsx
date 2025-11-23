@@ -1,20 +1,23 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCoins, faArrowUp, faArrowDown, faTicket } from '@fortawesome/free-solid-svg-icons'
+import {
+  faCoins,
+  faArrowUp,
+  faArrowDown,
+  faTicket,
+  faHistory,
+} from '@fortawesome/free-solid-svg-icons'
 
 import { useUserData } from '../providers/UserDataProvider'
+import { formatCurrencySmart, formatCurrency } from '../utils/currency'
+import TransactionHistory from '../components/TransactionHistory'
 
 export default function WalletPage() {
   const { t } = useTranslation()
   const { balance, loading } = useUserData()
   const [promoCode, setPromoCode] = useState('')
-
-  const formatBalance = (amount: number) => {
-    if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`
-    if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`
-    return amount.toLocaleString()
-  }
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview')
 
   if (loading || balance === null) {
     return (
@@ -27,7 +30,9 @@ export default function WalletPage() {
           border: '1px solid var(--glass-border)',
         }}
       >
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
+        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+          {t('common.loading')}
+        </p>
       </div>
     )
   }
@@ -72,117 +77,163 @@ export default function WalletPage() {
               border: '1px solid var(--glass-border)',
             }}
           >
-            <FontAwesomeIcon icon={faCoins} className="text-xl" style={{ color: 'var(--color-accent)' }} />
+            <FontAwesomeIcon
+              icon={faCoins}
+              className="text-xl"
+              style={{ color: 'var(--color-accent)' }}
+            />
           </div>
           <div>
             <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
               {t('wallet.balance', 'Balance')}
             </p>
             <p className="text-3xl font-bold" style={{ color: 'var(--color-text)' }}>
-              {formatBalance(balance)}
+              {formatCurrencySmart(balance)}
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              {formatCurrency(balance)}
             </p>
           </div>
         </div>
       </div>
 
+      {/* Tab Navigation */}
       <div
-        className="rounded-2xl p-4"
+        className="rounded-2xl p-1 flex gap-2"
         style={{
           background: 'var(--glass-bg)',
           border: '1px solid var(--glass-border)',
         }}
       >
-        <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-          {t('wallet.activity.title', 'Recent activity')}
-        </h3>
-        <div className="text-center py-6">
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {t('wallet.activity.empty', 'No transactions yet')}
-          </p>
-        </div>
-      </div>
-
-      <div
-        className="rounded-2xl p-4"
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-        }}
-      >
-        <h3 className="mb-2 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-          {t('wallet.about.title', 'About Chips')}
-        </h3>
-        <ul className="space-y-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          <li>• {t('wallet.about.point1', 'Used for table buy-ins')}</li>
-          <li>• {t('wallet.about.point2', 'Returned when you leave')}</li>
-          <li>• {t('wallet.about.point3', 'Track in game history')}</li>
-        </ul>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
         <button
-          disabled
-          className="rounded-xl px-4 py-3 text-sm font-semibold transition-transform active:scale-98 opacity-50 cursor-not-allowed"
+          onClick={() => setActiveTab('overview')}
+          className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            activeTab === 'overview' ? 'scale-[1.02]' : ''
+          }`}
           style={{
-            background: 'var(--glass-bg)',
-            border: '1px solid var(--glass-border)',
-            color: 'var(--color-text)',
+            background: activeTab === 'overview' ? 'var(--glass-bg-elevated)' : 'transparent',
+            color: activeTab === 'overview' ? 'var(--color-text)' : 'var(--color-text-muted)',
+            border: activeTab === 'overview' ? '1px solid var(--glass-border)' : '1px solid transparent',
           }}
         >
-          <FontAwesomeIcon icon={faArrowUp} className="mr-2" />
-          {t('wallet.actions.topUp', 'Top up')}
+          {t('wallet.tabs.overview', 'Overview')}
         </button>
         <button
-          disabled
-          className="rounded-xl px-4 py-3 text-sm font-semibold transition-transform active:scale-98 opacity-50 cursor-not-allowed"
+          onClick={() => setActiveTab('transactions')}
+          className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            activeTab === 'transactions' ? 'scale-[1.02]' : ''
+          }`}
           style={{
-            background: 'var(--glass-bg)',
-            border: '1px solid var(--glass-border)',
-            color: 'var(--color-text)',
+            background: activeTab === 'transactions' ? 'var(--glass-bg-elevated)' : 'transparent',
+            color: activeTab === 'transactions' ? 'var(--color-text)' : 'var(--color-text-muted)',
+            border:
+              activeTab === 'transactions' ? '1px solid var(--glass-border)' : '1px solid transparent',
           }}
         >
-          <FontAwesomeIcon icon={faArrowDown} className="mr-2" />
-          {t('wallet.actions.withdraw', 'Withdraw')}
+          <FontAwesomeIcon icon={faHistory} className="mr-2" />
+          {t('wallet.tabs.transactions', 'Transactions')}
         </button>
       </div>
 
-      <div
-        className="rounded-2xl p-4"
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-        }}
-      >
-        <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-          <FontAwesomeIcon icon={faTicket} className="mr-2" />
-          {t('wallet.promo.label', 'Promo code')}
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-            placeholder={t('wallet.promo.placeholder', 'Enter code')}
-            className="flex-1 rounded-xl px-4 py-3 text-sm uppercase tracking-wider"
-            style={{
-              background: 'var(--glass-bg-elevated)',
-              border: '1px solid var(--glass-border)',
-              color: 'var(--color-text)',
-            }}
-          />
-          <button
-            disabled
-            className="rounded-xl px-6 py-3 font-semibold opacity-50 cursor-not-allowed"
+      {/* Tab Content */}
+      {activeTab === 'overview' ? (
+        <>
+          <div
+            className="rounded-2xl p-4"
             style={{
               background: 'var(--glass-bg)',
               border: '1px solid var(--glass-border)',
-              color: 'var(--color-text)',
             }}
           >
-            {t('wallet.promo.redeem', 'Redeem')}
-          </button>
+            <h3 className="mb-2 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+              {t('wallet.about.title', 'About Chips')}
+            </h3>
+            <ul className="space-y-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              <li>• {t('wallet.about.point1', 'Used for table buy-ins')}</li>
+              <li>• {t('wallet.about.point2', 'Returned when you leave')}</li>
+              <li>• {t('wallet.about.point3', 'Track in game history')}</li>
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              disabled
+              className="rounded-xl px-4 py-3 text-sm font-semibold transition-transform active:scale-98 opacity-50 cursor-not-allowed"
+              style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--color-text)',
+              }}
+            >
+              <FontAwesomeIcon icon={faArrowUp} className="mr-2" />
+              {t('wallet.actions.topUp', 'Top up')}
+            </button>
+            <button
+              disabled
+              className="rounded-xl px-4 py-3 text-sm font-semibold transition-transform active:scale-98 opacity-50 cursor-not-allowed"
+              style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--color-text)',
+              }}
+            >
+              <FontAwesomeIcon icon={faArrowDown} className="mr-2" />
+              {t('wallet.actions.withdraw', 'Withdraw')}
+            </button>
+          </div>
+
+          <div
+            className="rounded-2xl p-4"
+            style={{
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)',
+            }}
+          >
+            <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+              <FontAwesomeIcon icon={faTicket} className="mr-2" />
+              {t('wallet.promo.label', 'Promo code')}
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                placeholder={t('wallet.promo.placeholder', 'Enter code')}
+                className="flex-1 rounded-xl px-4 py-3 text-sm uppercase tracking-wider"
+                style={{
+                  background: 'var(--glass-bg-elevated)',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--color-text)',
+                }}
+              />
+              <button
+                disabled
+                className="rounded-xl px-6 py-3 font-semibold opacity-50 cursor-not-allowed"
+                style={{
+                  background: 'var(--glass-bg)',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--color-text)',
+                }}
+              >
+                {t('wallet.promo.redeem', 'Redeem')}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div
+          className="rounded-2xl p-4"
+          style={{
+            background: 'var(--glass-bg)',
+            border: '1px solid var(--glass-border)',
+          }}
+        >
+          <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+            {t('wallet.transactions.title', 'Transaction History')}
+          </h3>
+          <TransactionHistory limit={50} />
         </div>
-      </div>
+      )}
     </div>
   )
 }

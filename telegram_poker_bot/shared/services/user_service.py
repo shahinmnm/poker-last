@@ -401,7 +401,7 @@ async def apply_hand_result_to_wallets_and_stats(
     This function:
     1. Ensures all affected users have wallets
     2. Computes profit/loss for each user based on chip changes
-    3. Updates wallet balances
+    3. Updates wallet balances using wallet_service
     4. Creates transaction records
     5. Updates user stats
 
@@ -410,9 +410,9 @@ async def apply_hand_result_to_wallets_and_stats(
         hand: The completed Hand record
         table: The Table record
         seats: List of Seat records for players in the hand
-        hand_result: Hand result dict with winners info
+        hand_result: Hand result dict with winners info (post-rake amounts)
     """
-    from telegram_poker_bot.shared.models import Transaction
+    from telegram_poker_bot.shared.services.wallet_service import record_game_win
 
     # Get all winners from hand_result
     winners = hand_result.get("winners", [])
@@ -423,34 +423,20 @@ async def apply_hand_result_to_wallets_and_stats(
     for seat in seats:
         user_id = seat.user_id
 
-        # Ensure wallet exists
-        wallet = await ensure_wallet(db, user_id)
-
         # Calculate profit/loss for this specific hand
-        # Winner amounts represent chips won in this hand
+        # Winner amounts represent chips won in this hand (already post-rake)
         hand_profit = winner_amounts.get(user_id, 0)
 
-        # Note: We don't track contributions per hand easily, so we'll use
-        # a simpler approach: winners get their winnings added, losers get nothing
-        # This means wallets reflect cumulative session profit, not hand-by-hand
-
-        # For now, we'll only apply positive winnings to wallet
+        # Use wallet_service to record game wins
         if hand_profit > 0:
-            wallet.balance += hand_profit
-
-            # Create transaction record
-            transaction = Transaction(
+            await record_game_win(
+                db=db,
                 user_id=user_id,
-                type="game_payout",
                 amount=hand_profit,
-                status="completed",
-                metadata_json={
-                    "table_id": table.id,
-                    "hand_id": hand.id,
-                    "hand_no": hand.hand_no,
-                },
+                hand_id=hand.id,
+                table_id=table.id,
+                reference_id=f"hand_{hand.hand_no}",
             )
-            db.add(transaction)
 
     # Update user stats for all participants
     for seat in seats:
