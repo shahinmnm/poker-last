@@ -233,6 +233,35 @@ export default function TablePage() {
     [],
   )
 
+  const fetchLiveState = useCallback(async () => {
+    if (!tableId) {
+      return
+    }
+    try {
+      const data = await apiFetch<LiveTableState>(`/tables/${tableId}/state`, {
+        method: 'GET',
+        initData: initDataRef.current ?? undefined,
+      })
+      setLiveState((previous) => {
+        const isSameHand = data.hand_id !== null && previous?.hand_id === data.hand_id
+        const mergedHero = data.hero ?? (isSameHand ? previous?.hero ?? null : null)
+        const mergedHandResult = data.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
+        const mergedReadyPlayers =
+          data.ready_players ?? (isSameHand ? previous?.ready_players ?? [] : [])
+        const nextState: LiveTableState = {
+          ...data,
+          hero: mergedHero,
+          hand_result: mergedHandResult,
+          ready_players: mergedReadyPlayers,
+        }
+        syncHandResults(data.hand_id ?? null, mergedHandResult, isSameHand)
+        return nextState
+      })
+    } catch (err) {
+      console.warn('Unable to fetch live state', err)
+    }
+  }, [syncHandResults, tableId])
+
   const handleGameAction = useCallback(
     async (actionType: AllowedAction['action_type'], amount?: number) => {
       if (!tableId || !initData) {
@@ -415,35 +444,6 @@ export default function TablePage() {
       setLoading(false)
     }
   }, [tableId, t])
-
-  const fetchLiveState = useCallback(async () => {
-    if (!tableId) {
-      return
-    }
-    try {
-      const data = await apiFetch<LiveTableState>(`/tables/${tableId}/state`, {
-        method: 'GET',
-        initData: initDataRef.current ?? undefined,
-      })
-      setLiveState((previous) => {
-        const isSameHand = data.hand_id !== null && previous?.hand_id === data.hand_id
-        const mergedHero = data.hero ?? (isSameHand ? previous?.hero ?? null : null)
-        const mergedHandResult = data.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
-        const mergedReadyPlayers =
-          data.ready_players ?? (isSameHand ? previous?.ready_players ?? [] : [])
-        const nextState: LiveTableState = {
-          ...data,
-          hero: mergedHero,
-          hand_result: mergedHandResult,
-          ready_players: mergedReadyPlayers,
-        }
-        syncHandResults(data.hand_id ?? null, mergedHandResult, isSameHand)
-        return nextState
-      })
-    } catch (err) {
-      console.warn('Unable to fetch live state', err)
-    }
-  }, [syncHandResults, tableId])
 
   // Handle player signaling ready for next hand
   const handleReady = useCallback(async () => {
