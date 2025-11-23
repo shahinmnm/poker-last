@@ -2,7 +2,9 @@ FROM python:3.11-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PIP_PREFER_BINARY=1 \
+    PIP_NO_COMPILE=1
 
 WORKDIR /opt/pokerkit
 
@@ -26,6 +28,8 @@ RUN pip install --upgrade pip \
 WORKDIR /opt/app
 
 # Install Telegram Poker Bot runtime dependencies
+# PIP_PREFER_BINARY and PIP_NO_COMPILE (set above) reduce build-time
+# resource usage by favoring prebuilt wheels and skipping bytecode.
 COPY telegram_poker_bot/requirements.runtime.txt /tmp/runtime-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/runtime-requirements.txt
 
