@@ -74,8 +74,10 @@ export default function HomePage() {
               } else {
                 setActiveTable(null)
               }
-            } catch {
+            } catch (error) {
               // If status check fails, don't show the table
+              // This could happen if the server is temporarily unavailable
+              console.warn('Failed to validate table status:', error)
               setActiveTable(null)
             }
           } else {

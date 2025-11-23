@@ -26,8 +26,26 @@ async def db_session() -> AsyncSession:
     await engine.dispose()
 
 
+@pytest.fixture
+def test_client(db_session: AsyncSession):
+    """Create a test client with database dependency override."""
+    from telegram_poker_bot.api.main import api_app
+    from telegram_poker_bot.shared.database import get_db
+
+    async def override_get_db():
+        yield db_session
+
+    api_app.dependency_overrides[get_db] = override_get_db
+
+    yield TestClient(api_app)
+
+    api_app.dependency_overrides.clear()
+
+
 @pytest.mark.asyncio
-async def test_table_status_active(db_session: AsyncSession) -> None:
+async def test_table_status_active(
+    db_session: AsyncSession, test_client: TestClient
+) -> None:
     """Test that status endpoint returns active=true for ACTIVE tables."""
     # Create users
     user1 = User(tg_user_id=100, username="testuser", language="en")
@@ -55,31 +73,20 @@ async def test_table_status_active(db_session: AsyncSession) -> None:
     await table_service.start_table(db_session, table.id, user_id=user1.id)
     await db_session.commit()
 
-    # Import after table is created to ensure proper initialization
-    from telegram_poker_bot.api.main import api_app
-    from telegram_poker_bot.shared.database import get_db
+    response = test_client.get(f"/tables/{table.id}/status")
 
-    async def override_get_db():
-        yield db_session
-
-    api_app.dependency_overrides[get_db] = override_get_db
-
-    try:
-        client = TestClient(api_app)
-        response = client.get(f"/tables/{table.id}/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data == {"active": True}
-    finally:
-        api_app.dependency_overrides.clear()
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"active": True}
 
 
 @pytest.mark.asyncio
-async def test_table_status_waiting(db_session: AsyncSession) -> None:
+async def test_table_status_waiting(
+    db_session: AsyncSession, test_client: TestClient
+) -> None:
     """Test that status endpoint returns active=true for WAITING tables."""
     # Create a user and table
-    user = User(tg_user_id=101, username="testuser2", language="en")
+    user = User(tg_user_id=102, username="testuser3", language="en")
     db_session.add(user)
     await db_session.flush()
 
@@ -100,30 +107,20 @@ async def test_table_status_waiting(db_session: AsyncSession) -> None:
     # Verify table is in WAITING status
     assert table.status == TableStatus.WAITING
 
-    from telegram_poker_bot.api.main import api_app
-    from telegram_poker_bot.shared.database import get_db
+    response = test_client.get(f"/tables/{table.id}/status")
 
-    async def override_get_db():
-        yield db_session
-
-    api_app.dependency_overrides[get_db] = override_get_db
-
-    try:
-        client = TestClient(api_app)
-        response = client.get(f"/tables/{table.id}/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data == {"active": True}
-    finally:
-        api_app.dependency_overrides.clear()
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"active": True}
 
 
 @pytest.mark.asyncio
-async def test_table_status_ended(db_session: AsyncSession) -> None:
+async def test_table_status_ended(
+    db_session: AsyncSession, test_client: TestClient
+) -> None:
     """Test that status endpoint returns active=false for ENDED tables."""
     # Create a user and table
-    user = User(tg_user_id=102, username="testuser3", language="en")
+    user = User(tg_user_id=103, username="testuser4", language="en")
     db_session.add(user)
     await db_session.flush()
 
@@ -144,30 +141,20 @@ async def test_table_status_ended(db_session: AsyncSession) -> None:
     table.status = TableStatus.ENDED
     await db_session.commit()
 
-    from telegram_poker_bot.api.main import api_app
-    from telegram_poker_bot.shared.database import get_db
+    response = test_client.get(f"/tables/{table.id}/status")
 
-    async def override_get_db():
-        yield db_session
-
-    api_app.dependency_overrides[get_db] = override_get_db
-
-    try:
-        client = TestClient(api_app)
-        response = client.get(f"/tables/{table.id}/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data == {"active": False}
-    finally:
-        api_app.dependency_overrides.clear()
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"active": False}
 
 
 @pytest.mark.asyncio
-async def test_table_status_expired(db_session: AsyncSession) -> None:
+async def test_table_status_expired(
+    db_session: AsyncSession, test_client: TestClient
+) -> None:
     """Test that status endpoint returns active=false for EXPIRED tables."""
     # Create a user and table
-    user = User(tg_user_id=103, username="testuser4", language="en")
+    user = User(tg_user_id=104, username="testuser5", language="en")
     db_session.add(user)
     await db_session.flush()
 
@@ -188,43 +175,19 @@ async def test_table_status_expired(db_session: AsyncSession) -> None:
     table.status = TableStatus.EXPIRED
     await db_session.commit()
 
-    from telegram_poker_bot.api.main import api_app
-    from telegram_poker_bot.shared.database import get_db
+    response = test_client.get(f"/tables/{table.id}/status")
 
-    async def override_get_db():
-        yield db_session
-
-    api_app.dependency_overrides[get_db] = override_get_db
-
-    try:
-        client = TestClient(api_app)
-        response = client.get(f"/tables/{table.id}/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data == {"active": False}
-    finally:
-        api_app.dependency_overrides.clear()
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"active": False}
 
 
 @pytest.mark.asyncio
-async def test_table_status_not_found(db_session: AsyncSession) -> None:
+async def test_table_status_not_found(test_client: TestClient) -> None:
     """Test that status endpoint returns active=false for non-existent tables."""
-    from telegram_poker_bot.api.main import api_app
-    from telegram_poker_bot.shared.database import get_db
+    # Use a table ID that doesn't exist
+    response = test_client.get("/tables/99999/status")
 
-    async def override_get_db():
-        yield db_session
-
-    api_app.dependency_overrides[get_db] = override_get_db
-
-    try:
-        client = TestClient(api_app)
-        # Use a table ID that doesn't exist
-        response = client.get("/tables/99999/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data == {"active": False}
-    finally:
-        api_app.dependency_overrides.clear()
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"active": False}
