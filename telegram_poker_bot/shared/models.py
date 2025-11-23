@@ -489,6 +489,8 @@ class UserPokerStats(Base):
     total_winnings = Column(Integer, nullable=False, default=0)
     best_hand_rank = Column(String(50), nullable=True)  # Best hand achieved
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     __table_args__ = (Index("idx_user_poker_stats_user_id", "user_id"),)

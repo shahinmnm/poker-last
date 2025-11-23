@@ -89,6 +89,12 @@ class StatsProcessor:
 
         PFR = True if user raised during pre-flop phase.
 
+        NOTE: Current implementation is simplified and assumes first raise is pre-flop.
+        This will be improved when we add street tracking to the Action table.
+        For now, this provides an approximation that's useful for basic stats.
+
+        TODO: Add street field to Action table for accurate PFR calculation.
+
         Args:
             db: Database session
             hand: Hand record

@@ -58,11 +58,12 @@ def upgrade() -> None:
 
     # Add GIN index for board_cards JSONB field in hand_history_events
     # GIN (Generalized Inverted Index) is optimized for JSONB queries
-    op.execute(
-        """
-        CREATE INDEX idx_hand_history_board_cards 
-        ON hand_history_events USING GIN (board_cards)
-        """
+    op.create_index(
+        "idx_hand_history_board_cards",
+        "hand_history_events",
+        ["board_cards"],
+        unique=False,
+        postgresql_using="gin",
     )
 
 
