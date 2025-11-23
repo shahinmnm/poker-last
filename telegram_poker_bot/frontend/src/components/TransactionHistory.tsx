@@ -10,7 +10,7 @@ import {
   faSpinner,
 } from '@fortawesome/free-solid-svg-icons'
 
-import { apiClient } from '../utils/apiClient'
+import { apiFetch } from '../utils/apiClient'
 import { formatCurrency, getTransactionTypeInfo } from '../utils/currency'
 
 interface Transaction {
@@ -38,8 +38,13 @@ export default function TransactionHistory({ limit = 20 }: TransactionHistoryPro
       try {
         setLoading(true)
         setError(null)
-        const response = await apiClient.get(`/users/me/transactions?limit=${limit}&offset=0`)
-        setTransactions(response.data.transactions || [])
+        const response = await apiFetch<{ transactions: Transaction[] }>(
+          '/users/me/transactions',
+          {
+            query: { limit, offset: 0 },
+          },
+        )
+        setTransactions(response.transactions || [])
       } catch (err) {
         console.error('Failed to fetch transactions:', err)
         setError('Failed to load transaction history')
