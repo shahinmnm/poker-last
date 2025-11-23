@@ -8,8 +8,8 @@ interface PokerFeltBackgroundProps {
 export default function PokerFeltBackground({ children, className }: PokerFeltBackgroundProps) {
   return (
     <div className={`fixed inset-0 h-full w-full overflow-hidden ${className ?? ''}`}>
-      {/* Layer 1: Royal Emerald base with enhanced vignette - center bright, corners dark */}
-      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, #00a565 0%, #008f58 25%, #003d29 50%, #001a12 75%, #000000 100%)' }} />
+      {/* Layer 1: Royal Emerald base */}
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at center, #008f58 0%, #003d29 50%, #010b08 100%)' }} />
 
       {/* Layer 2: Poker suits line art pattern */}
       <svg className="absolute inset-0 h-full w-full" aria-hidden focusable="false" role="presentation">
@@ -47,8 +47,8 @@ export default function PokerFeltBackground({ children, className }: PokerFeltBa
         <rect width="100%" height="100%" fill="url(#poker-suits-pattern)" />
       </svg>
 
-      {/* Layer 3: Enhanced glassy vignette to deepen edges and focus attention on center */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_25%,_rgba(0,0,0,0.4)_60%,_rgba(0,0,0,0.85)_100%)]" />
+      {/* Layer 3: Glassy vignette to deepen edges */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(0,0,0,0.8)_100%)]" />
 
       {/* Content */}
       <div className="relative z-10 h-full">{children}</div>
