@@ -109,6 +109,18 @@ def upgrade() -> None:
     # 9. Drop and recreate transactions table with new schema
     op.drop_table("transactions")
 
+    transaction_type_enum = sa.Enum(
+        "deposit",
+        "withdrawal",
+        "buy_in",
+        "cash_out",
+        "game_win",
+        "game_payout",
+        "rake",
+        name="transactiontype",
+        create_type=False,  # Use existing enum, created above if missing
+    )
+
     op.create_table(
         "transactions",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -121,16 +133,7 @@ def upgrade() -> None:
         sa.Column("balance_after", sa.BigInteger(), nullable=False),
         sa.Column(
             "type",
-            sa.Enum(
-                "deposit",
-                "withdrawal",
-                "buy_in",
-                "cash_out",
-                "game_win",
-                "game_payout",
-                "rake",
-                name="transactiontype",
-            ),
+            transaction_type_enum,
             nullable=False,
         ),
         sa.Column("reference_id", sa.String(length=255), nullable=True),
