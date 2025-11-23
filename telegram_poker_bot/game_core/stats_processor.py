@@ -14,7 +14,6 @@ from telegram_poker_bot.shared.models import (
     Hand,
     Action,
     ActionType,
-    HandStatus,
     Seat,
 )
 
@@ -89,9 +88,10 @@ class StatsProcessor:
 
         PFR = True if user raised during pre-flop phase.
 
-        NOTE: Current implementation is simplified and assumes first raise is pre-flop.
-        This will be improved when we add street tracking to the Action table.
-        For now, this provides an approximation that's useful for basic stats.
+        NOTE: Current implementation is simplified and counts ANY raise as PFR.
+        This is an approximation that will be improved when we add street tracking
+        to the Action table. For accurate PFR, we need to know which betting round
+        (street) each action occurred on.
 
         TODO: Add street field to Action table for accurate PFR calculation.
 
@@ -101,11 +101,10 @@ class StatsProcessor:
             user_id: User ID
 
         Returns:
-            True if user raised pre-flop
+            True if user has any RAISE action (simplified approximation)
         """
-        # Check if hand has RAISE action from user when status was PREFLOP
-        # This is a simplified check - ideally we'd track street in actions
-        # For now, we'll check if the hand was ever in PREFLOP status and user has RAISE
+        # Simplified: check if user has ANY raise action in this hand
+        # In production, you'd track street in Action table or use HandHistoryEvent
         result = await db.execute(
             select(Action)
             .where(
@@ -117,8 +116,6 @@ class StatsProcessor:
         )
         action = result.scalar_one_or_none()
 
-        # Simplified: assume first raise is pre-flop
-        # In production, you'd track street in Action table or use HandHistoryEvent
         return action is not None
 
     @staticmethod
@@ -139,11 +136,10 @@ class StatsProcessor:
             hand_result: Hand result dictionary with winners info
             seats: List of seats involved in the hand
         """
-        if not hand_result or hand.status != HandStatus.INTER_HAND_WAIT:
+        if not hand_result:
             logger.warning(
-                "Skipping stats update - hand not in proper state",
+                "Skipping stats update - no hand result provided",
                 hand_id=hand.id,
-                status=hand.status.value if hand else None,
             )
             return
 
