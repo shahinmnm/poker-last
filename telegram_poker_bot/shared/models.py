@@ -63,6 +63,18 @@ class ActionType(PyEnum):
     READY = "ready"  # Signal readiness for next hand during inter-hand phase
 
 
+class TransactionType(str, PyEnum):
+    """Transaction type enumeration for wallet ledger system."""
+
+    DEPOSIT = "deposit"
+    WITHDRAWAL = "withdrawal"
+    BUY_IN = "buy_in"  # Wallet -> Table
+    CASH_OUT = "cash_out"  # Table -> Wallet
+    GAME_WIN = "game_win"
+    GAME_PAYOUT = "game_payout"  # Generic game payout (backwards compatible)
+    RAKE = "rake"  # System Commission
+
+
 class GroupGameInviteStatus(str, PyEnum):
     """Status for group game invite lifecycle."""
 
@@ -202,7 +214,7 @@ class Seat(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     position = Column(Integer, nullable=False)  # 0-7 (8 max players)
-    chips = Column(Integer, nullable=False, default=0)
+    chips = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     left_at = Column(DateTime(timezone=True), nullable=True)
     is_sitting_out_next_hand = Column(
@@ -269,7 +281,7 @@ class Action(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     type = Column(Enum(ActionType), nullable=False)
-    amount = Column(Integer, nullable=False, default=0)
+    amount = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -289,7 +301,7 @@ class Pot(Base):
         Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=False, index=True
     )
     pot_index = Column(Integer, nullable=False)  # 0 = main pot, 1+ = side pots
-    size = Column(Integer, nullable=False)
+    size = Column(BigInteger, nullable=False)  # Changed to BigInteger for precision
 
     # Relationships
     hand = relationship("Hand", back_populates="pots")
@@ -335,8 +347,8 @@ class HandHistoryEvent(Base):
     actor_user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    amount = Column(Integer, nullable=True)  # bet/raise/call amount
-    pot_size = Column(Integer, nullable=False, default=0)
+    amount = Column(BigInteger, nullable=True)  # Changed to BigInteger for precision
+    pot_size = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision
     board_cards = Column(JSONB, nullable=True)  # Board cards at this point
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -434,7 +446,7 @@ def _normalize_group_invite_status(target, value, oldvalue, initiator):
 
 # Wallet placeholder models (feature flagged)
 class Wallet(Base):
-    """Wallet model (placeholder for future wallet feature)."""
+    """Wallet model for user balance management."""
 
     __tablename__ = "wallets"
 
@@ -446,26 +458,31 @@ class Wallet(Base):
         nullable=False,
         index=True,
     )
-    balance = Column(Integer, nullable=False, default=0)
+    balance = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision (stored in smallest unit, e.g., cents)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
 class Transaction(Base):
-    """Transaction model (placeholder for future wallet feature)."""
+    """Transaction model for complete wallet ledger system."""
 
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,  # Null for system transactions like RAKE
+        index=True,
     )
+    amount = Column(BigInteger, nullable=False)  # Changed to BigInteger (positive or negative)
+    balance_after = Column(BigInteger, nullable=False)  # Snapshot of balance after transaction
     type = Column(
-        String(50), nullable=False
-    )  # 'deposit', 'withdrawal', 'game_payout', etc.
-    amount = Column(Integer, nullable=False)
-    status = Column(String(50), nullable=False, default="pending")
-    metadata_json = Column(JSONB, default=dict)
+        Enum(TransactionType),
+        nullable=False,
+    )
+    reference_id = Column(String(255), nullable=True)  # e.g., "hand_123" or "table_5"
+    metadata_json = Column(JSONB, default=dict)  # Additional context data
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (Index("idx_transactions_user_created", "user_id", "created_at"),)
@@ -486,7 +503,7 @@ class UserPokerStats(Base):
     wins = Column(Integer, nullable=False, default=0)
     vpip_count = Column(Integer, nullable=False, default=0)  # Voluntarily Put $ In Pot
     pfr_count = Column(Integer, nullable=False, default=0)  # Pre-Flop Raise
-    total_winnings = Column(Integer, nullable=False, default=0)
+    total_winnings = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision
     best_hand_rank = Column(String(50), nullable=True)  # Best hand achieved
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(

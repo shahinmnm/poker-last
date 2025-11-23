@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     table_inactivity_timeout_minutes: int = 10
     table_all_sitout_timeout_minutes: int = 5
 
+    # Currency Configuration (Cent-based System)
+    currency_smallest_unit_factor: int = 100  # 100 = cents (USD), 1 = whole units
+    max_rake_cap: int = 500  # Maximum rake per hand (in smallest units, e.g., $5.00 = 500 cents)
+    rake_percentage: float = 0.05  # 5% rake
+
     # Table Lifecycle Configuration
     public_table_prestart_ttl_minutes: int = 10  # 10 minutes for public tables to start
     private_table_prestart_ttl_minutes: int = (
