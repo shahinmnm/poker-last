@@ -196,8 +196,9 @@ export default function PlayerAvatar({
       {showPopover && (
         <div
           ref={popoverRef}
-          className={`absolute left-1/2 -translate-x-1/2 ${offsetTop ? 'bottom-full mb-2' : 'top-full mt-2'} w-56 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl p-4 space-y-2.5 z-50 animate-in fade-in zoom-in-95 duration-200`}
+          className={`absolute left-1/2 -translate-x-1/2 ${offsetTop ? 'bottom-full mb-2' : 'top-full mt-2'} w-56 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl p-4 space-y-2.5 z-50 transition-all duration-200 ease-out opacity-100 scale-100`}
           onClick={(e) => e.stopPropagation()}
+          style={{ animation: 'fadeInScale 200ms ease-out' }}
         >
           {/* Player Name */}
           <div className="text-white font-bold text-base truncate">{name}</div>
