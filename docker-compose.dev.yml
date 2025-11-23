@@ -4,9 +4,11 @@ services:
   bot:
     command:
       [
-        "bash",
-        "-c",
-        "alembic -c telegram_poker_bot/alembic.ini upgrade head && watchfiles --filter=python --ignore-paths=/opt/app/tests 'python -m telegram_poker_bot.bot.main' /opt/app",
+        "watchfiles",
+        "--filter=python",
+        "--ignore-paths=/opt/app/tests",
+        "python -m telegram_poker_bot.bot.main",
+        "/opt/app",
       ]
     volumes:
       - ./telegram_poker_bot:/opt/app
@@ -17,9 +19,15 @@ services:
   api:
     command:
       [
-        "bash",
-        "-c",
-        "alembic -c telegram_poker_bot/alembic.ini upgrade head && uvicorn telegram_poker_bot.api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /opt/app",
+        "uvicorn",
+        "telegram_poker_bot.api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+        "--reload-dir",
+        "/opt/app",
       ]
     volumes:
       - ./telegram_poker_bot:/opt/app

@@ -75,9 +75,9 @@ services:
     container_name: pokerbot_bot
     command:
       [
-        "bash",
-        "-c",
-        "alembic -c telegram_poker_bot/alembic.ini upgrade head && python -m telegram_poker_bot.bot.main",
+        "python",
+        "-m",
+        "telegram_poker_bot.bot.main",
       ]
     env_file: *backend-env-file
     depends_on:
@@ -96,9 +96,12 @@ services:
     container_name: pokerbot_api
     command:
       [
-        "bash",
-        "-c",
-        "alembic -c telegram_poker_bot/alembic.ini upgrade head && uvicorn telegram_poker_bot.api.main:app --host 0.0.0.0 --port 8000",
+        "uvicorn",
+        "telegram_poker_bot.api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
       ]
     env_file: *backend-env-file
     depends_on:
