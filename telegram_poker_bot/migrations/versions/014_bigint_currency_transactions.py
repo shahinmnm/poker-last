@@ -1,6 +1,6 @@
 """Convert money columns to BigInteger and enhance Transaction model.
 
-Revision ID: 014_bigint_currency_and_transactions
+Revision ID: 014_bigint_currency_transactions
 Revises: 013_add_user_poker_stats
 Create Date: 2025-01-23 16:00:00.000000
 
@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "014_bigint_currency_and_transactions"
+revision = "014_bigint_currency_transactions"
 down_revision = "013_add_user_poker_stats"
 branch_labels = None
 depends_on = None

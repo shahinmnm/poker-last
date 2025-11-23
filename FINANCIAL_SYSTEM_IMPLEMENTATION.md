@@ -22,7 +22,7 @@ This implementation delivers a complete overhaul of the Telegram Poker Bot's fin
 - Complete ledger system for financial audit trail
 
 **Migration**
-- File: `014_bigint_currency_and_transactions.py`
+- File: `014_bigint_currency_transactions.py`
 - Includes proper upgrade and downgrade paths
 - Creates TransactionType enum in PostgreSQL
 - Preserves existing data structure
@@ -231,7 +231,7 @@ psql pokerbot < backup_before_bigint_migration.sql
 - `telegram_poker_bot/shared/services/user_service.py` (30 lines changed)
 - `telegram_poker_bot/game_core/pokerkit_runtime.py` (130 lines changed)
 - `telegram_poker_bot/api/main.py` (62 lines changed)
-- `telegram_poker_bot/migrations/versions/014_bigint_currency_and_transactions.py` (245 lines - NEW)
+- `telegram_poker_bot/migrations/versions/014_bigint_currency_transactions.py` (245 lines - NEW)
 
 ### Frontend (TypeScript/React)
 - `telegram_poker_bot/frontend/src/utils/currency.ts` (167 lines - NEW)
