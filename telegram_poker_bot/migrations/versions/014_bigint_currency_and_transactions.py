@@ -85,13 +85,24 @@ def upgrade() -> None:
         existing_nullable=False,
     )
 
-    # 8. Create TransactionType enum
+    # 8. Create TransactionType enum (idempotent for reruns)
     op.execute(
         """
-        CREATE TYPE transactiontype AS ENUM (
-            'deposit', 'withdrawal', 'buy_in', 'cash_out',
-            'game_win', 'game_payout', 'rake'
-        )
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_type t
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE t.typname = 'transactiontype'
+            ) THEN
+                CREATE TYPE transactiontype AS ENUM (
+                    'deposit', 'withdrawal', 'buy_in', 'cash_out',
+                    'game_win', 'game_payout', 'rake'
+                );
+            END IF;
+        END
+        $$;
         """
     )
 
@@ -150,7 +161,7 @@ def downgrade() -> None:
     # Drop new transactions table and enum
     op.drop_index("idx_transactions_user_created", table_name="transactions")
     op.drop_table("transactions")
-    op.execute("DROP TYPE transactiontype")
+    op.execute("DROP TYPE IF EXISTS transactiontype")
 
     # Recreate old transactions table
     op.create_table(
