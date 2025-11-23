@@ -20,8 +20,7 @@ import TableExpiredModal from '../components/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
-import ActionDock from '../components/tables/ActionDock'
-import { useTableActions } from '../hooks/useTableActions'
+import ActionDock, { type AllowedAction } from '@/components/game/ActionDock'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import SmartTableHeader from '../components/tables/SmartTableHeader'
 import PlayerAvatar from '../components/tables/PlayerAvatar'
@@ -151,18 +150,7 @@ interface LiveTableState {
   inter_hand_wait?: boolean
   inter_hand_wait_seconds?: number
   inter_hand_wait_deadline?: string | null
-  allowed_actions?: {
-    can_fold?: boolean
-    can_check?: boolean
-    can_call?: boolean
-    call_amount?: number
-    can_bet?: boolean
-    can_raise?: boolean
-    min_raise_to?: number
-    max_raise_to?: number
-    current_pot?: number
-    player_stack?: number
-  }
+  allowed_actions?: AllowedAction[]
   ready_players?: number[]
 }
 
@@ -195,36 +183,7 @@ export default function TablePage() {
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
-  
-  // Centralized action handling hook
-  const tableActions = useTableActions({
-    tableId: tableId || '',
-    gameState: liveState,
-    initData: initData ?? undefined,
-    onActionSuccess: (state) => {
-      setLiveState(state)
-      syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
-      fetchLiveState()
-    },
-    onActionError: (message) => {
-      showToast(message)
-    },
-  })
 
-  // Helper to wrap actions with pending state management
-  const withPendingState = useCallback(<T extends unknown[]>(
-    action: (...args: T) => Promise<void>
-  ) => {
-    return async (...args: T) => {
-      setActionPending(true)
-      try {
-        await action(...args)
-      } finally {
-        setActionPending(false)
-      }
-    }
-  }, [])
-  
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
   
@@ -272,6 +231,45 @@ export default function TablePage() {
       }
     },
     [],
+  )
+
+  const handleGameAction = useCallback(
+    async (actionType: AllowedAction['action_type'], amount?: number) => {
+      if (!tableId || !initData) {
+        showToast(t('table.errors.unauthorized'))
+        return
+      }
+
+      try {
+        setActionPending(true)
+        const state = await apiFetch<LiveTableState>(`/tables/${tableId}/actions`, {
+          method: 'POST',
+          initData,
+          body: {
+            action_type: actionType,
+            amount,
+          },
+        })
+
+        setLiveState(state)
+        syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
+        fetchLiveState()
+      } catch (err) {
+        console.error('Error sending action', err)
+        if (err instanceof ApiError) {
+          const message =
+            (typeof err.data === 'object' && err.data && 'detail' in err.data
+              ? String((err.data as { detail?: unknown }).detail)
+              : null) || t('table.errors.actionFailed')
+          showToast(message)
+        } else {
+          showToast(t('table.errors.actionFailed'))
+        }
+      } finally {
+        setActionPending(false)
+      }
+    },
+    [fetchLiveState, initData, showToast, syncHandResults, t, tableId],
   )
 
   // Helper to get center position of an element
@@ -736,7 +734,10 @@ export default function TablePage() {
 
   const heroId = liveState?.hero?.user_id ?? null
   const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
-  const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
+  const allowedActions = liveState?.allowed_actions ?? []
+  const callAction = allowedActions.find((action) => action.action_type === 'call')
+  const canCheckAction = allowedActions.some((action) => action.action_type === 'check')
+  const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
   const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
   const isInterHand = normalizedStatus === 'inter_hand_wait' || liveState?.inter_hand_wait
@@ -764,7 +765,6 @@ export default function TablePage() {
       return undefined
     }
 
-    const canCheck = amountToCall === 0 || Boolean(liveState.allowed_actions?.can_check)
     const deadlineMs = new Date(liveState.action_deadline).getTime()
     const delay = Math.max(0, deadlineMs - Date.now())
 
@@ -773,9 +773,9 @@ export default function TablePage() {
         autoTimeoutRef.current.handId === liveState.hand_id ? autoTimeoutRef.current.count : 0
 
       if (timeoutCount === 0 && canCheck) {
-        tableActions.onCheck()
+        handleGameAction('check')
       } else {
-        tableActions.onFold()
+        handleGameAction('fold')
       }
 
       autoTimeoutRef.current = {
@@ -792,7 +792,7 @@ export default function TablePage() {
         autoActionTimerRef.current = null
       }
     }
-  }, [amountToCall, heroId, liveState, tableActions])
+  }, [canCheck, handleGameAction, heroId, liveState?.action_deadline, liveState?.current_actor, liveState?.hand_id])
 
   // Control bottom navigation visibility based on seated status
   useEffect(() => {
@@ -949,20 +949,18 @@ export default function TablePage() {
     const hasActiveHand = liveState?.hand_id !== null && !isInterHand
     if (tableStatus === 'active' && liveState && viewerIsSeated && hasActiveHand) {
       if (isMyTurn) {
+        const potSize =
+          typeof liveState.pot === 'number'
+            ? liveState.pot
+            : (liveState as { pot?: { total?: number } }).pot?.total ??
+              (liveState.pots?.reduce((sum, pot) => sum + (pot.amount ?? 0), 0) ?? 0)
         return (
           <ActionDock
-            isPlayerTurn={tableActions.isMyTurn}
-            amountToCall={tableActions.amountToCall}
-            minRaise={tableActions.minRaise}
-            maxRaise={tableActions.maxRaise}
-            currentPot={tableActions.currentPot}
-            actionPending={actionPending}
-            canBet={tableActions.canBet}
-            onFold={withPendingState(tableActions.onFold)}
-            onCheck={withPendingState(tableActions.onCheck)}
-            onCall={withPendingState(tableActions.onCall)}
-            onBet={withPendingState(tableActions.onBet)}
-            onRaise={withPendingState(tableActions.onRaise)}
+            allowedActions={allowedActions}
+            onAction={handleGameAction}
+            potSize={potSize}
+            myStack={heroPlayer?.stack ?? 0}
+            isProcessing={actionPending || loading}
           />
         )
       }
