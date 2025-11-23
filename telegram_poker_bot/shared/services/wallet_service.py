@@ -119,6 +119,7 @@ async def transfer_to_table(
         amount=-amount,  # Negative because money is leaving wallet
         balance_after=balance_after,
         type=TransactionType.BUY_IN,
+        table_id=table_id,
         reference_id=reference_id or f"table_{table_id}",
         metadata_json={"table_id": table_id},
     )
@@ -193,6 +194,7 @@ async def cash_out_from_table(
         amount=amount,  # Positive because money is entering wallet
         balance_after=balance_after,
         type=TransactionType.CASH_OUT,
+        table_id=table_id,
         reference_id=reference_id or f"table_{table_id}",
         metadata_json={"table_id": table_id},
     )
@@ -257,6 +259,8 @@ async def record_game_win(
         amount=amount,
         balance_after=balance_after,
         type=TransactionType.GAME_WIN,
+        hand_id=hand_id,
+        table_id=table_id,
         reference_id=reference_id or f"hand_{hand_id}",
         metadata_json={"hand_id": hand_id, "table_id": table_id},
     )
@@ -303,6 +307,8 @@ async def record_rake(
         amount=amount,
         balance_after=0,  # Not applicable for system transactions
         type=TransactionType.RAKE,
+        hand_id=hand_id,
+        table_id=table_id,
         reference_id=reference_id or f"hand_{hand_id}",
         metadata_json={"hand_id": hand_id, "table_id": table_id},
     )

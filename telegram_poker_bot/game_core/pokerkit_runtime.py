@@ -277,6 +277,9 @@ class PokerKitTableRuntime:
 
         # Record rake transaction if applicable
         rake_amount = hand_result.get("rake_amount", 0)
+        total_pot = hand_result.get("total_pot", 0)
+        # Persist total pot size on the hand for auditing and ledger alignment
+        self.current_hand.pot_size = total_pot
         if rake_amount > 0:
             from telegram_poker_bot.shared.services.wallet_service import record_rake
 

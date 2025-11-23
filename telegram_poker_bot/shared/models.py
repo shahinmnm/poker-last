@@ -100,6 +100,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    balance = Column(
+        BigInteger, nullable=False, server_default="0", default=0
+    )  # Wallet balance stored in smallest currency unit
     tg_user_id = Column(BigInteger, unique=True, nullable=False, index=True)
     language = Column(String(10), default="en", nullable=False)
     username = Column(String(255), nullable=True)
@@ -180,6 +183,9 @@ class Table(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
     invite_code = Column(String(16), nullable=True, unique=True, index=True)
     last_action_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    min_buy_in = Column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )  # Minimum buy-in stored as bigint for precision
 
     # Relationships
     group = relationship("Group", back_populates="tables")
@@ -258,6 +264,9 @@ class Hand(Base):
     engine_state_json = Column(JSONB, nullable=False)  # Serialized PokerKit State
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     ended_at = Column(DateTime(timezone=True), nullable=True)
+    pot_size = Column(
+        BigInteger, nullable=False, default=0
+    )  # Track total pot size for auditing
     timeout_tracking = Column(
         JSONB, nullable=True, server_default="{}"
     )  # Consecutive timeout tracking
@@ -497,12 +506,14 @@ class Transaction(Base):
         BigInteger, nullable=False
     )  # Changed to BigInteger (positive or negative)
     balance_after = Column(
-        BigInteger, nullable=False
-    )  # Snapshot of balance after transaction
+        BigInteger, nullable=True
+    )  # Snapshot of balance after transaction when applicable
     type = Column(
         Enum(TransactionType),
         nullable=False,
     )
+    table_id = Column(Integer, ForeignKey("tables.id", ondelete="SET NULL"), nullable=True)
+    hand_id = Column(Integer, ForeignKey("hands.id", ondelete="SET NULL"), nullable=True)
     reference_id = Column(String(255), nullable=True)  # e.g., "hand_123" or "table_5"
     metadata_json = Column(JSONB, default=dict)  # Additional context data
     created_at = Column(DateTime(timezone=True), server_default=func.now())
