@@ -509,7 +509,11 @@ class Transaction(Base):
         BigInteger, nullable=True
     )  # Snapshot of balance after transaction when applicable
     type = Column(
-        Enum(TransactionType),
+        Enum(
+            TransactionType,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="transactiontype",
+        ),
         nullable=False,
     )
     table_id = Column(Integer, ForeignKey("tables.id", ondelete="SET NULL"), nullable=True)
