@@ -214,7 +214,9 @@ class Seat(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     position = Column(Integer, nullable=False)  # 0-7 (8 max players)
-    chips = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision
+    chips = Column(
+        BigInteger, nullable=False, default=0
+    )  # Changed to BigInteger for precision
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     left_at = Column(DateTime(timezone=True), nullable=True)
     is_sitting_out_next_hand = Column(
@@ -281,7 +283,9 @@ class Action(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     type = Column(Enum(ActionType), nullable=False)
-    amount = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision
+    amount = Column(
+        BigInteger, nullable=False, default=0
+    )  # Changed to BigInteger for precision
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -348,7 +352,9 @@ class HandHistoryEvent(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
     amount = Column(BigInteger, nullable=True)  # Changed to BigInteger for precision
-    pot_size = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision
+    pot_size = Column(
+        BigInteger, nullable=False, default=0
+    )  # Changed to BigInteger for precision
     board_cards = Column(JSONB, nullable=True)  # Board cards at this point
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -458,7 +464,9 @@ class Wallet(Base):
         nullable=False,
         index=True,
     )
-    balance = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision (stored in smallest unit, e.g., cents)
+    balance = Column(
+        BigInteger, nullable=False, default=0
+    )  # Changed to BigInteger for precision (stored in smallest unit, e.g., cents)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -475,8 +483,12 @@ class Transaction(Base):
         nullable=True,  # Null for system transactions like RAKE
         index=True,
     )
-    amount = Column(BigInteger, nullable=False)  # Changed to BigInteger (positive or negative)
-    balance_after = Column(BigInteger, nullable=False)  # Snapshot of balance after transaction
+    amount = Column(
+        BigInteger, nullable=False
+    )  # Changed to BigInteger (positive or negative)
+    balance_after = Column(
+        BigInteger, nullable=False
+    )  # Snapshot of balance after transaction
     type = Column(
         Enum(TransactionType),
         nullable=False,
@@ -503,7 +515,9 @@ class UserPokerStats(Base):
     wins = Column(Integer, nullable=False, default=0)
     vpip_count = Column(Integer, nullable=False, default=0)  # Voluntarily Put $ In Pot
     pfr_count = Column(Integer, nullable=False, default=0)  # Pre-Flop Raise
-    total_winnings = Column(BigInteger, nullable=False, default=0)  # Changed to BigInteger for precision
+    total_winnings = Column(
+        BigInteger, nullable=False, default=0
+    )  # Changed to BigInteger for precision
     best_hand_rank = Column(String(50), nullable=True)  # Best hand achieved
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(

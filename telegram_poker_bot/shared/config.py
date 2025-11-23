@@ -72,7 +72,9 @@ class Settings(BaseSettings):
 
     # Currency Configuration (Cent-based System)
     currency_smallest_unit_factor: int = 100  # 100 = cents (USD), 1 = whole units
-    max_rake_cap: int = 500  # Maximum rake per hand (in smallest units, e.g., $5.00 = 500 cents)
+    max_rake_cap: int = (
+        500  # Maximum rake per hand (in smallest units, e.g., $5.00 = 500 cents)
+    )
     rake_percentage: float = 0.05  # 5% rake
 
     # Table Lifecycle Configuration

@@ -86,9 +86,7 @@ class PokerKitTableRuntime:
         active_seats.sort(key=lambda s: s.position)
         return active_seats
 
-    def _calculate_and_apply_rake(
-        self, hand_result: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _calculate_and_apply_rake(self, hand_result: Dict[str, Any]) -> Dict[str, Any]:
         """
         Calculate rake (commission) and apply it to winner payouts.
 
@@ -113,8 +111,7 @@ class PokerKitTableRuntime:
 
         # Calculate rake: 5% of pot, capped at MAX_RAKE_CAP
         rake_amount = min(
-            int(total_pot * settings.rake_percentage),
-            settings.max_rake_cap
+            int(total_pot * settings.rake_percentage), settings.max_rake_cap
         )
 
         if rake_amount <= 0:
@@ -441,7 +438,9 @@ class PokerKitTableRuntime:
             "type": "hand_ended",
             "table_id": self.table.id,
             "hand_no": self.hand_no,
-            "winners": hand_result["winners"],  # Full details: ID, Rank, Cards, Amount (post-rake)
+            "winners": hand_result[
+                "winners"
+            ],  # Full details: ID, Rank, Cards, Amount (post-rake)
             "rake_amount": hand_result.get("rake_amount", 0),  # Rake deducted from pot
             "total_pot": hand_result.get("total_pot", 0),  # Total pot before rake
             "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)

@@ -11,7 +11,6 @@ from telegram_poker_bot.shared.models import (
     Wallet,
     Transaction,
     TransactionType,
-    User,
 )
 
 logger = get_logger(__name__)
@@ -166,7 +165,9 @@ async def cash_out_from_table(
         raise ValueError(f"Cash out amount must be non-negative, got {amount}")
 
     if amount == 0:
-        logger.info("Cash out amount is zero, skipping", user_id=user_id, table_id=table_id)
+        logger.info(
+            "Cash out amount is zero, skipping", user_id=user_id, table_id=table_id
+        )
         return True
 
     # Lock the wallet row to prevent concurrent modifications
@@ -230,14 +231,14 @@ async def record_game_win(
         reference_id: Optional reference
     """
     if amount <= 0:
-        logger.warning("Game win amount must be positive, skipping", user_id=user_id, amount=amount)
+        logger.warning(
+            "Game win amount must be positive, skipping", user_id=user_id, amount=amount
+        )
         return
 
     # Lock the wallet row
     result = await db.execute(
-        select(Wallet)
-        .where(Wallet.user_id == user_id)
-        .with_for_update()
+        select(Wallet).where(Wallet.user_id == user_id).with_for_update()
     )
     wallet = result.scalar_one_or_none()
 
