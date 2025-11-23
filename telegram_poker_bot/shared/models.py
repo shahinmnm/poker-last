@@ -64,7 +64,17 @@ class ActionType(PyEnum):
 
 
 class TransactionType(str, PyEnum):
-    """Transaction type enumeration for wallet ledger system."""
+    """Transaction type enumeration for wallet ledger system.
+
+    Types:
+    - DEPOSIT: External deposit to wallet
+    - WITHDRAWAL: External withdrawal from wallet
+    - BUY_IN: Transfer from wallet to table
+    - CASH_OUT: Transfer from table back to wallet
+    - GAME_WIN: Game winnings (new transactions)
+    - GAME_PAYOUT: Game payout (legacy, for backwards compatibility)
+    - RAKE: System commission (no user_id)
+    """
 
     DEPOSIT = "deposit"
     WITHDRAWAL = "withdrawal"

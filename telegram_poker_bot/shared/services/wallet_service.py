@@ -282,6 +282,8 @@ async def record_rake(
     Record a rake (commission) transaction.
 
     Rake transactions have no user_id (system transaction).
+    The balance_after is set to 0 since rake is a system-level transaction
+    and does not affect any user's wallet balance.
 
     Args:
         db: Database session
@@ -295,6 +297,7 @@ async def record_rake(
         return
 
     # Create transaction record (no user_id for system rake)
+    # balance_after=0 since this is a system transaction, not tied to user wallets
     transaction = Transaction(
         user_id=None,  # System transaction
         amount=amount,

@@ -110,8 +110,11 @@ class PokerKitTableRuntime:
         total_pot = sum(pot.amount for pot in self.engine.state.pots)
 
         # Calculate rake: 5% of pot, capped at MAX_RAKE_CAP
+        # Use integer arithmetic to avoid floating-point precision errors
+        # Convert percentage to basis points: 5% = 500 basis points
+        rake_basis_points = int(settings.rake_percentage * 10000)
         rake_amount = min(
-            int(total_pot * settings.rake_percentage), settings.max_rake_cap
+            (total_pot * rake_basis_points) // 10000, settings.max_rake_cap
         )
 
         if rake_amount <= 0:
@@ -134,8 +137,8 @@ class PokerKitTableRuntime:
                 # Last winner gets the remaining rake to avoid rounding errors
                 winner_rake = remaining_rake
             else:
-                # Calculate proportional rake for this winner
-                winner_rake = int((winner["amount"] / total_winnings) * rake_amount)
+                # Calculate proportional rake for this winner using integer arithmetic
+                winner_rake = (winner["amount"] * rake_amount) // total_winnings
                 remaining_rake -= winner_rake
 
             # Deduct rake from winner's amount

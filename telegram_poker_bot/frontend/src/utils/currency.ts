@@ -50,6 +50,9 @@ export function formatCurrencySmart(amount: number, symbol = '$'): string {
 /**
  * Parse currency input from user (string) to smallest unit (cents)
  *
+ * Uses Math.round() for conversion which is appropriate for user input validation.
+ * For more complex financial calculations, consider using a dedicated decimal library.
+ *
  * @param input - User input string (e.g., "20.5", "20.50", "20")
  * @returns Amount in smallest units (cents), or null if invalid
  *
@@ -67,6 +70,8 @@ export function parseCurrencyInput(input: string): number | null {
     return null
   }
 
+  // Math.round is appropriate here for user input conversion
+  // All server-side calculations use integer arithmetic
   return Math.round(parsed * CURRENCY_SMALLEST_UNIT_FACTOR)
 }
 
