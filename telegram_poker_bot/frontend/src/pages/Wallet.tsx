@@ -11,13 +11,13 @@ import {
 
 import { useUserData } from '../providers/UserDataProvider'
 import { formatCurrencySmart, formatCurrency } from '../utils/currency'
-import TransactionHistory from '../components/TransactionHistory'
+import TransactionHistory from '@/components/wallet/TransactionHistory'
 
 export default function WalletPage() {
   const { t } = useTranslation()
   const { balance, loading } = useUserData()
   const [promoCode, setPromoCode] = useState('')
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview')
 
   if (loading || balance === null) {
     return (
@@ -119,15 +119,15 @@ export default function WalletPage() {
           {t('wallet.tabs.overview', 'Overview')}
         </button>
         <button
-          onClick={() => setActiveTab('transactions')}
+          onClick={() => setActiveTab('history')}
           className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-            activeTab === 'transactions' ? 'scale-[1.02]' : ''
+            activeTab === 'history' ? 'scale-[1.02]' : ''
           }`}
           style={{
-            background: activeTab === 'transactions' ? 'var(--glass-bg-elevated)' : 'transparent',
-            color: activeTab === 'transactions' ? 'var(--color-text)' : 'var(--color-text-muted)',
+            background: activeTab === 'history' ? 'var(--glass-bg-elevated)' : 'transparent',
+            color: activeTab === 'history' ? 'var(--color-text)' : 'var(--color-text-muted)',
             border:
-              activeTab === 'transactions' ? '1px solid var(--glass-border)' : '1px solid transparent',
+              activeTab === 'history' ? '1px solid var(--glass-border)' : '1px solid transparent',
           }}
         >
           <FontAwesomeIcon icon={faHistory} className="mr-2" />
@@ -231,7 +231,7 @@ export default function WalletPage() {
           <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
             {t('wallet.transactions.title', 'Transaction History')}
           </h3>
-          <TransactionHistory limit={50} />
+          <TransactionHistory />
         </div>
       )}
     </div>
