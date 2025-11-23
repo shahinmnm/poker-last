@@ -4,7 +4,7 @@ This service calculates and updates UserPokerStats after each hand completion.
 It runs asynchronously as a background task to avoid blocking the main game flow.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,9 +55,7 @@ class StatsProcessor:
         return stats
 
     @staticmethod
-    async def calculate_vpip(
-        db: AsyncSession, hand: Hand, user_id: int
-    ) -> bool:
+    async def calculate_vpip(db: AsyncSession, hand: Hand, user_id: int) -> bool:
         """
         Calculate if user voluntarily put money in pot (VPIP).
 
@@ -85,9 +83,7 @@ class StatsProcessor:
         return action is not None
 
     @staticmethod
-    async def calculate_pfr(
-        db: AsyncSession, hand: Hand, user_id: int
-    ) -> bool:
+    async def calculate_pfr(db: AsyncSession, hand: Hand, user_id: int) -> bool:
         """
         Calculate if user raised pre-flop (PFR).
 
