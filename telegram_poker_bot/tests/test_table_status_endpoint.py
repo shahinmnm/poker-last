@@ -5,7 +5,7 @@ import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from telegram_poker_bot.shared.models import Base, User, Table, TableStatus, GameMode
+from telegram_poker_bot.shared.models import Base, User, TableStatus
 from telegram_poker_bot.shared.services import table_service
 
 pytest.importorskip("aiosqlite")
@@ -47,14 +47,14 @@ async def test_table_status_active(db_session: AsyncSession) -> None:
         is_private=False,
         auto_seat_creator=True,
     )
-    
+
     # Add second player
     await table_service.seat_user_at_table(db_session, table.id, user2.id)
-    
+
     # Start the table to make it ACTIVE
     await table_service.start_table(db_session, table.id, user_id=user1.id)
     await db_session.commit()
-    
+
     # Import after table is created to ensure proper initialization
     from telegram_poker_bot.api.main import api_app
     from telegram_poker_bot.shared.database import get_db
@@ -63,11 +63,11 @@ async def test_table_status_active(db_session: AsyncSession) -> None:
         yield db_session
 
     api_app.dependency_overrides[get_db] = override_get_db
-    
+
     try:
         client = TestClient(api_app)
         response = client.get(f"/tables/{table.id}/status")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data == {"active": True}
@@ -96,10 +96,10 @@ async def test_table_status_waiting(db_session: AsyncSession) -> None:
         auto_seat_creator=True,
     )
     await db_session.commit()
-    
+
     # Verify table is in WAITING status
     assert table.status == TableStatus.WAITING
-    
+
     from telegram_poker_bot.api.main import api_app
     from telegram_poker_bot.shared.database import get_db
 
@@ -107,11 +107,11 @@ async def test_table_status_waiting(db_session: AsyncSession) -> None:
         yield db_session
 
     api_app.dependency_overrides[get_db] = override_get_db
-    
+
     try:
         client = TestClient(api_app)
         response = client.get(f"/tables/{table.id}/status")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data == {"active": True}
@@ -139,11 +139,11 @@ async def test_table_status_ended(db_session: AsyncSession) -> None:
         is_private=False,
         auto_seat_creator=True,
     )
-    
+
     # Mark table as ended
     table.status = TableStatus.ENDED
     await db_session.commit()
-    
+
     from telegram_poker_bot.api.main import api_app
     from telegram_poker_bot.shared.database import get_db
 
@@ -151,11 +151,11 @@ async def test_table_status_ended(db_session: AsyncSession) -> None:
         yield db_session
 
     api_app.dependency_overrides[get_db] = override_get_db
-    
+
     try:
         client = TestClient(api_app)
         response = client.get(f"/tables/{table.id}/status")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data == {"active": False}
@@ -183,11 +183,11 @@ async def test_table_status_expired(db_session: AsyncSession) -> None:
         is_private=False,
         auto_seat_creator=True,
     )
-    
+
     # Mark table as expired
     table.status = TableStatus.EXPIRED
     await db_session.commit()
-    
+
     from telegram_poker_bot.api.main import api_app
     from telegram_poker_bot.shared.database import get_db
 
@@ -195,11 +195,11 @@ async def test_table_status_expired(db_session: AsyncSession) -> None:
         yield db_session
 
     api_app.dependency_overrides[get_db] = override_get_db
-    
+
     try:
         client = TestClient(api_app)
         response = client.get(f"/tables/{table.id}/status")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data == {"active": False}
@@ -217,12 +217,12 @@ async def test_table_status_not_found(db_session: AsyncSession) -> None:
         yield db_session
 
     api_app.dependency_overrides[get_db] = override_get_db
-    
+
     try:
         client = TestClient(api_app)
         # Use a table ID that doesn't exist
         response = client.get("/tables/99999/status")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data == {"active": False}

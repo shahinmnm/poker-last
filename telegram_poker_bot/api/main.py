@@ -1259,24 +1259,24 @@ async def get_table_status(
 ):
     """
     Check if a table is active.
-    
+
     Returns:
         {"active": true} if table exists and is in ACTIVE or WAITING status
         {"active": false} otherwise
-    
+
     This endpoint does not require authentication and is used by the frontend
     to validate whether tables are still active before displaying them.
     """
     result = await db.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
-    
+
     if not table:
         return {"active": False}
-    
+
     # Consider ACTIVE and WAITING tables as active
     # PAUSED, ENDED, and EXPIRED are considered inactive
     is_active = table.status in [TableStatus.ACTIVE, TableStatus.WAITING]
-    
+
     return {"active": is_active}
 
 
