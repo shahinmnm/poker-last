@@ -1135,8 +1135,7 @@ export default function TablePage() {
                       Array.from({ length: 5 }).map((_, idx) => (
                         <div 
                           key={`ghost-slot-${idx}`} 
-                          className="w-12 h-[68px] rounded-lg border-2 border-dashed border-white/20 bg-black/10"
-                          style={{ opacity: 0.2 }}
+                          className="w-12 h-[68px] rounded-lg border-2 border-dashed border-white/20 bg-black/10 opacity-20"
                         />
                       ))
                     )}
