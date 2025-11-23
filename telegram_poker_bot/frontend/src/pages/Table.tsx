@@ -20,7 +20,8 @@ import TableExpiredModal from '../components/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
-import GameControls from '../components/tables/GameControls'
+import ActionDock from '../components/tables/ActionDock'
+import { useTableActions } from '../hooks/useTableActions'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import SmartTableHeader from '../components/tables/SmartTableHeader'
 import PlayerAvatar from '../components/tables/PlayerAvatar'
@@ -194,6 +195,21 @@ export default function TablePage() {
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
+  
+  // Centralized action handling hook
+  const tableActions = useTableActions({
+    tableId: tableId || '',
+    gameState: liveState,
+    initData: initData ?? undefined,
+    onActionSuccess: (state) => {
+      setLiveState(state)
+      syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
+      fetchLiveState()
+    },
+    onActionError: (message) => {
+      showToast(message)
+    },
+  })
   
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
@@ -704,43 +720,6 @@ export default function TablePage() {
     }
   }
 
-  const sendAction = useCallback(
-    async (actionType: 'fold' | 'check' | 'call' | 'bet' | 'raise', amount?: number) => {
-      if (!tableId || !initData) {
-        showToast(t('table.errors.unauthorized'))
-        return
-      }
-      try {
-        setActionPending(true)
-        const state = await apiFetch<LiveTableState>(`/tables/${tableId}/actions`, {
-          method: 'POST',
-          initData,
-          body: {
-            action_type: actionType,
-            amount,
-          },
-        })
-        setLiveState(state)
-        syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
-        await fetchLiveState()
-      } catch (err) {
-        console.error('Error sending action', err)
-        if (err instanceof ApiError) {
-          const message =
-            (typeof err.data === 'object' && err.data && 'detail' in err.data
-              ? String((err.data as { detail?: unknown }).detail)
-              : null) || t('table.errors.actionFailed')
-          showToast(message)
-        } else {
-          showToast(t('table.errors.actionFailed'))
-        }
-      } finally {
-        setActionPending(false)
-      }
-    },
-    [fetchLiveState, initData, showToast, syncHandResults, t, tableId],
-  )
-
   const heroId = liveState?.hero?.user_id ?? null
   const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
   const amountToCall = Math.max((liveState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
@@ -780,9 +759,9 @@ export default function TablePage() {
         autoTimeoutRef.current.handId === liveState.hand_id ? autoTimeoutRef.current.count : 0
 
       if (timeoutCount === 0 && canCheck) {
-        sendAction('check')
+        tableActions.onCheck()
       } else {
-        sendAction('fold')
+        tableActions.onFold()
       }
 
       autoTimeoutRef.current = {
@@ -799,7 +778,7 @@ export default function TablePage() {
         autoActionTimerRef.current = null
       }
     }
-  }, [amountToCall, heroId, liveState, sendAction])
+  }, [amountToCall, heroId, liveState, tableActions])
 
   // Control bottom navigation visibility based on seated status
   useEffect(() => {
@@ -957,22 +936,55 @@ export default function TablePage() {
     if (tableStatus === 'active' && liveState && viewerIsSeated && hasActiveHand) {
       if (isMyTurn) {
         return (
-          <div className="absolute bottom-0 left-0 right-0 z-50">
-            <div className="backdrop-blur-xl bg-black/40 border-t border-white/10 shadow-2xl">
-              <GameControls
-                isPlayerTurn
-                amountToCall={amountToCall}
-                minRaise={liveState.allowed_actions?.min_raise_to || liveState.min_raise}
-                maxRaise={liveState.allowed_actions?.max_raise_to || (heroPlayer?.stack || 0) + (heroPlayer?.bet || 0)}
-                currentPot={liveState.allowed_actions?.current_pot || liveState.pot}
-                actionPending={actionPending}
-                onFold={() => sendAction('fold')}
-                onCheckCall={() => sendAction(amountToCall > 0 ? 'call' : 'check')}
-                onBet={(amount) => sendAction('bet', amount)}
-                onRaise={(amount) => sendAction('raise', amount)}
-              />
-            </div>
-          </div>
+          <ActionDock
+            isPlayerTurn={tableActions.isMyTurn}
+            amountToCall={tableActions.amountToCall}
+            minRaise={tableActions.minRaise}
+            maxRaise={tableActions.maxRaise}
+            currentPot={tableActions.currentPot}
+            actionPending={actionPending}
+            canBet={tableActions.canBet}
+            onFold={async () => {
+              setActionPending(true)
+              try {
+                await tableActions.onFold()
+              } finally {
+                setActionPending(false)
+              }
+            }}
+            onCheck={async () => {
+              setActionPending(true)
+              try {
+                await tableActions.onCheck()
+              } finally {
+                setActionPending(false)
+              }
+            }}
+            onCall={async () => {
+              setActionPending(true)
+              try {
+                await tableActions.onCall()
+              } finally {
+                setActionPending(false)
+              }
+            }}
+            onBet={async (amount) => {
+              setActionPending(true)
+              try {
+                await tableActions.onBet(amount)
+              } finally {
+                setActionPending(false)
+              }
+            }}
+            onRaise={async (amount) => {
+              setActionPending(true)
+              try {
+                await tableActions.onRaise(amount)
+              } finally {
+                setActionPending(false)
+              }
+            }}
+          />
         )
       }
 
