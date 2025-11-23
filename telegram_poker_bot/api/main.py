@@ -1252,6 +1252,34 @@ async def get_table(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@api_app.get("/tables/{table_id}/status")
+async def get_table_status(
+    table_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Check if a table is active.
+
+    Returns:
+        {"active": true} if table exists and is in ACTIVE or WAITING status
+        {"active": false} otherwise
+
+    This endpoint does not require authentication and is used by the frontend
+    to validate whether tables are still active before displaying them.
+    """
+    result = await db.execute(select(Table).where(Table.id == table_id))
+    table = result.scalar_one_or_none()
+
+    if not table:
+        return {"active": False}
+
+    # Consider ACTIVE and WAITING tables as active
+    # PAUSED, ENDED, and EXPIRED are considered inactive
+    is_active = table.status in [TableStatus.ACTIVE, TableStatus.WAITING]
+
+    return {"active": is_active}
+
+
 @api_app.get("/tables")
 async def list_tables(
     mode: Optional[str] = None,

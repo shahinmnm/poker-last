@@ -55,12 +55,34 @@ export default function HomePage() {
 
     Promise.all([
       apiFetch<{ tables: ActiveTable[] }>('/users/me/tables', { initData })
-        .then((data) => {
+        .then(async (data) => {
           const tables = data.tables || []
-          const active = tables.find((t) =>
+          const potentialActive = tables.find((t) =>
             ['active', 'waiting', 'paused'].includes(t.status?.toLowerCase())
           )
-          setActiveTable(active || null)
+          
+          // Validate that the table is actually still active on the server
+          if (potentialActive) {
+            try {
+              const statusResponse = await apiFetch<{ active: boolean }>(
+                `/tables/${potentialActive.table_id}/status`
+              )
+              
+              // Only show the table if it's confirmed active
+              if (statusResponse.active) {
+                setActiveTable(potentialActive)
+              } else {
+                setActiveTable(null)
+              }
+            } catch (error) {
+              // If status check fails, don't show the table
+              // This could happen if the server is temporarily unavailable
+              console.warn('Failed to validate table status:', error)
+              setActiveTable(null)
+            }
+          } else {
+            setActiveTable(null)
+          }
         })
         .catch(() => setActiveTable(null)),
       
