@@ -18,8 +18,8 @@ const CURRENCY_SMALLEST_UNIT_FACTOR = 100 // 100 cents = $1
  * formatCurrency(0) // "$0.00"
  * formatCurrency(12345) // "$123.45"
  */
-export function formatCurrency(amount: number, symbol = '$'): string {
-  const dollars = amount / CURRENCY_SMALLEST_UNIT_FACTOR
+export function formatCurrency(amount: number | bigint, symbol = '$'): string {
+  const dollars = Number(amount) / CURRENCY_SMALLEST_UNIT_FACTOR
   return `${symbol}${dollars.toFixed(2)}`
 }
 
