@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface PlayerAvatarProps {
   name: string
@@ -12,12 +13,17 @@ interface PlayerAvatarProps {
   size?: 'sm' | 'md' | 'lg'
   className?: string
   offsetTop?: boolean
+  seatNumber?: number
+  positionLabel?: string
+  lastAction?: string | null
+  isSittingOut?: boolean
+  status?: 'active' | 'waiting' | 'seated' | 'sit_out' | 'folded'
 }
 
 const sizeMap: Record<NonNullable<PlayerAvatarProps['size']>, number> = {
-  sm: 56,
-  md: 72,
-  lg: 88,
+  sm: 48,
+  md: 64,
+  lg: 80,
 }
 
 export default function PlayerAvatar({
@@ -32,12 +38,19 @@ export default function PlayerAvatar({
   size = 'md',
   className = '',
   offsetTop = false,
+  seatNumber,
+  positionLabel,
+  lastAction,
+  isSittingOut = false,
+  status = 'active',
 }: PlayerAvatarProps) {
+  const { t } = useTranslation()
   const [progress, setProgress] = useState(1)
   const [showPopover, setShowPopover] = useState(false)
+  const popoverRef = useRef<HTMLDivElement | null>(null)
   const timerRef = useRef<number | null>(null)
   const dimension = sizeMap[size]
-  const radius = dimension / 2 - 6
+  const radius = dimension / 2 - 5
   const circumference = 2 * Math.PI * radius
 
   const initials = useMemo(() => {
@@ -51,6 +64,22 @@ export default function PlayerAvatar({
       .join('')
       .toUpperCase()
   }, [name])
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    if (!showPopover) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setShowPopover(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showPopover])
 
   useEffect(() => {
     if (!deadline || !isActive) {
@@ -88,8 +117,25 @@ export default function PlayerAvatar({
     return 'stroke-red-500'
   }, [isActive, progress])
 
+  // Compute status display text
+  const statusText = useMemo(() => {
+    if (isSittingOut) return t('table.playerStatus.sitOut', { defaultValue: 'SIT OUT' })
+    if (status === 'sit_out') return t('table.playerStatus.sitOut', { defaultValue: 'SIT OUT' })
+    if (hasFolded && status === 'folded') return t('table.folded', { defaultValue: 'FOLDED' })
+    if (status === 'waiting') return t('table.playerStatus.waiting', { defaultValue: 'WAITING' })
+    if (status === 'seated') return t('table.playerStatus.seated', { defaultValue: 'SEATED' })
+    return null
+  }, [hasFolded, isSittingOut, status, t])
+
+  const statusBadgeVariant = useMemo(() => {
+    if (isSittingOut || status === 'sit_out') return 'bg-orange-500/90'
+    if (hasFolded && status === 'folded') return 'bg-gray-500/90'
+    if (status === 'waiting' || status === 'seated') return 'bg-blue-500/90'
+    return 'bg-emerald-500/90'
+  }, [hasFolded, isSittingOut, status])
+
   return (
-    <div className={`relative flex flex-col items-center gap-2 ${className}`} style={{ zIndex: 20 }}>
+    <div className={`relative flex flex-col items-center gap-1.5 ${className}`} style={{ zIndex: 20 }}>
       <div
         className={`relative rounded-full bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}
         style={{ width: dimension, height: dimension }}
@@ -105,14 +151,14 @@ export default function PlayerAvatar({
             cy={dimension / 2}
             r={radius}
             className="stroke-white/15 fill-transparent"
-            strokeWidth={4}
+            strokeWidth={3}
           />
           <circle
             cx={dimension / 2}
             cy={dimension / 2}
             r={radius}
             className={`${ringColor} fill-transparent transition-all duration-300 ease-linear`}
-            strokeWidth={4}
+            strokeWidth={3}
             strokeDasharray={circumference}
             strokeDashoffset={circumference * (1 - progress)}
             strokeLinecap="round"
@@ -122,34 +168,73 @@ export default function PlayerAvatar({
           type="button"
           className="relative z-10 w-full h-full flex items-center justify-center"
           onClick={() => setShowPopover((prev) => !prev)}
+          aria-label={`View ${name} details`}
         >
-          <span className={`text-white font-bold ${size === 'lg' ? 'text-2xl' : 'text-lg'}`}>{initials}</span>
+          <span className={`text-white font-bold ${size === 'lg' ? 'text-xl' : size === 'md' ? 'text-base' : 'text-sm'}`}>{initials}</span>
         </button>
-        {hasFolded && (
+        {hasFolded && status === 'folded' && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center">
-            <span className="text-white text-xs font-semibold">FOLD</span>
+            <span className="text-white text-[10px] font-semibold">{t('table.folded', { defaultValue: 'FOLD' })}</span>
           </div>
         )}
       </div>
 
-      <div className={`rounded-full px-3 py-1 border ${isHero ? 'border-sky-400/60 bg-black/70' : 'border-white/20 bg-black/60'} backdrop-blur-sm min-w-[88px] text-center`}>
-        <div className="text-white font-bold text-sm">{stack}</div>
-        <div className={`text-[10px] uppercase tracking-wide ${isHero ? 'text-sky-200' : 'text-gray-300'} truncate max-w-[120px]`}>
-          {isHero ? 'You' : name}
+      <div className={`rounded-full px-2.5 py-0.5 border ${isHero ? 'border-sky-400/60 bg-black/70' : 'border-white/20 bg-black/60'} backdrop-blur-sm min-w-[72px] text-center`}>
+        <div className={`text-white font-bold ${size === 'lg' ? 'text-sm' : 'text-xs'}`}>{stack}</div>
+        <div className={`${size === 'lg' ? 'text-[9px]' : 'text-[8px]'} uppercase tracking-wide ${isHero ? 'text-sky-200' : 'text-gray-300'} truncate max-w-[100px]`}>
+          {isHero ? t('table.players.youTag', { defaultValue: 'You' }) : name}
         </div>
       </div>
 
       {typeof betAmount === 'number' && betAmount > 0 && (
-        <div className="px-3 py-1 rounded-full bg-amber-500/90 text-black font-semibold text-xs shadow-lg">
-          Bet: {betAmount}
+        <div className="px-2.5 py-0.5 rounded-full bg-amber-500/90 text-black font-semibold text-[10px] shadow-lg">
+          {t('table.betAmount', { amount: betAmount, defaultValue: `Bet: ${betAmount}` })}
         </div>
       )}
 
+      {/* Glassmorphism Popover */}
       {showPopover && (
-        <div className={`absolute left-1/2 -translate-x-1/2 ${offsetTop ? '-top-6' : 'top-full'} mt-3 w-48 rounded-2xl bg-black/80 backdrop-blur-lg border border-white/10 shadow-xl p-3 space-y-1 z-30`}>
-          <div className="text-white font-semibold">{name}</div>
-          <div className="text-sm text-white/70">Stack: {stack.toLocaleString()}</div>
-          <div className="text-xs text-white/40">Add Friend (soon)</div>
+        <div
+          ref={popoverRef}
+          className={`absolute left-1/2 -translate-x-1/2 ${offsetTop ? 'bottom-full mb-2' : 'top-full mt-2'} w-56 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl p-4 space-y-2.5 z-50 transition-all duration-200 ease-out opacity-100 scale-100`}
+          onClick={(e) => e.stopPropagation()}
+          style={{ animation: 'fadeInScale 200ms ease-out' }}
+        >
+          {/* Player Name */}
+          <div className="text-white font-bold text-base truncate">{name}</div>
+
+          {/* Stack/Chips */}
+          <div className="flex items-center justify-between">
+            <span className="text-white/70 text-xs">{t('table.fields.stack', { defaultValue: 'Stack' })}</span>
+            <span className="text-emerald-400 font-semibold text-sm">{stack.toLocaleString()}</span>
+          </div>
+
+          {/* Seat/Position */}
+          {(seatNumber !== undefined || positionLabel) && (
+            <div className="flex items-center justify-between">
+              <span className="text-white/70 text-xs">{t('table.fields.seat', { defaultValue: 'Seat' })}</span>
+              <span className="text-white text-sm font-medium">
+                {positionLabel || (seatNumber !== undefined ? `#${seatNumber + 1}` : '-')}
+              </span>
+            </div>
+          )}
+
+          {/* Last Action (if in hand) */}
+          {lastAction && (
+            <div className="flex items-center justify-between">
+              <span className="text-white/70 text-xs">{t('table.playerPopover.lastAction', { defaultValue: 'Last Action' })}</span>
+              <span className="text-amber-300 text-xs font-semibold uppercase">{lastAction}</span>
+            </div>
+          )}
+
+          {/* Status Badge */}
+          {statusText && (
+            <div className="pt-2 border-t border-white/10">
+              <div className={`inline-flex items-center px-2.5 py-1 rounded-full ${statusBadgeVariant} text-white text-[10px] font-bold uppercase tracking-wide`}>
+                {statusText}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
