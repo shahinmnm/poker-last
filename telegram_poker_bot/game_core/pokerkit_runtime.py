@@ -272,6 +272,30 @@ class PokerKitTableRuntime:
                 hand_no=self.hand_no,
             )
 
+        # 1c. Update aggregated poker statistics (async background task)
+        from telegram_poker_bot.game_core.stats_processor import StatsProcessor
+
+        try:
+            await StatsProcessor.update_stats(
+                db=db,
+                hand=self.current_hand,
+                hand_result=hand_result,
+                seats=self.seats,
+            )
+            logger.info(
+                "Updated aggregated poker stats",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to update aggregated poker stats",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+                error=str(e),
+            )
+            # Don't fail hand completion if stats update fails
+
         # Step 2: Set State to INTER_HAND_WAIT
         self.current_hand.status = HandStatus.INTER_HAND_WAIT
         self.inter_hand_wait_start = datetime.now(timezone.utc)
@@ -1022,7 +1046,10 @@ class PokerKitTableRuntimeManager:
             PokerKitTableRuntime instance with current table/seat data from DB
         """
         # Always fetch fresh table and seat data from database
-        result = await db.execute(select(Table).where(Table.id == table_id))
+        # Use with_for_update() to lock the table row during updates
+        result = await db.execute(
+            select(Table).where(Table.id == table_id).with_for_update()
+        )
         table = result.scalar_one_or_none()
         if not table:
             raise ValueError("Table not found")
@@ -1242,13 +1269,14 @@ class PokerKitTableRuntimeManager:
             runtime.table.last_action_at = datetime.now(timezone.utc)
             await db.flush()
 
-            # Get or load current hand
+            # Get or load current hand with row lock to prevent race conditions
             if runtime.current_hand is None:
                 hand_result = await db.execute(
                     select(Hand)
                     .where(Hand.table_id == table_id, Hand.status != HandStatus.ENDED)
                     .order_by(Hand.hand_no.desc())
                     .limit(1)
+                    .with_for_update()  # Lock row to prevent concurrent modifications
                 )
                 runtime.current_hand = hand_result.scalar_one_or_none()
 

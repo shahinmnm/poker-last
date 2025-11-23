@@ -15,6 +15,7 @@ from telegram_poker_bot.shared.models import (
     Action,
     TableStatus,
     Wallet,
+    UserPokerStats,
 )
 
 
@@ -46,6 +47,59 @@ def _resolve_is_public(table: Table) -> bool:
             return True
 
     return True
+
+
+async def get_user_stats_from_aggregated(
+    db: AsyncSession, user_id: int
+) -> Dict[str, Any]:
+    """
+    Get user statistics from pre-aggregated UserPokerStats table.
+
+    This is the optimized version that fetches from the UserPokerStats table
+    instead of running heavy aggregation queries at runtime.
+
+    Returns:
+        Dict containing:
+        - total_hands: Total hands played
+        - wins: Total hands won
+        - win_rate: Win percentage
+        - vpip: Voluntarily Put $ In Pot percentage
+        - pfr: Pre-Flop Raise percentage
+        - total_winnings: Total chips won
+        - best_hand_rank: Best hand achieved
+    """
+    result = await db.execute(
+        select(UserPokerStats).where(UserPokerStats.user_id == user_id)
+    )
+    stats = result.scalar_one_or_none()
+
+    if not stats:
+        return {
+            "total_hands": 0,
+            "wins": 0,
+            "win_rate": 0.0,
+            "vpip": 0.0,
+            "pfr": 0.0,
+            "total_winnings": 0,
+            "best_hand_rank": None,
+        }
+
+    # Calculate percentages
+    win_rate = (stats.wins / stats.total_hands * 100) if stats.total_hands > 0 else 0.0
+    vpip = (
+        (stats.vpip_count / stats.total_hands * 100) if stats.total_hands > 0 else 0.0
+    )
+    pfr = (stats.pfr_count / stats.total_hands * 100) if stats.total_hands > 0 else 0.0
+
+    return {
+        "total_hands": stats.total_hands,
+        "wins": stats.wins,
+        "win_rate": round(win_rate, 2),
+        "vpip": round(vpip, 2),
+        "pfr": round(pfr, 2),
+        "total_winnings": stats.total_winnings,
+        "best_hand_rank": stats.best_hand_rank,
+    }
 
 
 async def get_user_stats(db: AsyncSession, user_id: int) -> Dict[str, Any]:

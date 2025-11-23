@@ -469,3 +469,26 @@ class Transaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (Index("idx_transactions_user_created", "user_id", "created_at"),)
+
+
+class UserPokerStats(Base):
+    """User poker statistics model for aggregated stats."""
+
+    __tablename__ = "user_poker_stats"
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False,
+    )
+    total_hands = Column(Integer, nullable=False, default=0)
+    wins = Column(Integer, nullable=False, default=0)
+    vpip_count = Column(Integer, nullable=False, default=0)  # Voluntarily Put $ In Pot
+    pfr_count = Column(Integer, nullable=False, default=0)  # Pre-Flop Raise
+    total_winnings = Column(Integer, nullable=False, default=0)
+    best_hand_rank = Column(String(50), nullable=True)  # Best hand achieved
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (Index("idx_user_poker_stats_user_id", "user_id"),)
