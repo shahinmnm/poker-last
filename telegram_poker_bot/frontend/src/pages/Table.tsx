@@ -1099,25 +1099,21 @@ export default function TablePage() {
               {/* Board Center - Pot & Community Cards */}
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
                 <div className="flex flex-col items-center gap-4">
-                  {/* Pot - Glass Pill Container (not a circle/avatar) */}
-                  <div 
-                    className="rounded-2xl backdrop-blur-xl bg-gradient-to-b from-black/60 to-black/80 px-6 py-2 border border-amber-400/40 shadow-xl shadow-amber-500/20" 
-                    ref={potAreaRef}
-                    style={{ minWidth: '100px' }}
-                  >
+                  {/* Pot - Floating Pill */}
+                  <div className="rounded-full backdrop-blur-xl bg-black/80 px-5 py-2.5 border-2 border-amber-500/60 shadow-2xl" ref={potAreaRef}>
                     {liveState.pots && liveState.pots.length > 1 ? (
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         {liveState.pots.map((pot) => (
                           <div key={pot.pot_index} className="text-center">
-                            <span className="text-[10px] text-amber-300/70">Pot #{pot.pot_index + 1}: </span>
-                            <span className="text-sm font-bold text-amber-200 font-mono">{pot.amount}</span>
+                            <span className="text-[11px] text-gray-400">Pot #{pot.pot_index + 1}: </span>
+                            <span className="text-base font-bold text-emerald-400">{pot.amount}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
                       <div className="text-center">
-                        <p className="text-[9px] text-amber-300/60 uppercase tracking-widest font-semibold">Pot</p>
-                        <p className="text-xl font-bold text-amber-100 font-mono">{liveState.pot}</p>
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wider">Pot</p>
+                        <p className="text-xl font-bold text-emerald-400">{liveState.pot}</p>
                       </div>
                     )}
                   </div>
@@ -1131,13 +1127,9 @@ export default function TablePage() {
                         return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
                       })
                     ) : (
-                      // Ghost card slots - 5 empty slots with dashed borders
-                      Array.from({ length: 5 }).map((_, idx) => (
-                        <div 
-                          key={`ghost-slot-${idx}`} 
-                          className="w-12 h-[68px] rounded-lg border-2 border-dashed border-white/20 bg-black/10 opacity-20"
-                        />
-                      ))
+                      <div className="rounded-xl backdrop-blur-md bg-white/5 px-5 py-3 text-xs text-gray-400 border border-white/10">
+                        {t('table.waitingForBoard')}
+                      </div>
                     )}
                   </div>
 

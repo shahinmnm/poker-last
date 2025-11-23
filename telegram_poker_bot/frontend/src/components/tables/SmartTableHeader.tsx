@@ -75,14 +75,14 @@ export default function SmartTableHeader({
         <button
           type="button"
           onClick={() => setExpanded((prev) => !prev)}
-          className={`flex items-center gap-3 ${expanded ? 'rounded-t-3xl' : 'rounded-full'} bg-slate-900/60 backdrop-blur-xl border border-white/10 px-5 py-2.5 text-white shadow-2xl transition-all duration-300 hover:bg-slate-900/70`}
+          className={`flex items-center gap-2 ${expanded ? 'rounded-t-3xl' : 'rounded-full'} bg-black/60 backdrop-blur-md border border-white/10 px-4 py-2 text-white shadow-lg transition-all duration-300`}
         >
-          <span className={`h-2.5 w-2.5 rounded-full ${statusColor} shadow-lg`} aria-hidden />
-          <span className="text-sm font-semibold tracking-wide">Table #{tableId}</span>
+          <span className={`h-2 w-2 rounded-full ${statusColor}`} aria-hidden />
+          <span className="text-sm font-semibold">Table #{tableId}</span>
         </button>
 
         <div
-          className={`overflow-hidden bg-slate-900/60 text-white border border-white/10 backdrop-blur-xl shadow-2xl rounded-b-3xl transition-all duration-300 ${expanded ? 'max-h-[320px] opacity-100' : 'max-h-0 opacity-0'} w-full`}
+          className={`overflow-hidden bg-black/70 text-white border border-white/10 backdrop-blur-xl shadow-xl rounded-b-3xl transition-all duration-300 ${expanded ? 'max-h-[320px] opacity-100' : 'max-h-0 opacity-0'} w-full`}
         >
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between text-sm">
