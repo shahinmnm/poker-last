@@ -124,6 +124,19 @@ interface LastAction extends Record<string, unknown> {
   created_at?: string | null
 }
 
+type AllowedActionsPayload =
+  | AllowedAction[]
+  | {
+      can_fold?: boolean
+      can_check?: boolean
+      can_call?: boolean
+      call_amount?: number
+      can_bet?: boolean
+      can_raise?: boolean
+      min_raise_to?: number
+      max_raise_to?: number
+    }
+
 interface LiveTableState {
   type: 'table_state'
   table_id: number
@@ -150,7 +163,7 @@ interface LiveTableState {
   inter_hand_wait?: boolean
   inter_hand_wait_seconds?: number
   inter_hand_wait_deadline?: string | null
-  allowed_actions?: AllowedAction[]
+  allowed_actions?: AllowedActionsPayload
   ready_players?: number[]
 }
 
@@ -734,7 +747,42 @@ export default function TablePage() {
 
   const heroId = liveState?.hero?.user_id ?? null
   const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
-  const allowedActions = liveState?.allowed_actions ?? []
+  const normalizeAllowedActions = useCallback(
+    (allowed: AllowedActionsPayload | undefined): AllowedAction[] => {
+      if (!allowed) return []
+      if (Array.isArray(allowed)) return allowed
+
+      const actions: AllowedAction[] = []
+
+      if (allowed.can_fold) {
+        actions.push({ action_type: 'fold' })
+      }
+      if (allowed.can_check) {
+        actions.push({ action_type: 'check' })
+      }
+      if (allowed.can_call) {
+        actions.push({ action_type: 'call', amount: allowed.call_amount ?? 0 })
+      }
+      if (allowed.can_bet) {
+        actions.push({
+          action_type: 'bet',
+          min_amount: allowed.min_raise_to ?? 0,
+          max_amount: allowed.max_raise_to ?? 0,
+        })
+      }
+      if (allowed.can_raise) {
+        actions.push({
+          action_type: 'raise',
+          min_amount: allowed.min_raise_to ?? 0,
+          max_amount: allowed.max_raise_to ?? 0,
+        })
+      }
+
+      return actions
+    },
+    [],
+  )
+  const allowedActions = normalizeAllowedActions(liveState?.allowed_actions)
   const callAction = allowedActions.find((action) => action.action_type === 'call')
   const canCheckAction = allowedActions.some((action) => action.action_type === 'check')
   const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
