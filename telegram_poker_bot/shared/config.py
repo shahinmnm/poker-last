@@ -76,6 +76,7 @@ class Settings(BaseSettings):
         500  # Maximum rake per hand (in smallest units, e.g., $5.00 = 500 cents)
     )
     rake_percentage: float = 0.05  # 5% rake
+    initial_balance_usd: float = 100.00  # Initial balance for new users in USD
 
     # Table Lifecycle Configuration
     public_table_prestart_ttl_minutes: int = 10  # 10 minutes for public tables to start
@@ -217,6 +218,11 @@ class Settings(BaseSettings):
     def mini_app_url(self) -> str:
         """Public base URL for the mini app."""
         return (self.mini_app_base_url or self.public_base_url).rstrip("/")
+
+    @property
+    def initial_balance_cents(self) -> int:
+        """Initial balance in cents (smallest currency unit)."""
+        return int(self.initial_balance_usd * self.currency_smallest_unit_factor)
 
 
 @lru_cache()

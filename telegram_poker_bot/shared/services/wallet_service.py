@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.models import (
     Wallet,
@@ -14,13 +15,14 @@ from telegram_poker_bot.shared.models import (
 )
 
 logger = get_logger(__name__)
+settings = get_settings()
 
 
 async def ensure_wallet(db: AsyncSession, user_id: int) -> Wallet:
     """
     Ensure a wallet exists for a user.
 
-    Creates a wallet if it doesn't exist.
+    Creates a wallet if it doesn't exist with initial balance from settings.
 
     Args:
         db: Database session
@@ -33,10 +35,14 @@ async def ensure_wallet(db: AsyncSession, user_id: int) -> Wallet:
     wallet = result.scalar_one_or_none()
 
     if not wallet:
-        wallet = Wallet(user_id=user_id, balance=0)
+        wallet = Wallet(user_id=user_id, balance=settings.initial_balance_cents)
         db.add(wallet)
         await db.flush()
-        logger.info("Created wallet for user", user_id=user_id)
+        logger.info(
+            "Created wallet for user",
+            user_id=user_id,
+            initial_balance=settings.initial_balance_cents,
+        )
 
     return wallet
 
@@ -94,7 +100,7 @@ async def transfer_to_table(
     wallet = result.scalar_one_or_none()
 
     if not wallet:
-        wallet = Wallet(user_id=user_id, balance=0)
+        wallet = Wallet(user_id=user_id, balance=settings.initial_balance_cents)
         db.add(wallet)
         await db.flush()
 
@@ -180,7 +186,7 @@ async def cash_out_from_table(
     wallet = result.scalar_one_or_none()
 
     if not wallet:
-        wallet = Wallet(user_id=user_id, balance=0)
+        wallet = Wallet(user_id=user_id, balance=settings.initial_balance_cents)
         db.add(wallet)
         await db.flush()
 
@@ -245,7 +251,7 @@ async def record_game_win(
     wallet = result.scalar_one_or_none()
 
     if not wallet:
-        wallet = Wallet(user_id=user_id, balance=0)
+        wallet = Wallet(user_id=user_id, balance=settings.initial_balance_cents)
         db.add(wallet)
         await db.flush()
 
