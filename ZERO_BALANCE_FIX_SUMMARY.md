@@ -43,13 +43,7 @@ After database migration 015, new players were getting **ZERO balance** instead 
 - Changed `user_service.get_user_balance()` → `wallet_service.get_wallet_balance()`
 - Changed `user_service.ensure_wallet()` → `wallet_service.ensure_wallet()`
 
-### 6. Database Migration
-**File: `telegram_poker_bot/migrations/versions/016_fix_zero_balance_wallets.py`**
-- Created migration to fix existing wallets with zero balance
-- Updates all wallets where `balance = 0` to `balance = 10000` (default $100)
-- Includes downgrade path for rollback (though destructive)
-
-### 7. Comprehensive Tests
+### 6. Comprehensive Tests
 **File: `telegram_poker_bot/tests/test_wallet_initial_balance.py`**
 - 6 test cases covering all wallet creation scenarios
 - Tests verify:
@@ -121,7 +115,7 @@ All files formatted correctly! ✅
 
 ### Fixes
 - ✅ New users now get initial balance from configuration
-- ✅ Existing zero-balance users can be fixed via migration
+- ✅ Existing zero-balance users should be fixed manually via SQL
 - ✅ No more hardcoded balance values
 - ✅ Single source of truth for balance configuration
 - ✅ USD-based configuration (user-friendly)
@@ -134,17 +128,19 @@ All files formatted correctly! ✅
 - ✅ Comprehensive test coverage
 - ✅ All linting and formatting checks pass
 
-## Migration Path
+## Deployment Path
 
 ### For New Deployments
 1. Set `INITIAL_BALANCE_USD` in `.env` file
-2. Run migrations: `alembic upgrade head`
-3. New users automatically get configured initial balance
+2. New users automatically get configured initial balance
 
-### For Existing Deployments
+### For Existing Deployments with Zero-Balance Users
 1. Update `.env` file with `INITIAL_BALANCE_USD=100.00`
-2. Run migration 016 to fix existing zero-balance wallets
-3. All users (new and existing) will have correct balance
+2. Manually fix existing zero-balance wallets via SQL:
+   ```sql
+   UPDATE wallets SET balance = 10000 WHERE balance = 0;
+   ```
+3. All new users will automatically get the correct balance
 
 ## Files Changed
 - `.env.example` - Added initial balance configuration
@@ -152,7 +148,6 @@ All files formatted correctly! ✅
 - `telegram_poker_bot/shared/services/wallet_service.py` - Use settings for balance
 - `telegram_poker_bot/shared/services/user_service.py` - Removed duplicates
 - `telegram_poker_bot/bot/handlers.py` - Updated to use wallet_service
-- `telegram_poker_bot/migrations/versions/016_fix_zero_balance_wallets.py` - New migration
 - `telegram_poker_bot/tests/test_wallet_initial_balance.py` - New tests
 
 ## Minimal Changes Approach
@@ -163,4 +158,17 @@ This fix follows the principle of minimal changes:
 - No unnecessary features added
 - Focused on solving the root cause
 
-Total changes: ~224 lines added, ~113 lines removed across 7 files
+Total changes: ~150 lines added, ~113 lines removed across 6 files
+
+## Manual Database Fix
+
+For existing beta testers with zero balance, run this SQL command manually:
+
+```sql
+-- Fix all wallets with zero balance
+UPDATE wallets 
+SET balance = 10000  -- $100 in cents
+WHERE balance = 0;
+```
+
+This is a one-time operation to fix users affected by the bug. New users will automatically receive the correct initial balance from the code.
