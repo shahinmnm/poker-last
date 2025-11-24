@@ -88,3 +88,47 @@ def test_engine_adapter_get_winners():
     winners = adapter.get_winners()
     assert isinstance(winners, list)
 
+
+def test_allowed_actions_in_broadcast_state():
+    """
+    Test that allowed_actions are included when viewer_player_index is None (broadcast).
+
+    This reproduces the critical bug where WebSocket broadcasts have empty allowed_actions,
+    preventing players from seeing action buttons.
+    """
+    adapter = PokerEngineAdapter(
+        player_count=2,
+        starting_stacks=[10000, 10000],
+        small_blind=25,
+        big_blind=50,
+    )
+
+    adapter.deal_new_hand()
+
+    # Get state for broadcast (viewer_player_index=None)
+    broadcast_state = adapter.to_full_state(viewer_player_index=None)
+
+    # The current actor should have allowed actions available
+    assert (
+        broadcast_state["current_actor_index"] is not None
+    ), "Should have a current actor"
+
+    # CRITICAL: allowed_actions should NOT be empty in broadcast
+    # This is what the bug fix addresses
+    assert (
+        broadcast_state["allowed_actions"] != {}
+    ), "allowed_actions should be populated for current actor in broadcast state"
+
+    # Verify that allowed_actions contains expected keys
+    allowed_actions = broadcast_state["allowed_actions"]
+    assert "can_fold" in allowed_actions
+    assert "can_call" in allowed_actions or "can_check" in allowed_actions
+
+    # Compare with actor-specific state to ensure they match
+    actor_index = broadcast_state["current_actor_index"]
+    actor_state = adapter.to_full_state(viewer_player_index=actor_index)
+
+    # Both should have the same allowed_actions for the current actor
+    assert (
+        broadcast_state["allowed_actions"] == actor_state["allowed_actions"]
+    ), "Broadcast state should have same allowed_actions as actor-specific state"
