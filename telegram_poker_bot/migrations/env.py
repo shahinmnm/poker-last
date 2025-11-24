@@ -57,35 +57,36 @@ def run_migrations_offline() -> None:
 def _cleanup_stale_alembic_version_type(connection) -> None:
     """Remove an orphaned alembic_version type to prevent duplicate type errors."""
 
-    type_exists = connection.execute(
-        text(
-            """
-            SELECT EXISTS (
-                SELECT 1
-                FROM pg_type t
-                JOIN pg_namespace n ON n.oid = t.typnamespace
-                WHERE t.typname = 'alembic_version'
-                AND n.nspname = current_schema()
+    with connection.begin():
+        type_exists = connection.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_type t
+                    JOIN pg_namespace n ON n.oid = t.typnamespace
+                    WHERE t.typname = 'alembic_version'
+                    AND n.nspname = current_schema()
+                )
+                """
             )
-            """
-        )
-    ).scalar()
+        ).scalar()
 
-    table_exists = connection.execute(
-        text(
-            """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.tables
-                WHERE table_name = 'alembic_version'
-                AND table_schema = current_schema()
+        table_exists = connection.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_name = 'alembic_version'
+                    AND table_schema = current_schema()
+                )
+                """
             )
-            """
-        )
-    ).scalar()
+        ).scalar()
 
-    if type_exists and not table_exists:
-        connection.execute(text("DROP TYPE IF EXISTS alembic_version"))
+        if type_exists and not table_exists:
+            connection.execute(text("DROP TYPE IF EXISTS alembic_version"))
 
 
 def do_run_migrations(connection):
