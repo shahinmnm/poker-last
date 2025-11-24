@@ -13,6 +13,7 @@ interface ActionDockProps {
   isProcessing: boolean
   potSize: number
   myStack: number
+  isMyTurn?: boolean
 }
 
 const formatChips = (value?: number) =>
@@ -27,6 +28,7 @@ export default function ActionDock({
   isProcessing,
   potSize,
   myStack,
+  isMyTurn = true,
 }: ActionDockProps) {
   const canFold = useMemo(
     () => allowedActions.find((action) => action.action_type === 'fold'),
@@ -108,14 +110,14 @@ export default function ActionDock({
               max={maxAmount}
               value={betAmount}
               onChange={(e) => setBetAmount(Number(e.target.value))}
-              disabled={isProcessing}
+              disabled={isProcessing || !isMyTurn}
               className="w-full accent-emerald-400"
             />
             <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
               <button
                 type="button"
                 onClick={() => setQuickAmount(0.5)}
-                disabled={isProcessing}
+                disabled={isProcessing || !isMyTurn}
                 className="rounded-lg bg-white/5 border border-white/10 px-2 py-2 text-white shadow-inner transition active:scale-95 disabled:opacity-50"
               >
                 1/2 Pot
@@ -123,7 +125,7 @@ export default function ActionDock({
               <button
                 type="button"
                 onClick={() => setQuickAmount(1)}
-                disabled={isProcessing}
+                disabled={isProcessing || !isMyTurn}
                 className="rounded-lg bg-white/5 border border-white/10 px-2 py-2 text-white shadow-inner transition active:scale-95 disabled:opacity-50"
               >
                 Pot
@@ -131,7 +133,7 @@ export default function ActionDock({
               <button
                 type="button"
                 onClick={() => setQuickAmount(2)}
-                disabled={isProcessing}
+                disabled={isProcessing || !isMyTurn}
                 className="rounded-lg bg-white/5 border border-white/10 px-2 py-2 text-white shadow-inner transition active:scale-95 disabled:opacity-50"
               >
                 Max
@@ -144,7 +146,7 @@ export default function ActionDock({
           <button
             type="button"
             onClick={() => canFold && onAction('fold')}
-            disabled={isProcessing || !canFold}
+            disabled={isProcessing || !canFold || !isMyTurn}
             className="h-14 rounded-2xl bg-gradient-to-br from-red-500/80 to-red-600/90 text-white font-black uppercase tracking-wide shadow-lg shadow-red-500/30 backdrop-blur disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
             Fold
@@ -153,7 +155,7 @@ export default function ActionDock({
           <button
             type="button"
             onClick={() => canCheckOrCall && onAction(canCheck ? 'check' : 'call', canCall?.amount)}
-            disabled={isProcessing || !canCheckOrCall}
+            disabled={isProcessing || !canCheckOrCall || !isMyTurn}
             className="h-14 rounded-2xl bg-white/10 text-white font-black uppercase tracking-wide shadow-md border border-white/10 backdrop-blur transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {canCheck ? 'Check' : callLabel}
@@ -162,7 +164,7 @@ export default function ActionDock({
           <button
             type="button"
             onClick={handleBetRaise}
-            disabled={isProcessing || !canBet}
+            disabled={isProcessing || !canBet || !isMyTurn}
             className="h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-400 text-black font-black uppercase tracking-wide shadow-xl shadow-emerald-500/40 backdrop-blur transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {betLabel} {showSlider ? formatChips(betAmount) : ''}

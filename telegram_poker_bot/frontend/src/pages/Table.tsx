@@ -794,7 +794,6 @@ export default function TablePage() {
     : tableDetails?.table_id
       ? `${window.location.origin}/table/${tableDetails.table_id}`
       : ''
-  const currentActorName = liveState?.players.find((p) => p.user_id === liveState.current_actor)?.display_name
   const isMyTurn = liveState?.current_actor === heroId
 
   useEffect(() => {
@@ -996,30 +995,20 @@ export default function TablePage() {
     // Active hand - show action controls when seated and hand is active
     const hasActiveHand = liveState?.hand_id !== null && !isInterHand
     if (tableStatus === 'active' && liveState && viewerIsSeated && hasActiveHand) {
-      if (isMyTurn) {
-        const potSize =
-          typeof liveState.pot === 'number'
-            ? liveState.pot
-            : (liveState as { pot?: { total?: number } }).pot?.total ??
-              (liveState.pots?.reduce((sum, pot) => sum + (pot.amount ?? 0), 0) ?? 0)
-        return (
-          <ActionDock
-            allowedActions={allowedActions}
-            onAction={handleGameAction}
-            potSize={potSize}
-            myStack={heroPlayer?.stack ?? 0}
-            isProcessing={actionPending || loading}
-          />
-        )
-      }
-
-      const waitingFor = currentActorName || t('table.messages.waitingForOther', { defaultValue: 'another player' })
+      const potSize =
+        typeof liveState.pot === 'number'
+          ? liveState.pot
+          : (liveState as { pot?: { total?: number } }).pot?.total ??
+            (liveState.pots?.reduce((sum, pot) => sum + (pot.amount ?? 0), 0) ?? 0)
       return (
-        <div className="absolute bottom-0 left-0 right-0 z-40">
-          <div className="backdrop-blur-xl bg-black/50 border-t border-white/10 py-4 px-6 text-center text-white/80">
-            {t('table.messages.waitingFor', { player: waitingFor, defaultValue: `Waiting for ${waitingFor}...` })}
-          </div>
-        </div>
+        <ActionDock
+          allowedActions={allowedActions}
+          onAction={handleGameAction}
+          potSize={potSize}
+          myStack={heroPlayer?.stack ?? 0}
+          isProcessing={actionPending || loading}
+          isMyTurn={isMyTurn}
+        />
       )
     }
 
