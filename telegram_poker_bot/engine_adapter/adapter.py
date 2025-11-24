@@ -307,9 +307,10 @@ class PokerEngineAdapter:
         # Get allowed actions for current actor
         # Include allowed_actions when broadcasting or when viewer is the actor
         allowed_actions = {}
-        if actor_index is not None and (
+        should_include_allowed_actions = actor_index is not None and (
             viewer_player_index is None or viewer_player_index == actor_index
-        ):
+        )
+        if should_include_allowed_actions:
             allowed_actions = self._get_allowed_actions_for_player(actor_index)
 
         state_dict = {

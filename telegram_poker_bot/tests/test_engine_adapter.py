@@ -92,7 +92,7 @@ def test_engine_adapter_get_winners():
 def test_allowed_actions_in_broadcast_state():
     """
     Test the fix for the critical bug where WebSocket broadcasts had empty allowed_actions.
-    
+
     Verifies that allowed_actions are included when viewer_player_index is None (broadcast),
     preventing the issue where action buttons didn't appear and players got auto-folded.
     """
@@ -119,10 +119,15 @@ def test_allowed_actions_in_broadcast_state():
         broadcast_state["allowed_actions"] != {}
     ), "allowed_actions should be populated for current actor in broadcast state"
 
-    # Verify that allowed_actions contains expected keys
+    # Verify that allowed_actions contains expected action keys
     allowed_actions = broadcast_state["allowed_actions"]
     assert "can_fold" in allowed_actions
-    assert "can_call" in allowed_actions or "can_check" in allowed_actions
+    # At preflop with blinds posted, actor should be able to either call or check
+    # (BB can check, SB/others must call or raise)
+    has_call_or_check = allowed_actions.get("can_call", False) or allowed_actions.get(
+        "can_check", False
+    )
+    assert has_call_or_check, "Actor should have either call or check action available"
 
     # Compare with actor-specific state to ensure they match
     actor_index = broadcast_state["current_actor_index"]
