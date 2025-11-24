@@ -125,11 +125,50 @@ Both scripts live at the repository root under `deploy/` and orchestrate Docker 
 
 ## Database Migrations
 
-This project uses Alembic for database migrations. **Migrations must be run before starting the services.**
+This project uses Alembic for database migrations.
 
-### Running Migrations
+### Automatic Execution (Recommended)
+
+**Migrations run automatically** when you start the application:
 
 ```bash
+# Using Docker (recommended)
+docker compose up -d
+# Migrations run automatically before API/Bot services start
+
+# Using Makefile
+make compose-up
+# Shows migration status after startup
+
+# Using deployment scripts
+./deploy/first-deploy.sh
+./deploy/update.sh
+```
+
+The migration service will:
+1. Wait for PostgreSQL to be healthy
+2. Run all pending migrations
+3. Verify tables were created
+4. Only then allow API and Bot services to start
+
+**Check migration status:**
+```bash
+docker compose logs migrations
+docker compose ps migrations  # Should show "Exited (0)"
+```
+
+### Manual Migration Commands
+
+For local development or troubleshooting:
+
+```bash
+# Using Makefile (recommended)
+make migrate
+
+# Using docker compose
+docker compose run --rm migrations
+
+# Local Python environment
 cd telegram_poker_bot
 alembic upgrade head
 ```
@@ -137,10 +176,13 @@ alembic upgrade head
 ### Checking Current Version
 
 ```bash
+# With Docker
+docker compose run --rm migrations alembic -c telegram_poker_bot/alembic.ini current
+
+# Local
+cd telegram_poker_bot
 alembic current
 ```
-
-Should show: `005_active_table_indexes (head)`
 
 ### Migration History
 
@@ -149,17 +191,35 @@ Should show: `005_active_table_indexes (head)`
 3. **003_lowercase_invite_status**: Normalizes enum values to lowercase
 4. **004_table_visibility_columns**: **CRITICAL** - Adds `creator_user_id` and `is_public` columns to tables
 5. **005_active_table_indexes**: Adds performance indexes for lobby and active table queries
+6. (and more - check `telegram_poker_bot/migrations/versions/` for complete list)
 
 ### Troubleshooting
 
-If you encounter `UndefinedColumnError: column tables.creator_user_id does not exist`:
+**"relation 'users' does not exist" error:**
 
-1. **Check migration status**: `alembic current`
-2. **Apply missing migrations**: `alembic upgrade head`
-3. **Verify**: `alembic current` should show `005_active_table_indexes (head)`
-4. **Restart services** after applying migrations
+This means migrations didn't complete successfully. Check:
 
-See `MIGRATION_FIX_GUIDE.md` for detailed troubleshooting and `IMPLEMENTATION_SUMMARY.md` for architecture details.
+1. **Migration logs**: `docker compose logs migrations`
+2. **Migration exit status**: `docker compose ps migrations` (should be "Exited (0)")
+3. **Database connectivity**: Verify PostgreSQL is running and accessible
+
+**Quick fixes:**
+```bash
+# Run migrations manually
+make migrate
+
+# Or with verbose output
+docker compose run --rm migrations
+
+# Check what tables exist
+docker compose exec postgres psql -U pokerbot -d pokerbot -c "\dt"
+```
+
+**For detailed troubleshooting**, see [MIGRATION_TROUBLESHOOTING.md](MIGRATION_TROUBLESHOOTING.md).
+
+**Historical migration guides:**
+- `MIGRATION_FIX_GUIDE.md` - Earlier migration troubleshooting
+- `IMPLEMENTATION_SUMMARY.md` - Architecture details
 
 ## Configuration
 

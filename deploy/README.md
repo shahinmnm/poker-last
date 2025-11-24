@@ -46,8 +46,10 @@ The script performs:
 2. `docker compose pull` (skippable via `--skip-pull`)  
 3. `docker compose build --pull`  
 4. `docker compose up -d postgres redis`  
-5. Alembic migrations (`docker compose --profile ops run --rm migrations`)  
+5. Alembic migrations (`docker compose run --rm migrations`)  
 6. `docker compose up -d [--profile nginx] --remove-orphans`  
+
+**Note:** When running `docker compose up` directly, migrations run automatically before the API and bot services start. The deployment script runs migrations explicitly for clearer logging and error handling.  
 
 ## Rolling Updates
 
@@ -122,7 +124,15 @@ Place certificates in `deploy/nginx/ssl/` (or change `NGINX_SSL_CERT_PATH`) befo
 ## Troubleshooting
 
 - **Containers restart repeatedly** – inspect logs with `docker compose logs --tail 200 <service>`  
-- **Migrations fail** – ensure the database is reachable, then re-run `./deploy/update.sh --skip-pull --skip-build`  
+- **Migrations fail** – see detailed troubleshooting in [Migration Troubleshooting Guide](../telegram_poker_bot/MIGRATION_TROUBLESHOOTING.md)
+  - Quick fix: `make migrate` or `./deploy/update.sh --skip-pull --skip-build`
+  - Check migration logs: `docker compose logs migrations`
+- **"relation 'users' does not exist" error** – migrations didn't complete successfully
+  - Check migration status: `docker compose ps migrations`
+  - View migration logs: `docker compose logs migrations`
+  - See [Migration Troubleshooting Guide](../telegram_poker_bot/MIGRATION_TROUBLESHOOTING.md)
 - **Frontend cannot reach API** – verify `VITE_API_URL` in `.env` points to a public URL accessible by browsers
+
+For detailed migration troubleshooting, see: [telegram_poker_bot/MIGRATION_TROUBLESHOOTING.md](../telegram_poker_bot/MIGRATION_TROUBLESHOOTING.md)
 
 Open an issue or discussion with reproduction details if further help is needed.

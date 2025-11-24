@@ -54,11 +54,8 @@ services:
     container_name: pokerbot_migrations
     command:
       [
-        "alembic",
-        "-c",
-        "telegram_poker_bot/alembic.ini",
-        "upgrade",
-        "head"
+        "bash",
+        "telegram_poker_bot/scripts/run_migrations.sh"
       ]
     env_file: *backend-env-file
     depends_on:
