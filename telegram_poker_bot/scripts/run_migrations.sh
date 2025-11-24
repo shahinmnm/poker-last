@@ -3,17 +3,23 @@
 
 set -euo pipefail
 
+# Enable debug mode if DEBUG env var is set
+if [ "${DEBUG:-}" = "1" ]; then
+    set -x
+fi
+
 echo "========================================" 
 echo "Starting database migrations"
 echo "========================================"
 echo "Database URL: ${DATABASE_URL:-not set}"
 echo "Working directory: $(pwd)"
 echo "Alembic config: telegram_poker_bot/alembic.ini"
+echo "Max retry attempts: ${MIGRATION_MAX_ATTEMPTS:-30}"
 echo "----------------------------------------"
 
 # Wait for PostgreSQL to be truly ready (beyond health check)
 echo "Waiting for PostgreSQL to be ready..."
-max_attempts=30
+max_attempts=${MIGRATION_MAX_ATTEMPTS:-30}
 attempt=0
 
 while [ $attempt -lt $max_attempts ]; do

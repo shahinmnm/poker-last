@@ -170,8 +170,9 @@ docker compose exec postgres psql -U pokerbot -d pokerbot -c "\dt"
 
 2. If no version is recorded, run migrations from scratch:
    ```bash
-   # DANGER: This will delete all data
-   docker compose down -v  # Removes volumes
+   # ⚠️ WARNING: THIS WILL DELETE ALL DATA! ⚠️
+   # Make sure you have backups before running this command!
+   docker compose down -v  # Removes volumes (DESTRUCTIVE!)
    docker compose up -d
    ```
 
