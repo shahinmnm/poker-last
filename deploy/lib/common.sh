@@ -101,7 +101,7 @@ compose() {
 
 run_migrations() {
   log_info "Running database migrations"
-  compose --profile ops run --rm migrations
+  compose run --rm migrations
 }
 
 check_worktree_clean() {
