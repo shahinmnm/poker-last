@@ -615,9 +615,10 @@ export default function TablePage() {
 
         // Preserve ready_players during inter-hand phase, or if payload includes it
         // Reset to empty array when starting a new hand (not inter-hand)
+        const shouldPreserveReadyPlayers = isInterHandPhase || wasInterHandPhase || isSameHand
         const mergedReadyPlayers =
           payload.ready_players ?? 
-          ((isInterHandPhase || wasInterHandPhase || isSameHand) ? previous?.ready_players ?? [] : [])
+          (shouldPreserveReadyPlayers ? previous?.ready_players ?? [] : [])
 
         const nextState: LiveTableState = {
           ...payload,
