@@ -92,10 +92,13 @@ def do_run_migrations(connection):
     """Run migrations with connection."""
     _cleanup_stale_alembic_version_type(connection)
 
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        transaction_per_migration=True,
+    )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    context.run_migrations()
 
 
 async def run_migrations_online() -> None:
@@ -108,11 +111,13 @@ async def run_migrations_online() -> None:
             configuration,
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
+            future=True,
         )
     )
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
+        await connection.commit()
 
     await connectable.dispose()
 
