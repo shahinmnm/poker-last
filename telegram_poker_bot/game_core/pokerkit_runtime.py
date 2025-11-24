@@ -959,6 +959,15 @@ class PokerKitTableRuntime:
                         }
                     )
 
+            logger.info(
+                "State payload generation (waiting state)",
+                table_id=self.table.id,
+                status="waiting",
+                seated_players_count=len(seated_players),
+                ready_players_count=len(self.ready_players),
+                viewer_user_id=viewer_user_id,
+            )
+
             return {
                 "type": "table_state",
                 "table_id": self.table.id,
@@ -1043,6 +1052,21 @@ class PokerKitTableRuntime:
                 }
             )
 
+        # Get allowed actions from poker state
+        allowed_actions = poker_state.get("allowed_actions", {})
+
+        # Log allowed_actions calculation for diagnostics
+        logger.info(
+            "State payload generation",
+            table_id=self.table.id,
+            hand_no=self.hand_no,
+            current_actor_user_id=current_actor_user_id,
+            actor_index=actor_index,
+            allowed_actions=allowed_actions,
+            street=poker_state["street"],
+            viewer_user_id=viewer_user_id,
+        )
+
         # Build payload
         payload = {
             "type": "table_state",
@@ -1075,7 +1099,7 @@ class PokerKitTableRuntime:
                 else None
             ),
             "last_action": None,
-            "allowed_actions": poker_state.get("allowed_actions", {}),
+            "allowed_actions": allowed_actions,
             "ready_players": list(self.ready_players),
         }
 

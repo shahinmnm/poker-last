@@ -535,8 +535,22 @@ export default function TablePage() {
     tableId: tableId || '',
     enabled: !!tableId,
     onMessage: useCallback((payload: any) => {
+      // Log all incoming WebSocket messages for diagnostics
+      console.log('[Table WebSocket] Message received:', {
+        type: payload?.type,
+        table_id: payload?.table_id,
+        current_actor: payload?.current_actor,
+        status: payload?.status,
+        // Only log full payload for specific message types
+        ...(payload?.type === 'hand_ended' || payload?.type === 'table_ended' ? { payload } : {}),
+      })
+
       // Handle different message types
       if (payload?.type === 'player_ready') {
+        console.log('[Table WebSocket] Player ready event:', {
+          user_id: payload.user_id,
+          ready_players: payload.ready_players,
+        })
         setLiveState((previous) => {
           if (!previous) return previous
           const updated = new Set(previous.ready_players ?? [])
@@ -552,6 +566,11 @@ export default function TablePage() {
       }
 
       if (payload?.type === 'hand_ended') {
+        console.log('[Table WebSocket] Hand ended event received:', {
+          winners: payload.winners,
+          pot_total: payload.pot_total,
+          next_hand_in: payload.next_hand_in,
+        })
         // Update state to show inter-hand phase with winner information
         const winners = payload.winners && payload.winners.length > 0 ? payload.winners : null
         setLiveState((previous) => {
@@ -572,6 +591,9 @@ export default function TablePage() {
       }
 
       if (payload?.type === 'table_ended') {
+        console.log('[Table WebSocket] Table ended event:', {
+          reason: payload.reason,
+        })
         setTableExpiredReason(payload.reason || t('table.messages.notEnoughPlayers', 'Not enough players'))
         setShowTableExpiredModal(true)
         return
@@ -583,13 +605,28 @@ export default function TablePage() {
         payload?.type === 'player_joined' ||
         payload?.type === 'player_left'
       ) {
+        console.log('[Table WebSocket] Game state change event:', {
+          type: payload?.type,
+        })
         // Refetch table details on player/game state changes
         fetchTable()
       }
     }, [fetchTable, t]),
     onStateChange: useCallback((payload: LiveTableState) => {
+      // Log state changes for diagnostics
+      console.log('[Table WebSocket] State change:', {
+        type: payload.type,
+        status: payload.status,
+        table_status: payload.table_status,
+        current_actor: payload.current_actor,
+        allowed_actions: payload.allowed_actions,
+        hand_id: payload.hand_id,
+        inter_hand_wait: payload.inter_hand_wait,
+      })
+
       // Check if table has expired
       if (payload.status === 'expired' || payload.table_status === 'expired') {
+        console.log('[Table WebSocket] Table expired, redirecting to lobby')
         showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
         setTimeout(() => navigate('/lobby', { replace: true }), EXPIRED_TABLE_REDIRECT_DELAY_MS)
         return
@@ -598,11 +635,28 @@ export default function TablePage() {
       const isNewHand =
         payload.hand_id !== null && lastHandIdRef.current !== payload.hand_id
 
+      if (isNewHand) {
+        console.log('[Table WebSocket] New hand detected:', {
+          new_hand_id: payload.hand_id,
+          previous_hand_id: lastHandIdRef.current,
+        })
+      }
+
       setLiveState((previous) => {
         const isSameHand =
           payload.hand_id !== null && previous?.hand_id === payload.hand_id
         const isInterHandPhase = payload.inter_hand_wait || payload.status === 'INTER_HAND_WAIT'
         const wasInterHandPhase = previous?.inter_hand_wait || previous?.status === 'INTER_HAND_WAIT'
+
+        // Log inter-hand transitions
+        if (isInterHandPhase && !wasInterHandPhase) {
+          console.log('[Table WebSocket] Entering inter-hand phase:', {
+            hand_result: payload.hand_result,
+            ready_players: payload.ready_players,
+          })
+        } else if (!isInterHandPhase && wasInterHandPhase) {
+          console.log('[Table WebSocket] Exiting inter-hand phase, new hand starting')
+        }
 
         // Preserve viewer-specific data (like hero cards) when the broadcast
         // payload omits it. WebSocket broadcasts are public, so they don't
@@ -634,16 +688,17 @@ export default function TablePage() {
       // When a new hand starts, fetch viewer-specific state (including hero cards)
       if (isNewHand && payload.hand_id !== null) {
         lastHandIdRef.current = payload.hand_id
+        console.log('[Table WebSocket] Fetching viewer-specific state for new hand')
         fetchLiveState()
       }
     }, [fetchLiveState, navigate, showToast, syncHandResults, t]),
     onConnect: useCallback(() => {
-      console.log('WebSocket connected to table', tableId)
+      console.log('[Table WebSocket] Connected to table', tableId)
       // Refresh viewer-specific state (including hero cards) after reconnects
       fetchLiveState()
     }, [fetchLiveState, tableId]),
     onDisconnect: useCallback(() => {
-      console.log('WebSocket disconnected from table', tableId)
+      console.log('[Table WebSocket] Disconnected from table', tableId)
     }, [tableId]),
   })
 
@@ -961,11 +1016,32 @@ export default function TablePage() {
   const heroCards = liveState?.hero?.cards ?? []
 
   const renderActionDock = () => {
+    // Log rendering decision
+    console.log('[Table ActionDock] Render decision:', {
+      isInterHand,
+      tableStatus,
+      viewerIsSeated,
+      hasActiveHand: liveState?.hand_id !== null && !isInterHand,
+      isMyTurn,
+      allowedActions,
+      current_actor: liveState?.current_actor,
+      heroId,
+    })
+
     // Never show during inter-hand voting phase
-    if (isInterHand) return null
+    if (isInterHand) {
+      console.log('[Table ActionDock] Hidden: inter-hand phase')
+      return null
+    }
 
     // Waiting state - show start/join buttons
     if (tableStatus === 'waiting') {
+      console.log('[Table ActionDock] Showing waiting state buttons:', {
+        viewerIsCreator,
+        viewerIsSeated,
+        canStart,
+        canJoin,
+      })
       return (
         <div className="absolute inset-0 flex items-end justify-center pb-12 z-40 pointer-events-none">
           <div className="flex flex-col items-center gap-4 pointer-events-auto">
@@ -1006,6 +1082,12 @@ export default function TablePage() {
           ? liveState.pot
           : (liveState as { pot?: { total?: number } }).pot?.total ??
             (liveState.pots?.reduce((sum, pot) => sum + (pot.amount ?? 0), 0) ?? 0)
+      console.log('[Table ActionDock] Showing action controls:', {
+        allowedActionsCount: allowedActions.length,
+        isMyTurn,
+        potSize,
+        heroStack: heroPlayer?.stack,
+      })
       return (
         <ActionDock
           allowedActions={allowedActions}
@@ -1018,6 +1100,11 @@ export default function TablePage() {
       )
     }
 
+    console.log('[Table ActionDock] Hidden: no matching condition', {
+      tableStatus,
+      viewerIsSeated,
+      hasActiveHand,
+    })
     return null
   }
 

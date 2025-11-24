@@ -30,6 +30,31 @@ export default function ActionDock({
   myStack,
   isMyTurn = true,
 }: ActionDockProps) {
+  // Log component mount
+  useEffect(() => {
+    console.log('[ActionDock] Component mounted', {
+      allowedActionsCount: allowedActions.length,
+      actionTypes: allowedActions.map(a => a.action_type),
+      isMyTurn,
+      isProcessing,
+    })
+    return () => {
+      console.log('[ActionDock] Component unmounted')
+    }
+  }, [])
+
+  // Log when props change
+  useEffect(() => {
+    console.log('[ActionDock] Props updated', {
+      allowedActionsCount: allowedActions.length,
+      actionTypes: allowedActions.map(a => a.action_type),
+      isMyTurn,
+      isProcessing,
+      potSize,
+      myStack,
+    })
+  }, [allowedActions, isMyTurn, isProcessing, potSize, myStack])
+
   const canFold = useMemo(
     () => allowedActions.find((action) => action.action_type === 'fold'),
     [allowedActions],
@@ -68,9 +93,13 @@ export default function ActionDock({
     setBetAmount(clampAmount(Math.round(target), minAmount, maxAmount))
   }
 
-  if (!allowedActions.length) return null
+  if (!allowedActions.length) {
+    console.log('[ActionDock] Hidden: no allowed actions')
+    return null
+  }
 
   if (canReady) {
+    console.log('[ActionDock] Showing ready button')
     return (
       <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center pb-8 pointer-events-none">
         <button
@@ -94,6 +123,13 @@ export default function ActionDock({
   const showSlider = Boolean(canBet)
   const callLabel = canCall?.amount ? `CALL ${formatChips(canCall.amount)}` : 'CALL'
   const betLabel = canBet?.action_type === 'raise' ? 'RAISE' : canBet?.action_type === 'all_in' ? 'ALL IN' : 'BET'
+
+  console.log('[ActionDock] Showing action buttons', {
+    canFold: !!canFold,
+    canCheck: !!canCheck,
+    canCall: !!canCall,
+    canBet: !!canBet,
+  })
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
