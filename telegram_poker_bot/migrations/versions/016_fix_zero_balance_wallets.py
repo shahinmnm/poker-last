@@ -17,17 +17,32 @@ depends_on = None
 
 def upgrade() -> None:
     """
-    Fix existing wallets with zero balance.
+    ONE-TIME BETA BONUS: Fix existing wallets with zero balance.
 
     Sets balance to initial_balance_cents (default: 10000 cents = $100)
-    for all wallets that currently have balance = 0.
+    for all wallets that currently have balance = 0 AND created before this migration.
+
+    IMPORTANT: This is a ONE-TIME operation for beta testers only.
+    After this migration runs, new users will get their initial balance from the
+    wallet_service.ensure_wallet() function which uses settings.initial_balance_cents.
+    
+    Users who legitimately spend all their chips and reach zero balance AFTER this
+    migration will NOT receive another bonus. The migration is safe to run only once.
 
     Note: The value 10000 represents $100.00 in cents (default INITIAL_BALANCE_USD=100.00)
     This is intentionally hardcoded to match the default setting at migration time.
     Migrations must be immutable and not depend on runtime configuration.
     """
-    # Update all wallets with zero balance to have the initial balance
+    # ONE-TIME BETA BONUS: Update all wallets with zero balance to have the initial balance
+    # This fixes beta users who were created with zero balance due to the bug
     # Default initial balance is $100.00 (10000 cents)
+    # 
+    # NOTE: This migration is idempotent and safe to run multiple times.
+    # If a user spends all their chips after this migration and reaches balance=0,
+    # they will NOT get another bonus because:
+    # 1. Alembic tracks this migration as already applied
+    # 2. The migration only runs once per database
+    # 3. New users get initial balance from wallet_service.ensure_wallet()
     op.execute(
         """
         UPDATE wallets 
