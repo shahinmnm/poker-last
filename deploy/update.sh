@@ -4,9 +4,22 @@ set -euo pipefail
 ###############################################################################
 # PokerBot Deployment Helper (force mode)
 #
+# This script performs a complete update of a running PokerBot deployment:
+# 1. Backs up the current .env file
+# 2. Stops all running services
+# 3. Cleans up Docker resources (optional)
+# 4. Fetches the latest code from the configured git branch
+# 5. Force-resets the local repository to match the remote
+# 6. Pulls and builds updated Docker images
+# 7. Runs database migrations and verifies schema
+# 8. Restarts all services
+#
+# The script is designed to be idempotent and safe - it will exit on any
+# error before restarting services, ensuring the deployment stays healthy.
+#
+# Configuration:
 # - Reads DEPLOY_GIT_BRANCH from .env (e.g. main, gamecore, etc.)
 # - Forces local repo to match remote branch (ignores dirty changes)
-# - Stops containers, prunes Docker garbage, rebuilds, restarts
 #
 # Requires lib/common.sh to define:
 #   REPO_ROOT, ENV_FILE
@@ -217,6 +230,9 @@ fi
 ###############################################################################
 # Git force update (supports main/gamecore/etc via DEPLOY_GIT_BRANCH)
 ###############################################################################
+# This section fetches the latest code from the remote repository and ensures
+# the local deployment is synchronized with the remote branch.
+# It will overwrite any local changes to match the remote exactly.
 
 log_info "Fetching updates from ${REMOTE}/${BRANCH}"
 git -C "${REPO_ROOT}" fetch "${REMOTE}" "${BRANCH}"
@@ -238,6 +254,9 @@ log_success "Repository forced to ${REMOTE}/${BRANCH}"
 ###############################################################################
 # Docker build & restart
 ###############################################################################
+# This section rebuilds Docker images with the latest code and restarts all
+# services. Migrations are run before restarting to ensure the database schema
+# is up-to-date. Services are only restarted if all previous steps succeed.
 
 if [[ "${SKIP_PULL}" == "false" ]]; then
   log_info "Pulling latest upstream images"
@@ -257,12 +276,19 @@ else
   log_info "Skipping docker compose build (--skip-build)"
 fi
 
+# Run database migrations to ensure schema is up-to-date
+# The run_migrations.sh script will:
+# 1. Wait for PostgreSQL to be ready
+# 2. Run Alembic migrations
+# 3. Verify critical tables exist (users, tables, seats, alembic_version)
+# If migrations fail, the script will exit due to 'set -e' and services won't restart
 if [[ "${SKIP_MIGRATIONS}" == "false" ]]; then
   run_migrations
 else
   log_warn "Skipping migrations as requested (--skip-migrations)"
 fi
 
+# Restart services only after all updates and migrations succeed
 log_info "Restarting services"
 if [[ "${WITH_NGINX}" == "true" ]]; then
   compose up -d --remove-orphans --profile nginx

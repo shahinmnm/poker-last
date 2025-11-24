@@ -95,8 +95,12 @@ async def verify_schema():
             for table in tables:
                 print(f'  - {table}')
             
-            # Check for critical tables
-            critical_tables = ['users', 'tables', 'table_participants', 'alembic_version']
+            # Check for critical tables required for basic operation
+            # - users: user accounts and authentication
+            # - tables: poker game tables
+            # - seats: tracks users seated at tables (replaces legacy table_participants)
+            # - alembic_version: migration version tracking
+            critical_tables = ['users', 'tables', 'seats', 'alembic_version']
             missing = [t for t in critical_tables if t not in tables]
             if missing:
                 print(f'⚠ WARNING: Missing expected tables: {missing}')
