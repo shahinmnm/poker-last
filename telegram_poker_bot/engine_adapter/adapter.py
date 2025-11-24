@@ -306,16 +306,13 @@ class PokerEngineAdapter:
 
         # Get allowed actions for current actor
         # ALWAYS include allowed_actions for the current actor, even in broadcasts
-        # This ensures WebSocket broadcasts include what actions are available
+        # When viewer_player_index is None (broadcast), include actions for current actor
+        # When viewer_player_index equals actor_index, include actions for that player
         allowed_actions = {}
-        if actor_index is not None:
-            if viewer_player_index is None:
-                # Broadcast to all - include allowed actions for CURRENT ACTOR
-                # This ensures all clients know what actions are available
-                allowed_actions = self._get_allowed_actions_for_player(actor_index)
-            elif viewer_player_index == actor_index:
-                # Viewer-specific state with allowed actions for viewer (when they're the actor)
-                allowed_actions = self._get_allowed_actions_for_player(actor_index)
+        if actor_index is not None and (
+            viewer_player_index is None or viewer_player_index == actor_index
+        ):
+            allowed_actions = self._get_allowed_actions_for_player(actor_index)
 
         state_dict = {
             # Game state
