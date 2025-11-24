@@ -14,7 +14,6 @@ from telegram_poker_bot.shared.models import (
     Hand,
     Action,
     TableStatus,
-    Wallet,
     UserPokerStats,
 )
 
@@ -188,42 +187,6 @@ async def get_user_stats(db: AsyncSession, user_id: int) -> Dict[str, Any]:
         "current_streak": stats_blob.get("current_streak", 0),
         "first_game_date": first_game_date,
     }
-
-
-async def get_user_balance(db: AsyncSession, user_id: int) -> int:
-    """
-    Get user's chip balance from wallet.
-
-    Returns chips available for play.
-    """
-    result = await db.execute(select(Wallet).where(Wallet.user_id == user_id))
-    wallet = result.scalar_one_or_none()
-
-    if wallet:
-        return wallet.balance
-
-    # Default starting balance if no wallet exists yet
-    return 10000
-
-
-async def ensure_wallet(db: AsyncSession, user_id: int) -> Wallet:
-    """
-    Ensure user has a wallet record with default balance.
-    """
-    result = await db.execute(select(Wallet).where(Wallet.user_id == user_id))
-    wallet = result.scalar_one_or_none()
-
-    if wallet:
-        return wallet
-
-    # Create wallet with default balance
-    wallet = Wallet(
-        user_id=user_id,
-        balance=10000,  # Default starting chips
-    )
-    db.add(wallet)
-    await db.flush()
-    return wallet
 
 
 async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, Any]]:
