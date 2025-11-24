@@ -76,7 +76,7 @@ class PokerEngineAdapter:
         # We track button_index ourselves since PokerKit doesn't expose it
         if button_index is None:
             button_index = 0
-        
+
         if not (0 <= button_index < player_count):
             logger.warning(
                 "Invalid button_index provided, defaulting to 0",
@@ -216,12 +216,12 @@ class PokerEngineAdapter:
         for i in range(self.player_count):
             # Determine button position using our tracked button_index
             is_button = i == self.button_index
-            
+
             # For blind positions, we need to infer from actual bets
             # since PokerKit posts blinds in its own order
             is_small_blind = False
             is_big_blind = False
-            
+
             # Check current bets to determine blind positions
             if self.state.street_index == 0 and self.state.bets:  # Preflop
                 # Player with bet == small_blind amount is SB
@@ -305,8 +305,12 @@ class PokerEngineAdapter:
         )
 
         # Get allowed actions for current actor
+        # Include allowed_actions when broadcasting or when viewer is the actor
         allowed_actions = {}
-        if actor_index is not None and viewer_player_index == actor_index:
+        should_include_allowed_actions = actor_index is not None and (
+            viewer_player_index is None or viewer_player_index == actor_index
+        )
+        if should_include_allowed_actions:
             allowed_actions = self._get_allowed_actions_for_player(actor_index)
 
         state_dict = {
@@ -391,7 +395,7 @@ class PokerEngineAdapter:
     def _auto_advance_streets(self) -> None:
         """
         Automatically advance through streets when betting rounds complete.
-        
+
         This handles dealing community cards when actor_indices becomes empty.
         """
         # Loop while hand is not complete and there's no one to act
@@ -726,7 +730,7 @@ class PokerEngineAdapter:
         # Create a new adapter instance with button_index from persisted state
         mode = Mode(data["mode"]) if isinstance(data["mode"], str) else data["mode"]
         button_index = data.get("button_index", 0)
-        
+
         adapter = cls(
             player_count=data["player_count"],
             starting_stacks=data["starting_stacks"],
