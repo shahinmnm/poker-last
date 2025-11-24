@@ -23,6 +23,8 @@ def upgrade() -> None:
     for all wallets that currently have balance = 0.
 
     Note: The value 10000 represents $100.00 in cents (default INITIAL_BALANCE_USD=100.00)
+    This is intentionally hardcoded to match the default setting at migration time.
+    Migrations must be immutable and not depend on runtime configuration.
     """
     # Update all wallets with zero balance to have the initial balance
     # Default initial balance is $100.00 (10000 cents)
@@ -39,8 +41,13 @@ def downgrade() -> None:
     """
     Downgrade: Set wallets back to zero balance.
 
-    Note: This will lose data - all wallets with 10000 balance will be set to 0.
-    This is a destructive operation and should only be used in development.
+    WARNING: This is a DESTRUCTIVE operation intended for development only.
+    It will set ALL wallets with the default initial balance (10000) to zero,
+    which may incorrectly affect wallets that legitimately have this balance
+    from gameplay or other sources.
+
+    In production, this downgrade should NOT be used. If you must rollback,
+    restore from database backup instead.
     """
     op.execute(
         """
