@@ -258,10 +258,7 @@ else
 fi
 
 if [[ "${SKIP_MIGRATIONS}" == "false" ]]; then
-  log_info "Running database migrations (if configured)"
-  if ! compose run --rm api alembic upgrade head 2>/dev/null; then
-    log_warn "Migration step failed or service 'api' not defined; continuing without migrations"
-  fi
+  run_migrations
 else
   log_warn "Skipping migrations as requested (--skip-migrations)"
 fi
