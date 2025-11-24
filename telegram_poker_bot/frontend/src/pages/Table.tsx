@@ -541,7 +541,8 @@ export default function TablePage() {
         table_id: payload?.table_id,
         current_actor: payload?.current_actor,
         status: payload?.status,
-        payload,
+        // Only log full payload for specific message types
+        ...(payload?.type === 'hand_ended' || payload?.type === 'table_ended' ? { payload } : {}),
       })
 
       // Handle different message types

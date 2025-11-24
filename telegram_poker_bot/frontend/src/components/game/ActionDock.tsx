@@ -33,7 +33,8 @@ export default function ActionDock({
   // Log component mount
   useEffect(() => {
     console.log('[ActionDock] Component mounted', {
-      allowedActions,
+      allowedActionsCount: allowedActions.length,
+      actionTypes: allowedActions.map(a => a.action_type),
       isMyTurn,
       isProcessing,
     })
@@ -46,7 +47,7 @@ export default function ActionDock({
   useEffect(() => {
     console.log('[ActionDock] Props updated', {
       allowedActionsCount: allowedActions.length,
-      allowedActions,
+      actionTypes: allowedActions.map(a => a.action_type),
       isMyTurn,
       isProcessing,
       potSize,
