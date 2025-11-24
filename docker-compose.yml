@@ -65,8 +65,6 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
-    profiles:
-      - ops
 
   bot:
     build: *backend-build
@@ -85,6 +83,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     restart: unless-stopped
     ports:
       - "8443:8443"
@@ -109,6 +109,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     restart: unless-stopped
     ports:
       - "8000:8000"
