@@ -212,18 +212,61 @@ class ConnectionManager:
 
     async def broadcast(self, table_id: int, message: Dict[str, Any]):
         """Broadcast message to all connections for a table."""
-        if table_id in self.active_connections:
-            disconnected = []
-            for connection in self.active_connections[table_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception as e:
-                    logger.error("Error broadcasting", table_id=table_id, error=str(e))
-                    disconnected.append(connection)
+        message_type = message.get("type", "unknown")
 
-            # Remove disconnected connections
-            for conn in disconnected:
-                self.disconnect(conn, table_id)
+        if table_id not in self.active_connections:
+            logger.warning(
+                "Broadcast attempted but no connections exist",
+                table_id=table_id,
+                message_type=message_type,
+            )
+            return
+
+        connection_count = len(self.active_connections[table_id])
+
+        # Log broadcast details before sending
+        logger.info(
+            "Broadcasting WebSocket message",
+            table_id=table_id,
+            message_type=message_type,
+            recipient_count=connection_count,
+            current_actor=message.get("current_actor"),
+            allowed_actions_present=bool(message.get("allowed_actions")),
+            status=message.get("status"),
+            street=message.get("street"),
+        )
+
+        # Special logging for hand_ended broadcasts
+        if message_type == "hand_ended":
+            logger.info(
+                "Broadcasting hand_ended event to all clients",
+                table_id=table_id,
+                recipient_count=connection_count,
+                winners=message.get("winners", []),
+                pot_total=message.get("pot_total"),
+            )
+
+        disconnected = []
+        for connection in self.active_connections[table_id]:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                logger.error("Error broadcasting", table_id=table_id, error=str(e))
+                disconnected.append(connection)
+
+        # Remove disconnected connections
+        for conn in disconnected:
+            self.disconnect(conn, table_id)
+
+        # Log successful broadcast completion
+        successful_count = connection_count - len(disconnected)
+        logger.info(
+            "Broadcast completed",
+            table_id=table_id,
+            message_type=message_type,
+            successful_recipients=successful_count,
+            failed_recipients=len(disconnected),
+        )
 
     async def close_all_connections(self, table_id: int):
         """Close all WebSocket connections for a table (e.g., when table is deleted)."""
