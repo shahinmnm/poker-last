@@ -305,9 +305,7 @@ class PokerEngineAdapter:
         )
 
         # Get allowed actions for current actor
-        # ALWAYS include allowed_actions for the current actor, even in broadcasts
-        # When viewer_player_index is None (broadcast), include actions for current actor
-        # When viewer_player_index equals actor_index, include actions for that player
+        # Include allowed_actions when broadcasting or when viewer is the actor
         allowed_actions = {}
         if actor_index is not None and (
             viewer_player_index is None or viewer_player_index == actor_index

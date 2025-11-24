@@ -91,10 +91,10 @@ def test_engine_adapter_get_winners():
 
 def test_allowed_actions_in_broadcast_state():
     """
-    Test that allowed_actions are included when viewer_player_index is None (broadcast).
-
-    This reproduces the critical bug where WebSocket broadcasts have empty allowed_actions,
-    preventing players from seeing action buttons.
+    Test the fix for the critical bug where WebSocket broadcasts had empty allowed_actions.
+    
+    Verifies that allowed_actions are included when viewer_player_index is None (broadcast),
+    preventing the issue where action buttons didn't appear and players got auto-folded.
     """
     adapter = PokerEngineAdapter(
         player_count=2,
