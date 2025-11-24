@@ -601,6 +601,8 @@ export default function TablePage() {
       setLiveState((previous) => {
         const isSameHand =
           payload.hand_id !== null && previous?.hand_id === payload.hand_id
+        const isInterHandPhase = payload.inter_hand_wait || payload.status === 'INTER_HAND_WAIT'
+        const wasInterHandPhase = previous?.inter_hand_wait || previous?.status === 'INTER_HAND_WAIT'
 
         // Preserve viewer-specific data (like hero cards) when the broadcast
         // payload omits it. WebSocket broadcasts are public, so they don't
@@ -611,8 +613,11 @@ export default function TablePage() {
         const mergedHandResult =
           payload.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
 
+        // Preserve ready_players during inter-hand phase, or if payload includes it
+        // Reset to empty array when starting a new hand (not inter-hand)
         const mergedReadyPlayers =
-          payload.ready_players ?? (isSameHand ? previous?.ready_players ?? [] : [])
+          payload.ready_players ?? 
+          ((isInterHandPhase || wasInterHandPhase || isSameHand) ? previous?.ready_players ?? [] : [])
 
         const nextState: LiveTableState = {
           ...payload,
