@@ -1112,6 +1112,23 @@ class PokerKitTableRuntime:
         if self.last_hand_result and (not self.engine or not self.engine.state.status):
             payload["hand_result"] = self.last_hand_result
 
+        # Include inter-hand state when in INTER_HAND_WAIT phase
+        if self.current_hand and self.current_hand.status == HandStatus.INTER_HAND_WAIT:
+            payload["inter_hand_wait"] = True
+            payload["status"] = "INTER_HAND_WAIT"
+            if self.inter_hand_wait_start:
+                deadline = self.inter_hand_wait_start + timedelta(
+                    seconds=settings.post_hand_delay_seconds
+                )
+                payload["inter_hand_wait_deadline"] = deadline.isoformat()
+                payload["inter_hand_wait_seconds"] = settings.post_hand_delay_seconds
+            # Include ready action so the "Join Next Hand" button can appear
+            payload["allowed_actions"] = [{"action_type": "ready"}]
+            payload["ready_players"] = list(self.ready_players)
+            # Include last hand result if available
+            if self.last_hand_result:
+                payload["hand_result"] = self.last_hand_result
+
         return payload
 
 
