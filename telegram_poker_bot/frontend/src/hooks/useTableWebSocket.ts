@@ -16,6 +16,8 @@ interface UseTableWebSocketReturn {
   status: WebSocketStatus
   sendMessage: (data: any) => void
   reconnect: () => void
+  /** Wait for WebSocket to be connected. Returns true if connected, false if timeout. */
+  waitForConnection: (timeoutMs?: number) => Promise<boolean>
 }
 
 /**
@@ -194,6 +196,51 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
     connect()
   }, [cleanup, connect])
 
+  /**
+   * Wait for WebSocket to be connected.
+   * This is crucial for ensuring WebSocket is ready BEFORE performing actions
+   * that trigger broadcasts (like sitting at table).
+   * 
+   * @param timeoutMs Maximum time to wait (default 5000ms)
+   * @returns Promise that resolves to true if connected, false if timeout
+   */
+  const waitForConnection = useCallback(async (timeoutMs = 5000): Promise<boolean> => {
+    const startTime = Date.now()
+    // Polling interval: 100ms provides good balance between responsiveness
+    // (user won't notice <100ms delay) and resource usage (only 10 checks/sec)
+    const pollIntervalMs = 100
+    
+    // If already connected, return immediately
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[WebSocket] Already connected, no wait needed')
+      return true
+    }
+    
+    // Poll for connection status
+    return new Promise((resolve) => {
+      const checkConnection = () => {
+        // Check if connected
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          console.log('[WebSocket] Connection established after waiting')
+          resolve(true)
+          return
+        }
+        
+        // Check timeout
+        if (Date.now() - startTime >= timeoutMs) {
+          console.warn('[WebSocket] Connection timeout after', timeoutMs, 'ms')
+          resolve(false)
+          return
+        }
+        
+        // Continue polling
+        setTimeout(checkConnection, pollIntervalMs)
+      }
+      
+      checkConnection()
+    })
+  }, [])
+
   // Connect on mount, disconnect on unmount
   // Note: connect and cleanup are stable (memoized with useCallback) and have the
   // same dependencies as this effect, so they don't need to be in the deps array.
@@ -213,5 +260,6 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
     status,
     sendMessage,
     reconnect,
+    waitForConnection,
   }
 }
