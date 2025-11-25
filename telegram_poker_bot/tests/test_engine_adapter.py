@@ -137,3 +137,54 @@ def test_allowed_actions_in_broadcast_state():
     assert (
         broadcast_state["allowed_actions"] == actor_state["allowed_actions"]
     ), "Broadcast state should have same allowed_actions as actor-specific state"
+
+
+def test_allowed_actions_for_non_actor_viewers():
+    """
+    Test that non-actor viewers receive empty allowed_actions.
+
+    This verifies the correct behavior where:
+    1. Broadcasts (viewer_player_index=None): Include allowed_actions for current actor
+    2. Actor viewing (viewer_player_index==actor_index): Include allowed_actions
+    3. Non-actor viewing (viewer_player_index!=actor_index): Empty allowed_actions
+
+    This prevents showing action buttons to players when it's not their turn.
+    """
+    adapter = PokerEngineAdapter(
+        player_count=3,
+        starting_stacks=[10000, 10000, 10000],
+        small_blind=25,
+        big_blind=50,
+    )
+
+    adapter.deal_new_hand()
+
+    actor_index = adapter.state.actor_index
+    assert actor_index is not None, "Should have a current actor"
+
+    # Get indices of non-actors
+    non_actor_indices = [i for i in range(3) if i != actor_index]
+
+    # Scenario 1: Broadcast should have allowed_actions
+    broadcast_state = adapter.to_full_state(viewer_player_index=None)
+    assert (
+        broadcast_state["allowed_actions"] != {}
+    ), "Broadcast should include allowed_actions"
+
+    # Scenario 2: Actor should see their allowed_actions
+    actor_state = adapter.to_full_state(viewer_player_index=actor_index)
+    assert (
+        actor_state["allowed_actions"] != {}
+    ), "Actor should see their allowed_actions"
+
+    # Scenario 3: Non-actors should NOT see allowed_actions
+    for non_actor_idx in non_actor_indices:
+        non_actor_state = adapter.to_full_state(viewer_player_index=non_actor_idx)
+        assert (
+            non_actor_state["allowed_actions"] == {}
+        ), f"Non-actor player {non_actor_idx} should have empty allowed_actions"
+
+    # Verify broadcast and actor state have matching allowed_actions
+    assert (
+        broadcast_state["allowed_actions"] == actor_state["allowed_actions"]
+    ), "Broadcast and actor state should have same allowed_actions"
