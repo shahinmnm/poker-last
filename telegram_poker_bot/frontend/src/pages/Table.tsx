@@ -594,14 +594,31 @@ export default function TablePage() {
           ? payload.allowed_actions 
           : []
         setLiveState((previous) => {
-          if (!previous) return previous
+          // FIX: Create a minimal valid state if previous is null
+          // This ensures non-acting players see the inter-hand UI even if their
+          // liveState was null due to timing issues or race conditions
+          const baseState: LiveTableState = previous ?? {
+            type: 'table_state',
+            table_id: payload.table_id ?? 0,
+            hand_id: payload.hand_no ?? null,
+            status: 'INTER_HAND_WAIT',
+            street: null,
+            board: [],
+            pot: payload.total_pot ?? payload.pot_total ?? 0,
+            current_bet: 0,
+            min_raise: 0,
+            current_actor: null,
+            players: [],  // Will be populated from subsequent state updates or fetchLiveState
+            hero: null,
+          }
+          
           return {
-            ...previous,
+            ...baseState,
             status: 'INTER_HAND_WAIT',
             inter_hand_wait: true,
             inter_hand_wait_seconds: payload.next_hand_in ?? 20,
             inter_hand_wait_deadline: payload.inter_hand_wait_deadline ?? null,
-            hand_result: winners ? { winners } : previous.hand_result,
+            hand_result: winners ? { winners } : baseState.hand_result ?? null,
             ready_players: [], // Reset ready players on hand_ended
             allowed_actions: allowedActions, // Include allowed_actions for ready button
           }
@@ -610,6 +627,9 @@ export default function TablePage() {
         if (winners) {
           setLastHandResult({ winners })
         }
+        // FIX: Ensure we have complete state for inter-hand UI
+        // This fetches the full state including players array
+        fetchLiveState()
         return
       }
 
@@ -634,7 +654,7 @@ export default function TablePage() {
         // Refetch table details on player/game state changes
         fetchTable()
       }
-    }, [fetchTable, t]),
+    }, [fetchLiveState, fetchTable, t]),
     onStateChange: useCallback((payload: LiveTableState) => {
       // Log state changes for diagnostics
       console.log('[Table WebSocket] State change:', {
@@ -671,6 +691,15 @@ export default function TablePage() {
           payload.hand_id !== null && previous?.hand_id === payload.hand_id
         const isInterHandPhase = payload.inter_hand_wait || payload.status === 'INTER_HAND_WAIT'
         const wasInterHandPhase = previous?.inter_hand_wait || previous?.status === 'INTER_HAND_WAIT'
+        
+        // FIX: Prevent table_state from overwriting inter-hand state
+        // If we're in inter-hand phase (set by hand_ended) and incoming payload
+        // is NOT an inter-hand state (e.g., a stale or delayed broadcast),
+        // preserve the inter-hand status to avoid breaking the voting UI
+        const shouldPreserveInterHandState = 
+          wasInterHandPhase && 
+          !isInterHandPhase &&
+          isSameHand  // Only preserve if it's the same hand (not a new hand starting)
 
         // Log inter-hand transitions
         if (isInterHandPhase && !wasInterHandPhase) {
@@ -678,8 +707,10 @@ export default function TablePage() {
             hand_result: payload.hand_result,
             ready_players: payload.ready_players,
           })
-        } else if (!isInterHandPhase && wasInterHandPhase) {
+        } else if (!isInterHandPhase && wasInterHandPhase && !shouldPreserveInterHandState) {
           console.log('[Table WebSocket] Exiting inter-hand phase, new hand starting')
+        } else if (shouldPreserveInterHandState) {
+          console.log('[Table WebSocket] Preserving inter-hand state (ignoring non-inter-hand payload)')
         }
 
         // Preserve viewer-specific data (like hero cards) when the broadcast
@@ -698,11 +729,20 @@ export default function TablePage() {
           payload.ready_players ?? 
           (shouldPreserveReadyPlayers ? previous?.ready_players ?? [] : [])
 
+        // Build the next state, preserving inter-hand flags if needed
         const nextState: LiveTableState = {
           ...payload,
           hero: mergedHero,
           hand_result: mergedHandResult,
           ready_players: mergedReadyPlayers,
+          // FIX: Preserve inter-hand state if we determined we should
+          ...(shouldPreserveInterHandState && previous ? {
+            status: previous.status,
+            inter_hand_wait: previous.inter_hand_wait,
+            inter_hand_wait_seconds: previous.inter_hand_wait_seconds,
+            inter_hand_wait_deadline: previous.inter_hand_wait_deadline,
+            allowed_actions: previous.allowed_actions,
+          } : {}),
         }
 
         syncHandResults(payload.hand_id ?? null, mergedHandResult, isSameHand)
