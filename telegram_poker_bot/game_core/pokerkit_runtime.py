@@ -1125,9 +1125,6 @@ class PokerKitTableRuntime:
             # Include ready action so the "Join Next Hand" button can appear
             payload["allowed_actions"] = [{"action_type": "ready"}]
             payload["ready_players"] = list(self.ready_players)
-            # Include last hand result if available
-            if self.last_hand_result:
-                payload["hand_result"] = self.last_hand_result
 
         return payload
 
