@@ -1017,12 +1017,16 @@ export default function TablePage() {
 
   const renderActionDock = () => {
     // Log rendering decision
+    const activeStreets = ['preflop', 'flop', 'turn', 'river']
+    const isActiveGameplayCheck = activeStreets.includes(tableStatus) || tableStatus === 'active'
     console.log('[Table ActionDock] Render decision:', {
       isInterHand,
       tableStatus,
+      isActiveGameplay: isActiveGameplayCheck,
       viewerIsSeated,
       hasActiveHand: liveState?.hand_id !== null && !isInterHand,
       isMyTurn,
+      allowedActionsCount: allowedActions.length,
       allowedActions,
       current_actor: liveState?.current_actor,
       heroId,
@@ -1075,8 +1079,11 @@ export default function TablePage() {
     }
 
     // Active hand - show action controls when seated and hand is active
+    // Note: tableStatus can be 'preflop', 'flop', 'turn', 'river' during gameplay (the street)
+    // or 'waiting', 'active', 'ended' etc. for table status
+    // activeStreets is already declared above for logging
     const hasActiveHand = liveState?.hand_id !== null && !isInterHand
-    if (tableStatus === 'active' && liveState && viewerIsSeated && hasActiveHand) {
+    if (isActiveGameplayCheck && liveState && viewerIsSeated && hasActiveHand) {
       const potSize =
         typeof liveState.pot === 'number'
           ? liveState.pot
@@ -1102,6 +1109,7 @@ export default function TablePage() {
 
     console.log('[Table ActionDock] Hidden: no matching condition', {
       tableStatus,
+      isActiveGameplay: isActiveGameplayCheck,
       viewerIsSeated,
       hasActiveHand,
     })
