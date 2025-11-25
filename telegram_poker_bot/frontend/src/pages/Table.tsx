@@ -170,7 +170,11 @@ interface LiveTableState {
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
 const DEFAULT_TURN_TIMEOUT_SECONDS = 25
-/** Street names that indicate active gameplay (action buttons should be shown) */
+/**
+ * Street names that indicate active gameplay.
+ * During gameplay, liveState.status contains the current street name (preflop, flop, turn, river)
+ * rather than 'active'. Action buttons should be shown when tableStatus is one of these values.
+ */
 const ACTIVE_GAMEPLAY_STREETS = ['preflop', 'flop', 'turn', 'river']
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
@@ -1080,8 +1084,6 @@ export default function TablePage() {
     }
 
     // Active hand - show action controls when seated and hand is active
-    // Note: tableStatus can be 'preflop', 'flop', 'turn', 'river' during gameplay (the street)
-    // or 'waiting', 'active', 'ended' etc. for table status
     const hasActiveHand = liveState?.hand_id !== null && !isInterHand
     if (isActiveGameplayCheck && liveState && viewerIsSeated && hasActiveHand) {
       const potSize =
