@@ -508,14 +508,23 @@ class PokerKitTableRuntime:
         hand = result.scalar_one_or_none()
 
         if hand:
-            logger.info(
-                "Loaded active hand from DB",
-                table_id=self.table.id,
-                hand_no=hand.hand_no,
-                status=hand.status.value,
-            )
-            self.current_hand = hand
-            return hand
+            # Double-check the hand isn't actually ENDED (could be stale from session cache)
+            if hand.status == HandStatus.ENDED:
+                logger.warning(
+                    "Found ENDED hand in query result (stale from session cache), creating new hand",
+                    table_id=self.table.id,
+                    hand_no=hand.hand_no,
+                )
+                hand = None  # Force creation of a new hand
+            else:
+                logger.info(
+                    "Loaded active hand from DB",
+                    table_id=self.table.id,
+                    hand_no=hand.hand_no,
+                    status=hand.status.value,
+                )
+                self.current_hand = hand
+                return hand
 
         # Get max hand_no for this table
         max_hand_result = await db.execute(
@@ -1375,6 +1384,11 @@ class PokerKitTableRuntimeManager:
             runtime.table.last_action_at = datetime.now(timezone.utc)
 
             await db.flush()
+
+            # Clear runtime state to force creation of new hand
+            # This prevents load_or_create_hand from reusing the ENDED hand
+            runtime.current_hand = None
+            runtime.engine = None
 
             playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
 
