@@ -698,8 +698,7 @@ export default function TablePage() {
         // preserve the inter-hand status to avoid breaking the voting UI
         const shouldPreserveInterHandState = 
           wasInterHandPhase && 
-          !isInterHandPhase && 
-          !payload.inter_hand_wait &&
+          !isInterHandPhase &&
           isSameHand  // Only preserve if it's the same hand (not a new hand starting)
 
         // Log inter-hand transitions
