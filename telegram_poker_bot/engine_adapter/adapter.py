@@ -1,6 +1,7 @@
 """PokerKit engine adapter - clean API wrapper for PokerKit."""
 
 import random
+from collections import deque
 from typing import Any, Dict, List, Optional
 
 from pokerkit import (
@@ -706,6 +707,7 @@ class PokerEngineAdapter:
                 else list(range(self.player_count))
             ),
             "actor_index": self.state.actor_index,
+            "actor_indices": list(self.state.actor_indices),
             "status": bool(self.state.status),
             # Deck state
             "deck": self._deck,
@@ -771,6 +773,15 @@ class PokerEngineAdapter:
             for idx, bet in enumerate(data["bets"]):
                 if idx < len(adapter.state.bets):
                     adapter.state.bets[idx] = bet
+
+        if data.get("street_index") is not None:
+            adapter.state.street_index = data["street_index"]
+
+        if data.get("actor_indices") is not None:
+            adapter.state.actor_indices = deque(data["actor_indices"])
+
+        if data.get("status") is not None:
+            adapter.state.status = data["status"]
 
         logger.info(
             "Engine restored from persistence",

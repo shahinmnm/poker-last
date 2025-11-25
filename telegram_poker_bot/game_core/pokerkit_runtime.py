@@ -10,7 +10,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 
-from sqlalchemy import select
+from sqlalchemy import select, inspect
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from pokerkit import Mode
@@ -1247,7 +1247,21 @@ class PokerKitTableRuntimeManager:
         # reloading, operations like expire() can fail because the Hand object
         # was loaded in a different session.
         if runtime.current_hand is not None:
-            runtime.current_hand = await db.get(Hand, runtime.current_hand.id)
+            hand_id = None
+            try:
+                state = inspect(runtime.current_hand)
+                if state.identity:
+                    hand_id = state.identity[0]
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.warning(
+                    "Failed to inspect cached hand", error=str(exc)
+                )
+
+            if hand_id is None:
+                # Fallback to direct attribute access if available
+                hand_id = getattr(runtime.current_hand, "id", None)
+
+            runtime.current_hand = await db.get(Hand, hand_id) if hand_id else None
 
         # Load engine state from DB if not already loaded in this worker
         # This ensures first access gets DB state, subsequent calls reuse in-memory state
