@@ -136,9 +136,11 @@ class PokerEngineAdapter:
         4. Captures pre-showdown stacks for winner calculation
         """
         self._deck = self._create_shuffled_deck()
-
-        # Capture stacks before the hand starts
-        self._pre_showdown_stacks = list(self.state.stacks)
+        # Capture stacks before any chips move so winner math can reconcile
+        # total losses to total wins at showdown. We intentionally use the
+        # declared starting stacks instead of the mutable engine stacks which
+        # may already include posted blinds when the State is constructed.
+        self._pre_showdown_stacks = list(self.starting_stacks)
 
         # Deal 2 hole cards to each player
         for player_idx in range(self.player_count):
@@ -317,7 +319,7 @@ class PokerEngineAdapter:
         state_dict = {
             # Game state
             "status": "active" if self.state.status else "complete",
-            "street": street_name,
+            "street": "showdown" if not self.state.status else street_name,
             # Current action
             "current_actor_index": actor_index,
             "allowed_actions": allowed_actions,
@@ -690,6 +692,7 @@ class PokerEngineAdapter:
             # Configuration
             "player_count": self.player_count,
             "starting_stacks": self.starting_stacks,
+            "pre_showdown_stacks": self._pre_showdown_stacks,
             "small_blind": self.small_blind,
             "big_blind": self.big_blind,
             "mode": self.mode.value,
@@ -746,8 +749,10 @@ class PokerEngineAdapter:
         adapter._deck = data.get("deck", [])
 
         # Restore pre-showdown stacks if available
-        if data.get("stacks") is not None:
-            adapter._pre_showdown_stacks = list(data["stacks"])
+        if data.get("pre_showdown_stacks") is not None:
+            adapter._pre_showdown_stacks = list(data["pre_showdown_stacks"])
+        else:
+            adapter._pre_showdown_stacks = list(data.get("starting_stacks", []))
 
         # Restore hole cards
         if data.get("hole_cards"):
