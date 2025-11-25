@@ -12,6 +12,8 @@ cache even after it was marked ENDED, causing the same hand to be reused.
 
 import pytest
 import pytest_asyncio
+from datetime import datetime, timezone
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from telegram_poker_bot.shared.models import (
@@ -112,7 +114,7 @@ async def test_complete_inter_hand_creates_new_hand_with_incremented_hand_no(
 
     # Simulate hand completion - mark as INTER_HAND_WAIT
     runtime.current_hand.status = HandStatus.INTER_HAND_WAIT
-    runtime.inter_hand_wait_start = None  # Will be set by actual code
+    runtime.inter_hand_wait_start = datetime.now(timezone.utc)
     await db_session.flush()
     await db_session.commit()
 
@@ -139,8 +141,6 @@ async def test_complete_inter_hand_creates_new_hand_with_incremented_hand_no(
     assert runtime.engine is not None
 
     # Verify old hand is ENDED in database
-    from sqlalchemy import select
-
     result = await db_session.execute(select(Hand).where(Hand.id == hand1_id))
     old_hand = result.scalar_one()
     assert old_hand.status == HandStatus.ENDED
