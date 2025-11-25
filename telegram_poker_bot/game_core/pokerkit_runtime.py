@@ -1242,6 +1242,13 @@ class PokerKitTableRuntimeManager:
             runtime = PokerKitTableRuntime(table, seats)
             self._tables[table_id] = runtime
 
+        # Ensure current_hand is bound to the active session to avoid detached
+        # instances when cached runtimes are reused across requests. Without
+        # reloading, operations like expire() can fail because the Hand object
+        # was loaded in a different session.
+        if runtime.current_hand is not None:
+            runtime.current_hand = await db.get(Hand, runtime.current_hand.id)
+
         # Load engine state from DB if not already loaded in this worker
         # This ensures first access gets DB state, subsequent calls reuse in-memory state
         if runtime.engine is None:
