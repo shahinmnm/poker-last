@@ -498,15 +498,13 @@ class PokerKitTableRuntime:
         Returns:
             Current or new Hand record
         """
-        # CRITICAL FIX: Use populate_existing=True to bypass SQLAlchemy's identity map cache
-        # This prevents returning stale Hand objects that were modified earlier in the same
-        # session (e.g., status set to ENDED). This ensures we always get fresh data from DB.
+        # Force SQLAlchemy to refresh cached objects from database instead of returning stale cached instances
         result = await db.execute(
             select(Hand)
             .where(Hand.table_id == self.table.id, Hand.status != HandStatus.ENDED)
             .order_by(Hand.hand_no.desc())
             .limit(1)
-            .execution_options(populate_existing=True)  # Force refresh from DB
+            .execution_options(populate_existing=True)
         )
         hand = result.scalar_one_or_none()
 
@@ -1388,8 +1386,7 @@ class PokerKitTableRuntimeManager:
 
             await db.flush()
 
-            # CRITICAL FIX: Expire the Hand object from session cache
-            # This ensures subsequent queries don't return this stale object
+            # Expire Hand object from SQLAlchemy session to prevent returning stale cached data
             db.expire(runtime.current_hand)
 
             # Clear runtime state to force creation of new hand
