@@ -537,7 +537,7 @@ export default function TablePage() {
   }, [tableId]) // Only depend on tableId, not the fetch functions (which are stable via useCallback)
 
   // WebSocket connection with stable hook
-  useTableWebSocket({
+  const { waitForConnection } = useTableWebSocket({
     tableId: tableId || '',
     enabled: !!tableId,
     onMessage: useCallback((payload: any) => {
@@ -547,6 +547,8 @@ export default function TablePage() {
         table_id: payload?.table_id,
         current_actor: payload?.current_actor,
         status: payload?.status,
+        inter_hand_wait: payload?.inter_hand_wait,
+        ready_players: payload?.ready_players,
         // Only log full payload for specific message types
         ...(payload?.type === 'hand_ended' || payload?.type === 'table_ended' ? { payload } : {}),
       })
@@ -575,7 +577,10 @@ export default function TablePage() {
         console.log('[Table WebSocket] Hand ended event received:', {
           winners: payload.winners,
           pot_total: payload.pot_total,
+          total_pot: payload.total_pot,
           next_hand_in: payload.next_hand_in,
+          inter_hand_wait_deadline: payload.inter_hand_wait_deadline,
+          status: payload.status,
         })
         // Update state to show inter-hand phase with winner information
         const winners = payload.winners && payload.winners.length > 0 ? payload.winners : null
@@ -586,7 +591,9 @@ export default function TablePage() {
             status: 'INTER_HAND_WAIT',
             inter_hand_wait: true,
             inter_hand_wait_seconds: payload.next_hand_in ?? 20,
+            inter_hand_wait_deadline: payload.inter_hand_wait_deadline ?? null,
             hand_result: winners ? { winners } : previous.hand_result,
+            ready_players: [], // Reset ready players on hand_ended
           }
         })
         // Update lastHandResult for the winner showcase
@@ -628,6 +635,7 @@ export default function TablePage() {
         allowed_actions: payload.allowed_actions,
         hand_id: payload.hand_id,
         inter_hand_wait: payload.inter_hand_wait,
+        ready_players: payload.ready_players,
       })
 
       // Check if table has expired
@@ -718,6 +726,20 @@ export default function TablePage() {
     }
     try {
       setIsSeating(true)
+      
+      // CRITICAL FIX: Wait for WebSocket to be connected BEFORE sitting
+      // This ensures the player's WebSocket will receive the broadcast
+      // when the server sends the updated table state after sitting
+      console.log('[Table] Waiting for WebSocket connection before sitting...')
+      const connected = await waitForConnection(5000)
+      
+      if (!connected) {
+        console.warn('[Table] WebSocket not connected, proceeding anyway...')
+        // Still proceed - the state will be fetched via REST
+      } else {
+        console.log('[Table] WebSocket connected, proceeding to sit')
+      }
+      
       await apiFetch(`/tables/${tableId}/sit`, {
         method: 'POST',
         initData,
@@ -855,7 +877,28 @@ export default function TablePage() {
   const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
   const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
-  const isInterHand = normalizedStatus === 'inter_hand_wait' || liveState?.inter_hand_wait
+  // Robust inter-hand detection: check multiple conditions
+  const isInterHand = Boolean(
+    normalizedStatus === 'inter_hand_wait' || 
+    liveState?.inter_hand_wait === true ||
+    liveState?.status?.toLowerCase() === 'inter_hand_wait'
+  )
+  
+  // Log inter-hand state for debugging
+  useEffect(() => {
+    if (liveState) {
+      console.log('[Table] Inter-hand state check:', {
+        isInterHand,
+        normalizedStatus,
+        liveState_inter_hand_wait: liveState.inter_hand_wait,
+        liveState_status: liveState.status,
+        has_hand_result: lastHandResult !== null,
+        ready_players: liveState.ready_players,
+        heroId,
+      })
+    }
+  }, [isInterHand, normalizedStatus, liveState?.inter_hand_wait, liveState?.status, lastHandResult, liveState?.ready_players, heroId, liveState])
+  
   const inviteUrl = tableDetails?.invite?.game_id
     ? `${window.location.origin}/table/${tableDetails.invite.game_id}`
     : tableDetails?.table_id
