@@ -452,6 +452,9 @@ class PokerKitTableRuntime:
             "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)
             "status": "INTER_HAND_WAIT",
             "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
+            # CRITICAL: Include allowed_actions so frontend shows "Ready" button
+            # All seated players can signal ready during inter-hand phase
+            "allowed_actions": [{"action_type": "ready"}],
         }
 
         # Step 5: Lifecycle Check - Should table self-destruct?
@@ -475,6 +478,9 @@ class PokerKitTableRuntime:
             "Hand completion finished - returning hand_ended event",
             table_id=self.table.id,
             hand_no=self.hand_no,
+            has_allowed_actions=bool(hand_ended_event.get("allowed_actions")),
+            allowed_actions=hand_ended_event.get("allowed_actions"),
+            winners_count=len(hand_ended_event.get("winners", [])),
         )
 
         return hand_ended_event

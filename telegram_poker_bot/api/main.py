@@ -244,6 +244,11 @@ class ConnectionManager:
                 recipient_count=connection_count,
                 winners=message.get("winners", []),
                 pot_total=message.get("pot_total"),
+                allowed_actions=message.get("allowed_actions"),
+                has_ready_action=any(
+                    a.get("action_type") == "ready"
+                    for a in (message.get("allowed_actions") or [])
+                ),
             )
 
         disconnected = []

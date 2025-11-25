@@ -584,9 +584,15 @@ export default function TablePage() {
           next_hand_in: payload.next_hand_in,
           inter_hand_wait_deadline: payload.inter_hand_wait_deadline,
           status: payload.status,
+          allowed_actions: payload.allowed_actions,
+          has_allowed_actions: !!payload.allowed_actions,
         })
         // Update state to show inter-hand phase with winner information
         const winners = payload.winners && payload.winners.length > 0 ? payload.winners : null
+        // Extract allowed_actions from hand_ended event for ready button
+        const allowedActions = Array.isArray(payload.allowed_actions) 
+          ? payload.allowed_actions 
+          : []
         setLiveState((previous) => {
           if (!previous) return previous
           return {
@@ -597,6 +603,7 @@ export default function TablePage() {
             inter_hand_wait_deadline: payload.inter_hand_wait_deadline ?? null,
             hand_result: winners ? { winners } : previous.hand_result,
             ready_players: [], // Reset ready players on hand_ended
+            allowed_actions: allowedActions, // Include allowed_actions for ready button
           }
         })
         // Update lastHandResult for the winner showcase
