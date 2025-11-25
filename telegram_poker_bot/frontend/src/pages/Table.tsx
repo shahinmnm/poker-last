@@ -213,6 +213,9 @@ export default function TablePage() {
   const lastHandResultRef = useRef<LiveTableState['hand_result'] | null>(null)
   const lastCompletedHandIdRef = useRef<number | null>(null)
   const lastHandResultHandIdRef = useRef<number | null>(null)
+  
+  // Track inter-hand state for logging only when it changes
+  const prevIsInterHandRef = useRef<boolean | null>(null)
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true })
@@ -884,20 +887,23 @@ export default function TablePage() {
     liveState?.status?.toLowerCase() === 'inter_hand_wait'
   )
   
-  // Log inter-hand state for debugging
+  // Log inter-hand state only when isInterHand actually changes (not on every render)
   useEffect(() => {
-    if (liveState) {
-      console.log('[Table] Inter-hand state check:', {
+    // Only log when isInterHand changes from previous value
+    if (prevIsInterHandRef.current !== isInterHand) {
+      console.log('[Table] Inter-hand state changed:', {
         isInterHand,
+        previous: prevIsInterHandRef.current,
         normalizedStatus,
-        liveState_inter_hand_wait: liveState.inter_hand_wait,
-        liveState_status: liveState.status,
+        liveState_inter_hand_wait: liveState?.inter_hand_wait,
+        liveState_status: liveState?.status,
         has_hand_result: lastHandResult !== null,
-        ready_players: liveState.ready_players,
+        ready_players: liveState?.ready_players,
         heroId,
       })
+      prevIsInterHandRef.current = isInterHand
     }
-  }, [isInterHand, normalizedStatus, liveState?.inter_hand_wait, liveState?.status, lastHandResult, liveState?.ready_players, heroId, liveState])
+  }, [isInterHand, normalizedStatus, liveState?.inter_hand_wait, liveState?.status, lastHandResult, liveState?.ready_players, heroId])
   
   const inviteUrl = tableDetails?.invite?.game_id
     ? `${window.location.origin}/table/${tableDetails.invite.game_id}`

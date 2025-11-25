@@ -206,6 +206,9 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
    */
   const waitForConnection = useCallback(async (timeoutMs = 5000): Promise<boolean> => {
     const startTime = Date.now()
+    // Polling interval: 100ms provides good balance between responsiveness
+    // (user won't notice <100ms delay) and resource usage (only 10 checks/sec)
+    const pollIntervalMs = 100
     
     // If already connected, return immediately
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -231,7 +234,7 @@ export function useTableWebSocket(options: UseTableWebSocketOptions): UseTableWe
         }
         
         // Continue polling
-        setTimeout(checkConnection, 100)
+        setTimeout(checkConnection, pollIntervalMs)
       }
       
       checkConnection()
