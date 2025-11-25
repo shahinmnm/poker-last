@@ -498,12 +498,13 @@ class PokerKitTableRuntime:
         Returns:
             Current or new Hand record
         """
-        # Query for active hand
+        # Force SQLAlchemy to refresh cached objects from database instead of returning stale cached instances
         result = await db.execute(
             select(Hand)
             .where(Hand.table_id == self.table.id, Hand.status != HandStatus.ENDED)
             .order_by(Hand.hand_no.desc())
             .limit(1)
+            .execution_options(populate_existing=True)
         )
         hand = result.scalar_one_or_none()
 
@@ -1384,6 +1385,9 @@ class PokerKitTableRuntimeManager:
             runtime.table.last_action_at = datetime.now(timezone.utc)
 
             await db.flush()
+
+            # Expire Hand object from SQLAlchemy session to prevent returning stale cached data
+            db.expire(runtime.current_hand)
 
             # Clear runtime state to force creation of new hand
             # This prevents load_or_create_hand from reusing the ENDED hand
