@@ -868,6 +868,11 @@ class PokerKitTableRuntime:
 
         actor_index = self.engine.state.actor_index
 
+        if actor_index is None:
+            raise NoActorToActError(
+                "No player to act; hand is complete or waiting for next hand."
+            )
+
         # Log current state before action
         logger.info(
             "Action requested",
@@ -885,21 +890,6 @@ class PokerKitTableRuntime:
             ),
             street_index=self.engine.state.street_index,
         )
-
-        # Auto-advance if actor_index is None (betting round complete)
-        if actor_index is None:
-            logger.info(
-                "No current actor - attempting auto-advance",
-                table_id=self.table.id,
-                hand_no=self.hand_no,
-            )
-            self._auto_advance_street_and_showdown()
-            actor_index = self.engine.state.actor_index
-
-        if actor_index is None:
-            raise NoActorToActError(
-                "No player to act; hand is complete or waiting for next hand."
-            )
 
         if player_index != actor_index:
             raise ValueError(
@@ -950,7 +940,8 @@ class PokerKitTableRuntime:
 
         # Check if hand is complete
         if self.engine.is_hand_complete():
-            winners = self.engine.get_winners()
+            winners_iter = self.engine.get_winners()
+            winners = list(winners_iter)
 
             # Convert player indices back to user IDs
             user_id_by_index = {
@@ -1162,7 +1153,11 @@ class PokerKitTableRuntime:
             "last_action": None,
             "allowed_actions": allowed_actions,
             "ready_players": list(self.ready_players),
+            "hand_complete": poker_state["status"] == "complete",
         }
+
+        if payload["hand_complete"]:
+            payload["allowed_actions"] = {}
 
         if self.last_hand_result and (not self.engine or not self.engine.state.status):
             payload["hand_result"] = self.last_hand_result
