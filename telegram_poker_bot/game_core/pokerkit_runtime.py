@@ -1033,6 +1033,17 @@ class PokerKitTableRuntime:
         if actor_index is not None:
             current_actor_user_id = user_id_by_index.get(actor_index)
 
+        # Determine showdown winners for hole-card visibility
+        winner_user_ids: Set[int] = set()
+        if self.last_hand_result:
+            winner_user_ids = {
+                winner.get("user_id")
+                for winner in self.last_hand_result.get("winners", [])
+                if winner.get("user_id") is not None
+            }
+
+        is_showdown = poker_state.get("street") == "showdown"
+
         # Build player list
         players = []
         for player in poker_state["players"]:
@@ -1040,6 +1051,13 @@ class PokerKitTableRuntime:
             user_id = user_id_by_index[player_idx]
             seat = seat_by_user_id.get(user_id)
             acted = actor_index is None or actor_index != player_idx
+
+            hole_cards: List[str] = []
+            if player.get("hole_cards") and (
+                user_id == viewer_user_id
+                or (is_showdown and user_id in winner_user_ids)
+            ):
+                hole_cards = player.get("hole_cards", [])
 
             players.append(
                 {
@@ -1056,7 +1074,7 @@ class PokerKitTableRuntime:
                     "is_sitting_out_next_hand": (
                         seat.is_sitting_out_next_hand if seat else False
                     ),
-                    "hole_cards": player.get("hole_cards", []),
+                    "hole_cards": hole_cards,
                 }
             )
 
