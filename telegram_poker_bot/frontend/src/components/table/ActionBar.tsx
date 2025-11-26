@@ -83,13 +83,13 @@ export default function ActionBar({
   }
 
   return (
-    <div className="px-3 pb-3 sm:px-5">
-      <div className="space-y-3 bg-white/30 p-4 shadow-[0_-12px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/30 backdrop-blur-2xl">
+    <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-3 sm:px-5">
+      <div className="rounded-3xl border border-white/10 bg-black/70 p-4 shadow-2xl backdrop-blur-xl">
         {sliderActive && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[13px] text-black/70">
-              <span className="font-semibold uppercase tracking-wide">{t('table.actionBar.adjustLabel')}</span>
-              <span className="font-bold text-emerald-700">
+          <div className="mb-3 space-y-2">
+            <div className="flex items-center justify-between text-[13px] text-white/80">
+              <span className="font-medium">{t('table.actionBar.adjustLabel')}</span>
+              <span className="font-semibold text-emerald-100">
                 {t('table.actionBar.currentBet', {
                   amount: formatNumber(betAmount),
                   defaultValue: `${formatNumber(betAmount)} chips`,
@@ -105,7 +105,7 @@ export default function ActionBar({
               disabled={isProcessing || !isMyTurn}
               className="poker-slider"
               style={{
-                background: `linear-gradient(90deg, rgba(16,185,129,0.9) ${sliderPercent}%, rgba(255,255,255,0.35) ${sliderPercent}%)`,
+                background: `linear-gradient(90deg, #00C98D ${sliderPercent}%, #0f1f14 ${sliderPercent}%)`,
               }}
             />
             <div className="flex flex-wrap gap-2 text-[12px]">
@@ -113,7 +113,7 @@ export default function ActionBar({
                 type="button"
                 onClick={() => setQuickAmount(0.5)}
                 disabled={isProcessing || !isMyTurn}
-                className="rounded-lg border border-white/50 bg-white/50 px-3 py-2 font-semibold text-black shadow-inner transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-white/10 bg-[#222222]/70 px-3 py-2 font-semibold text-white shadow-inner transition hover:border-emerald-400/60 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t('table.actionBar.presets.halfPot')}
               </button>
@@ -121,7 +121,7 @@ export default function ActionBar({
                 type="button"
                 onClick={() => setQuickAmount(1)}
                 disabled={isProcessing || !isMyTurn}
-                className="rounded-lg border border-white/50 bg-white/50 px-3 py-2 font-semibold text-black shadow-inner transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-white/10 bg-[#222222]/70 px-3 py-2 font-semibold text-white shadow-inner transition hover:border-emerald-400/60 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t('table.actionBar.presets.pot')}
               </button>
@@ -129,7 +129,7 @@ export default function ActionBar({
                 type="button"
                 onClick={() => setQuickAmount(2)}
                 disabled={isProcessing || !isMyTurn}
-                className="rounded-lg border border-white/50 bg-white/50 px-3 py-2 font-semibold text-black shadow-inner transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-white/10 bg-[#222222]/70 px-3 py-2 font-semibold text-white shadow-inner transition hover:border-emerald-400/60 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t('table.actionBar.presets.max')}
               </button>
@@ -142,7 +142,7 @@ export default function ActionBar({
             type="button"
             onClick={() => foldAction && onAction('fold')}
             disabled={isProcessing || !foldAction || !isMyTurn}
-            className="h-12 rounded-xl bg-[#F87171] text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-14 rounded-xl bg-[#D9534F] text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {t('table.actionBar.fold')}
           </button>
@@ -151,7 +151,7 @@ export default function ActionBar({
             type="button"
             onClick={() => canCheckOrCall && onAction(checkAction ? 'check' : 'call', callAction?.amount)}
             disabled={isProcessing || !canCheckOrCall || !isMyTurn}
-            className="h-12 rounded-xl bg-black/70 text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-14 rounded-xl bg-[#222222] text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {checkAction ? t('table.actionBar.check') : callLabel}
           </button>
@@ -160,7 +160,7 @@ export default function ActionBar({
             type="button"
             onClick={handleBetRaise}
             disabled={isProcessing || !betAction || !isMyTurn}
-            className="h-12 rounded-xl bg-emerald-400 text-sm font-bold uppercase tracking-wide text-[#0b2318] shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-14 rounded-xl bg-[#00C98D] text-sm font-bold uppercase tracking-wide text-[#0b2318] shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {betLabel}
           </button>
