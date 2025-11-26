@@ -20,9 +20,11 @@ import TableExpiredModal from '../components/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
-import ActionDock from '@/components/game/ActionDock'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
-import SmartTableHeader from '../components/tables/SmartTableHeader'
+import PlayerHeader from '@/components/table/PlayerHeader'
+import PotDisplay from '@/components/table/PotDisplay'
+import CommunityCards from '@/components/table/CommunityCards'
+import ActionBar from '@/components/table/ActionBar'
 import PlayerAvatar from '../components/tables/PlayerAvatar'
 import type {
   AllowedAction,
@@ -879,6 +881,18 @@ export default function TablePage() {
   const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
   const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
+  const potDisplayAmount = useMemo(() => {
+    if (typeof liveState?.pot === 'number') return liveState.pot
+    if (liveState?.pots?.length) {
+      return liveState.pots.reduce((sum, pot) => sum + (pot.amount ?? 0), 0)
+    }
+    return 0
+  }, [liveState?.pot, liveState?.pots])
+  const winningBoardCards = useMemo(
+    () =>
+      liveState?.hand_result?.winners?.flatMap((winner) => winner.best_hand_cards ?? []) ?? [],
+    [liveState?.hand_result?.winners],
+  )
   const showdownCardsByPlayer = useMemo(() => {
     const lookup = new Map<string, string[]>()
     if (heroIdString && heroCards.length) {
@@ -934,11 +948,6 @@ export default function TablePage() {
     }
   }, [isInterHand, normalizedStatus, liveState?.inter_hand_wait, liveState?.status, lastHandResult, liveState?.ready_players, heroId])
   
-  const inviteUrl = tableDetails?.invite?.game_id
-    ? `${window.location.origin}/table/${tableDetails.invite.game_id}`
-    : tableDetails?.table_id
-      ? `${window.location.origin}/table/${tableDetails.table_id}`
-      : ''
   const isMyTurn =
     isPlaying && heroIdString !== null && currentActorUserId?.toString() === heroIdString
   const actionableAllowedActions = isMyTurn ? allowedActions : []
@@ -1186,22 +1195,17 @@ export default function TablePage() {
       currentActorUserId &&
       actionableAllowedActions.length > 0
     ) {
-      const potSize =
-        typeof liveState.pot === 'number'
-          ? liveState.pot
-          : (liveState as { pot?: { total?: number } }).pot?.total ??
-            (liveState.pots?.reduce((sum, pot) => sum + (pot.amount ?? 0), 0) ?? 0)
       console.log('[Table ActionDock] Showing action controls:', {
         allowedActionsCount: actionableAllowedActions.length,
         isMyTurn,
-        potSize,
+        potSize: potDisplayAmount,
         heroStack: heroPlayer?.stack,
       })
       return (
-        <ActionDock
+        <ActionBar
           allowedActions={actionableAllowedActions}
           onAction={handleGameAction}
-          potSize={potSize}
+          potSize={potDisplayAmount}
           myStack={heroPlayer?.stack ?? 0}
           isProcessing={actionPending || loading}
           isMyTurn={isMyTurn}
@@ -1237,94 +1241,89 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <SmartTableHeader
-        tableId={tableDetails.table_id}
-        status={liveState?.status ?? tableDetails.status}
-        smallBlind={tableDetails.small_blind}
-        bigBlind={tableDetails.big_blind}
-        hostName={tableDetails.host?.display_name || tableDetails.host?.username}
-        createdAt={tableDetails.created_at}
-        inviteUrl={inviteUrl}
-        onLeave={canLeave ? handleLeave : undefined}
-      />
-
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-3 pb-28 pt-4 sm:px-6">
       {/* Arena - Game Content */}
       {liveState ? (
-        <div className="absolute inset-0" style={{ paddingTop: '80px', paddingBottom: viewerIsSeated ? '80px' : '0' }}>
-          
-          {/* Inter-Hand Wait Overlay */}
-          {isInterHand ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/50 backdrop-blur-sm">
-              <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
-              <div className="mt-6">
-                <InterHandVoting
-                  players={liveState.players}
-                  readyPlayerIds={readyPlayerIds}
-                  deadline={liveState.inter_hand_wait_deadline}
-                  durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
-                  onReady={handleReady}
-                  isReady={heroIdString !== null && readyPlayerIds.includes(heroIdString)}
-                />
+        <div className="flex flex-1 flex-col gap-4">
+          <div className="mx-auto w-full max-w-4xl">
+            <PlayerHeader
+              playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
+              chipCount={heroPlayer?.stack ?? 0}
+              tableLabel={t('table.actionBar.tableBadge', { id: tableDetails.table_id })}
+              isMyTurn={isMyTurn}
+            />
+          </div>
+
+          <div
+            className="relative flex-1 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-inner backdrop-blur-sm"
+            style={{ paddingTop: '72px', paddingBottom: viewerIsSeated ? '140px' : '96px' }}
+          >
+            {isInterHand ? (
+              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+                <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
+                <div className="mt-6">
+                  <InterHandVoting
+                    players={liveState.players}
+                    readyPlayerIds={readyPlayerIds}
+                    deadline={liveState.inter_hand_wait_deadline}
+                    durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
+                    onReady={handleReady}
+                    isReady={heroIdString !== null && readyPlayerIds.includes(heroIdString)}
+                  />
+                </div>
               </div>
-            </div>
-          ) : (
-            <>
-              {/* Villains - 8-Player Ring Layout */}
-              <div className="absolute inset-0 pointer-events-none" style={{ paddingTop: '80px', paddingBottom: '80px' }}>
-                {liveState.players
-                  .filter((p) => p.user_id !== heroId)
-                  .map((player, index) => {
-                    const isActor = player.user_id?.toString() === currentActorUserId?.toString()
-                    const isLastActor = liveState.last_action?.user_id?.toString() === player.user_id?.toString()
-                    const totalOthers = liveState.players.filter((p) => p.user_id !== heroId).length
-                    
-                    // Compute position in a ring layout (excluding hero at bottom)
-                    // For up to 7 other players, arrange in semicircle from left to right
-                    const angle = totalOthers > 1 
-                      ? (Math.PI / (totalOthers + 1)) * (index + 1) // spread across top half
-                      : Math.PI / 2 // single opponent at top center
-                    
-                    const radiusX = 42 // horizontal radius percentage
-                    const radiusY = 38 // vertical radius percentage
-                    const left = 50 + radiusX * Math.cos(angle)
-                    const top = 50 - radiusY * Math.sin(angle)
+            ) : (
+              <>
+                <div className="absolute inset-0 pointer-events-none" style={{ paddingTop: '80px', paddingBottom: '120px' }}>
+                  {liveState.players
+                    .filter((p) => p.user_id !== heroId)
+                    .map((player, index) => {
+                      const isActor = player.user_id?.toString() === currentActorUserId?.toString()
+                      const isLastActor = liveState.last_action?.user_id?.toString() === player.user_id?.toString()
+                      const totalOthers = liveState.players.filter((p) => p.user_id !== heroId).length
 
-                    const getLastActionText = () => {
-                      if (!isLastActor || !liveState.last_action) return null
-                      const action = liveState.last_action.action
-                      const amount = liveState.last_action.amount
+                      const angle = totalOthers > 1
+                        ? (Math.PI / (totalOthers + 1)) * (index + 1)
+                        : Math.PI / 2
 
-                      if (action === 'fold') return t('table.actions.lastAction.fold')
-                      if (action === 'check') return t('table.actions.lastAction.check')
-                      if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
-                      if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
-                      if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
-                      if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
-                      return null
-                    }
+                      const radiusX = 42
+                      const radiusY = 38
+                      const left = 50 + radiusX * Math.cos(angle)
+                      const top = 50 - radiusY * Math.sin(angle)
 
-                    const lastActionText = getLastActionText()
-                    
-                    // Determine position label (BTN, SB, BB)
-                    const positionLabel = player.is_button ? 'BTN' : player.is_small_blind ? 'SB' : player.is_big_blind ? 'BB' : undefined
+                      const getLastActionText = () => {
+                        if (!isLastActor || !liveState.last_action) return null
+                        const action = liveState.last_action.action
+                        const amount = liveState.last_action.amount
 
-                    const playerCards = showdownCardsByPlayer.get(player.user_id.toString()) ?? []
-                    const winningHand = liveState.hand_result?.winners?.find(
-                      (winner) => winner.user_id?.toString() === player.user_id.toString(),
-                    )
-                    
-                    // Determine status
-                    const playerStatus = player.is_sitting_out_next_hand 
-                      ? 'sit_out' 
-                      : !player.in_hand && liveState.hand_id 
-                        ? 'folded' 
-                        : liveState.hand_id 
-                          ? 'active' 
-                          : 'waiting'
+                        if (action === 'fold') return t('table.actions.lastAction.fold')
+                        if (action === 'check') return t('table.actions.lastAction.check')
+                        if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
+                        if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
+                        if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
+                        if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
+                        return null
+                      }
 
-                    return (
-                      <div
-                        key={`villain-${player.user_id}`}
+                      const lastActionText = getLastActionText()
+                      const positionLabel = player.is_button ? 'BTN' : player.is_small_blind ? 'SB' : player.is_big_blind ? 'BB' : undefined
+
+                      const playerCards = showdownCardsByPlayer.get(player.user_id.toString()) ?? []
+                      const winningHand = liveState.hand_result?.winners?.find(
+                        (winner) => winner.user_id?.toString() === player.user_id.toString(),
+                      )
+
+                      const playerStatus = player.is_sitting_out_next_hand
+                        ? 'sit_out'
+                        : !player.in_hand && liveState.hand_id
+                          ? 'folded'
+                          : liveState.hand_id
+                            ? 'active'
+                            : 'waiting'
+
+                      return (
+                        <div
+                          key={`villain-${player.user_id}`}
                           ref={(el) => {
                             const playerKey = player.user_id.toString()
                             if (el) {
@@ -1333,119 +1332,70 @@ export default function TablePage() {
                               playerTileRefs.current.delete(playerKey)
                             }
                           }}
-                        className="absolute pointer-events-auto"
-                        style={{
-                          left: `${left}%`,
-                          top: `${top}%`,
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <PlayerAvatar
-                            name={player.display_name || player.username || `P${(player.seat ?? player.position ?? 0) + 1}`}
-                            stack={player.stack}
-                            isActive={Boolean(isActor && player.in_hand)}
-                            hasFolded={!player.in_hand}
-                            betAmount={player.bet}
-                            deadline={isActor ? liveState.action_deadline : null}
-                            turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                            size="sm"
-                            offsetTop={top < 50}
-                            seatNumber={player.seat ?? player.position}
-                            positionLabel={positionLabel}
-                            lastAction={lastActionText}
-                            isSittingOut={player.is_sitting_out_next_hand}
-                            status={playerStatus}
-                            isAllIn={Boolean(player.is_all_in || player.stack <= 0)}
-                          />
-                          {lastActionText && player.in_hand && (
-                            <p className="text-[8px] font-semibold text-emerald-300 uppercase tracking-wide">
-                              {lastActionText}
-                            </p>
-                          )}
-                          {playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown') && (
-                            <div className="mt-1 flex gap-1">
-                              {playerCards.map((card, idx) => {
-                                const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
-                                return (
-                                  <PlayingCard
-                                    key={`villain-card-${player.user_id}-${card}-${idx}`}
-                                    card={card}
-                                    size="sm"
-                                    highlighted={isWinningCard}
-                                  />
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-
-              {/* Board Center - Pot & Community Cards */}
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
-                <div className="flex flex-col items-center gap-4">
-                  {/* Pot - Stacked Chip Glass Capsule */}
-                  <div 
-                    className="rounded-full backdrop-blur-xl bg-black/70 px-4 py-2 border border-amber-500/40 shadow-2xl transition-transform duration-150" 
-                    ref={potAreaRef}
-                    style={{
-                      boxShadow: '0 0 20px rgba(245, 158, 11, 0.15), 0 4px 12px rgba(0, 0, 0, 0.4)',
-                    }}
-                  >
-                    {liveState.pots && liveState.pots.length > 1 ? (
-                      <div className="text-center">
-                        <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-bold mb-0.5">{t('table.pots.title', { defaultValue: 'Pots' })}</p>
-                        <div className="space-y-0.5">
-                          {liveState.pots.map((pot, idx) => {
-                            const potIndex = pot.pot_index ?? idx
-                            return (
-                              <div key={potIndex} className="flex items-baseline justify-center gap-1.5">
-                                <span className="text-[9px] text-gray-400">#{idx + 1}</span>
-                                <span className="text-sm font-bold text-emerald-400">{pot.amount}</span>
+                          className="absolute pointer-events-auto"
+                          style={{
+                            left: `${left}%`,
+                            top: `${top}%`,
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <PlayerAvatar
+                              name={player.display_name || player.username || `P${(player.seat ?? player.position ?? 0) + 1}`}
+                              stack={player.stack}
+                              isActive={Boolean(isActor && player.in_hand)}
+                              hasFolded={!player.in_hand}
+                              betAmount={player.bet}
+                              deadline={isActor ? liveState.action_deadline : null}
+                              turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                              size="sm"
+                              offsetTop={top < 50}
+                              seatNumber={player.seat ?? player.position}
+                              positionLabel={positionLabel}
+                              lastAction={lastActionText}
+                              isSittingOut={player.is_sitting_out_next_hand}
+                              status={playerStatus}
+                              isAllIn={Boolean(player.is_all_in || player.stack <= 0)}
+                            />
+                            {lastActionText && player.in_hand && (
+                              <p className="text-[8px] font-semibold text-emerald-300 uppercase tracking-wide">
+                                {lastActionText}
+                              </p>
+                            )}
+                            {playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown') && (
+                              <div className="mt-1 flex gap-1">
+                                {playerCards.map((card, idx) => {
+                                  const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
+                                  return (
+                                    <PlayingCard
+                                      key={`villain-card-${player.user_id}-${card}-${idx}`}
+                                      card={card}
+                                      size="sm"
+                                      highlighted={isWinningCard}
+                                    />
+                                  )
+                                })}
                               </div>
-                            )
-                          })}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-center">
-                        <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-bold">{t('table.pot', { amount: '', defaultValue: 'POT' }).replace(/:.*/,'')}</p>
-                        <p className="text-lg font-bold text-emerald-400 leading-tight">{liveState.pot}</p>
-                      </div>
-                    )}
-                  </div>
+                      )
+                    })}
+                </div>
 
-                  {/* Community Cards */}
-                  <div className="flex gap-2">
-                    {liveState.board && liveState.board.length > 0 ? (
-                      liveState.board.map((card, idx) => {
-                        const isWinningCard =
-                          liveState.hand_result?.winners?.some((winner) => winner.best_hand_cards?.includes(card)) ?? false
-                        return <PlayingCard key={`board-${idx}`} card={card} size="sm" highlighted={isWinningCard} />
-                      })
-                    ) : (
-                      <div className="rounded-xl backdrop-blur-md bg-white/5 px-5 py-3 text-xs text-gray-400 border border-white/10">
-                        {t('table.waitingForBoard')}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Hand Result */}
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-4">
+                  <PotDisplay ref={potAreaRef} amount={potDisplayAmount} />
+                  <CommunityCards cards={liveState.board ?? []} highlightedCards={winningBoardCards} />
                   {liveState.hand_result && (
-                    <div className="mt-2">
+                    <div className="mt-1">
                       <HandResultPanel liveState={liveState} currentUserId={heroId} />
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Hero (Bottom Center) */}
-              {heroPlayer && (
-                <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20">
-                  <div
+                {heroPlayer && (
+                  <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
+                    <div
                       ref={(el) => {
                         if (el && heroId) {
                           const heroKey = heroId.toString()
@@ -1455,81 +1405,79 @@ export default function TablePage() {
                           playerTileRefs.current.delete(heroKey)
                         }
                       }}
-                    className="flex flex-col items-center"
-                  >
-                    {/* Hero Cards */}
-                    {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
-                      <div className="flex gap-2.5 mb-3">
-                        {heroCards.map((card, idx) => {
-                          const heroWinner = liveState.hand_result?.winners?.find(
-                            (w) => w.user_id?.toString() === heroIdString,
-                          )
-                          const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                          return (
-                            <div
-                              key={`hero-card-${idx}`}
-                              className="transition-transform"
-                              style={{
-                                transform: idx === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
-                              }}
-                            >
-                              <PlayingCard card={card} size="md" highlighted={isWinningCard} />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-
-                    <PlayerAvatar
-                      name={heroPlayer.display_name || 'You'}
-                      stack={heroPlayer.stack}
-                      isHero
-                      isActive={Boolean(
-                        heroPlayer.in_hand &&
-                        heroPlayer.user_id?.toString() === currentActorUserId?.toString(),
+                      className="flex flex-col items-center"
+                    >
+                      {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
+                        <div className="mb-3 flex gap-2.5">
+                          {heroCards.map((card, idx) => {
+                            const heroWinner = liveState.hand_result?.winners?.find(
+                              (w) => w.user_id?.toString() === heroIdString,
+                            )
+                            const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                            return (
+                              <div
+                                key={`hero-card-${idx}`}
+                                className="transition-transform"
+                                style={{
+                                  transform: idx === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
+                                }}
+                              >
+                                <PlayingCard card={card} size="md" highlighted={isWinningCard} />
+                              </div>
+                            )
+                          })}
+                        </div>
                       )}
-                      hasFolded={!heroPlayer.in_hand}
-                      betAmount={heroPlayer.bet}
-                      deadline={
-                        heroPlayer.user_id?.toString() === currentActorUserId?.toString()
-                          ? liveState.action_deadline
-                          : null
-                      }
-                      turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                      size="md"
-                      seatNumber={heroPlayer.seat ?? heroPlayer.position}
-                      positionLabel={heroPlayer.is_button ? 'BTN' : heroPlayer.is_small_blind ? 'SB' : heroPlayer.is_big_blind ? 'BB' : undefined}
-                      isSittingOut={heroPlayer.is_sitting_out_next_hand}
-                      status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
-                      isAllIn={Boolean(heroPlayer.is_all_in || heroPlayer.stack <= 0)}
-                    />
+
+                      <PlayerAvatar
+                        name={heroPlayer.display_name || 'You'}
+                        stack={heroPlayer.stack}
+                        isHero
+                        isActive={Boolean(
+                          heroPlayer.in_hand &&
+                          heroPlayer.user_id?.toString() === currentActorUserId?.toString(),
+                        )}
+                        hasFolded={!heroPlayer.in_hand}
+                        betAmount={heroPlayer.bet}
+                        deadline={
+                          heroPlayer.user_id?.toString() === currentActorUserId?.toString()
+                            ? liveState.action_deadline
+                            : null
+                        }
+                        turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                        size="md"
+                        seatNumber={heroPlayer.seat ?? heroPlayer.position}
+                        positionLabel={heroPlayer.is_button ? 'BTN' : heroPlayer.is_small_blind ? 'SB' : heroPlayer.is_big_blind ? 'BB' : undefined}
+                        isSittingOut={heroPlayer.is_sitting_out_next_hand}
+                        status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
+                        isAllIn={Boolean(heroPlayer.is_all_in || heroPlayer.stack <= 0)}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </>
+            )}
+          </div>
         </div>
       ) : (
-        /* Waiting Lobby - No Live State Yet */
-        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingTop: '80px' }}>
-          <div className="max-w-md w-full px-6">
-            <div className="backdrop-blur-xl bg-white/5 rounded-3xl border border-white/10 p-8 text-center shadow-2xl">
-              <h2 className="text-2xl font-bold text-white mb-6">
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-md px-6">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-xl">
+              <h2 className="mb-6 text-2xl font-bold text-white">
                 {tableDetails.status === 'waiting' ? t('table.status.waiting') : t('table.status.loading')}
               </h2>
-              
-              {/* Player list in waiting state */}
+
               <div className="mb-8">
-                <p className="text-sm text-white/70 mb-4">
+                <p className="mb-4 text-sm text-white/70">
                   {t('table.meta.players')}: {tableDetails.player_count} / {tableDetails.max_players}
                 </p>
                 <div className="space-y-2.5">
                   {players.map((player) => (
                     <div
                       key={`waiting-${player.user_id}-${player.position}`}
-                      className="flex items-center justify-between backdrop-blur-md bg-white/10 rounded-xl px-4 py-3 border border-white/20 transition-all hover:bg-white/15"
+                      className="flex items-center justify-between rounded-xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-md transition-all hover:bg-white/15"
                     >
-                      <span className="text-white text-sm font-medium">
+                      <span className="text-sm font-medium text-white">
                         {player.display_name || player.username || `Player ${player.position + 1}`}
                       </span>
                       <div className="flex gap-2">
@@ -1549,7 +1497,6 @@ export default function TablePage() {
                 </div>
               </div>
 
-              {/* Action buttons */}
               {viewerIsSeated ? (
                 <div className="space-y-4">
                   <p className="text-sm text-white/60">
@@ -1588,9 +1535,8 @@ export default function TablePage() {
                 </div>
               )}
 
-              {/* Delete button for host */}
               {viewerIsCreator && (
-                <div className="mt-8 pt-6 border-t border-white/20">
+                <div className="mt-8 border-t border-white/20 pt-6">
                   <Button
                     variant="danger"
                     size="sm"
@@ -1625,6 +1571,7 @@ export default function TablePage() {
       />
 
       {renderActionDock()}
-    </PokerFeltBackground>
+    </div>
+  </PokerFeltBackground>
   )
 }

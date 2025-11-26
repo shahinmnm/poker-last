@@ -9,7 +9,10 @@ export default function PokerFeltBackground({ children, className }: PokerFeltBa
   return (
     <div className={`fixed inset-0 h-full w-full overflow-hidden ${className ?? ''}`}>
       {/* Layer 1: Royal Emerald base */}
-      <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at center, #008f58 0%, #003d29 50%, #010b08 100%)' }} />
+      <div
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(circle at center, #134E2A 0%, #0B3A20 55%, #0B3A20 100%)' }}
+      />
 
       {/* Layer 2: Poker suits line art pattern */}
       <svg className="absolute inset-0 h-full w-full" aria-hidden focusable="false" role="presentation">
