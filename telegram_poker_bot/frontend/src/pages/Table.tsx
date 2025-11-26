@@ -24,7 +24,8 @@ import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import PlayerHeader from '@/components/table/PlayerHeader'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
-import PlayerAvatar from '../components/tables/PlayerAvatar'
+import SeatCapsule from '@/components/table/SeatCapsule'
+import { getSeatLayout } from '@/config/tableLayout'
 import type {
   AllowedAction,
   AllowedActionsPayload,
@@ -98,7 +99,6 @@ type LastAction = NonNullable<TableState['last_action']>
 
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
-const DEFAULT_TURN_TIMEOUT_SECONDS = 25
 /**
  * Street names that indicate active gameplay.
  * During gameplay, liveState.status contains the current street name (preflop, flop, turn, river)
@@ -292,17 +292,6 @@ export default function TablePage() {
       return null
     },
     [liveState?.last_action, t],
-  )
-  const heroPositionLabel = useMemo(() => {
-    if (!heroPlayer) return undefined
-    if (heroPlayer.is_button) return 'BTN'
-    if (heroPlayer.is_small_blind) return 'SB'
-    if (heroPlayer.is_big_blind) return 'BB'
-    return undefined
-  }, [heroPlayer])
-  const heroLastAction = useMemo(
-    () => formatLastActionText(heroPlayer?.user_id),
-    [formatLastActionText, heroPlayer?.user_id],
   )
   const normalizeAllowedActions = useCallback(
     (allowed: AllowedActionsPayload | undefined): AllowedAction[] => {
@@ -957,6 +946,32 @@ export default function TablePage() {
     return lookup
   }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
 
+  const heroSeatNumber = heroPlayer?.seat ?? heroPlayer?.position ?? null
+  const totalSeats = useMemo(
+    () => Math.min(Math.max(tableDetails?.max_players ?? liveState?.players?.length ?? 2, 2), 8),
+    [liveState?.players?.length, tableDetails?.max_players],
+  )
+
+  const seatLayout = useMemo(() => getSeatLayout(totalSeats), [totalSeats])
+  const seatOrder = useMemo(() => {
+    const seats = Array.from({ length: totalSeats }, (_, idx) => idx)
+    if (heroSeatNumber === null || heroSeatNumber === undefined) return seats
+
+    const heroIndex = seats.indexOf(heroSeatNumber)
+    if (heroIndex === -1) return seats
+
+    return seats.map((_, idx) => (heroSeatNumber + idx) % totalSeats)
+  }, [heroSeatNumber, totalSeats])
+
+  const playersBySeat = useMemo(() => {
+    const map = new Map<number, TablePlayerState>()
+    liveState?.players?.forEach((player) => {
+      const seatNo = player.seat ?? player.position ?? 0
+      map.set(seatNo, player)
+    })
+    return map
+  }, [liveState?.players])
+
   // Log inter-hand state only when isInterHand actually changes (not on every render)
   useEffect(() => {
     // Only log when isInterHand changes from previous value
@@ -1179,10 +1194,10 @@ export default function TablePage() {
         canStart,
         canJoin,
       })
-      return (
-        <div className="absolute inset-0 flex items-end justify-center pb-12 z-40 pointer-events-none">
-          <div className="flex flex-col items-center gap-4 pointer-events-auto">
-            {viewerIsCreator ? (
+      if (viewerIsCreator) {
+        return (
+          <div className="absolute inset-0 z-40 flex items-end justify-center pb-12 pointer-events-none">
+            <div className="pointer-events-auto flex flex-col items-center gap-4">
               <button
                 type="button"
                 onClick={handleStart}
@@ -1191,24 +1206,22 @@ export default function TablePage() {
               >
                 {isStarting ? t('table.actions.starting') : t('table.actions.start', { defaultValue: 'START GAME' })}
               </button>
-            ) : viewerIsSeated ? (
-              <div className="px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
-                {t('table.messages.waitingForHost')}
-              </div>
-            ) : (
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={handleSeat}
-                disabled={!canJoin || isSeating}
-                className="min-h-[52px] px-8"
-              >
-                {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat', { defaultValue: 'SIT DOWN' })}
-              </Button>
-            )}
+            </div>
           </div>
-        </div>
-      )
+        )
+      }
+
+      if (viewerIsSeated) {
+        return (
+          <div className="absolute inset-0 z-40 flex items-end justify-center pb-12 pointer-events-none">
+            <div className="pointer-events-auto px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
+              {t('table.messages.waitingForHost')}
+            </div>
+          </div>
+        )
+      }
+
+      return null
     }
 
     // Active hand - show action controls when seated and hand is active
@@ -1265,228 +1278,192 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-3 pb-28 pt-4 sm:px-6">
-      {/* Arena - Game Content */}
-      {liveState ? (
-        <div className="flex flex-1 flex-col gap-4">
-          <div className="mx-auto w-full max-w-4xl">
-            <PlayerHeader
-              playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
-              chipCount={heroPlayer?.stack ?? 0}
-              tableLabel={t('table.actionBar.tableBadge', { id: tableDetails.table_id })}
-              isMyTurn={isMyTurn}
-            />
-          </div>
+      <div className="relative flex min-h-screen flex-col px-3 pb-24 pt-5 sm:px-6">
+        {/* Arena - Game Content */}
+        {liveState ? (
+          <div className="flex flex-1 flex-col gap-5">
+            <div className="mx-auto w-full max-w-3xl">
+              <PlayerHeader
+                playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
+                chipCount={heroPlayer?.stack ?? 0}
+                tableLabel={t('table.actionBar.tableBadge', { id: tableDetails.table_id })}
+                isMyTurn={isMyTurn}
+              />
+            </div>
 
-
-          <div className="relative flex-1 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-inner backdrop-blur-md">
-            {isInterHand ? (
-              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-                <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
-                <div className="mt-6">
-                  <InterHandVoting
-                    players={liveState.players}
-                    readyPlayerIds={readyPlayerIds}
-                    deadline={liveState.inter_hand_wait_deadline}
-                    durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
-                    onReady={handleReady}
-                    isReady={heroIdString !== null && readyPlayerIds.includes(heroIdString)}
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            <div className="relative z-10 flex h-full flex-col">
-              <div className="flex flex-col items-center px-4 pt-6">
-                <CommunityBoard
-                  potAmount={potDisplayAmount}
-                  cards={liveState.board ?? []}
-                  highlightedCards={winningBoardCards}
-                  potRef={potAreaRef}
-                />
-                {liveState.hand_result && (
-                  <div className="mt-1">
-                    <HandResultPanel liveState={liveState} currentUserId={heroId} />
+            <div className="relative flex-1">
+              {isInterHand ? (
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+                  <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
+                  <div className="mt-6">
+                    <InterHandVoting
+                      players={liveState.players}
+                      readyPlayerIds={readyPlayerIds}
+                      deadline={liveState.inter_hand_wait_deadline}
+                      durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
+                      onReady={handleReady}
+                      isReady={heroIdString !== null && readyPlayerIds.includes(heroIdString)}
+                    />
                   </div>
-                )}
-              </div>
+                </div>
+              ) : null}
 
-              <div className="relative flex-1">
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{ paddingTop: '56px', paddingBottom: viewerIsSeated ? '176px' : '136px' }}
-                >
-                  {liveState.players
-                    .filter((p) => p.user_id !== heroId)
-                    .map((player, index) => {
-                      const isActor = player.user_id?.toString() === currentActorUserId?.toString()
-                      const totalOthers = liveState.players.filter((p) => p.user_id !== heroId).length
+              <div
+                className="absolute inset-0"
+                style={{ paddingTop: '20px', paddingBottom: viewerIsSeated ? '170px' : '150px' }}
+              >
+                <div className="relative h-full w-full">
+                  <div className="absolute left-1/2 top-[46%] z-20 w-full max-w-[640px] -translate-x-1/2 -translate-y-1/2 px-2 sm:px-4">
+                    <CommunityBoard
+                      potAmount={potDisplayAmount}
+                      cards={liveState.board ?? []}
+                      highlightedCards={winningBoardCards}
+                      potRef={potAreaRef}
+                    />
+                    {liveState.hand_result && (
+                      <div className="mt-1 flex justify-center">
+                        <HandResultPanel liveState={liveState} currentUserId={heroId} />
+                      </div>
+                    )}
+                  </div>
 
-                      const angle = totalOthers > 1
-                        ? (Math.PI / (totalOthers + 1)) * (index + 1)
-                        : Math.PI / 2
+                  {seatLayout.map((slot, layoutIndex) => {
+                    const seatNumber = seatOrder[layoutIndex] ?? layoutIndex
+                    const player = playersBySeat.get(seatNumber)
+                    const playerKey = player?.user_id?.toString()
+                    const isHeroPlayer = heroIdString !== null && playerKey === heroIdString
+                    const isHeroSlot = slot.isHeroPosition
+                    const displayName = player?.display_name || player?.username || (isHeroSlot && !player
+                      ? t('table.actions.takeSeat', { defaultValue: 'Take your seat' })
+                      : t('table.meta.unknown'))
 
-                      const radiusX = 42
-                      const radiusY = 38
-                      const left = 50 + radiusX * Math.cos(angle)
-                      const top = 50 - radiusY * Math.sin(angle)
+                    const positionLabel = player
+                      ? player.is_button
+                        ? 'BTN'
+                        : player.is_small_blind
+                          ? 'SB'
+                          : player.is_big_blind
+                            ? 'BB'
+                            : undefined
+                      : undefined
 
-                      const lastActionText = formatLastActionText(player.user_id)
-                      const positionLabel = player.is_button ? 'BTN' : player.is_small_blind ? 'SB' : player.is_big_blind ? 'BB' : undefined
+                    const lastActionText = player ? formatLastActionText(player.user_id) : null
+                    const playerCards = playerKey ? showdownCardsByPlayer.get(playerKey) ?? [] : []
+                    const isActivePlayer = Boolean(
+                      player?.in_hand && playerKey === currentActorUserId?.toString(),
+                    )
+                    const hasFolded = Boolean(player && !player.in_hand && liveState?.hand_id)
+                    const seatLabel = t('table.seat.label', {
+                      number: seatNumber + 1,
+                      defaultValue: `Seat ${seatNumber + 1}`,
+                    })
+                    const isSittingOut = Boolean(player?.is_sitting_out_next_hand)
+                    const isAllIn = Boolean(player?.is_all_in || (player?.stack ?? 0) <= 0)
+                    const showHeroCards =
+                      isHeroPlayer &&
+                      heroCards.length > 0 &&
+                      liveState.hand_id &&
+                      liveState.status !== 'ended' &&
+                      liveState.status !== 'waiting'
+                    const showShowdownCards =
+                      playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown')
 
-                      const playerCards = showdownCardsByPlayer.get(player.user_id.toString()) ?? []
-                      const winningHand = liveState.hand_result?.winners?.find(
-                        (winner) => winner.user_id?.toString() === player.user_id.toString(),
-                      )
-
-                      const playerStatus = player.is_sitting_out_next_hand
-                        ? 'sit_out'
-                        : !player.in_hand && liveState.hand_id
-                          ? 'folded'
-                          : liveState.hand_id
-                            ? 'active'
-                            : 'waiting'
-
-                      return (
+                    return (
+                      <div
+                        key={`seat-${seatNumber}-${layoutIndex}`}
+                        className="absolute"
+                        style={{
+                          left: `${slot.xPercent}%`,
+                          top: `${slot.yPercent}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      >
                         <div
-                          key={`villain-${player.user_id}`}
+                          className="flex flex-col items-center gap-2"
                           ref={(el) => {
-                            const playerKey = player.user_id.toString()
-                            if (el) {
-                              playerTileRefs.current.set(playerKey, el)
-                            } else {
-                              playerTileRefs.current.delete(playerKey)
+                            if (playerKey) {
+                              if (el) {
+                                playerTileRefs.current.set(playerKey, el)
+                              } else {
+                                playerTileRefs.current.delete(playerKey)
+                              }
                             }
                           }}
-                          className="absolute pointer-events-auto"
-                          style={{
-                            left: `${left}%`,
-                            top: `${top}%`,
-                            transform: 'translate(-50%, -50%)',
-                          }}
                         >
-                          <div className="flex flex-col items-center gap-1">
-                            <PlayerAvatar
-                              name={player.display_name || player.username || `P${(player.seat ?? player.position ?? 0) + 1}`}
-                              stack={player.stack}
-                              isActive={Boolean(isActor && player.in_hand)}
-                              hasFolded={!player.in_hand}
-                              betAmount={player.bet}
-                              deadline={isActor ? liveState.action_deadline : null}
-                              turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                              size="sm"
-                              offsetTop={top < 50}
-                              seatNumber={player.seat ?? player.position}
-                              positionLabel={positionLabel}
-                              lastAction={lastActionText}
-                              isSittingOut={player.is_sitting_out_next_hand}
-                              status={playerStatus}
-                              isAllIn={Boolean(player.is_all_in || player.stack <= 0)}
-                            />
-                            {lastActionText && player.in_hand && (
-                              <p className="text-[8px] font-semibold text-emerald-300 uppercase tracking-wide">
-                                {lastActionText}
-                              </p>
-                            )}
-                            {playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown') && (
-                              <div className="mt-1 flex gap-1">
-                                {playerCards.map((card, idx) => {
-                                  const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
-                                  return (
-                                    <PlayingCard
-                                      key={`villain-card-${player.user_id}-${card}-${idx}`}
-                                      card={card}
-                                      size="sm"
-                                      highlighted={isWinningCard}
-                                    />
-                                  )
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                </div>
+                          {showHeroCards && (
+                            <div className="mb-2 flex gap-2">
+                              {heroCards.map((card, idx) => {
+                                const heroWinner = liveState.hand_result?.winners?.find(
+                                  (w) => w.user_id?.toString() === heroIdString,
+                                )
+                                const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                                return (
+                                  <div
+                                    key={`hero-card-${idx}`}
+                                    className="transition-transform"
+                                    style={{
+                                      transform: idx === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
+                                    }}
+                                  >
+                                    <PlayingCard card={card} size="md" highlighted={isWinningCard} />
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
 
-                {heroPlayer && (
-                  <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
-                    <div
-                      ref={(el) => {
-                        if (el && heroId) {
-                          const heroKey = heroId.toString()
-                          playerTileRefs.current.set(heroKey, el)
-                        } else if (heroId) {
-                          const heroKey = heroId.toString()
-                          playerTileRefs.current.delete(heroKey)
-                        }
-                      }}
-                      className="flex flex-col items-center"
-                    >
-                      {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
-                        <div className="mb-3 flex gap-2.5">
-                          {heroCards.map((card, idx) => {
-                            const heroWinner = liveState.hand_result?.winners?.find(
-                              (w) => w.user_id?.toString() === heroIdString,
-                            )
-                            const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                            return (
-                              <div
-                                key={`hero-card-${idx}`}
-                                className="transition-transform"
-                                style={{
-                                  transform: idx === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
-                                }}
-                              >
-                                <PlayingCard card={card} size="md" highlighted={isWinningCard} />
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                          <SeatCapsule
+                            name={player ? displayName : t('table.seat.empty', { defaultValue: 'Empty seat' })}
+                            stack={player?.stack}
+                            seatLabel={seatLabel}
+                            positionLabel={positionLabel}
+                            isHero={isHeroPlayer}
+                            isActive={isActivePlayer}
+                            hasFolded={hasFolded}
+                            isEmpty={!player}
+                            callToAction={isHeroSlot && !viewerIsSeated}
+                            onSit={!player && canJoin && !viewerIsSeated ? handleSeat : undefined}
+                            disabled={isSeating || !canJoin || viewerIsSeated}
+                            showFoldedLabel={hasFolded}
+                            showYouBadge={isHeroPlayer}
+                            isSittingOut={isSittingOut}
+                            isAllIn={isAllIn}
+                          />
 
-                      <PlayerAvatar
-                        name={heroPlayer.display_name || 'You'}
-                        stack={heroPlayer.stack}
-                        isHero
-                        isActive={Boolean(
-                          heroPlayer.in_hand &&
-                          heroPlayer.user_id?.toString() === currentActorUserId?.toString(),
-                        )}
-                        hasFolded={!heroPlayer.in_hand}
-                        betAmount={heroPlayer.bet}
-                        deadline={
-                          heroPlayer.user_id?.toString() === currentActorUserId?.toString()
-                            ? liveState.action_deadline
-                            : null
-                        }
-                        turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                        size="md"
-                        seatNumber={heroPlayer.seat ?? heroPlayer.position}
-                        positionLabel={heroPositionLabel}
-                        isSittingOut={heroPlayer.is_sitting_out_next_hand}
-                        status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
-                        isAllIn={Boolean(heroPlayer.is_all_in || heroPlayer.stack <= 0)}
-                      />
-                      <div className="mt-2 text-center">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">
-                          {heroPositionLabel}
-                        </p>
-                        {heroLastAction && heroPlayer.in_hand && (
-                          <p className="text-[9px] font-semibold text-emerald-300 uppercase tracking-wide">
-                            {heroLastAction}
-                          </p>
-                        )}
+                          {lastActionText && player?.in_hand && (
+                            <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-300">
+                              {lastActionText}
+                            </p>
+                          )}
+
+                          {showShowdownCards && (
+                            <div className="mt-1 flex gap-1">
+                              {playerCards.map((card, idx) => {
+                                const winningHand = liveState.hand_result?.winners?.find(
+                                  (winner) => winner.user_id?.toString() === playerKey,
+                                )
+                                const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
+                                return (
+                                  <PlayingCard
+                                    key={`villain-card-${playerKey}-${card}-${idx}`}
+                                    card={card}
+                                    size="sm"
+                                    highlighted={isWinningCard}
+                                  />
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-1 items-center justify-center">
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-md px-6">
             <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-xl">
               <h2 className="mb-6 text-2xl font-bold text-white">

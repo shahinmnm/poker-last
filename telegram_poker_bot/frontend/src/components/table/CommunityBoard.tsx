@@ -24,8 +24,11 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
     return () => window.clearTimeout(timer)
   }, [potAmount])
 
+  const cardHeight = 'clamp(92px, 18vw, 128px)'
+  const cardWidth = 'clamp(66px, 14vw, 94px)'
+
   return (
-    <div className="flex w-full flex-col items-center gap-5" style={{ minHeight: '32vh' }}>
+    <div className="flex w-full flex-col items-center gap-4" style={{ minHeight: 'clamp(180px, 26vh, 260px)' }}>
       <div
         ref={potRef}
         className={`relative flex min-w-[11rem] flex-col items-center rounded-full border border-orange-200/50 bg-orange-500/40 px-6 py-3 text-center shadow-[0_0_18px_rgba(255,140,80,0.8)] backdrop-blur-xl transition ${
@@ -38,7 +41,7 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
         <span className="text-2xl font-semibold leading-tight text-orange-50 drop-shadow-sm">{potAmount}</span>
       </div>
 
-      <div className="flex w-full justify-center px-2 sm:px-6">
+      <div className="flex w-full justify-center px-3 sm:px-6">
         <div className="flex items-start justify-center">
           {slots.map((card, index) => {
             const offset = Math.abs(2 - index)
@@ -49,9 +52,12 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
               <div
                 key={`board-card-slot-${index}`}
                 className={`relative ${spacingClass}`}
-                style={{ transform: `translateY(${offset * 4}px)` }}
+                style={{ transform: `translateY(${offset * 3}px)` }}
               >
-                <div className="flex h-28 w-20 items-center justify-center rounded-2xl border border-white/30 bg-white/20 shadow-[0_12px_28px_-16px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                <div
+                  className="flex items-center justify-center rounded-2xl border border-white/30 bg-white/20 shadow-[0_12px_28px_-16px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+                  style={{ height: cardHeight, width: cardWidth }}
+                >
                   {card ? (
                     <PlayingCard card={card} size="lg" highlighted={highlightedCards.includes(card)} />
                   ) : (
