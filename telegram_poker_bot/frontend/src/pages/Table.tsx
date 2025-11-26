@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
+import type { JSX } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -127,6 +128,7 @@ export default function TablePage() {
   const [actionPending, setActionPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
+  const [joinError, setJoinError] = useState<string | null>(null)
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
@@ -756,52 +758,69 @@ export default function TablePage() {
     }, [tableId]),
   })
 
-  const handleSeat = async () => {
-    if (!tableId) {
-      return
-    }
-    if (!initData) {
-      showToast(t('table.errors.unauthorized'))
-      return
-    }
-    try {
-      setIsSeating(true)
-      
-      // CRITICAL FIX: Wait for WebSocket to be connected BEFORE sitting
-      // This ensures the player's WebSocket will receive the broadcast
-      // when the server sends the updated table state after sitting
-      console.log('[Table] Waiting for WebSocket connection before sitting...')
-      const connected = await waitForConnection(5000)
-      
-      if (!connected) {
-        console.warn('[Table] WebSocket not connected, proceeding anyway...')
-        // Still proceed - the state will be fetched via REST
-      } else {
-        console.log('[Table] WebSocket connected, proceeding to sit')
+  const handleSeat = useCallback(
+    async (seatNumber?: number) => {
+      if (isSeating) {
+        return
       }
-      
-      await apiFetch(`/tables/${tableId}/sit`, {
-        method: 'POST',
-        initData,
-      })
-      showToast(t('table.toast.seated'))
-      await fetchTable()
-      await fetchLiveState()
-    } catch (err) {
-      console.error('Error taking seat:', err)
-      if (err instanceof ApiError) {
-        const message =
-          (typeof err.data === 'object' && err.data && 'detail' in err.data
-            ? String((err.data as { detail?: unknown }).detail)
-            : null) || t('table.errors.actionFailed')
-        showToast(message)
-      } else {
-        showToast(t('table.errors.actionFailed'))
+      if (!tableId) {
+        return
       }
-    } finally {
-      setIsSeating(false)
-    }
-  }
+      if (!initData) {
+        showToast(t('table.errors.unauthorized'))
+        return
+      }
+      try {
+        setJoinError(null)
+        setIsSeating(true)
+
+        // CRITICAL FIX: Wait for WebSocket to be connected BEFORE sitting
+        // This ensures the player's WebSocket will receive the broadcast
+        // when the server sends the updated table state after sitting
+        console.log('[Table] Waiting for WebSocket connection before sitting...')
+        const connected = await waitForConnection(5000)
+
+        if (!connected) {
+          console.warn('[Table] WebSocket not connected, proceeding anyway...')
+          // Still proceed - the state will be fetched via REST
+        } else {
+          console.log('[Table] WebSocket connected, proceeding to sit')
+        }
+
+        await apiFetch(`/tables/${tableId}/sit`, {
+          method: 'POST',
+          initData,
+          ...(seatNumber !== undefined
+            ? {
+                body: {
+                  seat: seatNumber,
+                },
+              }
+            : {}),
+        })
+        showToast(t('table.toast.seated'))
+        await fetchTable()
+        await fetchLiveState()
+      } catch (err) {
+        console.error('Error taking seat:', err)
+        const fallbackMessage = t('table.errors.actionFailed')
+        if (err instanceof ApiError) {
+          const message =
+            (typeof err.data === 'object' && err.data && 'detail' in err.data
+              ? String((err.data as { detail?: unknown }).detail)
+              : null) || fallbackMessage
+          setJoinError(message)
+          showToast(message)
+        } else {
+          setJoinError(fallbackMessage)
+          showToast(fallbackMessage)
+        }
+      } finally {
+        setIsSeating(false)
+      }
+    },
+    [fetchLiveState, fetchTable, initData, isSeating, showToast, t, tableId, waitForConnection],
+  )
 
   const handleLeave = async () => {
     if (!tableId) {
@@ -839,7 +858,11 @@ export default function TablePage() {
   const callAction = allowedActions.find((action) => action.action_type === 'call')
   const canCheckAction = allowedActions.some((action) => action.action_type === 'check')
   const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
-  const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
+  const tableStatus = (
+    liveState?.table_status ?? liveState?.status ?? tableDetails?.status ?? ''
+  )
+    .toString()
+    .toLowerCase()
   const normalizedStatus = tableStatus
   const potDisplayAmount = useMemo(() => {
     if (typeof liveState?.pot === 'number') return liveState.pot
@@ -889,6 +912,163 @@ export default function TablePage() {
 
     return lookup
   }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
+
+  const playerRingEntries = useMemo(() => {
+    if (!liveState) return []
+
+    const maxSeats = Math.max(tableDetails.max_players ?? liveState.players.length ?? 0, liveState.players.length)
+    const entries: Array<{ id: string; node: JSX.Element }> = []
+
+    const buildPlayerEntry = (player: TablePlayerState, indexKey: number) => {
+      const isActor = player.user_id?.toString() === currentActorUserId?.toString()
+      const isLastActor = liveState.last_action?.user_id?.toString() === player.user_id?.toString()
+      const lastActionText = (() => {
+        if (!isLastActor || !liveState.last_action) return null
+        const action = liveState.last_action.action
+        const amount = liveState.last_action.amount
+
+        if (action === 'fold') return t('table.actions.lastAction.fold')
+        if (action === 'check') return t('table.actions.lastAction.check')
+        if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
+        if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
+        if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
+        if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
+        return null
+      })()
+
+      const positionLabel = player.is_button
+        ? 'BTN'
+        : player.is_small_blind
+          ? 'SB'
+          : player.is_big_blind
+            ? 'BB'
+            : undefined
+
+      const playerCards = showdownCardsByPlayer.get(player.user_id.toString()) ?? []
+      const winningHand = liveState.hand_result?.winners?.find(
+        (winner) => winner.user_id?.toString() === player.user_id.toString(),
+      )
+
+      const playerStatus = player.is_sitting_out_next_hand
+        ? 'sit_out'
+        : !player.in_hand && liveState.hand_id
+          ? 'folded'
+          : liveState.hand_id
+            ? 'active'
+            : 'waiting'
+
+      return {
+        id: `villain-${player.user_id}-${indexKey}`,
+        node: (
+          <div
+            ref={(el) => {
+              const playerKey = player.user_id.toString()
+              if (el) {
+                playerTileRefs.current.set(playerKey, el)
+              } else {
+                playerTileRefs.current.delete(playerKey)
+              }
+            }}
+            className="flex flex-col items-center gap-1"
+          >
+            <PlayerAvatar
+              name={player.display_name || player.username || `P${(player.seat ?? player.position ?? 0) + 1}`}
+              stack={player.stack}
+              isActive={Boolean(isActor && player.in_hand)}
+              hasFolded={!player.in_hand}
+              betAmount={player.bet}
+              deadline={isActor ? liveState.action_deadline : null}
+              turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+              size={liveState.players.length >= 6 ? 'sm' : 'md'}
+              offsetTop
+              seatNumber={player.seat ?? player.position}
+              positionLabel={positionLabel}
+              lastAction={lastActionText}
+              isSittingOut={player.is_sitting_out_next_hand}
+              status={playerStatus as 'active' | 'waiting' | 'seated' | 'sit_out' | 'folded'}
+              isAllIn={Boolean(player.is_all_in || player.stack <= 0)}
+            />
+            {lastActionText && player.in_hand && (
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200">{lastActionText}</p>
+            )}
+            {playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown') && (
+              <div className="mt-1 flex gap-1">
+                {playerCards.map((card, idx) => {
+                  const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
+                  return (
+                    <PlayingCard
+                      key={`villain-card-${player.user_id}-${card}-${idx}`}
+                      card={card}
+                      size="sm"
+                      highlighted={isWinningCard}
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ),
+      }
+    }
+
+    for (let seatIndex = 0; seatIndex < maxSeats; seatIndex += 1) {
+      const player = liveState.players.find(
+        (p) =>
+          p.user_id?.toString() !== heroIdString && (p.seat ?? p.position ?? -1) === seatIndex,
+      )
+
+      if (player) {
+        entries.push(buildPlayerEntry(player, seatIndex))
+        continue
+      }
+
+      if (showJoinAffordance) {
+        entries.push({
+          id: `empty-seat-${seatIndex}`,
+          node: (
+            <button
+              type="button"
+              onClick={() => handleSeat(seatIndex)}
+              disabled={isSeating}
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-dashed border-white/20 bg-white/5 px-3 py-2 text-white/80 backdrop-blur-xl transition hover:border-white/40 hover:bg-white/10 disabled:opacity-60"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-xl font-bold text-white">
+                {isSeating ? <span className="animate-pulse">···</span> : '+'}
+              </div>
+              <span className="text-xs font-semibold uppercase tracking-wide text-white/80">
+                {t('table.actions.tapToSit', { defaultValue: 'Tap to sit' })}
+              </span>
+              <span className="text-[11px] text-white/60">{t('table.players.seat', { index: seatIndex + 1 })}</span>
+            </button>
+          ),
+        })
+      }
+    }
+
+    // Fallback: include any remaining opponents that did not match a seat index
+    liveState.players
+      .filter(
+        (p) =>
+          p.user_id?.toString() !== heroIdString && (p.seat ?? p.position ?? 0) >= maxSeats,
+      )
+      .forEach((player, idx) => {
+        entries.push(buildPlayerEntry(player, maxSeats + idx))
+      })
+
+    return entries
+  }, [
+    currentActorUserId,
+    handleSeat,
+    heroIdString,
+    isInterHand,
+    isSeating,
+    liveState,
+    normalizedStatus,
+    showdownCardsByPlayer,
+    showJoinAffordance,
+    t,
+    tableDetails.max_players,
+  ])
 
   // Log inter-hand state only when isInterHand actually changes (not on every render)
   useEffect(() => {
@@ -1068,7 +1248,12 @@ export default function TablePage() {
   }
 
   const viewerIsCreator = tableDetails.viewer?.is_creator ?? false
-  const viewerIsSeated = tableDetails.viewer?.is_seated ?? false
+  const viewerSeatPosition =
+    liveState?.players.find((p) => heroIdString && p.user_id?.toString() === heroIdString)?.seat ??
+    tableDetails.viewer?.seat_position ??
+    null
+  const viewerIsSeated =
+    (tableDetails.viewer?.is_seated ?? false) || viewerSeatPosition !== null || Boolean(heroIdString)
   
   // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
   const livePlayerCount = liveState?.players?.length ?? tableDetails.player_count
@@ -1080,8 +1265,52 @@ export default function TablePage() {
   
   const canJoin = tableDetails.permissions?.can_join ?? false
   const canLeave = tableDetails.permissions?.can_leave ?? false
+  const seatsFilled = liveState?.players?.length ?? tableDetails.player_count ?? 0
+  const seatsAvailable = seatsFilled < tableDetails.max_players
+  const isTableClosedForJoining =
+    tableDetails.is_expired || ['ended', 'finished', 'closed', 'destroyed', 'expired'].includes(tableStatus)
+  const canViewerJoin = Boolean(canJoin && seatsAvailable && !viewerIsSeated && !isTableClosedForJoining)
+  const showJoinAffordance = Boolean(liveState && canViewerJoin)
   const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
+
+  const joinCta = showJoinAffordance ? (
+    <div className="pointer-events-auto mx-auto w-full max-w-sm px-4 pb-6">
+      <Button
+        variant="primary"
+        size="md"
+        block
+        onClick={() => handleSeat()}
+        disabled={isSeating}
+      >
+        {isSeating
+          ? t('table.actions.joining', { defaultValue: 'Joining...' })
+          : t('table.joinCta', { defaultValue: 'Sit at table' })}
+      </Button>
+      {joinError && <p className="mt-2 text-center text-xs text-rose-100">{joinError}</p>}
+    </div>
+  ) : null
+
+  const shouldShowActionSurface = viewerIsSeated && (isInterHand || isMyTurn)
+  const actionArea = shouldShowActionSurface ? (
+    <ActionSurface
+      allowedActions={actionableAllowedActions}
+      isMyTurn={isMyTurn}
+      onAction={handleGameAction}
+      potSize={potDisplayAmount}
+      myStack={heroPlayer?.stack ?? 0}
+      isProcessing={actionPending || loading}
+      isInterHand={isInterHand}
+      readyPlayerIds={readyPlayerIds}
+      players={liveState?.players ?? []}
+      deadline={liveState?.inter_hand_wait_deadline}
+      interHandSeconds={liveState?.inter_hand_wait_seconds}
+      onReady={handleReady}
+      heroId={heroIdString}
+    />
+  ) : (
+    joinCta
+  )
 
   return (
     <PokerFeltBackground>
@@ -1129,103 +1358,7 @@ export default function TablePage() {
                   {liveState.hand_result && <HandResultPanel liveState={liveState} currentUserId={heroId} />}
                 </div>
               )}
-              players={(
-                <PlayerRing
-                  players={liveState.players
-                    .filter((p) => p.user_id !== heroId)
-                    .map((player, index) => {
-                      const isActor = player.user_id?.toString() === currentActorUserId?.toString()
-                      const isLastActor = liveState.last_action?.user_id?.toString() === player.user_id?.toString()
-                      const lastActionText = (() => {
-                        if (!isLastActor || !liveState.last_action) return null
-                        const action = liveState.last_action.action
-                        const amount = liveState.last_action.amount
-
-                        if (action === 'fold') return t('table.actions.lastAction.fold')
-                        if (action === 'check') return t('table.actions.lastAction.check')
-                        if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
-                        if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
-                        if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
-                        if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
-                        return null
-                      })()
-
-                      const positionLabel = player.is_button
-                        ? 'BTN'
-                        : player.is_small_blind
-                          ? 'SB'
-                          : player.is_big_blind
-                            ? 'BB'
-                            : undefined
-
-                      const playerCards = showdownCardsByPlayer.get(player.user_id.toString()) ?? []
-                      const winningHand = liveState.hand_result?.winners?.find(
-                        (winner) => winner.user_id?.toString() === player.user_id.toString(),
-                      )
-
-                      const playerStatus = player.is_sitting_out_next_hand
-                        ? 'sit_out'
-                        : !player.in_hand && liveState.hand_id
-                          ? 'folded'
-                          : liveState.hand_id
-                            ? 'active'
-                            : 'waiting'
-
-                      return {
-                        id: `villain-${player.user_id}-${index}`,
-                        node: (
-                          <div
-                            ref={(el) => {
-                              const playerKey = player.user_id.toString()
-                              if (el) {
-                                playerTileRefs.current.set(playerKey, el)
-                              } else {
-                                playerTileRefs.current.delete(playerKey)
-                              }
-                            }}
-                            className="flex flex-col items-center gap-1"
-                          >
-                            <PlayerAvatar
-                              name={player.display_name || player.username || `P${(player.seat ?? player.position ?? 0) + 1}`}
-                              stack={player.stack}
-                              isActive={Boolean(isActor && player.in_hand)}
-                              hasFolded={!player.in_hand}
-                              betAmount={player.bet}
-                              deadline={isActor ? liveState.action_deadline : null}
-                              turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                              size={liveState.players.length >= 6 ? 'sm' : 'md'}
-                              offsetTop
-                              seatNumber={player.seat ?? player.position}
-                              positionLabel={positionLabel}
-                              lastAction={lastActionText}
-                              isSittingOut={player.is_sitting_out_next_hand}
-                              status={playerStatus}
-                              isAllIn={Boolean(player.is_all_in || player.stack <= 0)}
-                            />
-                            {lastActionText && player.in_hand && (
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200">{lastActionText}</p>
-                            )}
-                            {playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown') && (
-                              <div className="mt-1 flex gap-1">
-                                {playerCards.map((card, idx) => {
-                                  const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
-                                  return (
-                                    <PlayingCard
-                                      key={`villain-card-${player.user_id}-${card}-${idx}`}
-                                    card={card}
-                                    size="sm"
-                                    highlighted={isWinningCard}
-                                    />
-                                  )
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        ),
-                      }
-                    })}
-                />
-              )}
+              players={<PlayerRing players={playerRingEntries} slotCount={tableDetails.max_players} />}
               hero={heroPlayer && (
                 <div
                   ref={(el) => {
@@ -1272,23 +1405,7 @@ export default function TablePage() {
                   />
                 </div>
               )}
-              action={viewerIsSeated && (
-                <ActionSurface
-                  allowedActions={actionableAllowedActions}
-                  isMyTurn={isMyTurn}
-                  onAction={handleGameAction}
-                  potSize={potDisplayAmount}
-                  myStack={heroPlayer?.stack ?? 0}
-                  isProcessing={actionPending || loading}
-                  isInterHand={isInterHand}
-                  readyPlayerIds={readyPlayerIds}
-                  players={liveState.players}
-                  deadline={liveState.inter_hand_wait_deadline}
-                  interHandSeconds={liveState.inter_hand_wait_seconds}
-                  onReady={handleReady}
-                  heroId={heroIdString}
-                />
-              )}
+              action={actionArea}
               overlays={isInterHand ? (
                 <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
                   <div className="pointer-events-auto">
@@ -1359,17 +1476,24 @@ export default function TablePage() {
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-white/60">
-                    {canJoin ? t('table.messages.joinPrompt') : t('table.messages.tableFull')}
+                    {canViewerJoin
+                      ? t('table.messages.joinPrompt')
+                      : seatsAvailable
+                        ? t('table.messages.waitingForHost')
+                        : t('table.messages.tableFull')}
                   </p>
                   <Button
                     variant="primary"
                     size="md"
                     block
-                    onClick={handleSeat}
-                    disabled={!canJoin || isSeating}
+                    onClick={() => handleSeat()}
+                    disabled={!canViewerJoin || isSeating}
                   >
-                    {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat')}
+                    {isSeating
+                      ? t('table.actions.joining')
+                      : t('table.joinCta', { defaultValue: 'Sit at table' })}
                   </Button>
+                  {joinError && <p className="text-center text-xs text-rose-100">{joinError}</p>}
                 </div>
               )}
 
