@@ -677,16 +677,33 @@ async def auto_fold_expired_actions():
                                 )
                                 continue
 
-                            # Determine action based on timeout count and legal actions
+                            # Determine action based on timeout count and allowed actions
                             # Rule C & Rule 2 (Zombie Cleanup):
                             # - First timeout: check if legal, otherwise fold
                             # - Second+ consecutive timeout: always fold AND set to sit out
                             auto_action = ActionType.FOLD  # Default
 
+                            allowed_actions_raw = fresh_state.get(
+                                "allowed_actions", []
+                            )
+                            allowed_action_types = set()
+                            if isinstance(allowed_actions_raw, list):
+                                for entry in allowed_actions_raw:
+                                    if not isinstance(entry, dict):
+                                        continue
+                                    action_value = entry.get("action_type")
+                                    if action_value:
+                                        allowed_action_types.add(action_value.lower())
+                            elif isinstance(allowed_actions_raw, dict):
+                                action_value = allowed_actions_raw.get("action_type")
+                                if action_value:
+                                    allowed_action_types.add(action_value.lower())
+                            elif isinstance(allowed_actions_raw, str):
+                                allowed_action_types.add(allowed_actions_raw.lower())
+
                             if timeout_count == 0:
                                 # First timeout - check if CHECK is legal
-                                legal_actions = fresh_state.get("legal_actions", [])
-                                if "check" in legal_actions:
+                                if "check" in allowed_action_types:
                                     auto_action = ActionType.CHECK
                                     logger.info(
                                         "Auto-checking player (first timeout, check is legal)",
@@ -757,8 +774,13 @@ async def auto_fold_expired_actions():
                             await db.flush()
 
                             await db.commit()
-
                             await manager.broadcast(table.id, public_state)
+
+                            if public_state.get("inter_hand_wait"):
+                                hand_ended_event = public_state.get("hand_ended_event")
+                                if hand_ended_event:
+                                    await manager.broadcast(table.id, hand_ended_event)
+                                _schedule_inter_hand_completion(table.id)
 
                         except Exception as e:
                             logger.error(
@@ -2163,10 +2185,60 @@ async def submit_action(
 
     user = await ensure_user(db, user_auth)
 
-    action_type = ActionType(action.action_type)
+    runtime_mgr = get_pokerkit_runtime_manager()
 
     try:
-        public_state = await get_pokerkit_runtime_manager().handle_action(
+        action_type = ActionType(action.action_type.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid action type: {action.action_type}"
+        )
+
+    try:
+        if action_type == ActionType.READY:
+            try:
+                ready_info = await runtime_mgr.mark_player_ready(
+                    db, table_id, user.id
+                )
+            except ValueError as exc:
+                message = str(exc)
+                if "Insufficient balance" in message:
+                    message = "Insufficient Balance"
+                raise HTTPException(status_code=400, detail=message)
+
+            await manager.broadcast(
+                table_id,
+                {
+                    "type": "player_ready",
+                    "user_id": user.id,
+                    "ready_players": ready_info.get("ready_players", []),
+                },
+            )
+
+            ready_players = set(ready_info.get("ready_players", []))
+            seated_ids = set(ready_info.get("seated_user_ids", []))
+            if seated_ids and ready_players >= seated_ids:
+                _cancel_inter_hand_task(table_id)
+                result = await runtime_mgr.complete_inter_hand_phase(db, table_id)
+                await db.commit()
+                await _handle_inter_hand_result(table_id, result)
+
+                if result.get("table_ended"):
+                    return {
+                        "table_ended": True,
+                        "reason": result.get("reason"),
+                    }
+
+                viewer_state = await runtime_mgr.get_state(db, table_id, user.id)
+                next_state = result.get("state", {}) if result else {}
+                if next_state.get("hand_result"):
+                    viewer_state["hand_result"] = next_state["hand_result"]
+
+                return viewer_state
+
+            return await runtime_mgr.get_state(db, table_id, user.id)
+
+        public_state = await runtime_mgr.handle_action(
             db,
             table_id=table_id,
             user_id=user.id,
@@ -2184,13 +2256,13 @@ async def submit_action(
                 await manager.broadcast(table_id, hand_ended_event)
             _schedule_inter_hand_completion(table_id)
 
-        viewer_state = await get_pokerkit_runtime_manager().get_state(
-            db, table_id, user.id
-        )
+        viewer_state = await runtime_mgr.get_state(db, table_id, user.id)
         if public_state.get("hand_result"):
             viewer_state["hand_result"] = public_state["hand_result"]
 
         return viewer_state
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "Error processing action",
