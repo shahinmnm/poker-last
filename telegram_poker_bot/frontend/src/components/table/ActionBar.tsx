@@ -1,3 +1,5 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faArrowRight, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -7,19 +9,18 @@ interface ActionBarProps {
   allowedActions: AllowedAction[]
   onAction: (action: AllowedAction['action_type'], amount?: number) => void
   isProcessing: boolean
-  potSize: number
   myStack: number
   isMyTurn?: boolean
 }
 
 const clampAmount = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const formatNumber = (value: number) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value)
+const sliderActions: AllowedAction['action_type'][] = ['bet', 'raise', 'all_in']
 
 export default function ActionBar({
   allowedActions,
   onAction,
   isProcessing,
-  potSize,
   myStack,
   isMyTurn = false,
 }: ActionBarProps) {
@@ -38,132 +39,239 @@ export default function ActionBar({
     [allowedActions],
   )
   const betAction = useMemo(
-    () =>
-      allowedActions.find((action) => ['bet', 'raise', 'all_in'].includes(action.action_type)),
+    () => allowedActions.find((action) => action.action_type === 'bet'),
+    [allowedActions],
+  )
+  const raiseAction = useMemo(
+    () => allowedActions.find((action) => ['raise', 'all_in'].includes(action.action_type)),
     [allowedActions],
   )
 
-  const minAmount = betAction?.min_amount ?? 0
-  const maxAmount = betAction?.max_amount ?? myStack
+  const primarySliderAction = betAction ?? raiseAction ?? null
+  const [activeBetAction, setActiveBetAction] = useState<AllowedAction | null>(primarySliderAction)
+
+  const minAmount = activeBetAction?.min_amount ?? primarySliderAction?.min_amount ?? 0
+  const maxAmount = activeBetAction?.max_amount ?? primarySliderAction?.max_amount ?? myStack
   const [betAmount, setBetAmount] = useState(() => clampAmount(minAmount || 0, minAmount, maxAmount || myStack))
+  const [isAdjustingBet, setIsAdjustingBet] = useState(false)
+
+  useEffect(() => {
+    if (!isMyTurn) {
+      setIsAdjustingBet(false)
+    }
+  }, [isMyTurn])
+
+  useEffect(() => {
+    if (activeBetAction && allowedActions.every((action) => action.action_type !== activeBetAction.action_type)) {
+      setActiveBetAction(primarySliderAction)
+      setIsAdjustingBet(false)
+    }
+  }, [activeBetAction, allowedActions, primarySliderAction])
 
   useEffect(() => {
     setBetAmount((previous) => clampAmount(previous || minAmount, minAmount, maxAmount))
-  }, [minAmount, maxAmount])
-
-  const setQuickAmount = (ratio: number) => {
-    if (!betAction) return
-    const target = ratio >= 1 ? maxAmount : potSize * ratio
-    setBetAmount(clampAmount(Math.round(target), minAmount, maxAmount))
-  }
-
-  const handleBetRaise = () => {
-    if (!betAction) return
-    onAction(betAction.action_type, betAmount)
-  }
-
-  const canCheckOrCall = checkAction || callAction
-  const sliderActive = Boolean(betAction)
-  const callLabel = callAction
-    ? t('table.actionBar.call', { amount: formatNumber(callAction.amount ?? 0) })
-    : t('table.actionBar.call', { amount: formatNumber(0) })
-  const betLabel = betAction?.action_type === 'raise'
-    ? t('table.actionBar.raise', { amount: formatNumber(betAmount) })
-    : betAction?.action_type === 'all_in'
-      ? t('table.actionBar.allIn', { amount: formatNumber(betAmount) })
-      : t('table.actionBar.bet', { amount: formatNumber(betAmount) })
+  }, [minAmount, maxAmount, activeBetAction])
 
   const sliderPercent = useMemo(() => {
-    if (!sliderActive || maxAmount === minAmount) return 0
+    if (!maxAmount || maxAmount === minAmount) return 0
     return ((betAmount - minAmount) / (maxAmount - minAmount)) * 100
-  }, [sliderActive, betAmount, maxAmount, minAmount])
+  }, [betAmount, maxAmount, minAmount])
 
-  if (!allowedActions.length) {
+  const labelPercent = clampAmount(sliderPercent, 5, 95)
+  const isDisabled = isProcessing || !isMyTurn
+
+  const handleStartAdjusting = (action: AllowedAction | null) => {
+    if (!action) return
+    const min = action.min_amount ?? 0
+    const max = action.max_amount ?? myStack
+    setActiveBetAction(action)
+    setBetAmount(clampAmount(min || 0, min, max || myStack))
+    setIsAdjustingBet(true)
+  }
+
+  const handleBetSubmit = (action: AllowedAction | null) => {
+    if (!action) return
+    onAction(action.action_type, betAmount)
+    setIsAdjustingBet(false)
+  }
+
+  const centerAction = useMemo(() => {
+    if (checkAction) return checkAction
+    if (callAction) return callAction
+    if (betAction) return betAction
+    if (raiseAction) return raiseAction
     return null
+  }, [betAction, callAction, checkAction, raiseAction])
+
+  const shouldShowSlider = Boolean(isMyTurn && isAdjustingBet && activeBetAction && sliderActions.includes(activeBetAction.action_type))
+
+  const mainLabel = useMemo(() => {
+    if (!centerAction) return t('table.actionBar.check')
+    if (centerAction.action_type === 'check') return t('table.actionBar.check')
+    if (centerAction.action_type === 'call') {
+      return t('table.actionBar.call', {
+        amount: formatNumber(centerAction.amount ?? 0),
+        defaultValue: `Call ${formatNumber(centerAction.amount ?? 0)}`,
+      })
+    }
+    if (centerAction.action_type === 'raise') {
+      return t('table.actionBar.raise', {
+        amount: formatNumber(betAmount || centerAction.min_amount || 0),
+        defaultValue: `Raise to ${formatNumber(betAmount || centerAction.min_amount || 0)}`,
+      })
+    }
+    if (centerAction.action_type === 'all_in') {
+      return t('table.actionBar.allIn', {
+        amount: formatNumber(betAmount || centerAction.min_amount || 0),
+        defaultValue: `All-in ${formatNumber(betAmount || centerAction.min_amount || 0)}`,
+      })
+    }
+    return t('table.actionBar.bet', {
+      amount: formatNumber(betAmount || centerAction.min_amount || 0),
+      defaultValue: `Bet ${formatNumber(betAmount || centerAction.min_amount || 0)}`,
+    })
+  }, [betAmount, centerAction, t])
+
+  const raiseLabel = useMemo(() => {
+    if (!raiseAction) return t('table.actionBar.raise', { amount: formatNumber(0), defaultValue: 'Raise' })
+    const labelAmount = isAdjustingBet && activeBetAction?.action_type === raiseAction.action_type
+      ? betAmount
+      : raiseAction.min_amount ?? raiseAction.amount ?? betAmount
+    const key = raiseAction.action_type === 'all_in' ? 'table.actionBar.allIn' : 'table.actionBar.raise'
+    return t(key, {
+      amount: formatNumber(labelAmount ?? 0),
+      defaultValue: `${raiseAction.action_type === 'all_in' ? 'All-in' : 'Raise'} ${formatNumber(labelAmount ?? 0)}`,
+    })
+  }, [activeBetAction?.action_type, betAmount, isAdjustingBet, raiseAction, t])
+
+  const renderCircularButton = (
+    options: {
+      onClick: () => void
+      icon: JSX.Element
+      label: string
+      disabled?: boolean
+      tone: 'danger' | 'primary' | 'warning'
+    },
+  ) => {
+    const tones: Record<typeof options.tone, string> = {
+      danger: 'from-[rgba(255,99,71,0.65)] to-[rgba(255,99,71,0.35)]',
+      primary: 'from-[rgba(34,197,94,0.65)] to-[rgba(74,222,128,0.35)]',
+      warning: 'from-[rgba(251,191,36,0.7)] to-[rgba(251,146,60,0.35)]',
+    }
+
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          onClick={options.onClick}
+          disabled={options.disabled}
+          className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${tones[options.tone]} text-white shadow-xl shadow-black/40 backdrop-blur-md transition hover:shadow-2xl focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none`}
+        >
+          <span className="absolute inset-0 rounded-full bg-white/5" />
+          <span className="relative text-lg">{options.icon}</span>
+        </button>
+        <span className="text-center text-[12px] font-semibold leading-tight text-white drop-shadow-md">{options.label}</span>
+      </div>
+    )
+  }
+
+  const handleFold = () => {
+    if (!foldAction || isDisabled) return
+    onAction('fold')
+    setIsAdjustingBet(false)
+  }
+
+  const handleCenter = () => {
+    if (!centerAction || isDisabled) return
+    if (sliderActions.includes(centerAction.action_type)) {
+      if (!isAdjustingBet || activeBetAction?.action_type !== centerAction.action_type) {
+        handleStartAdjusting(centerAction)
+        return
+      }
+      handleBetSubmit(centerAction)
+      return
+    }
+
+    if (centerAction.action_type === 'check') {
+      onAction('check')
+    } else if (centerAction.action_type === 'call') {
+      onAction('call', centerAction.amount)
+    }
+  }
+
+  const handleRaise = () => {
+    if (!raiseAction || isDisabled) return
+    if (!isAdjustingBet || activeBetAction?.action_type !== raiseAction.action_type) {
+      handleStartAdjusting(raiseAction)
+      return
+    }
+    handleBetSubmit(raiseAction)
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-3 sm:px-5">
-      <div className="rounded-3xl border border-white/10 bg-black/70 p-4 shadow-2xl backdrop-blur-xl">
-        {sliderActive && (
-          <div className="mb-3 space-y-2">
-            <div className="flex items-center justify-between text-[13px] text-white/80">
-              <span className="font-medium">{t('table.actionBar.adjustLabel')}</span>
-              <span className="font-semibold text-emerald-100">
-                {t('table.actionBar.currentBet', {
-                  amount: formatNumber(betAmount),
-                  defaultValue: `${formatNumber(betAmount)} chips`,
-                })}
-              </span>
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 sm:px-6" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)' }}>
+      <div className="relative w-full max-w-[520px]">
+        <div className="pointer-events-none absolute inset-x-4 bottom-0 h-32 bg-[radial-gradient(circle_at_center,_rgba(7,13,31,0.85)_0,_transparent_72%)]" />
+
+        <div className="relative flex flex-col items-center gap-4 pointer-events-auto">
+          {shouldShowSlider && activeBetAction && (
+            <div className="w-full max-w-[520px] animate-[fadeInScale_0.18s_ease-out]">
+              <div className="relative w-full px-4">
+                <div
+                  className="pointer-events-none absolute -top-9"
+                  style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}
+                >
+                  <div className="rounded-full border border-white/15 bg-[rgba(12,19,38,0.75)] px-3 py-1 text-[12px] font-semibold text-white shadow-lg shadow-black/50 backdrop-blur-md">
+                    {t('table.actionBar.currentBet', {
+                      amount: formatNumber(betAmount),
+                      defaultValue: `${formatNumber(betAmount)} chips`,
+                    })}
+                  </div>
+                </div>
+
+                <input
+                  type="range"
+                  min={minAmount}
+                  max={maxAmount || minAmount || 1}
+                  value={betAmount}
+                  onChange={(event) => setBetAmount(Number(event.target.value))}
+                  disabled={isDisabled}
+                  className="action-range"
+                  style={{
+                    background: `linear-gradient(90deg, rgba(74,222,128,0.9) ${sliderPercent}%, rgba(12,19,38,0.65) ${sliderPercent}%)`,
+                  }}
+                />
+              </div>
             </div>
-            <input
-              type="range"
-              min={minAmount}
-              max={maxAmount}
-              value={betAmount}
-              onChange={(event) => setBetAmount(Number(event.target.value))}
-              disabled={isProcessing || !isMyTurn}
-              className="poker-slider"
-              style={{
-                background: `linear-gradient(90deg, #00C98D ${sliderPercent}%, #0f1f14 ${sliderPercent}%)`,
-              }}
-            />
-            <div className="flex flex-wrap gap-2 text-[12px]">
-              <button
-                type="button"
-                onClick={() => setQuickAmount(0.5)}
-                disabled={isProcessing || !isMyTurn}
-                className="rounded-lg border border-white/10 bg-[#222222]/70 px-3 py-2 font-semibold text-white shadow-inner transition hover:border-emerald-400/60 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t('table.actionBar.presets.halfPot')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickAmount(1)}
-                disabled={isProcessing || !isMyTurn}
-                className="rounded-lg border border-white/10 bg-[#222222]/70 px-3 py-2 font-semibold text-white shadow-inner transition hover:border-emerald-400/60 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t('table.actionBar.presets.pot')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickAmount(2)}
-                disabled={isProcessing || !isMyTurn}
-                className="rounded-lg border border-white/10 bg-[#222222]/70 px-3 py-2 font-semibold text-white shadow-inner transition hover:border-emerald-400/60 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t('table.actionBar.presets.max')}
-              </button>
-            </div>
+          )}
+
+          <div
+            className={`flex items-end justify-center gap-8 ${!isMyTurn ? 'pointer-events-none opacity-50' : ''}`}
+          >
+            {renderCircularButton({
+              onClick: handleFold,
+              icon: <FontAwesomeIcon icon={faChevronDown} />,
+              label: t('table.actionBar.fold'),
+              disabled: isDisabled || !foldAction,
+              tone: 'danger',
+            })}
+
+            {renderCircularButton({
+              onClick: handleCenter,
+              icon: <FontAwesomeIcon icon={faArrowRight} />,
+              label: mainLabel,
+              disabled: isDisabled || !centerAction,
+              tone: 'primary',
+            })}
+
+            {renderCircularButton({
+              onClick: handleRaise,
+              icon: <FontAwesomeIcon icon={faChevronUp} />,
+              label: raiseLabel,
+              disabled: isDisabled || !raiseAction,
+              tone: 'warning',
+            })}
           </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => foldAction && onAction('fold')}
-            disabled={isProcessing || !foldAction || !isMyTurn}
-            className="h-14 rounded-xl bg-[#D9534F] text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {t('table.actionBar.fold')}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => canCheckOrCall && onAction(checkAction ? 'check' : 'call', callAction?.amount)}
-            disabled={isProcessing || !canCheckOrCall || !isMyTurn}
-            className="h-14 rounded-xl bg-[#222222] text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {checkAction ? t('table.actionBar.check') : callLabel}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleBetRaise}
-            disabled={isProcessing || !betAction || !isMyTurn}
-            className="h-14 rounded-xl bg-[#00C98D] text-sm font-bold uppercase tracking-wide text-[#0b2318] shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {betLabel}
-          </button>
         </div>
       </div>
     </div>
