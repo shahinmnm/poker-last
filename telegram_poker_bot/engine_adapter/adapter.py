@@ -386,17 +386,15 @@ class PokerEngineAdapter:
 
         winners.sort(key=lambda w: w["amount"], reverse=True)
 
-        total_pot_amount = sum(pot.amount for pot in self.state.pots)
+        pots = list(self.state.pots)
+        total_pot_amount = sum(pot.amount for pot in pots)
         calculated_pot = max(total_won, total_lost)
 
-        # If PokerKit pot tracking lags behind stack deltas, normalize the main pot
+        # If PokerKit pot tracking lags behind stack deltas, normalize locally
+        # for consistency checks without mutating PokerKit Pot objects (which are
+        # immutable for amount).
         if calculated_pot and abs(total_pot_amount - calculated_pot) > 1:
-            diff = calculated_pot - total_pot_amount
-            if self.state.pots:
-                self.state.pots[0].amount += diff
-                total_pot_amount = sum(pot.amount for pot in self.state.pots)
-            else:  # pragma: no cover - defensive path
-                total_pot_amount = calculated_pot
+            total_pot_amount = calculated_pot
 
         if abs(total_won - total_lost) > 1 or abs(total_won - total_pot_amount) > 1:
             pots_breakdown = [
