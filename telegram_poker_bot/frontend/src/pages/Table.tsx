@@ -256,6 +256,72 @@ export default function TablePage() {
     }
   }, [applyIncomingState, tableId])
 
+  const heroId = liveState?.hero?.user_id ?? null
+  const heroIdString = heroId !== null ? heroId.toString() : null
+  const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
+  const heroCards = liveState?.hero?.cards ?? []
+  const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
+  const readyPlayerIds = useMemo(
+    () => (liveState?.ready_players ?? []).map((id) => id?.toString()),
+    [liveState?.ready_players],
+  )
+  const normalizeAllowedActions = useCallback(
+    (allowed: AllowedActionsPayload | undefined): AllowedAction[] => {
+      const toNumber = (value?: number | string | null) =>
+        value === undefined || value === null ? undefined : Number(value)
+
+      if (!allowed) return []
+      if (Array.isArray(allowed))
+        return allowed.map((action) => ({
+          ...action,
+          amount: toNumber(action.amount),
+          min_amount: toNumber(action.min_amount),
+          max_amount: toNumber(action.max_amount),
+        }))
+
+      const actions: AllowedAction[] = []
+
+      if (allowed.can_fold) {
+        actions.push({ action_type: 'fold' })
+      }
+      if (allowed.can_check) {
+        actions.push({ action_type: 'check' })
+      }
+      if (allowed.can_call) {
+        actions.push({ action_type: 'call', amount: toNumber(allowed.call_amount) ?? 0 })
+      }
+
+      const minRaise = toNumber(allowed.min_raise_to) ?? 0
+      const maxRaise =
+        toNumber(allowed.max_raise_to) ?? (heroPlayer ? heroPlayer.stack + heroPlayer.bet : 0)
+
+      if (allowed.can_bet) {
+        actions.push({
+          action_type: 'bet',
+          min_amount: minRaise,
+          max_amount: maxRaise,
+        })
+      }
+      if (allowed.can_raise) {
+        const isAllIn = allowed.can_all_in || (heroPlayer ? maxRaise >= heroPlayer.stack + heroPlayer.bet : false)
+        actions.push({
+          action_type: isAllIn ? 'all_in' : 'raise',
+          min_amount: minRaise,
+          max_amount: maxRaise,
+        })
+      } else if (allowed.can_all_in) {
+        actions.push({ action_type: 'all_in', min_amount: maxRaise, max_amount: maxRaise })
+      }
+
+      if (allowed.ready) {
+        actions.push({ action_type: 'ready' })
+      }
+
+      return actions
+    },
+    [heroPlayer],
+  )
+
   const handleGameAction = useCallback(
     async (actionType: AllowedAction['action_type'], amount?: number) => {
       if (!tableId || !initData) {
@@ -750,71 +816,6 @@ export default function TablePage() {
     }
   }
 
-  const heroId = liveState?.hero?.user_id ?? null
-  const heroIdString = heroId !== null ? heroId.toString() : null
-  const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
-  const heroCards = liveState?.hero?.cards ?? []
-  const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
-  const readyPlayerIds = useMemo(
-    () => (liveState?.ready_players ?? []).map((id) => id?.toString()),
-    [liveState?.ready_players],
-  )
-  const normalizeAllowedActions = useCallback(
-    (allowed: AllowedActionsPayload | undefined): AllowedAction[] => {
-      const toNumber = (value?: number | string | null) =>
-        value === undefined || value === null ? undefined : Number(value)
-
-      if (!allowed) return []
-      if (Array.isArray(allowed))
-        return allowed.map((action) => ({
-          ...action,
-          amount: toNumber(action.amount),
-          min_amount: toNumber(action.min_amount),
-          max_amount: toNumber(action.max_amount),
-        }))
-
-      const actions: AllowedAction[] = []
-
-      if (allowed.can_fold) {
-        actions.push({ action_type: 'fold' })
-      }
-      if (allowed.can_check) {
-        actions.push({ action_type: 'check' })
-      }
-      if (allowed.can_call) {
-        actions.push({ action_type: 'call', amount: toNumber(allowed.call_amount) ?? 0 })
-      }
-
-      const minRaise = toNumber(allowed.min_raise_to) ?? 0
-      const maxRaise =
-        toNumber(allowed.max_raise_to) ?? (heroPlayer ? heroPlayer.stack + heroPlayer.bet : 0)
-
-      if (allowed.can_bet) {
-        actions.push({
-          action_type: 'bet',
-          min_amount: minRaise,
-          max_amount: maxRaise,
-        })
-      }
-      if (allowed.can_raise) {
-        const isAllIn = allowed.can_all_in || (heroPlayer ? maxRaise >= heroPlayer.stack + heroPlayer.bet : false)
-        actions.push({
-          action_type: isAllIn ? 'all_in' : 'raise',
-          min_amount: minRaise,
-          max_amount: maxRaise,
-        })
-      } else if (allowed.can_all_in) {
-        actions.push({ action_type: 'all_in', min_amount: maxRaise, max_amount: maxRaise })
-      }
-
-      if (allowed.ready) {
-        actions.push({ action_type: 'ready' })
-      }
-
-      return actions
-    },
-    [heroPlayer],
-  )
   const allowedActions = normalizeAllowedActions(liveState?.allowed_actions)
   const callAction = allowedActions.find((action) => action.action_type === 'call')
   const canCheckAction = allowedActions.some((action) => action.action_type === 'check')
