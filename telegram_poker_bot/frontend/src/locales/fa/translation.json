@@ -17,6 +17,7 @@
       "start": "شروع",
       "saveChanges": "ذخیره تغییرات",
       "join": "پیوستن",
+      "close": "بستن",
       "create": "ایجاد"
     }
   },
@@ -641,7 +642,13 @@
       "expires": "انقضا",
       "stakes": "بلایند و استک",
       "players": "بازیکنان",
-      "unknown": "بازیکن ناشناس"
+      "unknown": "بازیکن ناشناس",
+      "table": "میز",
+      "defaultName": "میز شماره {{id}}",
+      "nameLabel": "نام",
+      "blinds": "بلایندها",
+      "mode": "حالت",
+      "buyIn": "خرید ورودی"
     },
     "stacks": "{{amount}} ژتون شروع",
     "chips": "{{amount}} ژتون",
@@ -653,6 +660,7 @@
       "currentChips": "{{amount}} چیپ",
       "adjustLabel": "مقدار شرط را تنظیم کنید",
       "currentBet": "{{amount}} چیپ",
+      "yourTurnLabel": "نوبت شما",
       "presets": {
         "halfPot": "نصف پات",
         "pot": "پات",
@@ -680,7 +688,8 @@
       "waiting": "در انتظار",
       "active": "در حال اجرا",
       "paused": "متوقف",
-      "ended": "پایان یافته"
+      "ended": "پایان یافته",
+      "waitingForTurn": "منتظر بازیکنان دیگر..."
     },
     "visibility": {
       "public": "میز عمومی",
