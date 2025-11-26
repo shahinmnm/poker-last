@@ -129,7 +129,6 @@ export default function TablePage() {
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
-  const [selectedSeat, setSelectedSeat] = useState<number | null>(null)
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
@@ -262,7 +261,6 @@ export default function TablePage() {
   const heroId = liveState?.hero?.user_id ?? null
   const heroIdString = heroId !== null ? heroId.toString() : null
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
-  const heroSeatIndex = heroPlayer?.seat ?? heroPlayer?.position ?? 0
   const heroCards = liveState?.hero?.cards ?? []
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
@@ -762,7 +760,6 @@ export default function TablePage() {
 
   const handleSeat = useCallback(
     async (seatNumber?: number) => {
-      const targetSeat = seatNumber ?? selectedSeat ?? undefined
       if (isSeating) {
         return
       }
@@ -793,10 +790,10 @@ export default function TablePage() {
         await apiFetch(`/tables/${tableId}/sit`, {
           method: 'POST',
           initData,
-          ...(targetSeat !== undefined
+          ...(seatNumber !== undefined
             ? {
                 body: {
-                  seat: targetSeat,
+                  seat: seatNumber,
                 },
               }
             : {}),
@@ -804,7 +801,6 @@ export default function TablePage() {
         showToast(t('table.toast.seated'))
         await fetchTable()
         await fetchLiveState()
-        setSelectedSeat(null)
       } catch (err) {
         console.error('Error taking seat:', err)
         const fallbackMessage = t('table.errors.actionFailed')
@@ -823,17 +819,7 @@ export default function TablePage() {
         setIsSeating(false)
       }
     },
-    [
-      fetchLiveState,
-      fetchTable,
-      initData,
-      isSeating,
-      selectedSeat,
-      showToast,
-      t,
-      tableId,
-      waitForConnection,
-    ],
+    [fetchLiveState, fetchTable, initData, isSeating, showToast, t, tableId, waitForConnection],
   )
 
   const handleLeave = async () => {
@@ -957,7 +943,7 @@ export default function TablePage() {
     if (!liveState) return []
 
     const maxSeats = Math.max(maxPlayers ?? liveState?.players.length ?? 0, liveState?.players.length ?? 0)
-    const entries: Array<{ id: string; node: JSX.Element; seatIndex?: number }> = []
+    const entries: Array<{ id: string; node: JSX.Element }> = []
 
     const buildPlayerEntry = (player: TablePlayerState, indexKey: number) => {
       const isActor = player.user_id?.toString() === currentActorUserId?.toString()
@@ -999,7 +985,6 @@ export default function TablePage() {
 
       return {
         id: `villain-${player.user_id}-${indexKey}`,
-        seatIndex: player.seat ?? player.position ?? indexKey,
         node: (
           <div
             ref={(el) => {
@@ -1066,28 +1051,20 @@ export default function TablePage() {
       if (showJoinAffordance) {
         entries.push({
           id: `empty-seat-${seatIndex}`,
-          seatIndex,
           node: (
             <button
               type="button"
-              onClick={() => setSelectedSeat(seatIndex)}
+              onClick={() => handleSeat(seatIndex)}
               disabled={isSeating}
-              className="group flex flex-col items-center gap-2 text-white/90"
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-dashed border-white/20 bg-white/5 px-3 py-2 text-white/80 backdrop-blur-xl transition hover:border-white/40 hover:bg-white/10 disabled:opacity-60"
             >
-              <div
-                className={`relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed backdrop-blur-xl transition-all duration-200 ${
-                  selectedSeat === seatIndex ? 'border-cyan-300 shadow-[0_0_30px_rgba(56,189,248,0.35)]' : 'border-white/20'
-                } bg-white/5`}
-              >
-                <span className="text-2xl font-bold text-cyan-200">{selectedSeat === seatIndex ? '✓' : '+'}</span>
-                <div className="absolute inset-0 rounded-full border border-white/10" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-xl font-bold text-white">
+                {isSeating ? <span className="animate-pulse">···</span> : '+'}
               </div>
-              <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-center backdrop-blur">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
-                  {t('table.players.seat', { index: seatIndex + 1 })}
-                </p>
-                <p className="text-[10px] text-white/60">{t('table.actions.tapToSit', { defaultValue: 'Tap to sit' })}</p>
-              </div>
+              <span className="text-xs font-semibold uppercase tracking-wide text-white/80">
+                {t('table.actions.tapToSit', { defaultValue: 'Tap to sit' })}
+              </span>
+              <span className="text-[11px] text-white/60">{t('table.players.seat', { index: seatIndex + 1 })}</span>
             </button>
           ),
         })
@@ -1113,7 +1090,6 @@ export default function TablePage() {
     isSeating,
     liveState,
     normalizedStatus,
-    selectedSeat,
     showdownCardsByPlayer,
     showJoinAffordance,
     t,
@@ -1140,6 +1116,7 @@ export default function TablePage() {
   
   const isMyTurn =
     isPlaying && heroIdString !== null && currentActorUserId?.toString() === heroIdString
+  const actionableAllowedActions = isMyTurn ? allowedActions : []
 
   useEffect(() => {
     if (liveState?.hand_id !== autoTimeoutRef.current.handId) {
@@ -1299,43 +1276,27 @@ export default function TablePage() {
   const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
 
-  const sitBar = (
-    <div className="pointer-events-auto mx-auto w-full max-w-2xl px-4 pb-6">
-      <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 shadow-[0_-12px_50px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
-        <div className="flex items-center justify-between gap-4">
-          <div className="text-left">
-            <p className="text-sm font-semibold text-white">
-              {t('table.joinCta', { defaultValue: 'Sit at table' })}
-            </p>
-            <p className="text-[11px] text-white/70">
-              {seatsAvailable
-                ? t('table.joinHint', { defaultValue: 'Tap a seat above to choose your place' })
-                : t('table.messages.tableFull', { defaultValue: 'Table full' })}
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => handleSeat(selectedSeat ?? undefined)}
-            disabled={!canViewerJoin || !seatsAvailable || selectedSeat === null || isSeating}
-            className="min-w-[140px]"
-          >
-            {isSeating
-              ? t('table.actions.joining', { defaultValue: 'Joining...' })
-              : selectedSeat !== null
-                ? t('table.actions.confirmSeat', { defaultValue: 'Confirm seat' })
-                : t('table.actions.selectSeat', { defaultValue: 'Select a seat' })}
-          </Button>
-        </div>
-        {joinError && <p className="mt-3 text-[12px] text-rose-100">{joinError}</p>}
-      </div>
+  const joinCta = showJoinAffordance ? (
+    <div className="pointer-events-auto mx-auto w-full max-w-sm px-4 pb-6">
+      <Button
+        variant="primary"
+        size="md"
+        block
+        onClick={() => handleSeat()}
+        disabled={isSeating}
+      >
+        {isSeating
+          ? t('table.actions.joining', { defaultValue: 'Joining...' })
+          : t('table.joinCta', { defaultValue: 'Sit at table' })}
+      </Button>
+      {joinError && <p className="mt-2 text-center text-xs text-rose-100">{joinError}</p>}
     </div>
-  )
+  ) : null
 
-  const shouldShowActionSurface = viewerIsSeated
+  const shouldShowActionSurface = viewerIsSeated && (isInterHand || isMyTurn)
   const actionArea = shouldShowActionSurface ? (
     <ActionSurface
-      allowedActions={allowedActions}
+      allowedActions={actionableAllowedActions}
       isMyTurn={isMyTurn}
       onAction={handleGameAction}
       potSize={potDisplayAmount}
@@ -1350,7 +1311,7 @@ export default function TablePage() {
       heroId={heroIdString}
     />
   ) : (
-    sitBar
+    joinCta
   )
 
   return (
@@ -1399,13 +1360,7 @@ export default function TablePage() {
                   {liveState.hand_result && <HandResultPanel liveState={liveState} currentUserId={heroId} />}
                 </div>
               )}
-              players={
-                <PlayerRing
-                  players={playerRingEntries}
-                  slotCount={tableDetails.max_players}
-                  heroSeatIndex={heroSeatIndex}
-                />
-              }
+              players={<PlayerRing players={playerRingEntries} slotCount={tableDetails.max_players} />}
               hero={heroPlayer && (
                 <div
                   ref={(el) => {

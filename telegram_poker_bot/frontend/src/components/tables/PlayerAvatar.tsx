@@ -136,12 +136,10 @@ export default function PlayerAvatar({
     return 'bg-emerald-500/90'
   }, [hasFolded, isSittingOut, status])
 
-  const glowClass = isHero ? 'shadow-[0_0_30px_rgba(56,189,248,0.45)]' : 'shadow-[0_0_18px_rgba(255,255,255,0.08)]'
-
   return (
-    <div className={`relative flex flex-col items-center gap-2 ${className}`} style={{ zIndex: 20 }}>
+    <div className={`relative flex flex-col items-center gap-1.5 ${className}`} style={{ zIndex: 20 }}>
       <div
-        className={`relative flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#0e1f46] via-[#0b1532] to-[#0a1029] ring-1 ring-white/10 ${glowClass}`}
+        className={`relative rounded-full bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center overflow-hidden`}
         style={{ width: dimension, height: dimension }}
       >
         <svg
@@ -174,11 +172,7 @@ export default function PlayerAvatar({
           onClick={() => setShowPopover((prev) => !prev)}
           aria-label={`View ${name} details`}
         >
-          <span
-            className={`text-white font-bold drop-shadow ${size === 'lg' ? 'text-xl' : size === 'md' ? 'text-base' : 'text-sm'}`}
-          >
-            {initials}
-          </span>
+          <span className={`text-white font-bold ${size === 'lg' ? 'text-xl' : size === 'md' ? 'text-base' : 'text-sm'}`}>{initials}</span>
         </button>
         {hasFolded && status === 'folded' && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center">
@@ -187,22 +181,11 @@ export default function PlayerAvatar({
         )}
       </div>
 
-      <div
-        className={`min-w-[90px] rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-center backdrop-blur-xl ${
-          isHero ? 'ring-1 ring-sky-400/50' : ''
-        } ${hasFolded ? 'opacity-50' : ''}`}
-      >
-        <div className={`text-[13px] font-semibold text-emerald-200 ${size === 'lg' ? 'sm:text-base' : ''}`}>
-          {stack.toLocaleString()}
-        </div>
-        <div className={`truncate text-[11px] font-semibold ${isHero ? 'text-white' : 'text-white/80'}`}>
+      <div className={`rounded-full px-2.5 py-0.5 border ${isHero ? 'border-sky-400/60 bg-black/70' : 'border-white/20 bg-black/60'} backdrop-blur-sm min-w-[72px] text-center`}>
+        <div className={`text-white font-bold ${size === 'lg' ? 'text-sm' : 'text-xs'}`}>{stack}</div>
+        <div className={`${size === 'lg' ? 'text-[9px]' : 'text-[8px]'} uppercase tracking-wide ${isHero ? 'text-sky-200' : 'text-gray-300'} truncate max-w-[100px]`}>
           {isHero ? t('table.players.youTag', { defaultValue: 'You' }) : name}
         </div>
-        {seatNumber !== undefined && (
-          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/50">
-            {t('table.players.seat', { index: (seatNumber ?? 0) + 1 })}
-          </div>
-        )}
       </div>
 
       {isAllIn && (
