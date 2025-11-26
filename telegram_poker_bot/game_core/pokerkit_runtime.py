@@ -10,6 +10,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 
+from fastapi import HTTPException
 from sqlalchemy import select, inspect
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +33,10 @@ from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 
 logger = get_logger(__name__)
 settings = get_settings()
+
+
+class NoActorToActError(RuntimeError):
+    """Raised when an action is attempted but no player is eligible to act."""
 
 
 class PokerKitTableRuntime:
@@ -275,221 +280,229 @@ class PokerKitTableRuntime:
         if not self.current_hand or not self.engine:
             raise ValueError("Cannot apply hand result without active hand/engine")
 
-        # Step 0: Calculate and Apply Rake
-        logger.info(
-            "Calculating rake for hand completion",
-            table_id=self.table.id,
-            hand_no=self.hand_no,
-        )
-        hand_result = self._calculate_and_apply_rake(hand_result)
+        hand_ended_event: Dict[str, Any] = {}
 
-        # Record rake transaction if applicable
-        rake_amount = hand_result.get("rake_amount", 0)
-        total_pot = hand_result.get("total_pot", 0)
-        # Persist total pot size on the hand for auditing and ledger alignment
-        self.current_hand.pot_size = total_pot
-        if rake_amount > 0:
-            from telegram_poker_bot.shared.services.wallet_service import record_rake
-
-            try:
-                await record_rake(
-                    db=db,
-                    amount=rake_amount,
-                    hand_id=self.current_hand.id,
+        try:
+            async with db.begin_nested():
+                # Step 0: Calculate and Apply Rake
+                logger.info(
+                    "Calculating rake for hand completion",
                     table_id=self.table.id,
-                    reference_id=f"hand_{self.hand_no}",
+                    hand_no=self.hand_no,
+                )
+                hand_result = self._calculate_and_apply_rake(hand_result)
+
+                # Record rake transaction if applicable
+                rake_amount = hand_result.get("rake_amount", 0)
+                total_pot = hand_result.get("total_pot", 0)
+                # Persist total pot size on the hand for auditing and ledger alignment
+                self.current_hand.pot_size = total_pot
+                if rake_amount > 0:
+                    from telegram_poker_bot.shared.services.wallet_service import (
+                        record_rake,
+                    )
+
+                    await record_rake(
+                        db=db,
+                        amount=rake_amount,
+                        hand_id=self.current_hand.id,
+                        table_id=self.table.id,
+                        reference_id=f"hand_{self.hand_no}",
+                    )
+                    logger.info(
+                        "Recorded rake transaction",
+                        table_id=self.table.id,
+                        hand_no=self.hand_no,
+                        rake_amount=rake_amount,
+                    )
+
+                # Step 1: Persist Data
+                logger.info(
+                    "Starting hand completion - persisting data",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                )
+
+                # 1a. Apply hand results to wallets and stats
+                from telegram_poker_bot.shared.services.user_service import (
+                    apply_hand_result_to_wallets_and_stats,
+                )
+
+                await apply_hand_result_to_wallets_and_stats(
+                    db=db,
+                    hand=self.current_hand,
+                    table=self.table,
+                    seats=self.seats,
+                    hand_result=hand_result,
                 )
                 logger.info(
-                    "Recorded rake transaction",
+                    "Applied hand result to wallets and stats",
                     table_id=self.table.id,
                     hand_no=self.hand_no,
-                    rake_amount=rake_amount,
-                )
-            except Exception as e:
-                logger.error(
-                    "Failed to record rake transaction",
-                    table_id=self.table.id,
-                    hand_no=self.hand_no,
-                    error=str(e),
                 )
 
-        # Step 1: Persist Data
-        logger.info(
-            "Starting hand completion - persisting data",
-            table_id=self.table.id,
-            hand_no=self.hand_no,
-        )
+                # 1b. Save hand history
+                from telegram_poker_bot.shared.models import HandHistory
 
-        # 1a. Apply hand results to wallets and stats
-        from telegram_poker_bot.shared.services.user_service import (
-            apply_hand_result_to_wallets_and_stats,
-        )
+                board_cards = self.engine.state.board_cards if self.engine else []
+                formatted_board = []
+                if board_cards:
+                    for card_list in board_cards:
+                        if card_list and len(card_list) > 0:
+                            formatted_board.append(repr(card_list[0]))
 
-        try:
-            await apply_hand_result_to_wallets_and_stats(
-                db=db,
-                hand=self.current_hand,
-                table=self.table,
-                seats=self.seats,
-                hand_result=hand_result,
-            )
-            logger.info(
-                "Applied hand result to wallets and stats",
-                table_id=self.table.id,
-                hand_no=self.hand_no,
-            )
-        except Exception as e:
-            logger.error(
-                "Failed to apply hand result to wallets/stats",
-                table_id=self.table.id,
-                hand_no=self.hand_no,
-                error=str(e),
-            )
-
-        # 1b. Save hand history
-        from telegram_poker_bot.shared.models import HandHistory
-
-        board_cards = self.engine.state.board_cards if self.engine else []
-        formatted_board = []
-        if board_cards:
-            for card_list in board_cards:
-                if card_list and len(card_list) > 0:
-                    formatted_board.append(repr(card_list[0]))
-
-        hand_history_payload = {
-            "hand_no": self.hand_no,
-            "board": formatted_board,
-            "winners": [
-                {
-                    "user_id": w["user_id"],
-                    "amount": w["amount"],
-                    "hand_rank": w["hand_rank"],
-                    "best_hand_cards": w.get("best_hand_cards", []),
-                    "rake_deducted": w.get("rake_deducted", 0),
+                hand_history_payload = {
+                    "hand_no": self.hand_no,
+                    "board": formatted_board,
+                    "winners": [
+                        {
+                            "user_id": w["user_id"],
+                            "amount": w["amount"],
+                            "hand_rank": w["hand_rank"],
+                            "best_hand_cards": w.get("best_hand_cards", []),
+                            "rake_deducted": w.get("rake_deducted", 0),
+                        }
+                        for w in hand_result["winners"]
+                    ],
+                    "pot_total": hand_result.get("total_pot", 0),
+                    "rake_amount": hand_result.get("rake_amount", 0),
                 }
-                for w in hand_result["winners"]
-            ],
-            "pot_total": hand_result.get("total_pot", 0),
-            "rake_amount": hand_result.get("rake_amount", 0),
-        }
 
-        existing_history = await db.execute(
-            select(HandHistory).where(
-                HandHistory.table_id == self.table.id,
-                HandHistory.hand_no == self.hand_no,
-            )
-        )
-        if not existing_history.scalar_one_or_none():
-            history = HandHistory(
+                existing_history = await db.execute(
+                    select(HandHistory).where(
+                        HandHistory.table_id == self.table.id,
+                        HandHistory.hand_no == self.hand_no,
+                    )
+                )
+                if not existing_history.scalar_one_or_none():
+                    history = HandHistory(
+                        table_id=self.table.id,
+                        hand_no=self.hand_no,
+                        payload_json=hand_history_payload,
+                    )
+                    db.add(history)
+                    logger.info(
+                        "Saved hand history",
+                        table_id=self.table.id,
+                        hand_no=self.hand_no,
+                    )
+
+                # 1c. Update aggregated poker statistics (async background task)
+                from telegram_poker_bot.game_core.stats_processor import (
+                    StatsProcessor,
+                )
+
+                await StatsProcessor.update_stats(
+                    db=db,
+                    hand=self.current_hand,
+                    hand_result=hand_result,
+                    seats=self.seats,
+                )
+                logger.info(
+                    "Updated aggregated poker stats",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                )
+
+                # Step 2: Set State to INTER_HAND_WAIT
+                self.current_hand.status = HandStatus.INTER_HAND_WAIT
+                self.inter_hand_wait_start = datetime.now(timezone.utc)
+                self.ready_players = set()
+
+                logger.info(
+                    "Hand status set to INTER_HAND_WAIT",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                )
+
+                # Step 3: Reset Players - Force all to sit out (they must vote "Ready")
+                for seat in self.seats:
+                    if seat.left_at is None:
+                        seat.is_sitting_out_next_hand = True
+
+                logger.info(
+                    "All players set to sit out by default - must signal READY",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                )
+
+                # Log showdown/hand_ended events
+                await self._log_hand_event(db, "showdown")
+                await self._log_hand_event(db, "hand_ended")
+
+                # Step 4: Build ONE unified hand_ended event for broadcast
+                # This is the ONLY broadcast message for hand completion
+                inter_hand_wait_deadline = self.inter_hand_wait_start + timedelta(
+                    seconds=settings.post_hand_delay_seconds
+                )
+
+                hand_ended_event = {
+                    "type": "hand_ended",
+                    "table_id": self.table.id,
+                    "hand_no": self.hand_no,
+                    "winners": hand_result[
+                        "winners"
+                    ],  # Full details: ID, Rank, Cards, Amount (post-rake)
+                    "rake_amount": hand_result.get("rake_amount", 0),  # Rake deducted from pot
+                    "total_pot": hand_result.get("total_pot", 0),  # Total pot before rake
+                    "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)
+                    "status": "INTER_HAND_WAIT",
+                    "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
+                    # CRITICAL: Include allowed_actions so frontend shows "Ready" button
+                    # All seated players can signal ready during inter-hand phase
+                    "allowed_actions": [{"action_type": "ready"}],
+                }
+
+                # Step 5: Lifecycle Check - Should table self-destruct?
+                # Note: We check but don't delete yet - give players the 20s wait period
+                should_end, reason = await table_lifecycle.compute_poststart_inactivity(
+                    db, self.table
+                )
+
+                if should_end:
+                    logger.warning(
+                        "Table will self-destruct after inter-hand wait",
+                        table_id=self.table.id,
+                        reason=reason,
+                    )
+                    hand_ended_event["table_will_end"] = True
+                    hand_ended_event["end_reason"] = reason
+
+                await db.flush()
+
+                logger.info(
+                    "Hand completion finished - returning hand_ended event",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    has_allowed_actions=bool(hand_ended_event.get("allowed_actions")),
+                    allowed_actions=hand_ended_event.get("allowed_actions"),
+                    winners_count=len(hand_ended_event.get("winners", [])),
+                )
+
+        except Exception as exc:
+            await db.rollback()
+            # Ensure in-memory state does not remain in a partially-updated inter-hand state
+            try:  # pragma: no cover - defensive refresh
+                if self.current_hand:
+                    await db.refresh(self.current_hand)
+            except Exception:  # Best-effort cleanup
+                logger.warning("Failed to refresh hand after rollback", table_id=self.table.id)
+            self.ready_players = set()
+            self.inter_hand_wait_start = None
+            logger.exception(
+                "Failed to finalize hand",
                 table_id=self.table.id,
                 hand_no=self.hand_no,
-                payload_json=hand_history_payload,
+                error=str(exc),
+                hand_result_summary={
+                    "winners": hand_result.get("winners", []),
+                    "total_pot": hand_result.get("total_pot"),
+                },
             )
-            db.add(history)
-            logger.info(
-                "Saved hand history",
-                table_id=self.table.id,
-                hand_no=self.hand_no,
-            )
-
-        # 1c. Update aggregated poker statistics (async background task)
-        from telegram_poker_bot.game_core.stats_processor import StatsProcessor
-
-        try:
-            await StatsProcessor.update_stats(
-                db=db,
-                hand=self.current_hand,
-                hand_result=hand_result,
-                seats=self.seats,
-            )
-            logger.info(
-                "Updated aggregated poker stats",
-                table_id=self.table.id,
-                hand_no=self.hand_no,
-            )
-        except Exception as e:
-            logger.error(
-                "Failed to update aggregated poker stats",
-                table_id=self.table.id,
-                hand_no=self.hand_no,
-                error=str(e),
-            )
-            # Don't fail hand completion if stats update fails
-
-        # Step 2: Set State to INTER_HAND_WAIT
-        self.current_hand.status = HandStatus.INTER_HAND_WAIT
-        self.inter_hand_wait_start = datetime.now(timezone.utc)
-        self.ready_players = set()
-
-        logger.info(
-            "Hand status set to INTER_HAND_WAIT",
-            table_id=self.table.id,
-            hand_no=self.hand_no,
-        )
-
-        # Step 3: Reset Players - Force all to sit out (they must vote "Ready")
-        for seat in self.seats:
-            if seat.left_at is None:
-                seat.is_sitting_out_next_hand = True
-
-        logger.info(
-            "All players set to sit out by default - must signal READY",
-            table_id=self.table.id,
-            hand_no=self.hand_no,
-        )
-
-        # Log showdown/hand_ended events
-        await self._log_hand_event(db, "showdown")
-        await self._log_hand_event(db, "hand_ended")
-
-        # Step 4: Build ONE unified hand_ended event for broadcast
-        # This is the ONLY broadcast message for hand completion
-        inter_hand_wait_deadline = self.inter_hand_wait_start + timedelta(
-            seconds=settings.post_hand_delay_seconds
-        )
-
-        hand_ended_event = {
-            "type": "hand_ended",
-            "table_id": self.table.id,
-            "hand_no": self.hand_no,
-            "winners": hand_result[
-                "winners"
-            ],  # Full details: ID, Rank, Cards, Amount (post-rake)
-            "rake_amount": hand_result.get("rake_amount", 0),  # Rake deducted from pot
-            "total_pot": hand_result.get("total_pot", 0),  # Total pot before rake
-            "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)
-            "status": "INTER_HAND_WAIT",
-            "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
-            # CRITICAL: Include allowed_actions so frontend shows "Ready" button
-            # All seated players can signal ready during inter-hand phase
-            "allowed_actions": [{"action_type": "ready"}],
-        }
-
-        # Step 5: Lifecycle Check - Should table self-destruct?
-        # Note: We check but don't delete yet - give players the 20s wait period
-        should_end, reason = await table_lifecycle.compute_poststart_inactivity(
-            db, self.table
-        )
-
-        if should_end:
-            logger.warning(
-                "Table will self-destruct after inter-hand wait",
-                table_id=self.table.id,
-                reason=reason,
-            )
-            hand_ended_event["table_will_end"] = True
-            hand_ended_event["end_reason"] = reason
-
-        await db.flush()
-
-        logger.info(
-            "Hand completion finished - returning hand_ended event",
-            table_id=self.table.id,
-            hand_no=self.hand_no,
-            has_allowed_actions=bool(hand_ended_event.get("allowed_actions")),
-            allowed_actions=hand_ended_event.get("allowed_actions"),
-            winners_count=len(hand_ended_event.get("winners", [])),
-        )
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to finalize hand; please try again or contact support.",
+            ) from exc
 
         return hand_ended_event
 
@@ -843,6 +856,11 @@ class PokerKitTableRuntime:
         if not self.engine:
             raise ValueError("No active hand")
 
+        if self.engine.is_hand_complete():
+            raise NoActorToActError(
+                "No player to act; hand is complete or waiting for next hand."
+            )
+
         # Validate it's this player's turn
         player_index = self.user_id_to_player_index.get(user_id)
         if player_index is None:
@@ -879,7 +897,9 @@ class PokerKitTableRuntime:
             actor_index = self.engine.state.actor_index
 
         if actor_index is None:
-            raise ValueError("No player to act - hand may be complete")
+            raise NoActorToActError(
+                "No player to act; hand is complete or waiting for next hand."
+            )
 
         if player_index != actor_index:
             raise ValueError(
@@ -1012,6 +1032,7 @@ class PokerKitTableRuntime:
                 "current_bet": 0,
                 "min_raise": 0,
                 "current_actor": None,
+                "current_actor_user_id": None,
                 "action_deadline": None,
                 "players": seated_players,
                 "hero": None,
@@ -1119,6 +1140,7 @@ class PokerKitTableRuntime:
             "current_bet": max(self.engine.state.bets) if self.engine.state.bets else 0,
             "min_raise": min_raise,
             "current_actor": current_actor_user_id,
+            "current_actor_user_id": current_actor_user_id,
             "action_deadline": (
                 (
                     datetime.now(timezone.utc)

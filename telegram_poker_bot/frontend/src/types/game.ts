@@ -115,6 +115,7 @@ export interface TableState {
   current_bet: number
   min_raise: number
   current_actor: number | string | null
+  current_actor_user_id?: number | string | null
   action_deadline?: string | null
   turn_timeout_seconds?: number
   players: TablePlayerState[]

@@ -59,7 +59,10 @@ from telegram_poker_bot.shared.services import user_service, table_service
 from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import get_matchmaking_pool, get_redis_client
-from telegram_poker_bot.game_core.pokerkit_runtime import get_pokerkit_runtime_manager
+from telegram_poker_bot.game_core.pokerkit_runtime import (
+    NoActorToActError,
+    get_pokerkit_runtime_manager,
+)
 
 settings = get_settings()
 configure_logging()
@@ -2261,6 +2264,11 @@ async def submit_action(
             viewer_state["hand_result"] = public_state["hand_result"]
 
         return viewer_state
+    except NoActorToActError:
+        raise HTTPException(
+            status_code=400,
+            detail="No player to act; hand is complete or waiting for next hand.",
+        )
     except HTTPException:
         raise
     except Exception as e:
