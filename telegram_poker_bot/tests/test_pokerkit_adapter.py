@@ -45,6 +45,26 @@ def test_fold_in_heads_up_ends_hand(adapter):
     assert adapter.is_hand_complete()
 
 
+def test_blind_posting_not_counted_as_winnings(adapter):
+    adapter.deal_new_hand()
+
+    # Snapshot should represent stacks before blinds/antes are removed
+    expected_pre_showdown = [
+        stack + bet for stack, bet in zip(adapter.state.stacks, adapter.state.bets)
+    ]
+    assert adapter._pre_showdown_stacks == expected_pre_showdown
+
+    # Current actor (small blind) folds; big blind should profit only the small blind
+    big_blind_index = adapter.state.bets.index(adapter.big_blind)
+    adapter.fold()
+
+    winners = adapter.get_winners()
+
+    assert len(winners) == 1
+    assert winners[0]["player_index"] == big_blind_index
+    assert winners[0]["amount"] == adapter.small_blind
+
+
 def test_all_in_preflop_auto_deals_full_board_and_produces_winners():
     adapter = PokerEngineAdapter(
         player_count=2,
