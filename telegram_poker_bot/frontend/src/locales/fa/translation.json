@@ -647,6 +647,24 @@
     "chips": "{{amount}} ژتون",
     "statusLabel": "وضعیت بازی",
     "pot": "پات: {{amount}}",
+    "potLabel": "پات",
+    "actionBar": {
+      "tableBadge": "میز شماره {{id}}",
+      "currentChips": "{{amount}} چیپ",
+      "adjustLabel": "مقدار شرط را تنظیم کنید",
+      "currentBet": "{{amount}} چیپ",
+      "presets": {
+        "halfPot": "نصف پات",
+        "pot": "پات",
+        "max": "حداکثر"
+      },
+      "fold": "فولد",
+      "check": "چک",
+      "call": "کال {{amount}}",
+      "bet": "شرط {{amount}}",
+      "raise": "ریز تا {{amount}}",
+      "allIn": "آل‌این {{amount}}"
+    },
     "blinds": "بلایند",
     "turnCountdown": "تایمر اکشن",
     "waitingForBoard": "در انتظار بورد...",

@@ -617,6 +617,24 @@
       "mainPot": "Main Pot",
       "sidePot": "Side Pot #{{number}}"
     },
+    "potLabel": "POT",
+    "actionBar": {
+      "tableBadge": "Table #{{id}}",
+      "currentChips": "{{amount}} chips",
+      "adjustLabel": "Adjust bet amount",
+      "currentBet": "{{amount}} chips",
+      "presets": {
+        "halfPot": "1/2 Pot",
+        "pot": "Pot",
+        "max": "Max"
+      },
+      "fold": "Fold",
+      "check": "Check",
+      "call": "Call {{amount}}",
+      "bet": "Bet {{amount}}",
+      "raise": "Raise to {{amount}}",
+      "allIn": "All-in {{amount}}"
+    },
     "blinds": "Blinds",
     "turnCountdown": "Action timer",
     "waitingForBoard": "Waiting for board...",
