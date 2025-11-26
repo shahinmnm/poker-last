@@ -11,7 +11,7 @@ export default function PokerFeltBackground({ children, className }: PokerFeltBa
       {/* Layer 1: Royal Emerald base */}
       <div
         className="absolute inset-0"
-        style={{ background: 'radial-gradient(circle at center, #134E2A 0%, #0B3A20 55%, #0B3A20 100%)' }}
+        style={{ background: 'radial-gradient(120% 90% at 50% 40%, #0e1a3d 0%, #050816 55%, #040712 100%)' }}
       />
 
       {/* Layer 2: Poker suits line art pattern */}

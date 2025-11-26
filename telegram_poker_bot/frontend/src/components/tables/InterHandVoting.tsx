@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import Button from '../ui/Button'
 
@@ -51,6 +52,7 @@ export default function InterHandVoting({
   onReady,
   isReady,
 }: InterHandVotingProps) {
+  const { t } = useTranslation()
   const { seconds, progress } = useCountdown(deadline, durationSeconds)
   const readyLookup = useMemo(
     () => new Set(readyPlayerIds.map((id) => id.toString())),
@@ -58,13 +60,15 @@ export default function InterHandVoting({
   )
 
   return (
-    <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/10 p-5 text-white shadow-xl backdrop-blur-md">
+    <div className="w-full max-w-2xl rounded-3xl border border-white/15 bg-gradient-to-b from-white/12 to-white/6 p-5 text-white shadow-[0_18px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/70">Next Hand Vote</p>
-          <p className="text-xl font-bold">Confirm you're in</p>
+          <p className="text-[10px] uppercase tracking-[0.26em] text-white/60">
+            {t('table.interHand.title', { defaultValue: 'Next hand vote' })}
+          </p>
+          <p className="text-xl font-semibold text-white">{t('table.interHand.subtitle', { defaultValue: "Confirm you're in" })}</p>
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">
+        <div className="flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-200/10 px-3 py-1 text-sm font-semibold text-amber-100 shadow-inner">
           <span className="text-lg">⏳</span>
           <span>{seconds}s</span>
         </div>
@@ -74,23 +78,25 @@ export default function InterHandVoting({
         {players.map((player) => {
           const isReadyPlayer = readyLookup.has(player.user_id.toString())
           const statusIcon = isReadyPlayer ? '✅' : '🕒'
-          const statusColor = isReadyPlayer ? 'text-emerald-400' : 'text-white/60'
-          const statusText = isReadyPlayer ? 'Ready' : 'Waiting to confirm'
+          const statusColor = isReadyPlayer ? 'text-emerald-300' : 'text-white/60'
+          const statusText = isReadyPlayer
+            ? t('table.interHand.ready', { defaultValue: 'Ready' })
+            : t('table.interHand.waiting', { defaultValue: 'Waiting to confirm' })
 
           return (
             <div
               key={player.user_id}
-              className="flex items-center justify-between rounded-xl border border-white/10 bg-black/10 px-3 py-2"
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 shadow-inner"
             >
-              <div className="flex items-center gap-2">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-white/5 ${statusColor}`}>
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-white/10 ${statusColor}`}>
                   <span>{statusIcon}</span>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white leading-tight">
                     {player.display_name || player.username || `Player ${player.user_id}`}
                   </p>
-                  <p className="text-[10px] uppercase tracking-wide text-white/60">{statusText}</p>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/60">{statusText}</p>
                 </div>
               </div>
               <span className={`text-lg ${statusColor}`}>{statusIcon}</span>
@@ -102,18 +108,20 @@ export default function InterHandVoting({
       <Button
         block
         size="lg"
-        className="mt-4"
+        className="mt-5"
         variant="primary"
         glow
         onClick={onReady}
         disabled={isReady}
       >
-        {isReady ? 'Waiting for players...' : 'Join Next Hand'}
+        {isReady
+          ? t('table.interHand.waitingOthers', { defaultValue: 'Waiting for players…' })
+          : t('table.interHand.joinNext', { defaultValue: 'Join next hand' })}
       </Button>
 
-      <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/15">
+      <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-300 to-sky-400 transition-[width] duration-150 ease-linear"
+          className="h-full rounded-full bg-gradient-to-r from-amber-300 via-cyan-300 to-sky-400 transition-[width] duration-150 ease-linear"
           style={{ width: `${progress}%` }}
         />
       </div>
