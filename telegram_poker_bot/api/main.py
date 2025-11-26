@@ -60,7 +60,9 @@ from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import get_matchmaking_pool, get_redis_client
 from telegram_poker_bot.game_core.pokerkit_runtime import (
+    HandCompleteError,
     NoActorToActError,
+    NotYourTurnError,
     get_pokerkit_runtime_manager,
 )
 
@@ -2264,6 +2266,13 @@ async def submit_action(
             viewer_state["hand_result"] = public_state["hand_result"]
 
         return viewer_state
+    except HandCompleteError:
+        raise HTTPException(
+            status_code=400,
+            detail="No player to act; hand is already complete.",
+        )
+    except NotYourTurnError:
+        raise HTTPException(status_code=400, detail="It is not your turn to act.")
     except NoActorToActError:
         raise HTTPException(
             status_code=400,

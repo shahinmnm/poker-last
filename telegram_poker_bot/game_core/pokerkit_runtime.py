@@ -39,6 +39,14 @@ class NoActorToActError(RuntimeError):
     """Raised when an action is attempted but no player is eligible to act."""
 
 
+class HandCompleteError(RuntimeError):
+    """Raised when an action is attempted after the hand has completed."""
+
+
+class NotYourTurnError(RuntimeError):
+    """Raised when a player attempts to act out of turn."""
+
+
 class PokerKitTableRuntime:
     """
     Runtime state container for a single table using PokerKit engine.
@@ -114,7 +122,8 @@ class PokerKitTableRuntime:
             return hand_result
 
         # Calculate total pot from PokerKit state
-        total_pot = sum(pot.amount for pot in self.engine.state.pots)
+        pots_snapshot = list(self.engine.state.pots)
+        total_pot = sum(pot.amount for pot in pots_snapshot)
 
         # Calculate rake: 5% of pot, capped at MAX_RAKE_CAP
         # Use integer arithmetic to avoid floating-point precision errors
@@ -856,9 +865,25 @@ class PokerKitTableRuntime:
         if not self.engine:
             raise ValueError("No active hand")
 
-        if self.engine.is_hand_complete():
-            raise NoActorToActError(
-                "No player to act; hand is complete or waiting for next hand."
+        # Compute immediate hand completion/actor availability before touching engine
+        actor_index = self.engine.state.actor_index
+        street_index = self.engine.state.street_index
+        street_names = ["preflop", "flop", "turn", "river"]
+        street_name = (
+            "showdown"
+            if not self.engine.state.status
+            else street_names[street_index]
+            if street_index is not None and 0 <= street_index < len(street_names)
+            else "preflop"
+        )
+
+        hand_complete = self.engine.is_hand_complete() or (
+            actor_index is None and street_name == "showdown"
+        )
+
+        if hand_complete:
+            raise HandCompleteError(
+                "No player to act; hand is already complete."
             )
 
         # Validate it's this player's turn
@@ -866,11 +891,9 @@ class PokerKitTableRuntime:
         if player_index is None:
             raise ValueError("User not seated in this hand")
 
-        actor_index = self.engine.state.actor_index
-
         if actor_index is None:
-            raise NoActorToActError(
-                "No player to act; hand is complete or waiting for next hand."
+            raise HandCompleteError(
+                "No player to act; hand is already complete."
             )
 
         # Log current state before action
@@ -892,9 +915,7 @@ class PokerKitTableRuntime:
         )
 
         if player_index != actor_index:
-            raise ValueError(
-                f"Not your turn - current actor is player_index={actor_index}, you are player_index={player_index}"
-            )
+            raise NotYourTurnError("It is not your turn to act.")
 
         # Process action via PokerKit
         if action == ActionType.FOLD:
@@ -940,35 +961,45 @@ class PokerKitTableRuntime:
 
         # Check if hand is complete
         if self.engine.is_hand_complete():
-            winners_iter = self.engine.get_winners()
-            winners = list(winners_iter)
+            try:
+                winners_iter = self.engine.get_winners()
+                winners = list(winners_iter)
 
-            # Convert player indices back to user IDs
-            user_id_by_index = {
-                idx: uid for uid, idx in self.user_id_to_player_index.items()
-            }
-            hand_result = {
-                "winners": [
-                    {
-                        "user_id": user_id_by_index[w["player_index"]],
-                        "amount": w["amount"],
-                        "pot_index": w["pot_index"],
-                        "hand_score": w["hand_score"],
-                        "hand_rank": w["hand_rank"],
-                        "best_hand_cards": w["best_hand_cards"],
-                    }
-                    for w in winners
-                ]
-            }
-            self.last_hand_result = hand_result
-            result["hand_result"] = hand_result
+                # Convert player indices back to user IDs
+                user_id_by_index = {
+                    idx: uid for uid, idx in self.user_id_to_player_index.items()
+                }
+                pots_snapshot = list(self.engine.state.pots)
+                hand_result = {
+                    "winners": [
+                        {
+                            "user_id": user_id_by_index[w["player_index"]],
+                            "amount": w["amount"],
+                            "pot_index": w["pot_index"],
+                            "hand_score": w["hand_score"],
+                            "hand_rank": w["hand_rank"],
+                            "best_hand_cards": w["best_hand_cards"],
+                        }
+                        for w in winners
+                    ],
+                    "total_pot": sum(pot.amount for pot in pots_snapshot),
+                    "rake_amount": 0,
+                }
+                self.last_hand_result = hand_result
+                result["hand_result"] = hand_result
 
-            logger.info(
-                "Hand complete",
-                table_id=self.table.id,
-                hand_no=self.hand_no,
-                winners=hand_result["winners"],
-            )
+                logger.info(
+                    "Hand complete",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    winners=hand_result["winners"],
+                )
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.exception(
+                    "Error finalizing hand after showdown",
+                    extra={"table_id": self.table.id, "hand_no": self.hand_no},
+                )
+                raise
 
         return result
 
@@ -1153,14 +1184,43 @@ class PokerKitTableRuntime:
             "last_action": None,
             "allowed_actions": allowed_actions,
             "ready_players": list(self.ready_players),
-            "hand_complete": poker_state["status"] == "complete",
+            "hand_complete": poker_state["status"] == "complete"
+            or (actor_index is None and poker_state.get("street") == "showdown"),
         }
 
         if payload["hand_complete"]:
             payload["allowed_actions"] = {}
+            payload["current_actor_user_id"] = None
 
         if self.last_hand_result and (not self.engine or not self.engine.state.status):
             payload["hand_result"] = self.last_hand_result
+
+        elif payload["hand_complete"] and self.engine:
+            try:
+                winners_iter = self.engine.get_winners()
+                winners = list(winners_iter)
+                hand_result = {
+                    "winners": [
+                        {
+                            "user_id": user_id_by_index[w["player_index"]],
+                            "amount": w["amount"],
+                            "pot_index": w["pot_index"],
+                            "hand_score": w["hand_score"],
+                            "hand_rank": w["hand_rank"],
+                            "best_hand_cards": w["best_hand_cards"],
+                        }
+                        for w in winners
+                    ],
+                    "total_pot": sum(pot.amount for pot in list(self.engine.state.pots)),
+                    "rake_amount": 0,
+                }
+                payload["hand_result"] = hand_result
+                self.last_hand_result = hand_result
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.exception(
+                    "Error computing hand_result for payload",
+                    extra={"table_id": self.table.id, "hand_no": self.hand_no},
+                )
 
         # Include inter-hand state when in INTER_HAND_WAIT phase
         if self.current_hand and self.current_hand.status == HandStatus.INTER_HAND_WAIT:
