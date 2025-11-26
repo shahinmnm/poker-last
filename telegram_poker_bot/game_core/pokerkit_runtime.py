@@ -1048,6 +1048,7 @@ class PokerKitTableRuntime:
                 "table_id": self.table.id,
                 "hand_id": None,
                 "status": "waiting",
+                "phase": "waiting",
                 "street": None,
                 "board": [],
                 "pot": 0,
@@ -1106,6 +1107,7 @@ class PokerKitTableRuntime:
                         seat.is_sitting_out_next_hand if seat else False
                     ),
                     "hole_cards": player.get("hole_cards", []),
+                    "is_ready": user_id in self.ready_players,
                 }
             )
 
@@ -1149,6 +1151,20 @@ class PokerKitTableRuntime:
             "big_blind", self.engine.big_blind if self.engine else 0
         )
 
+        if (
+            self.table.status in {TableStatus.ENDED, TableStatus.EXPIRED}
+            or (self.current_hand and self.current_hand.status == HandStatus.ENDED)
+        ):
+            phase = "finished"
+        elif self.current_hand and self.current_hand.status == HandStatus.INTER_HAND_WAIT:
+            phase = "inter_hand_wait"
+        elif self.table.status == TableStatus.WAITING and not self.current_hand:
+            phase = "waiting"
+        else:
+            phase = "playing"
+
+        hand_status_value = poker_state.get("status")
+
         # Build payload
         payload = {
             "type": "table_state",
@@ -1184,8 +1200,9 @@ class PokerKitTableRuntime:
             "last_action": None,
             "allowed_actions": allowed_actions,
             "ready_players": list(self.ready_players),
-            "hand_complete": poker_state["status"] == "complete"
+            "hand_complete": hand_status_value == "complete"
             or (actor_index is None and poker_state.get("street") == "showdown"),
+            "phase": phase,
         }
 
         if payload["hand_complete"]:
@@ -1226,15 +1243,49 @@ class PokerKitTableRuntime:
         if self.current_hand and self.current_hand.status == HandStatus.INTER_HAND_WAIT:
             payload["inter_hand_wait"] = True
             payload["status"] = "INTER_HAND_WAIT"
+            payload["phase"] = "inter_hand_wait"
+
+            active_seats = [s for s in self.seats if s.left_at is None]
+            ready_set = set(self.ready_players)
+            ready_players = list(ready_set)
+
             if self.inter_hand_wait_start:
                 deadline = self.inter_hand_wait_start + timedelta(
                     seconds=settings.post_hand_delay_seconds
                 )
                 payload["inter_hand_wait_deadline"] = deadline.isoformat()
                 payload["inter_hand_wait_seconds"] = settings.post_hand_delay_seconds
-            # Include ready action so the "Join Next Hand" button can appear
-            payload["allowed_actions"] = [{"action_type": "ready"}]
-            payload["ready_players"] = list(self.ready_players)
+
+            can_ready = False
+            if viewer_user_id:
+                viewer_seat = seat_by_user_id.get(viewer_user_id)
+                can_ready = bool(
+                    viewer_seat
+                    and viewer_seat.left_at is None
+                    and viewer_user_id not in ready_set
+                )
+
+            payload["allowed_actions"] = [
+                {"action_type": "ready"}
+                for _ in range(1 if can_ready else 0)
+            ]
+            payload["ready_players"] = ready_players
+            payload["inter_hand"] = {
+                "hand_no": self.hand_no,
+                "ready_count": len(ready_set),
+                "min_players": 2,
+                "ready_players": ready_players,
+                "players": [
+                    {
+                        "user_id": seat.user_id,
+                        "is_ready": seat.user_id in ready_set,
+                        "is_sitting_out_next_hand": seat.is_sitting_out_next_hand,
+                        "display_name": seat.user.username if seat.user else None,
+                    }
+                    for seat in active_seats
+                ],
+                "can_ready": can_ready,
+            }
 
         return payload
 

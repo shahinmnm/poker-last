@@ -59,6 +59,7 @@ export interface TablePlayerState {
   cards?: string[]
   hole_cards?: string[]
   flags?: string[]
+  is_ready?: boolean
 }
 
 export interface HeroState {
@@ -107,6 +108,7 @@ export interface TableState {
   table_id: number
   hand_id: number | null
   status: TableStatus
+  phase?: 'waiting' | 'playing' | 'inter_hand_wait' | 'finished' | 'destroying'
   table_status?: string
   street: string | null
   board: string[]
@@ -131,6 +133,19 @@ export interface TableState {
   inter_hand_wait?: boolean
   inter_hand_wait_seconds?: number
   inter_hand_wait_deadline?: string | null
+  inter_hand?: {
+    hand_no: number | null
+    ready_count: number
+    min_players: number
+    ready_players: Array<number | string>
+    can_ready?: boolean
+    players: Array<{
+      user_id: number | string
+      is_ready: boolean
+      is_sitting_out_next_hand?: boolean
+      display_name?: string | null
+    }>
+  } | null
   allowed_actions?: AllowedActionsPayload
   ready_players?: Array<number | string>
 }

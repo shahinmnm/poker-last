@@ -348,10 +348,11 @@ def test_to_payload_includes_inter_hand_state_when_inter_hand_wait():
     runtime.hand_no = 1
 
     # Call to_payload
-    payload = runtime.to_payload()
+    payload = runtime.to_payload(viewer_user_id=101)
 
     # Verify inter-hand state is included in the payload
     assert payload["inter_hand_wait"] is True
+    assert payload["phase"] == "inter_hand_wait"
     assert payload["status"] == "INTER_HAND_WAIT"
     assert "inter_hand_wait_deadline" in payload
     assert "inter_hand_wait_seconds" in payload
@@ -359,6 +360,10 @@ def test_to_payload_includes_inter_hand_state_when_inter_hand_wait():
     assert payload["allowed_actions"] == [{"action_type": "ready"}]
     assert payload["ready_players"] == [100]
     assert payload["hand_result"] == runtime.last_hand_result
+    assert payload["inter_hand"]["ready_count"] == 1
+    assert payload["inter_hand"]["min_players"] == 2
+    assert payload["inter_hand"]["hand_no"] == 1
+    assert any(p.get("is_ready") for p in payload["inter_hand"]["players"])
 
 
 def test_to_payload_no_inter_hand_state_when_not_inter_hand_wait():
