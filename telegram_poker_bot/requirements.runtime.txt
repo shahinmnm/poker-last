@@ -14,6 +14,9 @@ alembic==1.13.1
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
 
+# Poker engine
+pokerkit==0.6.4
+
 # Redis
 redis==5.0.1
 hiredis==2.2.3

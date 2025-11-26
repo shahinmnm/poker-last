@@ -36,6 +36,21 @@ RUN pip install --no-cache-dir -r /tmp/runtime-requirements.txt
 # Copy application code without flattening the package structure
 COPY telegram_poker_bot/ /opt/app/telegram_poker_bot/
 
+# Verify runtime environment matches PokerKit requirements
+RUN python - <<'PY'
+import sys
+from importlib import metadata
+
+required = (3, 10)
+if sys.version_info < required:
+    raise SystemExit(
+        f"Python {required[0]}.{required[1]}+ is required for PokerKit; found {sys.version.split()[0]}"
+    )
+
+print("Python runtime ok", sys.version.split()[0])
+print("PokerKit installed", metadata.version("pokerkit"))
+PY
+
 # Create unprivileged user
 RUN useradd --create-home --shell /usr/sbin/nologin poker \
     && chown -R poker:poker /opt/app
