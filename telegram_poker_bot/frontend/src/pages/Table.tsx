@@ -135,7 +135,7 @@ export default function TablePage() {
   const autoActionTimerRef = useRef<number | null>(null)
   
   // Refs for tracking elements for animations
-  const playerTileRefs = useRef<Map<number, HTMLElement>>(new Map())
+  const playerTileRefs = useRef<Map<string, HTMLElement>>(new Map())
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -335,7 +335,8 @@ export default function TablePage() {
     if (!shouldAnimate) return
     
     // Get player tile position
-    const playerTile = playerTileRefs.current.get(lastAction.user_id)
+    const playerKey = lastAction.user_id.toString()
+    const playerTile = playerTileRefs.current.get(playerKey)
     const playerPos = getElementCenter(playerTile ?? null)
     const potPos = getElementCenter(potAreaRef.current)
     
@@ -372,7 +373,8 @@ export default function TablePage() {
       winner.amount > max.amount ? winner : max
     , currentResult.winners[0])
     
-    const winnerTile = playerTileRefs.current.get(mainWinner.user_id)
+    const winnerKey = mainWinner.user_id.toString()
+    const winnerTile = playerTileRefs.current.get(winnerKey)
     const winnerPos = getElementCenter(winnerTile ?? null)
     
     if (!winnerPos) return
@@ -1216,13 +1218,14 @@ export default function TablePage() {
                     return (
                       <div
                         key={`villain-${player.user_id}`}
-                        ref={(el) => {
-                          if (el) {
-                            playerTileRefs.current.set(player.user_id, el)
-                          } else {
-                            playerTileRefs.current.delete(player.user_id)
-                          }
-                        }}
+                          ref={(el) => {
+                            const playerKey = player.user_id.toString()
+                            if (el) {
+                              playerTileRefs.current.set(playerKey, el)
+                            } else {
+                              playerTileRefs.current.delete(playerKey)
+                            }
+                          }}
                         className="absolute pointer-events-auto"
                         style={{
                           left: `${left}%`,
@@ -1336,13 +1339,15 @@ export default function TablePage() {
               {heroPlayer && (
                 <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20">
                   <div
-                    ref={(el) => {
-                      if (el && heroId) {
-                        playerTileRefs.current.set(heroId, el)
-                      } else if (heroId) {
-                        playerTileRefs.current.delete(heroId)
-                      }
-                    }}
+                      ref={(el) => {
+                        if (el && heroId) {
+                          const heroKey = heroId.toString()
+                          playerTileRefs.current.set(heroKey, el)
+                        } else if (heroId) {
+                          const heroKey = heroId.toString()
+                          playerTileRefs.current.delete(heroKey)
+                        }
+                      }}
                     className="flex flex-col items-center"
                   >
                     {/* Hero Cards */}
