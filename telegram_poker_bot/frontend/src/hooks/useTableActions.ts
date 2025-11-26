@@ -64,9 +64,13 @@ export function useTableActions({
         return { isValid: false, error: t('table.errors.playerNotFound') }
       }
 
-      const minRaise = gameState.allowed_actions?.min_raise_to || gameState.min_raise
-      const maxRaise =
-        gameState.allowed_actions?.max_raise_to || heroPlayer.stack + heroPlayer.bet
+      const allowedActions =
+        gameState.allowed_actions && !Array.isArray(gameState.allowed_actions)
+          ? gameState.allowed_actions
+          : undefined
+
+      const minRaise = allowedActions?.min_raise_to ?? gameState.min_raise
+      const maxRaise = allowedActions?.max_raise_to ?? heroPlayer.stack + heroPlayer.bet
 
       if (amount < minRaise) {
         return {
@@ -194,14 +198,18 @@ export function useTableActions({
     const heroPlayer = gameState?.players.find((p) => p.user_id === heroId)
     const amountToCall = Math.max((gameState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
     const isMyTurn = gameState?.current_actor === heroId
-    const canCheck = amountToCall === 0 || Boolean(gameState?.allowed_actions?.can_check)
-    const canBet = amountToCall === 0 && Boolean(gameState?.allowed_actions?.can_bet)
-    const canRaise = amountToCall > 0 && Boolean(gameState?.allowed_actions?.can_raise)
-    const minRaise = gameState?.allowed_actions?.min_raise_to || gameState?.min_raise || 0
+    const allowedActions =
+      gameState?.allowed_actions && !Array.isArray(gameState.allowed_actions)
+        ? gameState.allowed_actions
+        : undefined
+
+    const canCheck = amountToCall === 0 || Boolean(allowedActions?.can_check)
+    const canBet = amountToCall === 0 && Boolean(allowedActions?.can_bet)
+    const canRaise = amountToCall > 0 && Boolean(allowedActions?.can_raise)
+    const minRaise = allowedActions?.min_raise_to || gameState?.min_raise || 0
     const maxRaise =
-      gameState?.allowed_actions?.max_raise_to ||
-      (heroPlayer ? heroPlayer.stack + heroPlayer.bet : 0)
-    const currentPot = gameState?.allowed_actions?.current_pot || gameState?.pot || 0
+      allowedActions?.max_raise_to || (heroPlayer ? heroPlayer.stack + heroPlayer.bet : 0)
+    const currentPot = allowedActions?.current_pot || gameState?.pot || 0
 
     return {
       isMyTurn,
