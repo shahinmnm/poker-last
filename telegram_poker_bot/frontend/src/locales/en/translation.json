@@ -17,7 +17,6 @@
       "start": "Start",
       "saveChanges": "Save changes",
       "join": "Join",
-      "close": "Close",
       "create": "Create"
     }
   },
@@ -607,13 +606,7 @@
       "expires": "Expires",
       "stakes": "Stakes",
       "players": "Players",
-      "unknown": "Unknown player",
-      "table": "Table",
-      "defaultName": "Table #{{id}}",
-      "nameLabel": "Name",
-      "blinds": "Blinds",
-      "mode": "Mode",
-      "buyIn": "Buy-in"
+      "unknown": "Unknown player"
     },
     "stacks": "{{amount}} chips starting",
     "chips": "{{amount}} chips",
@@ -630,7 +623,6 @@
       "currentChips": "{{amount}} chips",
       "adjustLabel": "Adjust bet amount",
       "currentBet": "{{amount}} chips",
-      "yourTurnLabel": "Your turn",
       "presets": {
         "halfPot": "1/2 Pot",
         "pot": "Pot",
@@ -671,8 +663,7 @@
       "waiting": "Waiting",
       "active": "Running",
       "paused": "Paused",
-      "ended": "Ended",
-      "waitingForTurn": "Waiting for other players..."
+      "ended": "Ended"
     },
     "visibility": {
       "public": "Public table",
