@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone, timedelta
 from functools import lru_cache
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 import asyncio
 import json
 import hmac
@@ -310,15 +310,15 @@ manager = ConnectionManager()
 
 _auto_fold_task: Optional[asyncio.Task] = None
 _inactivity_check_task: Optional[asyncio.Task] = None
-_inter_hand_tasks: Dict[int, asyncio.Task] = {}
+_inter_hand_tasks: Dict[int, Tuple[asyncio.Task, int]] = {}
 
 
 def _cancel_inter_hand_task(table_id: int) -> None:
     """Cancel any pending inter-hand task for the table."""
 
-    task = _inter_hand_tasks.pop(table_id, None)
-    if task:
-        task.cancel()
+    task_entry = _inter_hand_tasks.pop(table_id, None)
+    if task_entry:
+        task_entry[0].cancel()
 
 
 async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> None:
@@ -342,15 +342,48 @@ async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> No
         await manager.broadcast(table_id, result["state"])
 
 
-async def _auto_complete_inter_hand(table_id: int) -> None:
+async def _auto_complete_inter_hand(table_id: int, hand_no: int) -> None:
     """Automatically resolve the inter-hand phase when the timer expires."""
 
     try:
         await asyncio.sleep(settings.post_hand_delay_seconds)
         async with get_db_session() as session:
-            result = await get_pokerkit_runtime_manager().complete_inter_hand_phase(
-                session, table_id
+            runtime_mgr = get_pokerkit_runtime_manager()
+            runtime = await runtime_mgr.ensure_table(session, table_id)
+
+            current_hand_no = runtime.hand_no
+            current_status = (
+                runtime.current_hand.status if runtime.current_hand else None
             )
+            ready_count = len(runtime.ready_players)
+            active_count = len(
+                [
+                    s
+                    for s in runtime.seats
+                    if s.left_at is None and not s.is_sitting_out_next_hand
+                ]
+            )
+
+            if (
+                not runtime.current_hand
+                or current_status != HandStatus.INTER_HAND_WAIT
+                or current_hand_no != hand_no
+            ):
+                logger.info(
+                    "Inter-hand self-destruct skipped: table already advanced",
+                    table_id=table_id,
+                    current_hand_no=current_hand_no,
+                    scheduled_for_hand_no=hand_no,
+                    current_hand_status=(
+                        current_status.value if hasattr(current_status, "value") else None
+                    ),
+                    ready_count=ready_count,
+                    active_count=active_count,
+                )
+                await session.commit()
+                return
+
+            result = await runtime_mgr.complete_inter_hand_phase(session, table_id)
             await session.commit()
 
         await _handle_inter_hand_result(table_id, result)
@@ -360,12 +393,13 @@ async def _auto_complete_inter_hand(table_id: int) -> None:
         _inter_hand_tasks.pop(table_id, None)
 
 
-def _schedule_inter_hand_completion(table_id: int) -> None:
+def _schedule_inter_hand_completion(table_id: int, hand_no: int) -> None:
     """Schedule or reset the inter-hand countdown task for a table."""
 
     _cancel_inter_hand_task(table_id)
-    _inter_hand_tasks[table_id] = asyncio.create_task(
-        _auto_complete_inter_hand(table_id)
+    _inter_hand_tasks[table_id] = (
+        asyncio.create_task(_auto_complete_inter_hand(table_id, hand_no)),
+        hand_no,
     )
 
 
@@ -785,7 +819,12 @@ async def auto_fold_expired_actions():
                                 hand_ended_event = public_state.get("hand_ended_event")
                                 if hand_ended_event:
                                     await manager.broadcast(table.id, hand_ended_event)
-                                _schedule_inter_hand_completion(table.id)
+                                hand_no = (
+                                    public_state.get("hand_id")
+                                    or public_state.get("hand_no")
+                                    or 0
+                                )
+                                _schedule_inter_hand_completion(table.id, int(hand_no))
 
                         except Exception as e:
                             logger.error(
@@ -2259,7 +2298,10 @@ async def submit_action(
             hand_ended_event = public_state.get("hand_ended_event")
             if hand_ended_event:
                 await manager.broadcast(table_id, hand_ended_event)
-            _schedule_inter_hand_completion(table_id)
+            hand_no = (
+                public_state.get("hand_id") or public_state.get("hand_no") or 0
+            )
+            _schedule_inter_hand_completion(table_id, int(hand_no))
 
         viewer_state = await runtime_mgr.get_state(db, table_id, user.id)
         if public_state.get("hand_result"):

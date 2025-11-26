@@ -261,6 +261,16 @@ export default function TablePage() {
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
   const heroCards = liveState?.hero?.cards ?? []
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
+  const currentPhase = useMemo(() => {
+    if (liveState?.phase) return liveState.phase
+    const normalizedStatus = liveState?.status?.toString().toLowerCase()
+    if (normalizedStatus === 'inter_hand_wait') return 'inter_hand_wait'
+    if (!normalizedStatus || normalizedStatus === 'waiting') return 'waiting'
+    if (['ended', 'expired'].includes(normalizedStatus)) return 'finished'
+    return 'playing'
+  }, [liveState?.phase, liveState?.status])
+  const isInterHand = currentPhase === 'inter_hand_wait'
+  const isPlaying = currentPhase === 'playing'
   const readyPlayerIds = useMemo(
     () => (liveState?.ready_players ?? []).map((id) => id?.toString()),
     [liveState?.ready_players],
@@ -332,7 +342,22 @@ export default function TablePage() {
       const isReadyAction = actionType === 'ready'
       const normalizedActions = normalizeAllowedActions(liveState?.allowed_actions)
 
+      if (isReadyAction) {
+        if (!isInterHand) {
+          showToast(t('table.errors.actionNotAllowed', { defaultValue: 'Action not available' }))
+          return
+        }
+        if (heroIdString && readyPlayerIds.includes(heroIdString)) {
+          showToast(t('table.toast.ready', "You're joining the next hand"))
+          return
+        }
+      }
+
       if (!isReadyAction) {
+        if (!isPlaying) {
+          showToast(t('table.errors.actionNotAllowed', { defaultValue: 'Action not available' }))
+          return
+        }
         if (!heroIdString || !currentActorUserId || currentActorUserId.toString() !== heroIdString) {
           showToast(t('table.errors.notYourTurn', { defaultValue: "It's not your turn" }))
           return
@@ -387,7 +412,21 @@ export default function TablePage() {
         setActionPending(false)
       }
     },
-    [applyIncomingState, fetchLiveState, heroIdString, currentActorUserId, initData, liveState?.allowed_actions, normalizeAllowedActions, showToast, t, tableId],
+    [
+      applyIncomingState,
+      fetchLiveState,
+      heroIdString,
+      currentActorUserId,
+      initData,
+      isInterHand,
+      isPlaying,
+      liveState?.allowed_actions,
+      normalizeAllowedActions,
+      readyPlayerIds,
+      showToast,
+      t,
+      tableId,
+    ],
   )
 
   // Helper to get center position of an element
@@ -601,6 +640,11 @@ export default function TablePage() {
         }
 
         if (payload?.type === 'hand_ended') {
+          const endedHandNo = payload.hand_id ?? payload.hand_no ?? null
+          if (endedHandNo && liveState?.hand_id && liveState.hand_id > endedHandNo) {
+            // Skip stale hand_ended events once a newer hand is active
+            return
+          }
           const winners = (payload.hand_result?.winners ?? payload.winners ?? []) as HandResultPayload['winners']
           const showdownHands =
             payload.hand_result?.showdown_hands ??
@@ -621,8 +665,9 @@ export default function TablePage() {
           const interHandState: TableState = {
             type: 'table_state',
             table_id: payload.table_id ?? Number(tableId ?? 0),
-            hand_id: payload.hand_id ?? payload.hand_no ?? liveState?.hand_id ?? null,
+            hand_id: endedHandNo ?? liveState?.hand_id ?? null,
             status: 'INTER_HAND_WAIT',
+            phase: 'inter_hand_wait',
             street: 'showdown',
             board: payload.board ?? liveState?.board ?? [],
             pot: payload.total_pot ?? payload.pot_total ?? liveState?.pot ?? 0,
@@ -641,6 +686,18 @@ export default function TablePage() {
             inter_hand_wait_seconds:
               payload.next_hand_in ?? payload.inter_hand_wait_seconds ?? liveState?.inter_hand_wait_seconds ?? 20,
             inter_hand_wait_deadline: payload.inter_hand_wait_deadline ?? payload.deadline ?? null,
+            inter_hand: {
+              hand_no: endedHandNo ?? null,
+              ready_count: payload.ready_players?.length ?? 0,
+              min_players: payload.min_players ?? 2,
+              ready_players: payload.ready_players ?? [],
+              players: (payload.players ?? liveState?.players ?? []).map((player) => ({
+                user_id: player.user_id,
+                is_ready: payload.ready_players?.includes(player.user_id as never) ?? false,
+                is_sitting_out_next_hand: player.is_sitting_out_next_hand,
+                display_name: (player as any).display_name ?? (player as any).username ?? null,
+              })),
+            },
             allowed_actions:
               payload.allowed_actions ?? (Array.isArray(payload.allowed_actions) ? payload.allowed_actions : { ready: true }),
             ready_players: payload.ready_players ?? [],
@@ -822,12 +879,6 @@ export default function TablePage() {
   const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
   const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
-  // Robust inter-hand detection: check multiple conditions
-  const isInterHand = Boolean(
-    normalizedStatus === 'inter_hand_wait' ||
-    liveState?.inter_hand_wait === true ||
-    liveState?.status?.toLowerCase() === 'inter_hand_wait'
-  )
   const showdownCardsByPlayer = useMemo(() => {
     const lookup = new Map<string, string[]>()
     if (heroIdString && heroCards.length) {
@@ -888,7 +939,8 @@ export default function TablePage() {
     : tableDetails?.table_id
       ? `${window.location.origin}/table/${tableDetails.table_id}`
       : ''
-  const isMyTurn = heroIdString !== null && currentActorUserId?.toString() === heroIdString
+  const isMyTurn =
+    isPlaying && heroIdString !== null && currentActorUserId?.toString() === heroIdString
   const actionableAllowedActions = isMyTurn ? allowedActions : []
 
   useEffect(() => {
@@ -903,7 +955,13 @@ export default function TablePage() {
       autoActionTimerRef.current = null
     }
 
-    if (!liveState || !heroIdString || currentActorUserId?.toString() !== heroIdString || !liveState.action_deadline) {
+    if (
+      !isPlaying ||
+      !liveState ||
+      !heroIdString ||
+      currentActorUserId?.toString() !== heroIdString ||
+      !liveState.action_deadline
+    ) {
       return undefined
     }
 
@@ -934,7 +992,15 @@ export default function TablePage() {
         autoActionTimerRef.current = null
       }
     }
-  }, [canCheck, handleGameAction, heroIdString, liveState?.action_deadline, currentActorUserId, liveState?.hand_id])
+  }, [
+    canCheck,
+    handleGameAction,
+    heroIdString,
+    isPlaying,
+    liveState?.action_deadline,
+    currentActorUserId,
+    liveState?.hand_id,
+  ])
 
   // Control bottom navigation visibility based on seated status
   useEffect(() => {
