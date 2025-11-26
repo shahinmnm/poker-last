@@ -690,12 +690,14 @@
       "hostTag": "Host",
       "youTag": "You"
     },
+    "joinCta": "Sit at table",
     "actions": {
       "titleHost": "Host controls",
       "titleGuest": "Table actions",
       "back": "Back to lobby",
       "start": "Start game",
       "takeSeat": "Take a seat",
+      "tapToSit": "Tap to sit",
       "seated": "Already seated",
       "joining": "Joining...",
       "leave": "Leave table",
