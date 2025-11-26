@@ -534,7 +534,7 @@ a {
   background-color: rgba(12, 19, 38, 0.65);
   outline: none;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06), 0 8px 20px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(18px);
 }
 
 .action-range::-webkit-slider-thumb {
@@ -542,9 +542,10 @@ a {
   width: 22px;
   height: 22px;
   border-radius: 9999px;
-  background: linear-gradient(135deg, rgba(74, 222, 128, 0.9), rgba(52, 211, 153, 0.8));
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.85), rgba(52, 211, 153, 0.75));
   border: 2px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 18px rgba(74, 222, 128, 0.75), 0 8px 18px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
   cursor: pointer;
 }
 
@@ -552,9 +553,10 @@ a {
   width: 22px;
   height: 22px;
   border-radius: 9999px;
-  background: linear-gradient(135deg, rgba(74, 222, 128, 0.9), rgba(52, 211, 153, 0.8));
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.85), rgba(52, 211, 153, 0.75));
   border: 2px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 18px rgba(74, 222, 128, 0.75), 0 8px 18px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
   cursor: pointer;
 }
 
