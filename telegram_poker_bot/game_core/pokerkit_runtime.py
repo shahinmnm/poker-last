@@ -80,7 +80,9 @@ class PokerKitTableRuntime:
         active_seats = [
             s
             for s in self.seats
-            if s.left_at is None and not s.is_sitting_out_next_hand
+            if s.left_at is None
+            and s.chips > 0
+            and not s.is_sitting_out_next_hand
         ]
         # Sort by position to ensure canonical ordering
         active_seats.sort(key=lambda s: s.position)
@@ -571,6 +573,15 @@ class PokerKitTableRuntime:
         Returns:
             Initial game state dictionary
         """
+        # Refresh seats from DB to ensure we have the latest chip stacks/sitout flags
+        seats_result = await db.execute(
+            select(Seat)
+            .options(selectinload(Seat.user))
+            .where(Seat.table_id == self.table.id, Seat.left_at.is_(None))
+            .order_by(Seat.position)
+        )
+        self.seats = seats_result.scalars().all()
+
         # Load or create Hand row
         hand = await self.load_or_create_hand(db)
         self.hand_no = hand.hand_no
@@ -1016,12 +1027,19 @@ class PokerKitTableRuntime:
         }
         seat_by_user_id = {s.user_id: s for s in self.seats}
 
+        # Get current actor user ID
+        actor_index = poker_state.get("current_actor_index")
+        current_actor_user_id = None
+        if actor_index is not None:
+            current_actor_user_id = user_id_by_index.get(actor_index)
+
         # Build player list
         players = []
         for player in poker_state["players"]:
             player_idx = player["player_index"]
             user_id = user_id_by_index[player_idx]
             seat = seat_by_user_id.get(user_id)
+            acted = actor_index is None or actor_index != player_idx
 
             players.append(
                 {
@@ -1033,19 +1051,13 @@ class PokerKitTableRuntime:
                     "is_button": player["is_button"],
                     "is_small_blind": player["is_small_blind"],
                     "is_big_blind": player["is_big_blind"],
-                    "acted": not player["is_actor"],
+                    "acted": acted,
                     "display_name": seat.user.username if seat and seat.user else None,
                     "is_sitting_out_next_hand": (
                         seat.is_sitting_out_next_hand if seat else False
                     ),
                 }
             )
-
-        # Get current actor user ID
-        actor_index = poker_state.get("current_actor_index")
-        current_actor_user_id = None
-        if actor_index is not None:
-            current_actor_user_id = user_id_by_index.get(actor_index)
 
         # Get hero cards
         hero_cards = []
@@ -1083,6 +1095,10 @@ class PokerKitTableRuntime:
             viewer_user_id=viewer_user_id,
         )
 
+        min_raise = poker_state.get(
+            "big_blind", self.engine.big_blind if self.engine else 0
+        )
+
         # Build payload
         payload = {
             "type": "table_state",
@@ -1094,7 +1110,7 @@ class PokerKitTableRuntime:
             "pot": poker_state["total_pot"],
             "pots": pots_with_user_ids,
             "current_bet": max(self.engine.state.bets) if self.engine.state.bets else 0,
-            "min_raise": poker_state["big_blind"],
+            "min_raise": min_raise,
             "current_actor": current_actor_user_id,
             "action_deadline": (
                 (
