@@ -226,9 +226,12 @@ class PokerKitTableRuntime:
                 "Logged hand event",
                 table_id=self.table.id,
                 hand_id=self.current_hand.id,
+                hand_no=self.hand_no,
                 sequence=event.sequence,
                 action_type=action_type,
                 actor_user_id=actor_user_id,
+                street_index=self.engine.state.street_index,
+                actor_index=self.engine.state.actor_index,
             )
         except Exception as e:  # pragma: no cover - defensive logging path
             db.expunge(event)
@@ -236,9 +239,12 @@ class PokerKitTableRuntime:
                 "Failed to persist hand history event",
                 table_id=self.table.id,
                 hand_id=self.current_hand.id,
+                hand_no=self.hand_no,
                 sequence=event.sequence,
                 action_type=action_type,
                 actor_user_id=actor_user_id,
+                street_index=self.engine.state.street_index,
+                actor_index=self.engine.state.actor_index,
                 error=str(e),
             )
         finally:
