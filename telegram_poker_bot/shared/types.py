@@ -42,6 +42,7 @@ class ActionType(str, Enum):
     BET = "bet"
     RAISE = "raise"
     ALL_IN = "all_in"
+    READY = "ready"
 
 
 class TableVisibility(str, Enum):
