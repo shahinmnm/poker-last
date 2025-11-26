@@ -276,6 +276,34 @@ export default function TablePage() {
     () => (liveState?.ready_players ?? []).map((id) => id?.toString()),
     [liveState?.ready_players],
   )
+  const formatLastActionText = useCallback(
+    (userId?: string | number | null) => {
+      if (!userId || !liveState?.last_action) return null
+      if (liveState.last_action.user_id?.toString() !== userId.toString()) return null
+
+      const { action, amount } = liveState.last_action
+
+      if (action === 'fold') return t('table.actions.lastAction.fold')
+      if (action === 'check') return t('table.actions.lastAction.check')
+      if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
+      if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
+      if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
+      if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
+      return null
+    },
+    [liveState?.last_action, t],
+  )
+  const heroPositionLabel = useMemo(() => {
+    if (!heroPlayer) return undefined
+    if (heroPlayer.is_button) return 'BTN'
+    if (heroPlayer.is_small_blind) return 'SB'
+    if (heroPlayer.is_big_blind) return 'BB'
+    return undefined
+  }, [heroPlayer])
+  const heroLastAction = useMemo(
+    () => formatLastActionText(heroPlayer?.user_id),
+    [formatLastActionText, heroPlayer?.user_id],
+  )
   const normalizeAllowedActions = useCallback(
     (allowed: AllowedActionsPayload | undefined): AllowedAction[] => {
       const toNumber = (value?: number | string | null) =>
@@ -1292,7 +1320,6 @@ export default function TablePage() {
                     .filter((p) => p.user_id !== heroId)
                     .map((player, index) => {
                       const isActor = player.user_id?.toString() === currentActorUserId?.toString()
-                      const isLastActor = liveState.last_action?.user_id?.toString() === player.user_id?.toString()
                       const totalOthers = liveState.players.filter((p) => p.user_id !== heroId).length
 
                       const angle = totalOthers > 1
@@ -1304,21 +1331,7 @@ export default function TablePage() {
                       const left = 50 + radiusX * Math.cos(angle)
                       const top = 50 - radiusY * Math.sin(angle)
 
-                      const getLastActionText = () => {
-                        if (!isLastActor || !liveState.last_action) return null
-                        const action = liveState.last_action.action
-                        const amount = liveState.last_action.amount
-
-                        if (action === 'fold') return t('table.actions.lastAction.fold')
-                        if (action === 'check') return t('table.actions.lastAction.check')
-                        if (action === 'call' && amount) return t('table.actions.lastAction.call', { amount })
-                        if (action === 'bet' && amount) return t('table.actions.lastAction.bet', { amount })
-                        if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
-                        if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
-                        return null
-                      }
-
-                      const lastActionText = getLastActionText()
+                      const lastActionText = formatLastActionText(player.user_id)
                       const positionLabel = player.is_button ? 'BTN' : player.is_small_blind ? 'SB' : player.is_big_blind ? 'BB' : undefined
 
                       const playerCards = showdownCardsByPlayer.get(player.user_id.toString()) ?? []
@@ -1450,7 +1463,7 @@ export default function TablePage() {
                         turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
                         size="md"
                         seatNumber={heroPlayer.seat ?? heroPlayer.position}
-                        positionLabel={heroPlayer.is_button ? 'BTN' : heroPlayer.is_small_blind ? 'SB' : heroPlayer.is_big_blind ? 'BB' : undefined}
+                        positionLabel={heroPositionLabel}
                         isSittingOut={heroPlayer.is_sitting_out_next_hand}
                         status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
                         isAllIn={Boolean(heroPlayer.is_all_in || heroPlayer.stack <= 0)}
