@@ -69,7 +69,7 @@ export default function Seat({
         return {
           ...baseStyles,
           border: '2px solid transparent',
-          backgroundImage: `${pokerTokens.colors.states.hero.border}, ${baseStyles.background}`,
+          backgroundImage: `${pokerTokens.colors.states.hero.borderGradient}, ${baseStyles.background}`,
           backgroundOrigin: 'border-box',
           backgroundClip: 'padding-box, border-box',
           boxShadow: `${pokerTokens.effects.shadow.glow.primary}, ${baseStyles.boxShadow}`,
@@ -140,6 +140,7 @@ export default function Seat({
               color: pokerTokens.colors.text.medium,
             }}
           >
+            {/* Display as 1-based for user-facing text, while internal logic uses 0-based */}
             {seatNumber !== undefined ? `Seat ${seatNumber + 1}` : 'Seat Open'}
           </p>
         </div>
@@ -158,7 +159,7 @@ export default function Seat({
         <div
           className="absolute inset-0 rounded-2xl animate-turn-ring"
           style={{
-            background: pokerTokens.colors.states.active.ring,
+            background: pokerTokens.colors.states.active.ringGradient,
             padding: '3px',
             zIndex: -1,
           }}

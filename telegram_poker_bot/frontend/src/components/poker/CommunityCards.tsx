@@ -57,7 +57,7 @@ export default function CommunityCards({
             <PlayingCard
               card={card}
               size="md"
-              highlighted={isHighlighted ? true : undefined}
+              highlighted={!!isHighlighted}
             />
           ) : (
             <CardPlaceholder />

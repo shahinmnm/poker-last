@@ -76,11 +76,14 @@ export const pokerTokens = {
     states: {
       // Seat states
       hero: {
-        border: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+        // Note: This gradient should be implemented using background-image or pseudo-elements
+        // as CSS border property doesn't support gradients directly
+        borderGradient: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
         glow: 'rgba(59, 130, 246, 0.4)',
       },
       active: {
-        ring: 'linear-gradient(135deg, #06b6d4 0%, #f97316 100%)',
+        // Note: Use this for background-image on ring element
+        ringGradient: 'linear-gradient(135deg, #06b6d4 0%, #f97316 100%)',
         glow: 'rgba(6, 182, 212, 0.6)',
       },
       folded: {

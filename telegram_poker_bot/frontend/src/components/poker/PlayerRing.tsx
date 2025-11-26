@@ -95,7 +95,9 @@ export default function PlayerRing({
       const relativeIndex = ((seatIndex - heroSeat + totalSlots) % totalSlots) || totalSlots
       
       // Get position from layout (subtract 1 because hero is not in the layout)
-      const position = layout[Math.max(0, Math.min(relativeIndex - 1, layout.length - 1))] ?? {
+      // Ensure index is within bounds
+      const layoutIndex = Math.max(0, Math.min(relativeIndex - 1, layout.length - 1))
+      const position = layout[layoutIndex] ?? {
         left: '50%',
         top: '20%',
       }
