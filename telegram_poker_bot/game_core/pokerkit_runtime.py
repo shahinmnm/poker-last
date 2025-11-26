@@ -1056,6 +1056,7 @@ class PokerKitTableRuntime:
                     "is_sitting_out_next_hand": (
                         seat.is_sitting_out_next_hand if seat else False
                     ),
+                    "hole_cards": player.get("hole_cards", []),
                 }
             )
 
