@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -20,10 +20,17 @@ import TableExpiredModal from '../components/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
-import ActionDock, { type AllowedAction } from '@/components/game/ActionDock'
+import ActionDock from '@/components/game/ActionDock'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import SmartTableHeader from '../components/tables/SmartTableHeader'
 import PlayerAvatar from '../components/tables/PlayerAvatar'
+import type {
+  AllowedAction,
+  AllowedActionsPayload,
+  HandResultPayload,
+  TablePlayerState,
+  TableState,
+} from '@/types/game'
 
 interface TablePlayer {
   user_id: number
@@ -86,86 +93,7 @@ interface TableDetails {
   group_title?: string | null
 }
 
-interface LivePlayerState {
-  user_id: number
-  seat: number
-  position?: number | null
-  stack: number
-  bet: number
-  in_hand: boolean
-  is_button: boolean
-  is_small_blind: boolean
-  is_big_blind: boolean
-  acted?: boolean
-  display_name?: string | null
-  username?: string | null
-  is_sitting_out_next_hand?: boolean
-}
-
-interface LiveHeroState {
-  user_id: number
-  cards: string[]
-}
-
-interface HandWinnerResult {
-  user_id: number
-  amount: number
-  pot_index: number
-  hand_score: number
-  hand_rank: string
-  best_hand_cards: string[]
-}
-
-interface LastAction extends Record<string, unknown> {
-  user_id: number
-  action: 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all_in' | string
-  amount?: number | null
-  street?: string | null
-  created_at?: string | null
-}
-
-type AllowedActionsPayload =
-  | AllowedAction[]
-  | {
-      can_fold?: boolean
-      can_check?: boolean
-      can_call?: boolean
-      call_amount?: number
-      can_bet?: boolean
-      can_raise?: boolean
-      min_raise_to?: number
-      max_raise_to?: number
-    }
-
-interface LiveTableState {
-  type: 'table_state'
-  table_id: number
-  hand_id: number | null
-  status: string
-  table_status?: string
-  street: string | null
-  board: string[]
-  pot: number
-  pots?: Array<{
-    pot_index: number
-    amount: number
-    eligible_user_ids: number[]
-  }>
-  current_bet: number
-  min_raise: number
-  current_actor: number | null
-  action_deadline?: string | null
-  turn_timeout_seconds?: number
-  players: LivePlayerState[]
-  hero: LiveHeroState | null
-  last_action?: LastAction | null
-  hand_result?: { winners: HandWinnerResult[] } | null
-  inter_hand_wait?: boolean
-  inter_hand_wait_seconds?: number
-  inter_hand_wait_deadline?: string | null
-  allowed_actions?: AllowedActionsPayload
-  ready_players?: number[]
-}
+type LastAction = NonNullable<TableState['last_action']>
 
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
@@ -193,9 +121,9 @@ export default function TablePage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [toast, setToast] = useState(DEFAULT_TOAST)
-  const [liveState, setLiveState] = useState<LiveTableState | null>(null)
+  const [liveState, setLiveState] = useState<TableState | null>(null)
   const [lastHandResult, setLastHandResult] =
-    useState<LiveTableState['hand_result'] | null>(null)
+    useState<TableState['hand_result'] | null>(null)
   const [actionPending, setActionPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
@@ -210,7 +138,7 @@ export default function TablePage() {
   const playerTileRefs = useRef<Map<number, HTMLElement>>(new Map())
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
-  const lastHandResultRef = useRef<LiveTableState['hand_result'] | null>(null)
+  const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
   const lastCompletedHandIdRef = useRef<number | null>(null)
   const lastHandResultHandIdRef = useRef<number | null>(null)
   
@@ -236,7 +164,7 @@ export default function TablePage() {
   const syncHandResults = useCallback(
     (
       handId: number | null,
-      incomingResult: LiveTableState['hand_result'] | null,
+      incomingResult: TableState['hand_result'] | null,
       isSameHand = false,
     ) => {
       if (incomingResult) {
@@ -255,34 +183,64 @@ export default function TablePage() {
     [],
   )
 
+  const applyIncomingState = useCallback(
+    (incoming: TableState) => {
+      setLiveState((previous) => {
+        const isSameHand = incoming.hand_id !== null && previous?.hand_id === incoming.hand_id
+        const mergedHero = incoming.hero ?? (isSameHand ? previous?.hero ?? null : null)
+        const mergedHandResult = incoming.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
+        const mergedReadyPlayers =
+          incoming.ready_players ?? (isSameHand ? previous?.ready_players ?? [] : [])
+        const mergedPlayers: TablePlayerState[] =
+          incoming.players?.length
+            ? incoming.players
+            : previous?.players?.length
+              ? previous.players
+              : []
+        const mergedBoard = incoming.board?.length
+          ? incoming.board
+          : isSameHand
+            ? previous?.board ?? []
+            : []
+        const mergedPots = incoming.pots?.length
+          ? incoming.pots
+          : isSameHand
+            ? previous?.pots ?? []
+            : []
+
+        const nextState: TableState = {
+          ...(previous ?? incoming),
+          ...incoming,
+          board: mergedBoard,
+          pots: mergedPots,
+          hero: mergedHero,
+          hand_result: mergedHandResult,
+          ready_players: mergedReadyPlayers,
+          players: mergedPlayers,
+          allowed_actions: incoming.allowed_actions ?? (isSameHand ? previous?.allowed_actions : undefined),
+        }
+
+        syncHandResults(nextState.hand_id ?? null, mergedHandResult, isSameHand)
+        return nextState
+      })
+    },
+    [syncHandResults],
+  )
+
   const fetchLiveState = useCallback(async () => {
     if (!tableId) {
       return
     }
     try {
-      const data = await apiFetch<LiveTableState>(`/tables/${tableId}/state`, {
+      const data = await apiFetch<TableState>(`/tables/${tableId}/state`, {
         method: 'GET',
         initData: initDataRef.current ?? undefined,
       })
-      setLiveState((previous) => {
-        const isSameHand = data.hand_id !== null && previous?.hand_id === data.hand_id
-        const mergedHero = data.hero ?? (isSameHand ? previous?.hero ?? null : null)
-        const mergedHandResult = data.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
-        const mergedReadyPlayers =
-          data.ready_players ?? (isSameHand ? previous?.ready_players ?? [] : [])
-        const nextState: LiveTableState = {
-          ...data,
-          hero: mergedHero,
-          hand_result: mergedHandResult,
-          ready_players: mergedReadyPlayers,
-        }
-        syncHandResults(data.hand_id ?? null, mergedHandResult, isSameHand)
-        return nextState
-      })
+      applyIncomingState(data)
     } catch (err) {
       console.warn('Unable to fetch live state', err)
     }
-  }, [syncHandResults, tableId])
+  }, [applyIncomingState, tableId])
 
   const handleGameAction = useCallback(
     async (actionType: AllowedAction['action_type'], amount?: number) => {
@@ -293,18 +251,31 @@ export default function TablePage() {
 
       try {
         setActionPending(true)
-        const state = await apiFetch<LiveTableState>(`/tables/${tableId}/actions`, {
-          method: 'POST',
-          initData,
-          body: {
-            action_type: actionType,
-            amount,
+        const state = await apiFetch<TableState | { ready_players?: Array<number | string> }>(
+          `/tables/${tableId}/actions`,
+          {
+            method: 'POST',
+            initData,
+            body: {
+              action_type: actionType,
+              amount,
+            },
           },
-        })
+        )
 
-        setLiveState(state)
-        syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
-        fetchLiveState()
+        if (state && (state as TableState).type === 'table_state') {
+          applyIncomingState(state as TableState)
+        } else if ('ready_players' in state) {
+          setLiveState((previous) =>
+            previous ? { ...previous, ready_players: state.ready_players ?? [] } : previous,
+          )
+        }
+
+        if (actionType !== 'ready') {
+          fetchLiveState()
+        } else {
+          showToast(t('table.toast.ready', "You're joining the next hand"))
+        }
       } catch (err) {
         console.error('Error sending action', err)
         if (err instanceof ApiError) {
@@ -320,7 +291,7 @@ export default function TablePage() {
         setActionPending(false)
       }
     },
-    [fetchLiveState, initData, showToast, syncHandResults, t, tableId],
+    [applyIncomingState, fetchLiveState, initData, showToast, t, tableId],
   )
 
   // Helper to get center position of an element
@@ -469,55 +440,8 @@ export default function TablePage() {
 
   // Handle player signaling ready for next hand
   const handleReady = useCallback(async () => {
-    if (!tableId || !initData) {
-      showToast(t('table.errors.unauthorized'))
-      return
-    }
-
-    try {
-      const response = await apiFetch<any>(`/tables/${tableId}/ready`, {
-        method: 'POST',
-        initData,
-      })
-
-      if (response?.table_ended) {
-        setTableExpiredReason(response.reason || t('table.messages.notEnoughPlayers', 'Not enough players'))
-        setShowTableExpiredModal(true)
-        return
-      }
-
-      if (response && response.type === 'table_state') {
-        setLiveState((previous) => {
-          const mergedHero = response.hero ?? previous?.hero ?? null
-          const mergedHandResult = response.hand_result ?? previous?.hand_result ?? null
-          const handId = response.hand_id ?? previous?.hand_id ?? null
-          syncHandResults(handId, mergedHandResult, true)
-          return { ...response, hero: mergedHero, hand_result: mergedHandResult }
-        })
-      } else if (response?.ready_players) {
-        setLiveState((previous) =>
-          previous
-            ? { ...previous, ready_players: response.ready_players as number[] }
-            : previous,
-        )
-      }
-
-      await fetchLiveState()
-
-      showToast(t('table.toast.ready', "You're joining the next hand"))
-    } catch (err) {
-      console.error('Error signaling ready:', err)
-      if (err instanceof ApiError) {
-        const message =
-          (typeof err.data === 'object' && err.data && 'detail' in err.data
-            ? String((err.data as { detail?: unknown }).detail)
-            : null) || t('table.errors.actionFailed')
-        showToast(message)
-      } else {
-        showToast(t('table.errors.actionFailed'))
-      }
-    }
-  }, [fetchLiveState, initData, showToast, syncHandResults, t, tableId])
+    await handleGameAction('ready')
+  }, [handleGameAction])
 
   // Refresh table data once auth context (initData) becomes available so the
   // viewer-specific fields (like seat status and hero cards) are populated.
@@ -543,219 +467,129 @@ export default function TablePage() {
   const { waitForConnection } = useTableWebSocket({
     tableId: tableId || '',
     enabled: !!tableId,
-    onMessage: useCallback((payload: any) => {
-      // Log all incoming WebSocket messages for diagnostics
-      console.log('[Table WebSocket] Message received:', {
-        type: payload?.type,
-        table_id: payload?.table_id,
-        current_actor: payload?.current_actor,
-        status: payload?.status,
-        inter_hand_wait: payload?.inter_hand_wait,
-        ready_players: payload?.ready_players,
-        // Only log full payload for specific message types
-        ...(payload?.type === 'hand_ended' || payload?.type === 'table_ended' ? { payload } : {}),
-      })
-
-      // Handle different message types
-      if (payload?.type === 'player_ready') {
-        console.log('[Table WebSocket] Player ready event:', {
-          user_id: payload.user_id,
-          ready_players: payload.ready_players,
-        })
-        setLiveState((previous) => {
-          if (!previous) return previous
-          const updated = new Set(previous.ready_players ?? [])
-          if (payload.user_id) {
-            updated.add(payload.user_id)
-          }
-          if (Array.isArray(payload.ready_players)) {
-            payload.ready_players.forEach((id: number) => updated.add(id))
-          }
-          return { ...previous, ready_players: Array.from(updated) }
-        })
-        return
-      }
-
-      if (payload?.type === 'hand_ended') {
-        console.log('[Table WebSocket] Hand ended event received:', {
-          winners: payload.winners,
-          pot_total: payload.pot_total,
-          total_pot: payload.total_pot,
-          next_hand_in: payload.next_hand_in,
-          inter_hand_wait_deadline: payload.inter_hand_wait_deadline,
-          status: payload.status,
-          allowed_actions: payload.allowed_actions,
-          has_allowed_actions: !!payload.allowed_actions,
-        })
-        // Update state to show inter-hand phase with winner information
-        const winners = payload.winners && payload.winners.length > 0 ? payload.winners : null
-        // Extract allowed_actions from hand_ended event for ready button
-        const allowedActions = Array.isArray(payload.allowed_actions) 
-          ? payload.allowed_actions 
-          : []
-        setLiveState((previous) => {
-          // FIX: Create a minimal valid state if previous is null
-          // This ensures non-acting players see the inter-hand UI even if their
-          // liveState was null due to timing issues or race conditions
-          const baseState: LiveTableState = previous ?? {
-            type: 'table_state',
-            table_id: payload.table_id ?? 0,
-            hand_id: payload.hand_no ?? null,
-            status: 'INTER_HAND_WAIT',
-            street: null,
-            board: [],
-            pot: payload.total_pot ?? payload.pot_total ?? 0,
-            current_bet: 0,
-            min_raise: 0,
-            current_actor: null,
-            players: [],  // Will be populated from subsequent state updates or fetchLiveState
-            hero: null,
-          }
-          
-          return {
-            ...baseState,
-            status: 'INTER_HAND_WAIT',
-            inter_hand_wait: true,
-            inter_hand_wait_seconds: payload.next_hand_in ?? 20,
-            inter_hand_wait_deadline: payload.inter_hand_wait_deadline ?? null,
-            hand_result: winners ? { winners } : baseState.hand_result ?? null,
-            ready_players: [], // Reset ready players on hand_ended
-            allowed_actions: allowedActions, // Include allowed_actions for ready button
-          }
-        })
-        // Update lastHandResult for the winner showcase
-        if (winners) {
-          setLastHandResult({ winners })
-        }
-        // FIX: Ensure we have complete state for inter-hand UI
-        // This fetches the full state including players array
-        fetchLiveState()
-        return
-      }
-
-      if (payload?.type === 'table_ended') {
-        console.log('[Table WebSocket] Table ended event:', {
-          reason: payload.reason,
-        })
-        setTableExpiredReason(payload.reason || t('table.messages.notEnoughPlayers', 'Not enough players'))
-        setShowTableExpiredModal(true)
-        return
-      }
-
-      if (
-        payload?.type === 'action' ||
-        payload?.type === 'table_started' ||
-        payload?.type === 'player_joined' ||
-        payload?.type === 'player_left'
-      ) {
-        console.log('[Table WebSocket] Game state change event:', {
+    onMessage: useCallback(
+      (payload: any) => {
+        // Log all incoming WebSocket messages for diagnostics
+        console.log('[Table WebSocket] Message received:', {
           type: payload?.type,
+          table_id: payload?.table_id,
+          current_actor: payload?.current_actor,
+          status: payload?.status,
+          inter_hand_wait: payload?.inter_hand_wait,
+          ready_players: payload?.ready_players,
+          ...(payload?.type === 'hand_ended' || payload?.type === 'table_ended'
+            ? { payload }
+            : {}),
         })
-        // Refetch table details on player/game state changes
-        fetchTable()
-      }
-    }, [fetchLiveState, fetchTable, t]),
-    onStateChange: useCallback((payload: LiveTableState) => {
-      // Log state changes for diagnostics
-      console.log('[Table WebSocket] State change:', {
-        type: payload.type,
-        status: payload.status,
-        table_status: payload.table_status,
-        current_actor: payload.current_actor,
-        allowed_actions: payload.allowed_actions,
-        hand_id: payload.hand_id,
-        inter_hand_wait: payload.inter_hand_wait,
-        ready_players: payload.ready_players,
-      })
 
-      // Check if table has expired
-      if (payload.status === 'expired' || payload.table_status === 'expired') {
-        console.log('[Table WebSocket] Table expired, redirecting to lobby')
-        showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
-        setTimeout(() => navigate('/lobby', { replace: true }), EXPIRED_TABLE_REDIRECT_DELAY_MS)
-        return
-      }
+        if (payload?.type === 'table_state') {
+          applyIncomingState(payload as TableState)
+          return
+        }
 
-      const isNewHand =
-        payload.hand_id !== null && lastHandIdRef.current !== payload.hand_id
-
-      if (isNewHand) {
-        console.log('[Table WebSocket] New hand detected:', {
-          new_hand_id: payload.hand_id,
-          previous_hand_id: lastHandIdRef.current,
-        })
-      }
-
-      setLiveState((previous) => {
-        const isSameHand =
-          payload.hand_id !== null && previous?.hand_id === payload.hand_id
-        const isInterHandPhase = payload.inter_hand_wait || payload.status === 'INTER_HAND_WAIT'
-        const wasInterHandPhase = previous?.inter_hand_wait || previous?.status === 'INTER_HAND_WAIT'
-        
-        // FIX: Prevent table_state from overwriting inter-hand state
-        // If we're in inter-hand phase (set by hand_ended) and incoming payload
-        // is NOT an inter-hand state (e.g., a stale or delayed broadcast),
-        // preserve the inter-hand status to avoid breaking the voting UI
-        const shouldPreserveInterHandState = 
-          wasInterHandPhase && 
-          !isInterHandPhase &&
-          isSameHand  // Only preserve if it's the same hand (not a new hand starting)
-
-        // Log inter-hand transitions
-        if (isInterHandPhase && !wasInterHandPhase) {
-          console.log('[Table WebSocket] Entering inter-hand phase:', {
-            hand_result: payload.hand_result,
-            ready_players: payload.ready_players,
+        if (payload?.type === 'player_ready') {
+          setLiveState((previous) => {
+            if (!previous) return previous
+            const updated = new Set((previous.ready_players ?? []).map((id) => id?.toString()))
+            if (payload.user_id !== undefined && payload.user_id !== null) {
+              updated.add(payload.user_id.toString())
+            }
+            if (Array.isArray(payload.ready_players)) {
+              payload.ready_players.forEach((id: number | string) => updated.add(id.toString()))
+            }
+            return { ...previous, ready_players: Array.from(updated) }
           })
-        } else if (!isInterHandPhase && wasInterHandPhase && !shouldPreserveInterHandState) {
-          console.log('[Table WebSocket] Exiting inter-hand phase, new hand starting')
-        } else if (shouldPreserveInterHandState) {
-          console.log('[Table WebSocket] Preserving inter-hand state (ignoring non-inter-hand payload)')
+          return
         }
 
-        // Preserve viewer-specific data (like hero cards) when the broadcast
-        // payload omits it. WebSocket broadcasts are public, so they don't
-        // include the viewer's hole cards, which we need to keep showing.
-        const mergedHero = payload.hero ?? (isSameHand ? previous?.hero ?? null : null)
+        if (payload?.type === 'hand_ended') {
+          const winners = (payload.hand_result?.winners ?? payload.winners ?? []) as HandResultPayload['winners']
+          const showdownHands =
+            payload.hand_result?.showdown_hands ??
+            payload.showdown_hands ??
+            payload.hands ??
+            payload.players ??
+            []
 
-        // Keep hand result while the hand is still the same
-        const mergedHandResult =
-          payload.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
+          const handResult: HandResultPayload | null = winners?.length
+            ? {
+                winners,
+                showdown_hands: showdownHands,
+                rake_amount: payload.hand_result?.rake_amount,
+                total_pot: payload.hand_result?.total_pot ?? payload.total_pot ?? payload.pot_total,
+              }
+            : null
 
-        // Preserve ready_players during inter-hand phase, or if payload includes it
-        // Reset to empty array when starting a new hand (not inter-hand)
-        const shouldPreserveReadyPlayers = isInterHandPhase || wasInterHandPhase || isSameHand
-        const mergedReadyPlayers =
-          payload.ready_players ?? 
-          (shouldPreserveReadyPlayers ? previous?.ready_players ?? [] : [])
+          const interHandState: TableState = {
+            type: 'table_state',
+            table_id: payload.table_id ?? Number(tableId ?? 0),
+            hand_id: payload.hand_id ?? payload.hand_no ?? liveState?.hand_id ?? null,
+            status: 'INTER_HAND_WAIT',
+            street: 'showdown',
+            board: payload.board ?? liveState?.board ?? [],
+            pot: payload.total_pot ?? payload.pot_total ?? liveState?.pot ?? 0,
+            pots: payload.pots ?? liveState?.pots ?? [],
+            current_bet: 0,
+            min_raise: liveState?.min_raise ?? 0,
+            current_actor: null,
+            action_deadline: null,
+            turn_timeout_seconds: payload.turn_timeout_seconds ?? liveState?.turn_timeout_seconds,
+            players: payload.players ?? liveState?.players ?? [],
+            hero: liveState?.hero ?? null,
+            last_action: null,
+            hand_result: handResult,
+            inter_hand_wait: true,
+            inter_hand_wait_seconds:
+              payload.next_hand_in ?? payload.inter_hand_wait_seconds ?? liveState?.inter_hand_wait_seconds ?? 20,
+            inter_hand_wait_deadline: payload.inter_hand_wait_deadline ?? payload.deadline ?? null,
+            allowed_actions:
+              payload.allowed_actions ?? (Array.isArray(payload.allowed_actions) ? payload.allowed_actions : { ready: true }),
+            ready_players: payload.ready_players ?? [],
+          }
 
-        // Build the next state, preserving inter-hand flags if needed
-        const nextState: LiveTableState = {
-          ...payload,
-          hero: mergedHero,
-          hand_result: mergedHandResult,
-          ready_players: mergedReadyPlayers,
-          // FIX: Preserve inter-hand state if we determined we should
-          ...(shouldPreserveInterHandState && previous ? {
-            status: previous.status,
-            inter_hand_wait: previous.inter_hand_wait,
-            inter_hand_wait_seconds: previous.inter_hand_wait_seconds,
-            inter_hand_wait_deadline: previous.inter_hand_wait_deadline,
-            allowed_actions: previous.allowed_actions,
-          } : {}),
+          applyIncomingState(interHandState)
+          if (handResult) {
+            setLastHandResult(handResult)
+          }
+          fetchLiveState()
+          return
         }
 
-        syncHandResults(payload.hand_id ?? null, mergedHandResult, isSameHand)
-        return nextState
-      })
+        if (payload?.type === 'table_ended') {
+          setTableExpiredReason(payload.reason || t('table.messages.notEnoughPlayers', 'Not enough players'))
+          setShowTableExpiredModal(true)
+          return
+        }
 
-      // When a new hand starts, fetch viewer-specific state (including hero cards)
-      if (isNewHand && payload.hand_id !== null) {
-        lastHandIdRef.current = payload.hand_id
-        console.log('[Table WebSocket] Fetching viewer-specific state for new hand')
-        fetchLiveState()
-      }
-    }, [fetchLiveState, navigate, showToast, syncHandResults, t]),
+        if (
+          payload?.type === 'action' ||
+          payload?.type === 'table_started' ||
+          payload?.type === 'player_joined' ||
+          payload?.type === 'player_left'
+        ) {
+          fetchTable()
+        }
+      },
+      [applyIncomingState, fetchLiveState, fetchTable, liveState?.board, liveState?.hand_id, liveState?.hero, liveState?.inter_hand_wait_seconds, liveState?.min_raise, liveState?.players, liveState?.pot, liveState?.pots, liveState?.turn_timeout_seconds, tableId, t],
+    ),
+    onStateChange: useCallback(
+      (payload: TableState) => {
+        if (payload.status === 'expired' || payload.table_status === 'expired') {
+          showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
+          setTimeout(() => navigate('/lobby', { replace: true }), EXPIRED_TABLE_REDIRECT_DELAY_MS)
+          return
+        }
+
+        const isNewHand = payload.hand_id !== null && lastHandIdRef.current !== payload.hand_id
+        applyIncomingState(payload)
+
+        if (isNewHand && payload.hand_id !== null) {
+          lastHandIdRef.current = payload.hand_id
+          fetchLiveState()
+        }
+      },
+      [applyIncomingState, fetchLiveState, navigate, showToast, t],
+    ),
     onConnect: useCallback(() => {
       console.log('[Table WebSocket] Connected to table', tableId)
       // Refresh viewer-specific state (including hero cards) after reconnects
@@ -855,12 +689,11 @@ export default function TablePage() {
     }
     try {
       setIsStarting(true)
-      const state = await apiFetch<LiveTableState>(`/tables/${tableId}/start`, {
+      const state = await apiFetch<TableState>(`/tables/${tableId}/start`, {
         method: 'POST',
         initData,
       })
-      setLiveState(state)
-      syncHandResults(state.hand_id ?? null, state.hand_result ?? null)
+      applyIncomingState(state)
       await fetchTable()
       await fetchLiveState()
       showToast(t('table.toast.started'))
@@ -885,11 +718,26 @@ export default function TablePage() {
   }
 
   const heroId = liveState?.hero?.user_id ?? null
-  const heroPlayer = liveState?.players.find((p) => p.user_id === heroId)
+  const heroIdString = heroId !== null ? heroId.toString() : null
+  const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
+  const heroCards = liveState?.hero?.cards ?? []
+  const readyPlayerIds = useMemo(
+    () => (liveState?.ready_players ?? []).map((id) => id?.toString()),
+    [liveState?.ready_players],
+  )
   const normalizeAllowedActions = useCallback(
     (allowed: AllowedActionsPayload | undefined): AllowedAction[] => {
+      const toNumber = (value?: number | string | null) =>
+        value === undefined || value === null ? undefined : Number(value)
+
       if (!allowed) return []
-      if (Array.isArray(allowed)) return allowed
+      if (Array.isArray(allowed))
+        return allowed.map((action) => ({
+          ...action,
+          amount: toNumber(action.amount),
+          min_amount: toNumber(action.min_amount),
+          max_amount: toNumber(action.max_amount),
+        }))
 
       const actions: AllowedAction[] = []
 
@@ -900,26 +748,38 @@ export default function TablePage() {
         actions.push({ action_type: 'check' })
       }
       if (allowed.can_call) {
-        actions.push({ action_type: 'call', amount: allowed.call_amount ?? 0 })
+        actions.push({ action_type: 'call', amount: toNumber(allowed.call_amount) ?? 0 })
       }
+
+      const minRaise = toNumber(allowed.min_raise_to) ?? 0
+      const maxRaise =
+        toNumber(allowed.max_raise_to) ?? (heroPlayer ? heroPlayer.stack + heroPlayer.bet : 0)
+
       if (allowed.can_bet) {
         actions.push({
           action_type: 'bet',
-          min_amount: allowed.min_raise_to ?? 0,
-          max_amount: allowed.max_raise_to ?? 0,
+          min_amount: minRaise,
+          max_amount: maxRaise,
         })
       }
       if (allowed.can_raise) {
+        const isAllIn = allowed.can_all_in || (heroPlayer ? maxRaise >= heroPlayer.stack + heroPlayer.bet : false)
         actions.push({
-          action_type: 'raise',
-          min_amount: allowed.min_raise_to ?? 0,
-          max_amount: allowed.max_raise_to ?? 0,
+          action_type: isAllIn ? 'all_in' : 'raise',
+          min_amount: minRaise,
+          max_amount: maxRaise,
         })
+      } else if (allowed.can_all_in) {
+        actions.push({ action_type: 'all_in', min_amount: maxRaise, max_amount: maxRaise })
+      }
+
+      if (allowed.ready) {
+        actions.push({ action_type: 'ready' })
       }
 
       return actions
     },
-    [],
+    [heroPlayer],
   )
   const allowedActions = normalizeAllowedActions(liveState?.allowed_actions)
   const callAction = allowedActions.find((action) => action.action_type === 'call')
@@ -929,10 +789,46 @@ export default function TablePage() {
   const normalizedStatus = tableStatus
   // Robust inter-hand detection: check multiple conditions
   const isInterHand = Boolean(
-    normalizedStatus === 'inter_hand_wait' || 
+    normalizedStatus === 'inter_hand_wait' ||
     liveState?.inter_hand_wait === true ||
     liveState?.status?.toLowerCase() === 'inter_hand_wait'
   )
+  const showdownCardsByPlayer = useMemo(() => {
+    const lookup = new Map<string, string[]>()
+    if (heroIdString && heroCards.length) {
+      lookup.set(heroIdString, heroCards)
+    }
+
+    const canReveal = isInterHand || normalizedStatus === 'showdown'
+
+    if (canReveal && liveState?.players) {
+      liveState.players.forEach((player) => {
+        const candidateCards =
+          (player as any).cards || (player as any).hole_cards || player.cards || player.hole_cards
+        if (Array.isArray(candidateCards) && candidateCards.length) {
+          lookup.set(player.user_id.toString(), candidateCards as string[])
+        }
+      })
+
+      const resultHands = liveState.hand_result
+      const showdownCollections = [resultHands?.showdown_hands, resultHands?.hands, resultHands?.players]
+      showdownCollections.forEach((collection) => {
+        collection?.forEach((hand) => {
+          if (hand?.user_id !== undefined && Array.isArray(hand.cards)) {
+            lookup.set(hand.user_id.toString(), hand.cards)
+          }
+        })
+      })
+
+      resultHands?.winners?.forEach((winner) => {
+        if (winner.cards?.length) {
+          lookup.set(winner.user_id.toString(), winner.cards)
+        }
+      })
+    }
+
+    return lookup
+  }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
   
   // Log inter-hand state only when isInterHand actually changes (not on every render)
   useEffect(() => {
@@ -957,7 +853,7 @@ export default function TablePage() {
     : tableDetails?.table_id
       ? `${window.location.origin}/table/${tableDetails.table_id}`
       : ''
-  const isMyTurn = liveState?.current_actor === heroId
+  const isMyTurn = heroIdString !== null && liveState?.current_actor?.toString() === heroIdString
 
   useEffect(() => {
     if (liveState?.hand_id !== autoTimeoutRef.current.handId) {
@@ -971,7 +867,7 @@ export default function TablePage() {
       autoActionTimerRef.current = null
     }
 
-    if (!liveState || !heroId || liveState.current_actor !== heroId || !liveState.action_deadline) {
+    if (!liveState || !heroIdString || liveState.current_actor?.toString() !== heroIdString || !liveState.action_deadline) {
       return undefined
     }
 
@@ -1002,7 +898,7 @@ export default function TablePage() {
         autoActionTimerRef.current = null
       }
     }
-  }, [canCheck, handleGameAction, heroId, liveState?.action_deadline, liveState?.current_actor, liveState?.hand_id])
+  }, [canCheck, handleGameAction, heroIdString, liveState?.action_deadline, liveState?.current_actor, liveState?.hand_id])
 
   // Control bottom navigation visibility based on seated status
   useEffect(() => {
@@ -1115,7 +1011,6 @@ export default function TablePage() {
   const canLeave = tableDetails.permissions?.can_leave ?? false
   const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
-  const heroCards = liveState?.hero?.cards ?? []
 
   const renderActionDock = () => {
     // Log rendering decision
@@ -1255,11 +1150,11 @@ export default function TablePage() {
               <div className="mt-6">
                 <InterHandVoting
                   players={liveState.players}
-                  readyPlayerIds={liveState.ready_players ?? []}
+                  readyPlayerIds={readyPlayerIds}
                   deadline={liveState.inter_hand_wait_deadline}
                   durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
                   onReady={handleReady}
-                  isReady={(liveState.ready_players ?? []).includes(heroId ?? -1)}
+                  isReady={heroIdString !== null && readyPlayerIds.includes(heroIdString)}
                 />
               </div>
             </div>
@@ -1270,8 +1165,8 @@ export default function TablePage() {
                 {liveState.players
                   .filter((p) => p.user_id !== heroId)
                   .map((player, index) => {
-                    const isActor = player.user_id === liveState.current_actor
-                    const isLastActor = liveState.last_action?.user_id === player.user_id
+                    const isActor = player.user_id?.toString() === liveState.current_actor?.toString()
+                    const isLastActor = liveState.last_action?.user_id?.toString() === player.user_id?.toString()
                     const totalOthers = liveState.players.filter((p) => p.user_id !== heroId).length
                     
                     // Compute position in a ring layout (excluding hero at bottom)
@@ -1303,6 +1198,11 @@ export default function TablePage() {
                     
                     // Determine position label (BTN, SB, BB)
                     const positionLabel = player.is_button ? 'BTN' : player.is_small_blind ? 'SB' : player.is_big_blind ? 'BB' : undefined
+
+                    const playerCards = showdownCardsByPlayer.get(player.user_id.toString()) ?? []
+                    const winningHand = liveState.hand_result?.winners?.find(
+                      (winner) => winner.user_id?.toString() === player.user_id.toString(),
+                    )
                     
                     // Determine status
                     const playerStatus = player.is_sitting_out_next_hand 
@@ -1346,11 +1246,27 @@ export default function TablePage() {
                             lastAction={lastActionText}
                             isSittingOut={player.is_sitting_out_next_hand}
                             status={playerStatus}
+                            isAllIn={Boolean(player.is_all_in || player.stack <= 0)}
                           />
                           {lastActionText && player.in_hand && (
                             <p className="text-[8px] font-semibold text-emerald-300 uppercase tracking-wide">
                               {lastActionText}
                             </p>
+                          )}
+                          {playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown') && (
+                            <div className="mt-1 flex gap-1">
+                              {playerCards.map((card, idx) => {
+                                const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
+                                return (
+                                  <PlayingCard
+                                    key={`villain-card-${player.user_id}-${card}-${idx}`}
+                                    card={card}
+                                    size="sm"
+                                    highlighted={isWinningCard}
+                                  />
+                                )
+                              })}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1373,12 +1289,15 @@ export default function TablePage() {
                       <div className="text-center">
                         <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-bold mb-0.5">{t('table.pots.title', { defaultValue: 'Pots' })}</p>
                         <div className="space-y-0.5">
-                          {liveState.pots.map((pot, idx) => (
-                            <div key={pot.pot_index} className="flex items-baseline justify-center gap-1.5">
-                              <span className="text-[9px] text-gray-400">#{idx + 1}</span>
-                              <span className="text-sm font-bold text-emerald-400">{pot.amount}</span>
-                            </div>
-                          ))}
+                          {liveState.pots.map((pot, idx) => {
+                            const potIndex = pot.pot_index ?? idx
+                            return (
+                              <div key={potIndex} className="flex items-baseline justify-center gap-1.5">
+                                <span className="text-[9px] text-gray-400">#{idx + 1}</span>
+                                <span className="text-sm font-bold text-emerald-400">{pot.amount}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     ) : (
@@ -1430,7 +1349,9 @@ export default function TablePage() {
                     {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
                       <div className="flex gap-2.5 mb-3">
                         {heroCards.map((card, idx) => {
-                          const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id === heroId)
+                          const heroWinner = liveState.hand_result?.winners?.find(
+                            (w) => w.user_id?.toString() === heroIdString,
+                          )
                           const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
                           return (
                             <div
@@ -1451,16 +1372,24 @@ export default function TablePage() {
                       name={heroPlayer.display_name || 'You'}
                       stack={heroPlayer.stack}
                       isHero
-                      isActive={Boolean(heroPlayer.in_hand && heroPlayer.user_id === liveState.current_actor)}
+                      isActive={Boolean(
+                        heroPlayer.in_hand &&
+                        heroPlayer.user_id?.toString() === liveState.current_actor?.toString(),
+                      )}
                       hasFolded={!heroPlayer.in_hand}
                       betAmount={heroPlayer.bet}
-                      deadline={heroPlayer.user_id === liveState.current_actor ? liveState.action_deadline : null}
+                      deadline={
+                        heroPlayer.user_id?.toString() === liveState.current_actor?.toString()
+                          ? liveState.action_deadline
+                          : null
+                      }
                       turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
                       size="md"
                       seatNumber={heroPlayer.seat ?? heroPlayer.position}
                       positionLabel={heroPlayer.is_button ? 'BTN' : heroPlayer.is_small_blind ? 'SB' : heroPlayer.is_big_blind ? 'BB' : undefined}
                       isSittingOut={heroPlayer.is_sitting_out_next_hand}
                       status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
+                      isAllIn={Boolean(heroPlayer.is_all_in || heroPlayer.stack <= 0)}
                     />
                   </div>
                 </div>

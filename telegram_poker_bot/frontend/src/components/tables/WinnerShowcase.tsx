@@ -1,10 +1,10 @@
+import type { HandResultPayload } from '@/types/game'
+
 import PlayingCard from '../ui/PlayingCard'
 
 interface WinnerShowcaseProps {
-  handResult?: {
-    winners?: Array<{ user_id: number; amount: number; hand_rank?: string; best_hand_cards?: string[] }>
-  } | null
-  players: Array<{ user_id: number; display_name?: string | null; username?: string | null }>
+  handResult?: HandResultPayload | null
+  players: Array<{ user_id: number | string; display_name?: string | null; username?: string | null }>
 }
 
 function formatChips(amount: number): string {
@@ -32,8 +32,8 @@ export default function WinnerShowcase({ handResult, players }: WinnerShowcasePr
   }
 
   const winnerName =
-    players.find((player) => player.user_id === primaryWinner.user_id)?.display_name ||
-    players.find((player) => player.user_id === primaryWinner.user_id)?.username ||
+    players.find((player) => player.user_id.toString() === primaryWinner.user_id.toString())?.display_name ||
+    players.find((player) => player.user_id.toString() === primaryWinner.user_id.toString())?.username ||
     `Player ${primaryWinner.user_id}`
 
   const bestHandCards = primaryWinner.best_hand_cards ?? []

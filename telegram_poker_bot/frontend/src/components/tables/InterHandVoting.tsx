@@ -3,14 +3,14 @@ import { useEffect, useMemo, useState } from 'react'
 import Button from '../ui/Button'
 
 interface VotingPlayer {
-  user_id: number
+  user_id: number | string
   display_name?: string | null
   username?: string | null
 }
 
 interface InterHandVotingProps {
   players: VotingPlayer[]
-  readyPlayerIds: number[]
+  readyPlayerIds: Array<number | string>
   deadline?: string | null
   durationSeconds: number
   onReady: () => void
@@ -52,6 +52,10 @@ export default function InterHandVoting({
   isReady,
 }: InterHandVotingProps) {
   const { seconds, progress } = useCountdown(deadline, durationSeconds)
+  const readyLookup = useMemo(
+    () => new Set(readyPlayerIds.map((id) => id.toString())),
+    [readyPlayerIds],
+  )
 
   return (
     <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/10 p-5 text-white shadow-xl backdrop-blur-md">
@@ -68,7 +72,7 @@ export default function InterHandVoting({
 
       <div className="mt-4 space-y-2">
         {players.map((player) => {
-          const isReadyPlayer = readyPlayerIds.includes(player.user_id)
+          const isReadyPlayer = readyLookup.has(player.user_id.toString())
           const statusIcon = isReadyPlayer ? '✅' : '🕒'
           const statusColor = isReadyPlayer ? 'text-emerald-400' : 'text-white/60'
           const statusText = isReadyPlayer ? 'Ready' : 'Waiting to confirm'

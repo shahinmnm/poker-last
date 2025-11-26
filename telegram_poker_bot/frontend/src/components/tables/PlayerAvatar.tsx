@@ -18,6 +18,7 @@ interface PlayerAvatarProps {
   lastAction?: string | null
   isSittingOut?: boolean
   status?: 'active' | 'waiting' | 'seated' | 'sit_out' | 'folded'
+  isAllIn?: boolean
 }
 
 const sizeMap: Record<NonNullable<PlayerAvatarProps['size']>, number> = {
@@ -43,6 +44,7 @@ export default function PlayerAvatar({
   lastAction,
   isSittingOut = false,
   status = 'active',
+  isAllIn = false,
 }: PlayerAvatarProps) {
   const { t } = useTranslation()
   const [progress, setProgress] = useState(1)
@@ -185,6 +187,12 @@ export default function PlayerAvatar({
           {isHero ? t('table.players.youTag', { defaultValue: 'You' }) : name}
         </div>
       </div>
+
+      {isAllIn && (
+        <div className="px-2 py-0.5 rounded-full bg-rose-500/90 text-black font-black text-[10px] shadow-lg uppercase tracking-wide">
+          All In
+        </div>
+      )}
 
       {typeof betAmount === 'number' && betAmount > 0 && (
         <div className="px-2.5 py-0.5 rounded-full bg-amber-500/90 text-black font-semibold text-[10px] shadow-lg">
