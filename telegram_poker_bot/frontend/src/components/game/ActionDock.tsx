@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-export interface AllowedAction {
-  action_type: 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all_in' | 'ready'
-  amount?: number
-  min_amount?: number
-  max_amount?: number
-}
+import type { AllowedAction } from '@/types/game'
 
 interface ActionDockProps {
   allowedActions: AllowedAction[]

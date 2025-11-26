@@ -1,54 +1,10 @@
 import { useMemo } from 'react'
+import type { TableState } from '@/types/game'
 import { formatCurrency } from '../../utils/currency'
 
-interface HandWinnerResult {
-  user_id: number
-  amount: number
-  pot_index: number
-  hand_score: number
-  hand_rank: string
-  best_hand_cards: string[]
-  rake_deducted?: number
-}
-
-interface LivePlayerState {
-  user_id: number
-  seat: number
-  stack: number
-  bet: number
-  in_hand: boolean
-  is_button: boolean
-  is_small_blind: boolean
-  is_big_blind: boolean
-  acted?: boolean
-  display_name?: string | null
-}
-
-interface LiveTableState {
-  type: 'table_state'
-  table_id: number
-  hand_id: number | null
-  status: string
-  street: string | null
-  board: string[]
-  pot: number
-  current_bet: number
-  min_raise: number
-  current_actor: number | null
-  action_deadline?: string | null
-  players: LivePlayerState[]
-  hero: { user_id: number; cards: string[] } | null
-  last_action?: Record<string, unknown> | null
-  hand_result?: {
-    winners: HandWinnerResult[]
-    rake_amount?: number
-    total_pot?: number
-  } | null
-}
-
 interface HandResultPanelProps {
-  liveState: LiveTableState
-  currentUserId: number | null
+  liveState: TableState
+  currentUserId: number | string | null
 }
 
 const HAND_RANK_LABEL: Record<string, string> = {
@@ -85,7 +41,7 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
     }
 
     const winners = liveState.hand_result.winners
-    const currentUserWinner = winners.find((w) => w.user_id === currentUserId)
+    const currentUserWinner = winners.find((w) => w.user_id?.toString() === currentUserId?.toString())
     const rakeAmount = liveState.hand_result.rake_amount || 0
     const totalPot = liveState.hand_result.total_pot || liveState.pot
     
@@ -144,12 +100,16 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
           if (!potWinners || potWinners.length === 0) return null
 
           const mainWinner = potWinners[0]
-          const winnerPlayer = liveState.players.find((p) => p.user_id === mainWinner.user_id)
+          const winnerPlayer = liveState.players.find(
+            (p) => p.user_id?.toString() === mainWinner.user_id?.toString(),
+          )
           const winnerName = winnerPlayer?.display_name || `Player ${mainWinner.user_id}`
-          const handRankLabel = HAND_RANK_LABEL[mainWinner.hand_rank] || mainWinner.hand_rank.replace(/_/g, ' ')
+          const handRankLabel =
+            (mainWinner.hand_rank && (HAND_RANK_LABEL[mainWinner.hand_rank] || mainWinner.hand_rank.replace(/_/g, ' '))) ||
+            'Winning Hand'
           const bestCards = mainWinner.best_hand_cards || []
           const formattedCards = bestCards.map(formatCard).join(' ')
-          const isUserWinner = potWinners.some(w => w.user_id === currentUserId)
+          const isUserWinner = potWinners.some((w) => w.user_id?.toString() === currentUserId?.toString())
 
           return (
             <div key={potIndex} className={potIndex > 0 ? 'pt-2 border-t border-white/10' : ''}>
