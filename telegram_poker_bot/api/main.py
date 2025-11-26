@@ -2192,7 +2192,13 @@ async def submit_action(
 
         return viewer_state
     except Exception as e:
-        logger.error("Error processing action", error=str(e))
+        logger.error(
+            "Error processing action",
+            table_id=table_id,
+            user_id=user.id,
+            action_type=action_type.value,
+            error=str(e),
+        )
         raise HTTPException(status_code=400, detail=str(e))
 
 
