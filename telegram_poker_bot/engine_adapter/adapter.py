@@ -81,23 +81,24 @@ class PokerEngineAdapter:
             button_index=self.button_index,
         )
 
-    def _create_shuffled_deck(self) -> List[str]:
-        """Create and shuffle a standard 52-card deck."""
-        deck = [f"{rank}{suit}" for rank in RANKS for suit in SUITS]
-        random.shuffle(deck)
-        return deck
-
     def deal_new_hand(self) -> None:
         """Shuffle and deal a fresh hand to all active players."""
-        self._deck = self._create_shuffled_deck()
+        available_cards = list(self.state.get_dealable_cards())
+        random.shuffle(available_cards)
         self._pre_showdown_stacks = list(self.state.stacks)
 
         for player_idx in range(self.player_count):
             if self.state.stacks[player_idx] <= 0:
                 continue
-            cards = self._deck.pop() + self._deck.pop()
+            if len(available_cards) < 2:
+                raise ValueError("Not enough cards available to deal hole cards")
+            card_strings = [repr(available_cards.pop()) for _ in range(2)]
+            cards = "".join(card_strings)
             self.state.deal_hole(cards)
             logger.debug("Dealt hole cards", player_index=player_idx, cards=cards)
+
+        # Persist remaining deck order derived from PokerKit's dealable cards
+        self._deck = [repr(card) for card in available_cards]
 
         logger.info(
             "New hand dealt",
@@ -116,6 +117,12 @@ class PokerEngineAdapter:
         self._deal_board_cards(1, "river")
 
     def _deal_board_cards(self, count: int, street: str) -> None:
+        if len(self._deck) < count:
+            # Fall back to current dealable set to avoid illegal manual dealing
+            available_cards = list(self.state.get_dealable_cards())
+            random.shuffle(available_cards)
+            self._deck.extend(repr(card) for card in available_cards)
+
         if len(self._deck) < count:
             raise ValueError(f"Not enough cards in deck to deal {street}")
 
@@ -177,13 +184,14 @@ class PokerEngineAdapter:
                 if card_list:
                     board_cards.append(repr(card_list[0]))
 
+        pots_iterable = list(self.state.pots)
         pots = [
             {
                 "pot_index": idx,
                 "amount": pot.amount,
                 "player_indices": list(pot.player_indices),
             }
-            for idx, pot in enumerate(self.state.pots)
+            for idx, pot in enumerate(pots_iterable)
         ]
 
         street_names = ["preflop", "flop", "turn", "river"]
@@ -523,12 +531,13 @@ class PokerEngineAdapter:
                     serialized_board_cards.append(repr(card_list[0]))
 
         # Serialize pots
+        pots_snapshot = list(self.state.pots)
         serialized_pots = [
             {
                 "amount": pot.amount,
                 "player_indices": list(pot.player_indices),
             }
-            for pot in self.state.pots
+            for pot in pots_snapshot
         ]
 
         # Build complete state dictionary
