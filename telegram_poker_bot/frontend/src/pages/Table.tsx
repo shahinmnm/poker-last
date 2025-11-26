@@ -18,14 +18,14 @@ import HandResultPanel from '../components/tables/HandResultPanel'
 import RecentHandsModal from '../components/tables/RecentHandsModal'
 import TableExpiredModal from '../components/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
-import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
-import PlayerHeader from '@/components/table/PlayerHeader'
-import PotDisplay from '@/components/table/PotDisplay'
-import CommunityCards from '@/components/table/CommunityCards'
-import ActionBar from '@/components/table/ActionBar'
 import PlayerAvatar from '../components/tables/PlayerAvatar'
+import TableLayoutV2 from '../components/tables/v2/TableLayoutV2'
+import TableInfoPill from '../components/tables/v2/TableInfoPill'
+import PlayerRing from '../components/tables/v2/PlayerRing'
+import BoardAndPot from '../components/tables/v2/BoardAndPot'
+import ActionSurface from '../components/tables/v2/ActionSurface'
 import type {
   AllowedAction,
   AllowedActionsPayload,
@@ -105,7 +105,6 @@ const DEFAULT_TURN_TIMEOUT_SECONDS = 25
  * During gameplay, liveState.status contains the current street name (preflop, flop, turn, river)
  * rather than 'active'. Action buttons should be shown when tableStatus is one of these values.
  */
-const ACTIVE_GAMEPLAY_STREETS = ['preflop', 'flop', 'turn', 'river']
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
@@ -119,7 +118,6 @@ export default function TablePage() {
   const [error, setError] = useState<string | null>(null)
   const [isSeating, setIsSeating] = useState(false)
   const [isLeaving, setIsLeaving] = useState(false)
-  const [isStarting, setIsStarting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [toast, setToast] = useState(DEFAULT_TOAST)
@@ -837,44 +835,6 @@ export default function TablePage() {
     }
   }
 
-  const handleStart = async () => {
-    if (!tableId) {
-      return
-    }
-    if (!initData) {
-      showToast(t('table.errors.unauthorized'))
-      return
-    }
-    try {
-      setIsStarting(true)
-      const state = await apiFetch<TableState>(`/tables/${tableId}/start`, {
-        method: 'POST',
-        initData,
-      })
-      applyIncomingState(state)
-      await fetchTable()
-      await fetchLiveState()
-      showToast(t('table.toast.started'))
-    } catch (err) {
-      console.error('Error starting table:', err)
-      if (err instanceof ApiError) {
-        if (err.status === 403) {
-          showToast(t('table.errors.startNotAllowed'))
-        } else {
-          const message =
-            (typeof err.data === 'object' && err.data && 'detail' in err.data
-              ? String((err.data as { detail?: unknown }).detail)
-              : null) || t('table.errors.actionFailed')
-          showToast(message)
-        }
-      } else {
-        showToast(t('table.errors.actionFailed'))
-      }
-    } finally {
-      setIsStarting(false)
-    }
-  }
-
   const allowedActions = normalizeAllowedActions(liveState?.allowed_actions)
   const callAction = allowedActions.find((action) => action.action_type === 'call')
   const canCheckAction = allowedActions.some((action) => action.action_type === 'check')
@@ -1123,105 +1083,6 @@ export default function TablePage() {
   const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
 
-  const renderActionDock = () => {
-    // Log rendering decision
-    const isActiveGameplayCheck = ACTIVE_GAMEPLAY_STREETS.includes(tableStatus) || tableStatus === 'active'
-    console.log('[Table ActionDock] Render decision:', {
-      isInterHand,
-      tableStatus,
-      isActiveGameplay: isActiveGameplayCheck,
-      viewerIsSeated,
-      hasActiveHand: liveState?.hand_id !== null && !isInterHand,
-      isMyTurn,
-      allowedActionsCount: actionableAllowedActions.length,
-      allowedActions: actionableAllowedActions,
-      current_actor: currentActorUserId,
-      heroId,
-    })
-
-    // Never show during inter-hand voting phase
-    if (isInterHand) {
-      console.log('[Table ActionDock] Hidden: inter-hand phase')
-      return null
-    }
-
-    // Waiting state - show start/join buttons
-    if (tableStatus === 'waiting') {
-      console.log('[Table ActionDock] Showing waiting state buttons:', {
-        viewerIsCreator,
-        viewerIsSeated,
-        canStart,
-        canJoin,
-      })
-      return (
-        <div className="absolute inset-0 flex items-end justify-center pb-12 z-40 pointer-events-none">
-          <div className="flex flex-col items-center gap-4 pointer-events-auto">
-            {viewerIsCreator ? (
-              <button
-                type="button"
-                onClick={handleStart}
-                disabled={isStarting || !canStart}
-                className="min-h-[52px] px-8 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 text-black font-bold text-lg shadow-2xl shadow-emerald-500/40 hover:from-emerald-400 hover:to-emerald-300 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed animate-pulse"
-              >
-                {isStarting ? t('table.actions.starting') : t('table.actions.start', { defaultValue: 'START GAME' })}
-              </button>
-            ) : viewerIsSeated ? (
-              <div className="px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
-                {t('table.messages.waitingForHost')}
-              </div>
-            ) : (
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={handleSeat}
-                disabled={!canJoin || isSeating}
-                className="min-h-[52px] px-8"
-              >
-                {isSeating ? t('table.actions.joining') : t('table.actions.takeSeat', { defaultValue: 'SIT DOWN' })}
-              </Button>
-            )}
-          </div>
-        </div>
-      )
-    }
-
-    // Active hand - show action controls when seated and hand is active
-    const hasActiveHand = liveState?.hand_id !== null && !isInterHand
-    if (
-      isActiveGameplayCheck &&
-      liveState &&
-      viewerIsSeated &&
-      hasActiveHand &&
-      currentActorUserId &&
-      actionableAllowedActions.length > 0
-    ) {
-      console.log('[Table ActionDock] Showing action controls:', {
-        allowedActionsCount: actionableAllowedActions.length,
-        isMyTurn,
-        potSize: potDisplayAmount,
-        heroStack: heroPlayer?.stack,
-      })
-      return (
-        <ActionBar
-          allowedActions={actionableAllowedActions}
-          onAction={handleGameAction}
-          potSize={potDisplayAmount}
-          myStack={heroPlayer?.stack ?? 0}
-          isProcessing={actionPending || loading}
-          isMyTurn={isMyTurn}
-        />
-      )
-    }
-
-    console.log('[Table ActionDock] Hidden: no matching condition', {
-      tableStatus,
-      isActiveGameplay: isActiveGameplayCheck,
-      viewerIsSeated,
-      hasActiveHand,
-    })
-    return null
-  }
-
   return (
     <PokerFeltBackground>
       <Toast message={toast.message} visible={toast.visible} />
@@ -1241,57 +1102,41 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-3 pb-28 pt-4 sm:px-6">
-      {/* Arena - Game Content */}
-      {liveState ? (
-        <div className="flex flex-1 flex-col gap-4">
-          <div className="mx-auto w-full max-w-4xl">
-            <PlayerHeader
-              playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
-              chipCount={heroPlayer?.stack ?? 0}
-              tableLabel={t('table.actionBar.tableBadge', { id: tableDetails.table_id })}
-              isMyTurn={isMyTurn}
-            />
-          </div>
-
-          <div
-            className="relative flex-1 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-inner backdrop-blur-sm"
-            style={{ paddingTop: '72px', paddingBottom: viewerIsSeated ? '140px' : '96px' }}
-          >
-            {isInterHand ? (
-              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-                <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
-                <div className="mt-6">
-                  <InterHandVoting
-                    players={liveState.players}
-                    readyPlayerIds={readyPlayerIds}
-                    deadline={liveState.inter_hand_wait_deadline}
-                    durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
-                    onReady={handleReady}
-                    isReady={heroIdString !== null && readyPlayerIds.includes(heroIdString)}
+        <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-3 pb-12 pt-4 sm:px-6">
+          {liveState ? (
+            <TableLayoutV2
+              infoPill={(
+                <TableInfoPill
+                  tableName={tableDetails.table_name}
+                  tableId={tableDetails.table_id}
+                  smallBlind={tableDetails.small_blind}
+                  bigBlind={tableDetails.big_blind}
+                  playerCount={liveState.players.length}
+                  maxPlayers={tableDetails.max_players}
+                  mode={tableDetails.visibility}
+                  onLeave={canLeave ? handleLeave : undefined}
+                  canLeave={canLeave}
+                />
+              )}
+              board={(
+                <div className="flex flex-col items-center gap-2">
+                  <BoardAndPot
+                    ref={potAreaRef}
+                    cards={liveState.board ?? []}
+                    potAmount={potDisplayAmount}
+                    winningCards={winningBoardCards}
                   />
+                  {liveState.hand_result && <HandResultPanel liveState={liveState} currentUserId={heroId} />}
                 </div>
-              </div>
-            ) : (
-              <>
-                <div className="absolute inset-0 pointer-events-none" style={{ paddingTop: '80px', paddingBottom: '120px' }}>
-                  {liveState.players
+              )}
+              players={(
+                <PlayerRing
+                  players={liveState.players
                     .filter((p) => p.user_id !== heroId)
                     .map((player, index) => {
                       const isActor = player.user_id?.toString() === currentActorUserId?.toString()
                       const isLastActor = liveState.last_action?.user_id?.toString() === player.user_id?.toString()
-                      const totalOthers = liveState.players.filter((p) => p.user_id !== heroId).length
-
-                      const angle = totalOthers > 1
-                        ? (Math.PI / (totalOthers + 1)) * (index + 1)
-                        : Math.PI / 2
-
-                      const radiusX = 42
-                      const radiusY = 38
-                      const left = 50 + radiusX * Math.cos(angle)
-                      const top = 50 - radiusY * Math.sin(angle)
-
-                      const getLastActionText = () => {
+                      const lastActionText = (() => {
                         if (!isLastActor || !liveState.last_action) return null
                         const action = liveState.last_action.action
                         const amount = liveState.last_action.amount
@@ -1303,10 +1148,15 @@ export default function TablePage() {
                         if (action === 'raise' && amount) return t('table.actions.lastAction.raise', { amount })
                         if (action === 'all_in' && amount) return t('table.actions.lastAction.all_in', { amount })
                         return null
-                      }
+                      })()
 
-                      const lastActionText = getLastActionText()
-                      const positionLabel = player.is_button ? 'BTN' : player.is_small_blind ? 'SB' : player.is_big_blind ? 'BB' : undefined
+                      const positionLabel = player.is_button
+                        ? 'BTN'
+                        : player.is_small_blind
+                          ? 'SB'
+                          : player.is_big_blind
+                            ? 'BB'
+                            : undefined
 
                       const playerCards = showdownCardsByPlayer.get(player.user_id.toString()) ?? []
                       const winningHand = liveState.hand_result?.winners?.find(
@@ -1321,25 +1171,20 @@ export default function TablePage() {
                             ? 'active'
                             : 'waiting'
 
-                      return (
-                        <div
-                          key={`villain-${player.user_id}`}
-                          ref={(el) => {
-                            const playerKey = player.user_id.toString()
-                            if (el) {
-                              playerTileRefs.current.set(playerKey, el)
-                            } else {
-                              playerTileRefs.current.delete(playerKey)
-                            }
-                          }}
-                          className="absolute pointer-events-auto"
-                          style={{
-                            left: `${left}%`,
-                            top: `${top}%`,
-                            transform: 'translate(-50%, -50%)',
-                          }}
-                        >
-                          <div className="flex flex-col items-center gap-1">
+                      return {
+                        id: `villain-${player.user_id}-${index}`,
+                        node: (
+                          <div
+                            ref={(el) => {
+                              const playerKey = player.user_id.toString()
+                              if (el) {
+                                playerTileRefs.current.set(playerKey, el)
+                              } else {
+                                playerTileRefs.current.delete(playerKey)
+                              }
+                            }}
+                            className="flex flex-col items-center gap-1"
+                          >
                             <PlayerAvatar
                               name={player.display_name || player.username || `P${(player.seat ?? player.position ?? 0) + 1}`}
                               stack={player.stack}
@@ -1348,8 +1193,8 @@ export default function TablePage() {
                               betAmount={player.bet}
                               deadline={isActor ? liveState.action_deadline : null}
                               turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                              size="sm"
-                              offsetTop={top < 50}
+                              size={liveState.players.length >= 6 ? 'sm' : 'md'}
+                              offsetTop
                               seatNumber={player.seat ?? player.position}
                               positionLabel={positionLabel}
                               lastAction={lastActionText}
@@ -1358,9 +1203,7 @@ export default function TablePage() {
                               isAllIn={Boolean(player.is_all_in || player.stack <= 0)}
                             />
                             {lastActionText && player.in_hand && (
-                              <p className="text-[8px] font-semibold text-emerald-300 uppercase tracking-wide">
-                                {lastActionText}
-                              </p>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200">{lastActionText}</p>
                             )}
                             {playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown') && (
                               <div className="mt-1 flex gap-1">
@@ -1369,97 +1212,92 @@ export default function TablePage() {
                                   return (
                                     <PlayingCard
                                       key={`villain-card-${player.user_id}-${card}-${idx}`}
-                                      card={card}
-                                      size="sm"
-                                      highlighted={isWinningCard}
+                                    card={card}
+                                    size="sm"
+                                    highlighted={isWinningCard}
                                     />
                                   )
                                 })}
                               </div>
                             )}
                           </div>
-                        </div>
-                      )
+                        ),
+                      }
                     })}
-                </div>
-
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-4">
-                  <PotDisplay ref={potAreaRef} amount={potDisplayAmount} />
-                  <CommunityCards cards={liveState.board ?? []} highlightedCards={winningBoardCards} />
-                  {liveState.hand_result && (
-                    <div className="mt-1">
-                      <HandResultPanel liveState={liveState} currentUserId={heroId} />
+                />
+              )}
+              hero={heroPlayer && (
+                <div
+                  ref={(el) => {
+                    if (el && heroId) {
+                      playerTileRefs.current.set(heroId.toString(), el)
+                    } else if (heroId) {
+                      playerTileRefs.current.delete(heroId.toString())
+                    }
+                  }}
+                  className="flex flex-col items-center gap-2"
+                >
+                  {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
+                    <div className="flex gap-2.5">
+                      {heroCards.map((card, idx) => {
+                        const heroWinner = liveState.hand_result?.winners?.find((w) => w.user_id?.toString() === heroIdString)
+                        const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                        return (
+                          <div
+                            key={`hero-card-${idx}`}
+                            className="transition-transform"
+                            style={{ transform: idx === 0 ? 'rotate(-4deg)' : 'rotate(4deg)' }}
+                          >
+                            <PlayingCard card={card} size="md" highlighted={isWinningCard} />
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
+                  <PlayerAvatar
+                    name={heroPlayer.display_name || t('table.players.youTag')}
+                    stack={heroPlayer.stack}
+                    isHero
+                    isActive={Boolean(heroPlayer.in_hand && heroPlayer.user_id?.toString() === currentActorUserId?.toString())}
+                    hasFolded={!heroPlayer.in_hand}
+                    betAmount={heroPlayer.bet}
+                    deadline={heroPlayer.user_id?.toString() === currentActorUserId?.toString() ? liveState.action_deadline : null}
+                    turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
+                    size="md"
+                    seatNumber={heroPlayer.seat ?? heroPlayer.position}
+                    positionLabel={heroPlayer.is_button ? 'BTN' : heroPlayer.is_small_blind ? 'SB' : heroPlayer.is_big_blind ? 'BB' : undefined}
+                    isSittingOut={heroPlayer.is_sitting_out_next_hand}
+                    status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
+                    isAllIn={Boolean(heroPlayer.is_all_in || heroPlayer.stack <= 0)}
+                  />
                 </div>
-
-                {heroPlayer && (
-                  <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
-                    <div
-                      ref={(el) => {
-                        if (el && heroId) {
-                          const heroKey = heroId.toString()
-                          playerTileRefs.current.set(heroKey, el)
-                        } else if (heroId) {
-                          const heroKey = heroId.toString()
-                          playerTileRefs.current.delete(heroKey)
-                        }
-                      }}
-                      className="flex flex-col items-center"
-                    >
-                      {heroCards.length > 0 && liveState.hand_id && liveState.status !== 'ended' && liveState.status !== 'waiting' && (
-                        <div className="mb-3 flex gap-2.5">
-                          {heroCards.map((card, idx) => {
-                            const heroWinner = liveState.hand_result?.winners?.find(
-                              (w) => w.user_id?.toString() === heroIdString,
-                            )
-                            const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                            return (
-                              <div
-                                key={`hero-card-${idx}`}
-                                className="transition-transform"
-                                style={{
-                                  transform: idx === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
-                                }}
-                              >
-                                <PlayingCard card={card} size="md" highlighted={isWinningCard} />
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      <PlayerAvatar
-                        name={heroPlayer.display_name || 'You'}
-                        stack={heroPlayer.stack}
-                        isHero
-                        isActive={Boolean(
-                          heroPlayer.in_hand &&
-                          heroPlayer.user_id?.toString() === currentActorUserId?.toString(),
-                        )}
-                        hasFolded={!heroPlayer.in_hand}
-                        betAmount={heroPlayer.bet}
-                        deadline={
-                          heroPlayer.user_id?.toString() === currentActorUserId?.toString()
-                            ? liveState.action_deadline
-                            : null
-                        }
-                        turnTimeoutSeconds={liveState.turn_timeout_seconds || DEFAULT_TURN_TIMEOUT_SECONDS}
-                        size="md"
-                        seatNumber={heroPlayer.seat ?? heroPlayer.position}
-                        positionLabel={heroPlayer.is_button ? 'BTN' : heroPlayer.is_small_blind ? 'SB' : heroPlayer.is_big_blind ? 'BB' : undefined}
-                        isSittingOut={heroPlayer.is_sitting_out_next_hand}
-                        status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
-                        isAllIn={Boolean(heroPlayer.is_all_in || heroPlayer.stack <= 0)}
-                      />
-                    </div>
+              )}
+              action={viewerIsSeated && (
+                <ActionSurface
+                  allowedActions={actionableAllowedActions}
+                  isMyTurn={isMyTurn}
+                  onAction={handleGameAction}
+                  potSize={potDisplayAmount}
+                  myStack={heroPlayer?.stack ?? 0}
+                  isProcessing={actionPending || loading}
+                  isInterHand={isInterHand}
+                  readyPlayerIds={readyPlayerIds}
+                  players={liveState.players}
+                  deadline={liveState.inter_hand_wait_deadline}
+                  interHandSeconds={liveState.inter_hand_wait_seconds}
+                  onReady={handleReady}
+                  heroId={heroIdString}
+                />
+              )}
+              overlays={isInterHand ? (
+                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+                  <div className="pointer-events-auto">
+                    <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
+                </div>
+              ) : null}
+            />
+          ) : (
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-md px-6">
             <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-xl">
@@ -1569,8 +1407,6 @@ export default function TablePage() {
           navigate('/lobby')
         }}
       />
-
-      {renderActionDock()}
     </div>
   </PokerFeltBackground>
   )
