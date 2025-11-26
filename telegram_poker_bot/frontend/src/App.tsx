@@ -16,7 +16,6 @@ import WalletPage from './pages/Wallet'
 import TablePage from './pages/Table'
 import GroupInvitePage from './pages/GroupInvite'
 import GroupJoinPage from './pages/GroupJoin'
-import PokerTableDemo from './pages/PokerTableDemo'
 import { useTelegram } from './hooks/useTelegram'
 
 function StartParamBridge() {
@@ -68,7 +67,6 @@ function App() {
                     </Route>
                     <Route path="wallet" element={<WalletPage />} />
                     <Route path="table/:tableId" element={<TablePage />} />
-                    <Route path="demo/table" element={<PokerTableDemo />} />
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
