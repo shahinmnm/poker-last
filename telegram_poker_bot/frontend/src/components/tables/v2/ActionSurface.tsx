@@ -74,7 +74,14 @@ export default function ActionSurface({
       )
     }
 
-    return null
+    return (
+      <div className="pointer-events-none mx-auto w-full max-w-xl px-3 pb-4">
+        <div className="flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-black/80 backdrop-blur-xl mix-blend-screen shadow-lg">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+          {t('table.status.waitingForTurn', 'Waiting for other players...')}
+        </div>
+      </div>
+    )
   }, [allowedActions, deadline, heroId, interHandSeconds, isInterHand, isMyTurn, isProcessing, myStack, onAction, onReady, players, potSize, readyPlayerIds, t])
 
   return content
