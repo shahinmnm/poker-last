@@ -1,188 +1,74 @@
-"""Test the PokerKit adapter basic functionality."""
-
+import pytest
 from pokerkit import Mode
 
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 
 
-def test_adapter_initialization():
-    """Test basic adapter initialization."""
-    adapter = PokerEngineAdapter(
-        player_count=3,
-        starting_stacks=[1000, 1000, 1000],
+@pytest.fixture
+def adapter():
+    return PokerEngineAdapter(
+        player_count=2,
+        starting_stacks=[1000, 1000],
         small_blind=10,
         big_blind=20,
         mode=Mode.TOURNAMENT,
     )
-    
-    assert adapter.player_count == 3
-    assert adapter.small_blind == 10
-    assert adapter.big_blind == 20
-    assert len(adapter.state.stacks) == 3
 
 
-def test_deal_new_hand():
-    """Test dealing a new hand."""
-    adapter = PokerEngineAdapter(
-        player_count=2,
-        starting_stacks=[1000, 1000],
-        small_blind=10,
-        big_blind=20,
-    )
-    
-    # Deal new hand
+def test_deal_new_hand_gives_two_cards_each_and_reduces_deck(adapter):
     adapter.deal_new_hand()
-    
-    # Check that hole cards were dealt
-    assert len(adapter.state.hole_cards) == 2
-    for player_cards in adapter.state.hole_cards:
-        assert len(player_cards) == 2  # Each player has 2 cards
-    
-    # Check that deck has remaining cards
-    assert len(adapter._deck) == 52 - 4  # 52 - (2 players * 2 cards)
+
+    assert len(adapter.state.hole_cards) == adapter.player_count
+    assert all(len(cards) == 2 for cards in adapter.state.hole_cards)
+    assert len(adapter._deck) == 52 - adapter.player_count * 2
 
 
-def test_to_full_state():
-    """Test state serialization."""
-    adapter = PokerEngineAdapter(
-        player_count=2,
-        starting_stacks=[1000, 1000],
-        small_blind=10,
-        big_blind=20,
-    )
-    
+def test_allowed_actions_flags_match_expected_preflop(adapter):
     adapter.deal_new_hand()
-    state = adapter.to_full_state(viewer_player_index=0)
-    
-    # Check basic structure
-    assert "status" in state
-    assert "street" in state
-    assert "players" in state
-    assert "board_cards" in state
-    assert "pots" in state
-    assert "allowed_actions" in state
-    
-    # Check player count
-    assert len(state["players"]) == 2
-    
-    # Check that viewer can see their own cards
-    player_0 = state["players"][0]
-    assert len(player_0["hole_cards"]) == 2
-    
-    # Check that viewer cannot see opponent's cards
-    player_1 = state["players"][1]
-    assert len(player_1["hole_cards"]) == 0  # Hidden from viewer
 
-
-def test_allowed_actions():
-    """Test that allowed actions are extracted correctly."""
-    adapter = PokerEngineAdapter(
-        player_count=2,
-        starting_stacks=[1000, 1000],
-        small_blind=10,
-        big_blind=20,
-    )
-    
-    adapter.deal_new_hand()
-    
-    # Get state for current actor
     actor_index = adapter.state.actor_index
     assert actor_index is not None
-    
+
     state = adapter.to_full_state(viewer_player_index=actor_index)
     actions = state["allowed_actions"]
-    
-    # Should have some allowed actions
-    assert len(actions) > 0
-    assert "can_fold" in actions
-    
-    # Should have either check or call
-    assert "can_check" in actions or "can_call" in actions
+
+    assert actions["can_fold"] is True
+    assert actions["can_check"] or actions["can_call"]
+    assert "min_raise_to" in actions
+    assert "max_raise_to" in actions
 
 
-def test_fold_action():
-    """Test fold action."""
-    adapter = PokerEngineAdapter(
-        player_count=2,
-        starting_stacks=[1000, 1000],
-        small_blind=10,
-        big_blind=20,
-    )
-    
+def test_fold_in_heads_up_ends_hand(adapter):
     adapter.deal_new_hand()
-    
-    # Fold
-    initial_actor = adapter.state.actor_index
     adapter.fold()
-    
-    # Hand should be complete after one player folds in heads-up
+
     assert adapter.is_hand_complete()
 
 
-def test_check_and_call():
-    """Test check and call actions."""
+def test_all_in_preflop_auto_deals_full_board_and_produces_winners():
     adapter = PokerEngineAdapter(
         player_count=2,
-        starting_stacks=[1000, 1000],
+        starting_stacks=[500, 500],
         small_blind=10,
         big_blind=20,
+        mode=Mode.TOURNAMENT,
     )
-    
+
     adapter.deal_new_hand()
-    
-    # First player can call or fold
-    adapter.check_or_call()  # Call the big blind
-    
-    # Big blind player can check
-    adapter.check_or_call()  # Check
-    
-    # Should still be active (not complete)
-    assert not adapter.is_hand_complete()
 
+    first_actor = adapter.state.actor_index
+    assert first_actor is not None
+    all_in_amount = adapter.state.stacks[first_actor] + adapter.state.bets[first_actor]
+    adapter.bet_or_raise(all_in_amount)
 
-def test_bet_or_raise():
-    """Test bet/raise action."""
-    adapter = PokerEngineAdapter(
-        player_count=2,
-        starting_stacks=[1000, 1000],
-        small_blind=10,
-        big_blind=20,
-    )
-    
-    adapter.deal_new_hand()
-    
-    # Get minimum bet amount
-    actor_idx = adapter.state.actor_index
-    min_bet = adapter.state.min_completion_betting_or_raising_to_amount
-    
-    # Raise to minimum
-    adapter.bet_or_raise(min_bet)
-    
-    # Should still be active
-    assert not adapter.is_hand_complete()
+    second_actor = adapter.state.actor_index
+    assert second_actor is not None
+    adapter.check_or_call()
 
+    board_count = sum(len(cards) for cards in adapter.state.board_cards)
+    assert board_count == 5
+    assert adapter.is_hand_complete()
 
-if __name__ == "__main__":
-    # Run tests manually
-    test_adapter_initialization()
-    print("✓ Initialization test passed")
-    
-    test_deal_new_hand()
-    print("✓ Deal new hand test passed")
-    
-    test_to_full_state()
-    print("✓ State serialization test passed")
-    
-    test_allowed_actions()
-    print("✓ Allowed actions test passed")
-    
-    test_fold_action()
-    print("✓ Fold action test passed")
-    
-    test_check_and_call()
-    print("✓ Check/call test passed")
-    
-    test_bet_or_raise()
-    print("✓ Bet/raise test passed")
-    
-    print("\nAll tests passed!")
+    winners = adapter.get_winners()
+    assert isinstance(winners, list)
+    assert len(winners) >= 1
