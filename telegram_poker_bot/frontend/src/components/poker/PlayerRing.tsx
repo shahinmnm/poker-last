@@ -26,59 +26,59 @@ export default function PlayerRing({
 }: PlayerRingProps) {
   const totalSlots = Math.max(slotCount ?? players.length + 1, 2)
 
-  // Position mapping for different table sizes
-  // These are relative to hero at bottom (0°)
-  const positionLayouts: Record<number, Array<{ left: string; top: string }>> = {
-    2: [
-      // Heads-up: villain at top
-      { left: '50%', top: '24%' },
-    ],
-    3: [
-      { left: '24%', top: '38%' },
-      { left: '76%', top: '38%' },
-    ],
-    4: [
-      { left: '22%', top: '44%' },
-      { left: '78%', top: '44%' },
-      { left: '50%', top: '20%' },
-    ],
-    5: [
-      { left: '20%', top: '56%' },
-      { left: '80%', top: '56%' },
-      { left: '26%', top: '28%' },
-      { left: '74%', top: '28%' },
-    ],
-    6: [
-      // 6-max: standard poker table
-      { left: '18%', top: '72%' },  // Bottom left
-      { left: '82%', top: '72%' },  // Bottom right
-      { left: '22%', top: '28%' },  // Top left
-      { left: '78%', top: '28%' },  // Top right
-      { left: '50%', top: '18%' },  // Top center
-    ],
-    7: [
-      { left: '18%', top: '70%' },
-      { left: '82%', top: '70%' },
-      { left: '12%', top: '48%' },
-      { left: '88%', top: '48%' },
-      { left: '24%', top: '26%' },
-      { left: '76%', top: '26%' },
-      { left: '50%', top: '16%' },
-    ],
-    8: [
-      { left: '18%', top: '70%' },
-      { left: '82%', top: '70%' },
-      { left: '12%', top: '48%' },
-      { left: '88%', top: '48%' },
-      { left: '10%', top: '30%' },
-      { left: '90%', top: '30%' },
-      { left: '34%', top: '18%' },
-      { left: '66%', top: '18%' },
-    ],
-  }
-
   const positioned = useMemo(() => {
     const heroSeat = heroSeatIndex ?? 0
+    
+    // Position mapping for different table sizes (inside useMemo to avoid dependency issues)
+    const positionLayouts: Record<number, Array<{ left: string; top: string }>> = {
+      2: [
+        // Heads-up: villain at top
+        { left: '50%', top: '24%' },
+      ],
+      3: [
+        { left: '24%', top: '38%' },
+        { left: '76%', top: '38%' },
+      ],
+      4: [
+        { left: '22%', top: '44%' },
+        { left: '78%', top: '44%' },
+        { left: '50%', top: '20%' },
+      ],
+      5: [
+        { left: '20%', top: '56%' },
+        { left: '80%', top: '56%' },
+        { left: '26%', top: '28%' },
+        { left: '74%', top: '28%' },
+      ],
+      6: [
+        // 6-max: standard poker table
+        { left: '18%', top: '72%' },  // Bottom left
+        { left: '82%', top: '72%' },  // Bottom right
+        { left: '22%', top: '28%' },  // Top left
+        { left: '78%', top: '28%' },  // Top right
+        { left: '50%', top: '18%' },  // Top center
+      ],
+      7: [
+        { left: '18%', top: '70%' },
+        { left: '82%', top: '70%' },
+        { left: '12%', top: '48%' },
+        { left: '88%', top: '48%' },
+        { left: '24%', top: '26%' },
+        { left: '76%', top: '26%' },
+        { left: '50%', top: '16%' },
+      ],
+      8: [
+        { left: '18%', top: '70%' },
+        { left: '82%', top: '70%' },
+        { left: '12%', top: '48%' },
+        { left: '88%', top: '48%' },
+        { left: '10%', top: '30%' },
+        { left: '90%', top: '30%' },
+        { left: '34%', top: '18%' },
+        { left: '66%', top: '18%' },
+      ],
+    }
+    
     const layout = positionLayouts[Math.min(Math.max(totalSlots, 2), 8)]
 
     if (!layout) {
@@ -105,7 +105,7 @@ export default function PlayerRing({
         position,
       }
     })
-  }, [heroSeatIndex, players, totalSlots, positionLayouts])
+  }, [heroSeatIndex, players, totalSlots])
 
   return (
     <div className={`absolute inset-0 ${className}`}>

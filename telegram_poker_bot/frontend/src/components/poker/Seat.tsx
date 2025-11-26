@@ -42,6 +42,19 @@ export default function Seat({
     ? (variant === 'hero' ? pokerTokens.layout.seatSize.desktop.hero : pokerTokens.layout.seatSize.desktop.avatar)
     : (variant === 'hero' ? pokerTokens.layout.seatSize.mobile.hero : pokerTokens.layout.seatSize.mobile.avatar)
 
+  // Calculate initials before any conditional returns
+  const initials = useMemo(() => {
+    if (!name) return '?'
+    return name
+      .trim()
+      .split(' ')
+      .filter((w) => w.length > 0)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase()
+  }, [name])
+
   // Determine seat styles based on variant
   const seatStyles = useMemo(() => {
     const baseStyles = {
@@ -133,19 +146,6 @@ export default function Seat({
       </button>
     )
   }
-
-  // Regular seat rendering
-  const initials = useMemo(() => {
-    if (!name) return '?'
-    return name
-      .trim()
-      .split(' ')
-      .filter((w) => w.length > 0)
-      .map((w) => w[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase()
-  }, [name])
 
   return (
     <div
