@@ -90,7 +90,10 @@ class PokerEngineAdapter:
     def deal_new_hand(self) -> None:
         """Shuffle and deal a fresh hand to all active players."""
         self._deck = self._create_shuffled_deck()
-        self._pre_showdown_stacks = list(self.state.stacks)
+        # Capture stacks before blinds/antes by adding back posted bets
+        self._pre_showdown_stacks = [
+            stack + bet for stack, bet in zip(self.state.stacks, self.state.bets)
+        ]
 
         for player_idx in range(self.player_count):
             if self.state.stacks[player_idx] <= 0:
