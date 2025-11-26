@@ -207,6 +207,18 @@ export default function TablePage() {
           : isSameHand
             ? previous?.pots ?? []
             : []
+        const mergedCurrentActor =
+          incoming.current_actor !== undefined
+            ? incoming.current_actor
+            : isSameHand
+              ? previous?.current_actor ?? null
+              : null
+        const mergedCurrentActorUserId =
+          incoming.current_actor_user_id !== undefined
+            ? incoming.current_actor_user_id
+            : isSameHand
+              ? previous?.current_actor_user_id ?? mergedCurrentActor
+              : mergedCurrentActor
 
         const nextState: TableState = {
           ...(previous ?? incoming),
@@ -217,6 +229,8 @@ export default function TablePage() {
           hand_result: mergedHandResult,
           ready_players: mergedReadyPlayers,
           players: mergedPlayers,
+          current_actor: mergedCurrentActor,
+          current_actor_user_id: mergedCurrentActorUserId,
           allowed_actions: incoming.allowed_actions ?? (isSameHand ? previous?.allowed_actions : undefined),
         }
 
@@ -249,6 +263,22 @@ export default function TablePage() {
         return
       }
 
+      const isReadyAction = actionType === 'ready'
+      const normalizedActions = normalizeAllowedActions(liveState?.allowed_actions)
+
+      if (!isReadyAction) {
+        if (!heroIdString || !currentActorUserId || currentActorUserId.toString() !== heroIdString) {
+          showToast(t('table.errors.notYourTurn', { defaultValue: "It's not your turn" }))
+          return
+        }
+
+        const isAllowed = normalizedActions.some((action) => action.action_type === actionType)
+        if (!isAllowed) {
+          showToast(t('table.errors.actionNotAllowed', { defaultValue: 'Action not available' }))
+          return
+        }
+      }
+
       try {
         setActionPending(true)
         const state = await apiFetch<TableState | { ready_players?: Array<number | string> }>(
@@ -271,7 +301,7 @@ export default function TablePage() {
           )
         }
 
-        if (actionType !== 'ready') {
+        if (!isReadyAction) {
           fetchLiveState()
         } else {
           showToast(t('table.toast.ready', "You're joining the next hand"))
@@ -291,7 +321,7 @@ export default function TablePage() {
         setActionPending(false)
       }
     },
-    [applyIncomingState, fetchLiveState, initData, showToast, t, tableId],
+    [applyIncomingState, fetchLiveState, heroIdString, currentActorUserId, initData, liveState?.allowed_actions, normalizeAllowedActions, showToast, t, tableId],
   )
 
   // Helper to get center position of an element
@@ -534,6 +564,7 @@ export default function TablePage() {
             current_bet: 0,
             min_raise: liveState?.min_raise ?? 0,
             current_actor: null,
+            current_actor_user_id: null,
             action_deadline: null,
             turn_timeout_seconds: payload.turn_timeout_seconds ?? liveState?.turn_timeout_seconds,
             players: payload.players ?? liveState?.players ?? [],
@@ -723,6 +754,7 @@ export default function TablePage() {
   const heroIdString = heroId !== null ? heroId.toString() : null
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
   const heroCards = liveState?.hero?.cards ?? []
+  const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const readyPlayerIds = useMemo(
     () => (liveState?.ready_players ?? []).map((id) => id?.toString()),
     [liveState?.ready_players],
@@ -831,7 +863,7 @@ export default function TablePage() {
 
     return lookup
   }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
-  
+
   // Log inter-hand state only when isInterHand actually changes (not on every render)
   useEffect(() => {
     // Only log when isInterHand changes from previous value
@@ -855,7 +887,8 @@ export default function TablePage() {
     : tableDetails?.table_id
       ? `${window.location.origin}/table/${tableDetails.table_id}`
       : ''
-  const isMyTurn = heroIdString !== null && liveState?.current_actor?.toString() === heroIdString
+  const isMyTurn = heroIdString !== null && currentActorUserId?.toString() === heroIdString
+  const actionableAllowedActions = isMyTurn ? allowedActions : []
 
   useEffect(() => {
     if (liveState?.hand_id !== autoTimeoutRef.current.handId) {
@@ -869,7 +902,7 @@ export default function TablePage() {
       autoActionTimerRef.current = null
     }
 
-    if (!liveState || !heroIdString || liveState.current_actor?.toString() !== heroIdString || !liveState.action_deadline) {
+    if (!liveState || !heroIdString || currentActorUserId?.toString() !== heroIdString || !liveState.action_deadline) {
       return undefined
     }
 
@@ -900,7 +933,7 @@ export default function TablePage() {
         autoActionTimerRef.current = null
       }
     }
-  }, [canCheck, handleGameAction, heroIdString, liveState?.action_deadline, liveState?.current_actor, liveState?.hand_id])
+  }, [canCheck, handleGameAction, heroIdString, liveState?.action_deadline, currentActorUserId, liveState?.hand_id])
 
   // Control bottom navigation visibility based on seated status
   useEffect(() => {
@@ -1024,9 +1057,9 @@ export default function TablePage() {
       viewerIsSeated,
       hasActiveHand: liveState?.hand_id !== null && !isInterHand,
       isMyTurn,
-      allowedActionsCount: allowedActions.length,
-      allowedActions,
-      current_actor: liveState?.current_actor,
+      allowedActionsCount: actionableAllowedActions.length,
+      allowedActions: actionableAllowedActions,
+      current_actor: currentActorUserId,
       heroId,
     })
 
@@ -1078,21 +1111,28 @@ export default function TablePage() {
 
     // Active hand - show action controls when seated and hand is active
     const hasActiveHand = liveState?.hand_id !== null && !isInterHand
-    if (isActiveGameplayCheck && liveState && viewerIsSeated && hasActiveHand) {
+    if (
+      isActiveGameplayCheck &&
+      liveState &&
+      viewerIsSeated &&
+      hasActiveHand &&
+      currentActorUserId &&
+      actionableAllowedActions.length > 0
+    ) {
       const potSize =
         typeof liveState.pot === 'number'
           ? liveState.pot
           : (liveState as { pot?: { total?: number } }).pot?.total ??
             (liveState.pots?.reduce((sum, pot) => sum + (pot.amount ?? 0), 0) ?? 0)
       console.log('[Table ActionDock] Showing action controls:', {
-        allowedActionsCount: allowedActions.length,
+        allowedActionsCount: actionableAllowedActions.length,
         isMyTurn,
         potSize,
         heroStack: heroPlayer?.stack,
       })
       return (
         <ActionDock
-          allowedActions={allowedActions}
+          allowedActions={actionableAllowedActions}
           onAction={handleGameAction}
           potSize={potSize}
           myStack={heroPlayer?.stack ?? 0}
@@ -1167,7 +1207,7 @@ export default function TablePage() {
                 {liveState.players
                   .filter((p) => p.user_id !== heroId)
                   .map((player, index) => {
-                    const isActor = player.user_id?.toString() === liveState.current_actor?.toString()
+                    const isActor = player.user_id?.toString() === currentActorUserId?.toString()
                     const isLastActor = liveState.last_action?.user_id?.toString() === player.user_id?.toString()
                     const totalOthers = liveState.players.filter((p) => p.user_id !== heroId).length
                     
@@ -1379,12 +1419,12 @@ export default function TablePage() {
                       isHero
                       isActive={Boolean(
                         heroPlayer.in_hand &&
-                        heroPlayer.user_id?.toString() === liveState.current_actor?.toString(),
+                        heroPlayer.user_id?.toString() === currentActorUserId?.toString(),
                       )}
                       hasFolded={!heroPlayer.in_hand}
                       betAmount={heroPlayer.bet}
                       deadline={
-                        heroPlayer.user_id?.toString() === liveState.current_actor?.toString()
+                        heroPlayer.user_id?.toString() === currentActorUserId?.toString()
                           ? liveState.action_deadline
                           : null
                       }
