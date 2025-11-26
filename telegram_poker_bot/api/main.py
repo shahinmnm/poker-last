@@ -687,6 +687,7 @@ async def auto_fold_expired_actions():
                                 "allowed_actions", []
                             )
                             allowed_action_types = set()
+                            can_check_allowed = False
                             if isinstance(allowed_actions_raw, list):
                                 for entry in allowed_actions_raw:
                                     if not isinstance(entry, dict):
@@ -698,12 +699,19 @@ async def auto_fold_expired_actions():
                                 action_value = allowed_actions_raw.get("action_type")
                                 if action_value:
                                     allowed_action_types.add(action_value.lower())
+                                # PokerKit runtime typically returns flag-based dicts
+                                # (can_check, call_amount, etc.). Recognize check
+                                # availability even when no action_type is present.
+                                can_check_allowed = bool(
+                                    allowed_actions_raw.get("can_check")
+                                    or allowed_actions_raw.get("call_amount") == 0
+                                )
                             elif isinstance(allowed_actions_raw, str):
                                 allowed_action_types.add(allowed_actions_raw.lower())
 
                             if timeout_count == 0:
                                 # First timeout - check if CHECK is legal
-                                if "check" in allowed_action_types:
+                                if "check" in allowed_action_types or can_check_allowed:
                                     auto_action = ActionType.CHECK
                                     logger.info(
                                         "Auto-checking player (first timeout, check is legal)",
