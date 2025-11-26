@@ -22,8 +22,7 @@ import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import PlayerHeader from '@/components/table/PlayerHeader'
-import PotDisplay from '@/components/table/PotDisplay'
-import CommunityCards from '@/components/table/CommunityCards'
+import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import PlayerAvatar from '../components/tables/PlayerAvatar'
 import type {
@@ -1251,10 +1250,8 @@ export default function TablePage() {
             />
           </div>
 
-          <div
-            className="relative flex-1 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-inner backdrop-blur-sm"
-            style={{ paddingTop: '72px', paddingBottom: viewerIsSeated ? '140px' : '96px' }}
-          >
+
+          <div className="relative flex-1 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-inner backdrop-blur-md">
             {isInterHand ? (
               <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
                 <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
@@ -1269,9 +1266,28 @@ export default function TablePage() {
                   />
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="absolute inset-0 pointer-events-none" style={{ paddingTop: '80px', paddingBottom: '120px' }}>
+            ) : null}
+
+            <div className="relative z-10 flex h-full flex-col">
+              <div className="flex flex-col items-center px-4 pt-6">
+                <CommunityBoard
+                  potAmount={potDisplayAmount}
+                  cards={liveState.board ?? []}
+                  highlightedCards={winningBoardCards}
+                  potRef={potAreaRef}
+                />
+                {liveState.hand_result && (
+                  <div className="mt-1">
+                    <HandResultPanel liveState={liveState} currentUserId={heroId} />
+                  </div>
+                )}
+              </div>
+
+              <div className="relative flex-1">
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ paddingTop: '56px', paddingBottom: viewerIsSeated ? '176px' : '136px' }}
+                >
                   {liveState.players
                     .filter((p) => p.user_id !== heroId)
                     .map((player, index) => {
@@ -1380,16 +1396,6 @@ export default function TablePage() {
                     })}
                 </div>
 
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-4">
-                  <PotDisplay ref={potAreaRef} amount={potDisplayAmount} />
-                  <CommunityCards cards={liveState.board ?? []} highlightedCards={winningBoardCards} />
-                  {liveState.hand_result && (
-                    <div className="mt-1">
-                      <HandResultPanel liveState={liveState} currentUserId={heroId} />
-                    </div>
-                  )}
-                </div>
-
                 {heroPlayer && (
                   <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
                     <div
@@ -1449,11 +1455,21 @@ export default function TablePage() {
                         status={heroPlayer.is_sitting_out_next_hand ? 'sit_out' : !heroPlayer.in_hand && liveState.hand_id ? 'folded' : liveState.hand_id ? 'active' : 'waiting'}
                         isAllIn={Boolean(heroPlayer.is_all_in || heroPlayer.stack <= 0)}
                       />
+                      <div className="mt-2 text-center">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">
+                          {heroPositionLabel}
+                        </p>
+                        {heroLastAction && heroPlayer.in_hand && (
+                          <p className="text-[9px] font-semibold text-emerald-300 uppercase tracking-wide">
+                            {heroLastAction}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
-              </>
-            )}
+              </div>
+            </div>
           </div>
         </div>
       ) : (
