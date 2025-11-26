@@ -4,66 +4,34 @@ import random
 from collections import deque
 from typing import Any, Dict, List, Optional
 
-from pokerkit import (
-    Automation,
-    Mode,
-    NoLimitTexasHoldem,
-    State,
-)
-from pokerkit.state import (
-    Operation,
-)
+from pokerkit import Automation, Mode, NoLimitTexasHoldem, State
+from pokerkit.state import Operation
 
 from telegram_poker_bot.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Standard 52-card deck
 RANKS = "23456789TJQKA"
-SUITS = "shdc"  # spades, hearts, diamonds, clubs
+SUITS = "shdc"
 
 
 class PokerEngineAdapter:
-    """
-    Adapter for PokerKit engine.
-
-    Design Note:
-    - This adapter provides a clean, bot-friendly API over PokerKit's State API
-    - Handles serialization/deserialization of game state for persistence
-    - Validates actions before passing to engine
-    - Provides convenient methods for common operations
-    - ALL poker rules and game progression live in PokerKit
-    """
+    """High-level adapter that wraps PokerKit ``State`` for NLH."""
 
     def __init__(
         self,
         player_count: int,
         starting_stacks: List[int],
-        small_blind: int = 25,
-        big_blind: int = 50,
+        small_blind: int,
+        big_blind: int,
         mode: Mode = Mode.TOURNAMENT,
         button_index: Optional[int] = None,
     ):
-        """
-        Initialize a new poker game state.
-
-        Args:
-            player_count: Number of players (2-8)
-            starting_stacks: Starting chip stacks for each player
-            small_blind: Small blind amount
-            big_blind: Big blind amount
-            mode: Tournament or cash game mode
-            button_index: Optional initial button position (for hand rotation)
-        """
         if player_count < 2 or player_count > 8:
-            raise ValueError(
-                f"Player count must be between 2 and 8, got {player_count}"
-            )
+            raise ValueError("Player count must be between 2 and 8")
 
         if len(starting_stacks) != player_count:
-            raise ValueError(
-                f"Starting stacks length ({len(starting_stacks)}) must match player_count ({player_count})"
-            )
+            raise ValueError("starting_stacks length must match player_count")
 
         self.player_count = player_count
         self.starting_stacks = starting_stacks
@@ -73,23 +41,17 @@ class PokerEngineAdapter:
         self._deck: List[str] = []
         self._pre_showdown_stacks: Optional[List[int]] = None
 
-        # Determine button index (default to 0 if not provided)
-        # We track button_index ourselves since PokerKit doesn't expose it
-        if button_index is None:
+        if button_index is None or not (0 <= button_index < player_count):
+            if button_index is not None and not (0 <= button_index < player_count):
+                logger.warning(
+                    "Invalid button_index provided, defaulting to 0",
+                    provided_button_index=button_index,
+                    player_count=player_count,
+                )
             button_index = 0
 
-        if not (0 <= button_index < player_count):
-            logger.warning(
-                "Invalid button_index provided, defaulting to 0",
-                provided_button_index=button_index,
-                player_count=player_count,
-            )
-            button_index = 0
-
-        # Store button_index as our own attribute
         self.button_index = button_index
 
-        # Create PokerKit state with automations
         self.state: State = NoLimitTexasHoldem.create_state(
             automations=(
                 Automation.ANTE_POSTING,
@@ -121,172 +83,100 @@ class PokerEngineAdapter:
 
     def _create_shuffled_deck(self) -> List[str]:
         """Create and shuffle a standard 52-card deck."""
-        # TODO: Once PokerKit RNG/dealing is the only source of truth, remove
-        # this manual deck management to avoid divergence between adapter and
-        # engine state.
         deck = [f"{rank}{suit}" for rank in RANKS for suit in SUITS]
         random.shuffle(deck)
         return deck
 
     def deal_new_hand(self) -> None:
-        """
-        Deal a new hand - shuffle deck and deal hole cards to all players.
-
-        This method:
-        1. Creates a fresh shuffled deck
-        2. Deals 2 hole cards to each player via PokerKit
-        3. Stores remaining deck for future board dealing
-        4. Captures pre-showdown stacks for winner calculation
-        """
+        """Shuffle and deal a fresh hand to all active players."""
         self._deck = self._create_shuffled_deck()
-        # Capture stacks before any chips move so winner math can reconcile
-        # total losses to total wins at showdown. We intentionally use the
-        # declared starting stacks instead of the mutable engine stacks which
-        # may already include posted blinds when the State is constructed.
-        self._pre_showdown_stacks = list(self.starting_stacks)
+        self._pre_showdown_stacks = list(self.state.stacks)
 
-        # Deal 2 hole cards to each player
         for player_idx in range(self.player_count):
-            if self.state.stacks[player_idx] > 0:  # Only deal to players with chips
-                card1 = self._deck.pop()
-                card2 = self._deck.pop()
-                cards = card1 + card2
-                self.state.deal_hole(cards)
-                logger.debug(f"Dealt hole cards to player {player_idx}")
+            if self.state.stacks[player_idx] <= 0:
+                continue
+            cards = self._deck.pop() + self._deck.pop()
+            self.state.deal_hole(cards)
+            logger.debug("Dealt hole cards", player_index=player_idx, cards=cards)
 
         logger.info(
             "New hand dealt",
             players=self.player_count,
             button_index=self.button_index,
+            deck_remaining=len(self._deck),
         )
 
     def deal_flop(self) -> None:
-        """Deal the flop (3 community cards)."""
-        if len(self._deck) < 3:
-            raise ValueError("Not enough cards in deck to deal flop")
-        cards = self._deck.pop() + self._deck.pop() + self._deck.pop()
-        self.state.deal_board(cards)
-        logger.debug(f"Dealt flop: {cards}")
+        self._deal_board_cards(3, "flop")
 
     def deal_turn(self) -> None:
-        """Deal the turn (1 community card)."""
-        if len(self._deck) < 1:
-            raise ValueError("Not enough cards in deck to deal turn")
-        card = self._deck.pop()
-        self.state.deal_board(card)
-        logger.debug(f"Dealt turn: {card}")
+        self._deal_board_cards(1, "turn")
 
     def deal_river(self) -> None:
-        """Deal the river (1 community card)."""
-        if len(self._deck) < 1:
-            raise ValueError("Not enough cards in deck to deal river")
-        card = self._deck.pop()
-        self.state.deal_board(card)
-        logger.debug(f"Dealt river: {card}")
+        self._deal_board_cards(1, "river")
+
+    def _deal_board_cards(self, count: int, street: str) -> None:
+        if len(self._deck) < count:
+            raise ValueError(f"Not enough cards in deck to deal {street}")
+
+        cards = "".join(self._deck.pop() for _ in range(count))
+        self.state.deal_board(cards)
+        logger.debug("Dealt board", street=street, cards=cards)
 
     def to_full_state(
         self, viewer_player_index: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Serialize complete game state to dictionary with proper card visibility.
-
-        This is the SINGLE SOURCE OF TRUTH for table state that the frontend consumes.
-
-        Args:
-            viewer_player_index: Index of the viewing player (for card visibility)
-
-        Returns:
-            Complete state dict with:
-            - Game status and current street
-            - Player states (stacks, bets, positions)
-            - Board cards
-            - Pots
-            - Allowed actions for current player
-            - Card visibility based on game state and viewer
         """
-        # Get current actor
         actor_index = self.state.actor_index
+        is_showdown = not self.state.status
 
-        # Determine if we're in showdown or hand is complete
-        is_showdown = (
-            self.state.street_index is not None
-            and (
-                str(self.state.street).lower() == "river"
-                and not self.state.actor_indices
-            )
-            or not self.state.status
-        )
-
-        # Build player states
-        players = []
+        players: List[Dict[str, Any]] = []
         for i in range(self.player_count):
-            # Determine button position using our tracked button_index
             is_button = i == self.button_index
-
-            # For blind positions, we need to infer from actual bets
-            # since PokerKit posts blinds in its own order
             is_small_blind = False
             is_big_blind = False
 
-            # Check current bets to determine blind positions
-            if self.state.street_index == 0 and self.state.bets:  # Preflop
-                # Player with bet == small_blind amount is SB
-                # Player with bet == big_blind amount is BB
+            if self.state.street_index == 0 and self.state.bets:
                 player_bet = self.state.bets[i]
-                if player_bet == self.small_blind:
-                    is_small_blind = True
-                elif player_bet == self.big_blind:
-                    is_big_blind = True
+                is_small_blind = player_bet == self.small_blind
+                is_big_blind = player_bet == self.big_blind
 
-            # Get hole cards - only visible to viewer or at showdown
-            hole_cards = []
-            if (
-                hasattr(self.state, "hole_cards")
-                and self.state.hole_cards
-                and i < len(self.state.hole_cards)
+            hole_cards: List[str] = []
+            if getattr(self.state, "hole_cards", None) and i < len(
+                self.state.hole_cards
             ):
                 player_cards = self.state.hole_cards[i]
-                if player_cards:
-                    if i == viewer_player_index or is_showdown:
-                        # Show actual cards - use repr() for short format like "Ah" instead of "ACE OF HEARTS (Ah)"
-                        hole_cards = [repr(card) for card in player_cards]
-                    elif viewer_player_index is not None and i != viewer_player_index:
-                        # Hide other players' cards before showdown
-                        hole_cards = []
+                if player_cards and (is_showdown or viewer_player_index == i):
+                    hole_cards = [repr(card) for card in player_cards]
 
-            # Check if player is folded (no longer in active players)
             is_folded = (
-                i not in self.state.player_indices
-                if hasattr(self.state, "player_indices")
-                else False
+                hasattr(self.state, "player_indices")
+                and i not in self.state.player_indices
             )
-
-            # Check if all-in
             is_all_in = self.state.stacks[i] == 0 and self.state.bets[i] > 0
 
-            player_state = {
-                "player_index": i,
-                "stack": self.state.stacks[i],
-                "bet": self.state.bets[i],
-                "hole_cards": hole_cards,
-                "is_folded": is_folded,
-                "is_all_in": is_all_in,
-                "is_button": is_button,
-                "is_small_blind": is_small_blind,
-                "is_big_blind": is_big_blind,
-                "is_actor": i == actor_index,
-            }
-            players.append(player_state)
+            players.append(
+                {
+                    "player_index": i,
+                    "stack": self.state.stacks[i],
+                    "bet": self.state.bets[i],
+                    "hole_cards": hole_cards,
+                    "is_folded": is_folded,
+                    "is_all_in": is_all_in,
+                    "is_button": is_button,
+                    "is_small_blind": is_small_blind,
+                    "is_big_blind": is_big_blind,
+                }
+            )
 
-        # Get board cards - use repr() for short format like "Ah" instead of "ACE OF HEARTS (Ah)"
-        # Note: board_cards is a list of lists, where each inner list contains a single Card
-        board_cards = []
+        board_cards: List[str] = []
         if self.state.board_cards:
             for card_list in self.state.board_cards:
-                if card_list and len(card_list) > 0:
+                if card_list:
                     board_cards.append(repr(card_list[0]))
 
-        # Get pots
         pots = [
             {
                 "pot_index": idx,
@@ -296,146 +186,104 @@ class PokerEngineAdapter:
             for idx, pot in enumerate(self.state.pots)
         ]
 
-        # Calculate total pot
-        total_pot = sum(pot["amount"] for pot in pots) + sum(self.state.bets)
-
-        # Get street name using street_index (0=preflop, 1=flop, 2=turn, 3=river)
         street_names = ["preflop", "flop", "turn", "river"]
         street_index = (
             self.state.street_index if self.state.street_index is not None else -1
         )
         street_name = (
-            street_names[street_index]
+            "showdown"
+            if not self.state.status
+            else street_names[street_index]
             if 0 <= street_index < len(street_names)
-            else "unknown"
+            else "preflop"
         )
 
-        # Get allowed actions for current actor
-        # Include allowed_actions when broadcasting or when viewer is the actor
-        allowed_actions = {}
-        should_include_allowed_actions = actor_index is not None and (
+        allowed_actions: Dict[str, Any] = {}
+        if actor_index is not None and (
             viewer_player_index is None or viewer_player_index == actor_index
-        )
-        if should_include_allowed_actions:
+        ):
             allowed_actions = self._get_allowed_actions_for_player(actor_index)
 
-        state_dict = {
-            # Game state
+        total_pot = sum(p["amount"] for p in pots) + sum(self.state.bets)
+
+        return {
             "status": "active" if self.state.status else "complete",
-            "street": "showdown" if not self.state.status else street_name,
-            # Current action
+            "street": street_name,
             "current_actor_index": actor_index,
-            "allowed_actions": allowed_actions,
-            # Players
             "players": players,
-            # Community cards
             "board_cards": board_cards,
-            # Pots
             "pots": pots,
             "total_pot": total_pot,
-            # Configuration (for reference)
-            "player_count": self.player_count,
-            "small_blind": self.small_blind,
-            "big_blind": self.big_blind,
+            "allowed_actions": allowed_actions,
         }
 
-        return state_dict
-
     def _get_allowed_actions_for_player(self, player_index: int) -> Dict[str, Any]:
-        """
-        Get allowed actions for a specific player based on PokerKit state.
-
-        Returns dict with:
-        - can_fold: bool
-        - can_check: bool
-        - can_call: bool
-        - call_amount: int
-        - can_bet: bool
-        - can_raise: bool
-        - min_raise_to: int
-        - max_raise_to: int
-        - current_pot: int (total pot for betting presets)
-        - player_stack: int (current stack for all-in calculations)
-        """
         if player_index != self.state.actor_index:
             return {}
 
-        actions = {}
-
-        actions["can_fold"] = self.state.can_fold()
-
-        can_check_call = self.state.can_check_or_call()
+        actions: Dict[str, Any] = {}
         current_bet = max(self.state.bets) if self.state.bets else 0
         player_bet = self.state.bets[player_index]
-        call_amount = current_bet - player_bet
+        call_amount = max(current_bet - player_bet, 0)
 
+        actions["can_fold"] = self.state.can_fold()
+        can_check_call = self.state.can_check_or_call()
         actions["can_check"] = can_check_call and call_amount == 0
         actions["can_call"] = can_check_call and call_amount > 0
         actions["call_amount"] = call_amount if actions["can_call"] else 0
 
         can_bet_raise = self.state.can_complete_bet_or_raise_to()
+        min_raise_to = self.state.min_completion_betting_or_raising_to_amount
+        max_raise_to = self.state.max_completion_betting_or_raising_to_amount
+
         actions["can_bet"] = can_bet_raise and current_bet == 0
         actions["can_raise"] = can_bet_raise and current_bet > 0
+        actions["min_raise_to"] = min_raise_to if min_raise_to is not None else 0
+        actions["max_raise_to"] = (
+            max_raise_to
+            if max_raise_to is not None
+            else self.state.stacks[player_index] + player_bet
+        )
 
-        if can_bet_raise:
-            min_amount = self.state.min_completion_betting_or_raising_to_amount
-            max_amount = self.state.max_completion_betting_or_raising_to_amount
-            actions["min_raise_to"] = (
-                min_amount if min_amount is not None else self.big_blind
-            )
-            actions["max_raise_to"] = (
-                max_amount
-                if max_amount is not None
-                else self.state.stacks[player_index] + player_bet
-            )
-        else:
-            actions["min_raise_to"] = 0
-            actions["max_raise_to"] = 0
-
-        pot_total = sum(pot.amount for pot in self.state.pots) + sum(self.state.bets)
+        pot_total = sum(pot.amount for pot in self.state.pots) + sum(
+            self.state.bets
+        )
         actions["current_pot"] = pot_total
         actions["player_stack"] = self.state.stacks[player_index]
 
         return actions
 
     def _auto_advance_streets(self) -> None:
-        """
-        Automatically advance through streets when betting rounds complete.
+        """Automatically advance the board when no players remain to act."""
 
-        This handles dealing community cards when actor_indices becomes empty.
-        """
-        # Loop while hand is not complete and there's no one to act
-        while not self.is_hand_complete() and not self.state.actor_indices:
+        while self.state.status and not self.state.actor_indices:
+            board_count = sum(len(cards) for cards in self.state.board_cards)
             street_index = self.state.street_index
-            if street_index is None or not self.state.status:
+
+            if street_index is None:
                 break
 
-            # Count current board cards
-            current_board_count = sum(len(cards) for cards in self.state.board_cards)
-
-            # Deal community cards based on street and current board
-            if street_index == 1 and current_board_count == 0:
-                # Flop street but no cards -> deal flop
+            if street_index == 0 and board_count < 3:
                 self.deal_flop()
-                logger.debug("Auto-dealt flop")
-            elif street_index == 2 and current_board_count == 3:
-                # Turn street but only 3 cards -> deal turn
+                continue
+            if street_index == 1 and board_count < 3:
+                self.deal_flop()
+                continue
+            if street_index == 2 and board_count < 4:
                 self.deal_turn()
-                logger.debug("Auto-dealt turn")
-            elif street_index == 3 and current_board_count == 4:
-                # River street but only 4 cards -> deal river
+                continue
+            if street_index == 3 and board_count < 5:
                 self.deal_river()
-                logger.debug("Auto-dealt river")
+                continue
+
+            # If board is complete and still no actors, the hand should end
+            if board_count >= 5:
+                break
             else:
-                # No more streets to deal or cards already dealt
                 break
 
     def fold(self) -> Operation:
-        """
-        Player folds.
-
-        Note: PokerKit automatically knows which player should act (actor_index).
-        """
+        """Fold for the current actor, raising on illegal attempts."""
         if not self.state.can_fold():
             raise ValueError("Cannot fold at this time")
 
@@ -446,11 +294,7 @@ class PokerEngineAdapter:
         return operation
 
     def check_or_call(self) -> Operation:
-        """
-        Player checks or calls.
-
-        Note: PokerKit automatically determines if this is a check or call.
-        """
+        """Check or call for the current actor, validating legality."""
         if not self.state.can_check_or_call():
             raise ValueError("Cannot check/call at this time")
 
@@ -466,20 +310,14 @@ class PokerEngineAdapter:
         return operation
 
     def bet_or_raise(self, amount: int) -> Operation:
-        """
-        Player bets or raises to a specific amount.
+        """Bet or raise to the provided total amount for the current actor."""
 
-        Args:
-            amount: Total amount to bet/raise to (not the additional amount)
+        min_amt = self.state.min_completion_betting_or_raising_to_amount
+        max_amt = self.state.max_completion_betting_or_raising_to_amount
 
-        Note: PokerKit validates the amount is within allowed range.
-        """
         if not self.state.can_complete_bet_or_raise_to(amount):
-            min_amt = self.state.min_completion_betting_or_raising_to_amount
-            max_amt = self.state.max_completion_betting_or_raising_to_amount
             raise ValueError(
-                f"Cannot bet/raise to {amount}. "
-                f"Allowed range: {min_amt} to {max_amt}"
+                f"Cannot bet/raise to {amount}. Allowed range: {min_amt} to {max_amt}"
             )
 
         operation = self.state.complete_bet_or_raise_to(amount)
@@ -487,18 +325,10 @@ class PokerEngineAdapter:
             operation.player_index if hasattr(operation, "player_index") else None
         )
         logger.info("Player bet/raised", player_index=actor_idx, amount=amount)
-        # Auto-advance streets if needed
         self._auto_advance_streets()
         return operation
 
     def is_hand_complete(self) -> bool:
-        """
-        Check if hand is complete (game over).
-
-        Returns True when:
-        - All players except one have folded, OR
-        - Showdown is complete and chips have been distributed
-        """
         return not self.state.status
 
     def get_winners(self) -> List[Dict[str, Any]]:
@@ -556,7 +386,9 @@ class PokerEngineAdapter:
 
         winners.sort(key=lambda w: w["amount"], reverse=True)
 
-        if abs(total_won - total_lost) > 1:
+        total_pot_amount = sum(pot.amount for pot in self.state.pots)
+
+        if abs(total_won - total_lost) > 1 or abs(total_won - total_pot_amount) > 1:
             pots_breakdown = [
                 {
                     "pot_index": idx,
@@ -570,6 +402,7 @@ class PokerEngineAdapter:
                 "Pot integrity check failed - total winnings do not match total losses",
                 total_won=total_won,
                 total_lost=total_lost,
+                total_pot=total_pot_amount,
                 difference=total_won - total_lost,
                 stacks_before=self._pre_showdown_stacks,
                 stacks_after=list(self.state.stacks),
@@ -782,11 +615,27 @@ class PokerEngineAdapter:
                 if idx < len(adapter.state.bets):
                     adapter.state.bets[idx] = bet
 
+        if data.get("pots"):
+            for idx, pot_data in enumerate(data["pots"]):
+                if idx < len(adapter.state.pots):
+                    adapter.state.pots[idx].amount = pot_data.get(
+                        "amount", adapter.state.pots[idx].amount
+                    )
+                    adapter.state.pots[idx].player_indices = tuple(
+                        pot_data.get("player_indices", adapter.state.pots[idx].player_indices)
+                    )
+
         if data.get("street_index") is not None:
             adapter.state.street_index = data["street_index"]
 
+        if data.get("player_indices") is not None:
+            adapter.state.player_indices = tuple(data["player_indices"])
+
         if data.get("actor_indices") is not None:
             adapter.state.actor_indices = deque(data["actor_indices"])
+
+        if data.get("actor_index") is not None:
+            adapter.state.actor_index = data["actor_index"]
 
         if data.get("status") is not None:
             adapter.state.status = data["status"]
