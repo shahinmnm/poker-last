@@ -8,7 +8,6 @@ interface PlayerRingEntry {
 
 interface PlayerRingProps {
   players: PlayerRingEntry[]
-  slotCount?: number
 }
 
 interface Position {
@@ -69,16 +68,13 @@ const positionMap = (index: number, count: number): Position => {
   return selected
 }
 
-export default function PlayerRing({ players, slotCount }: PlayerRingProps) {
-  const totalSlots = Math.max(slotCount ?? players.length + 1, 2)
-  const positioned = useMemo(
-    () =>
-      players.map((entry, index) => ({
-        ...entry,
-        position: positionMap(index, totalSlots),
-      })),
-    [players, totalSlots],
-  )
+export default function PlayerRing({ players }: PlayerRingProps) {
+  const positioned = useMemo(() =>
+    players.map((entry, index) => ({
+      ...entry,
+      position: positionMap(index, players.length + 1),
+    })),
+  [players])
 
   return (
     <div className="absolute inset-0 z-10">
