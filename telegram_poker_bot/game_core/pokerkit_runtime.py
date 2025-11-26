@@ -93,9 +93,7 @@ class PokerKitTableRuntime:
         active_seats = [
             s
             for s in self.seats
-            if s.left_at is None
-            and s.chips > 0
-            and not s.is_sitting_out_next_hand
+            if s.left_at is None and s.chips > 0 and not s.is_sitting_out_next_hand
         ]
         # Sort by position to ensure canonical ordering
         active_seats.sort(key=lambda s: s.position)
@@ -452,8 +450,12 @@ class PokerKitTableRuntime:
                     "winners": hand_result[
                         "winners"
                     ],  # Full details: ID, Rank, Cards, Amount (post-rake)
-                    "rake_amount": hand_result.get("rake_amount", 0),  # Rake deducted from pot
-                    "total_pot": hand_result.get("total_pot", 0),  # Total pot before rake
+                    "rake_amount": hand_result.get(
+                        "rake_amount", 0
+                    ),  # Rake deducted from pot
+                    "total_pot": hand_result.get(
+                        "total_pot", 0
+                    ),  # Total pot before rake
                     "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)
                     "status": "INTER_HAND_WAIT",
                     "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
@@ -495,7 +497,9 @@ class PokerKitTableRuntime:
                 if self.current_hand:
                     await db.refresh(self.current_hand)
             except Exception:  # Best-effort cleanup
-                logger.warning("Failed to refresh hand after rollback", table_id=self.table.id)
+                logger.warning(
+                    "Failed to refresh hand after rollback", table_id=self.table.id
+                )
             self.ready_players = set()
             self.inter_hand_wait_start = None
             logger.exception(
@@ -712,60 +716,6 @@ class PokerKitTableRuntime:
         # Return initial state
         return self.to_payload()
 
-    def start_hand(self, small_blind: int, big_blind: int) -> Dict[str, Any]:
-        """
-        Start a new hand using PokerKit engine (deprecated - use start_new_hand).
-
-        Args:
-            small_blind: Small blind amount
-            big_blind: Big blind amount
-
-        Returns:
-            Initial game state dictionary
-        """
-        self.hand_no += 1
-
-        # Build canonical active players list ordered by seat position
-        active_seats = self._get_active_players_in_hand()
-
-        if len(active_seats) < 2:
-            raise ValueError("Cannot start hand: fewer than 2 active players")
-
-        # Build stable mapping from user_id to player index
-        self.user_id_to_player_index = {
-            seat.user_id: idx for idx, seat in enumerate(active_seats)
-        }
-
-        # Get starting stacks
-        starting_stacks = [seat.chips for seat in active_seats]
-
-        # Use button_index=0 for first hand (this is deprecated sync method)
-        button_index = 0
-
-        # Create PokerKit engine with explicit button index
-        self.engine = PokerEngineAdapter(
-            player_count=len(active_seats),
-            starting_stacks=starting_stacks,
-            small_blind=small_blind,
-            big_blind=big_blind,
-            mode=Mode.TOURNAMENT,
-            button_index=button_index,
-        )
-
-        # Deal hole cards
-        self.engine.deal_new_hand()
-
-        logger.info(
-            "Hand started with PokerKit",
-            table_id=self.table.id,
-            hand_no=self.hand_no,
-            players=len(active_seats),
-            button_index=button_index,
-        )
-
-        # Return initial state
-        return self.to_payload()
-
     def _auto_advance_street_and_showdown(self) -> None:
         """
         Automatically advance through streets when betting rounds complete.
@@ -872,9 +822,11 @@ class PokerKitTableRuntime:
         street_name = (
             "showdown"
             if not self.engine.state.status
-            else street_names[street_index]
-            if street_index is not None and 0 <= street_index < len(street_names)
-            else "preflop"
+            else (
+                street_names[street_index]
+                if street_index is not None and 0 <= street_index < len(street_names)
+                else "preflop"
+            )
         )
 
         hand_complete = self.engine.is_hand_complete() or (
@@ -882,9 +834,7 @@ class PokerKitTableRuntime:
         )
 
         if hand_complete:
-            raise HandCompleteError(
-                "No player to act; hand is already complete."
-            )
+            raise HandCompleteError("No player to act; hand is already complete.")
 
         # Validate it's this player's turn
         player_index = self.user_id_to_player_index.get(user_id)
@@ -892,9 +842,7 @@ class PokerKitTableRuntime:
             raise ValueError("User not seated in this hand")
 
         if actor_index is None:
-            raise HandCompleteError(
-                "No player to act; hand is already complete."
-            )
+            raise HandCompleteError("No player to act; hand is already complete.")
 
         # Log current state before action
         logger.info(
@@ -1211,7 +1159,9 @@ class PokerKitTableRuntime:
                         }
                         for w in winners
                     ],
-                    "total_pot": sum(pot.amount for pot in list(self.engine.state.pots)),
+                    "total_pot": sum(
+                        pot.amount for pot in list(self.engine.state.pots)
+                    ),
                     "rake_amount": 0,
                 }
                 payload["hand_result"] = hand_result
@@ -1353,15 +1303,25 @@ class PokerKitTableRuntimeManager:
                 if state.identity:
                     hand_id = state.identity[0]
             except Exception as exc:  # pragma: no cover - defensive logging
-                logger.warning(
-                    "Failed to inspect cached hand", error=str(exc)
-                )
+                logger.warning("Failed to inspect cached hand", error=str(exc))
 
             if hand_id is None:
                 # Fallback to direct attribute access if available
                 hand_id = getattr(runtime.current_hand, "id", None)
 
             runtime.current_hand = await db.get(Hand, hand_id) if hand_id else None
+
+            # If the refreshed current_hand is ENDED, invalidate the cache
+            # This forces a reload of the latest non-ENDED hand from DB
+            if runtime.current_hand and runtime.current_hand.status == HandStatus.ENDED:
+                logger.info(
+                    "Invalidating cache: current_hand is ENDED",
+                    table_id=table_id,
+                    hand_id=runtime.current_hand.id,
+                    hand_no=runtime.current_hand.hand_no,
+                )
+                runtime.current_hand = None
+                runtime.engine = None
 
         # Load engine state from DB if not already loaded in this worker
         # This ensures first access gets DB state, subsequent calls reuse in-memory state
