@@ -121,6 +121,9 @@ class PokerEngineAdapter:
 
     def _create_shuffled_deck(self) -> List[str]:
         """Create and shuffle a standard 52-card deck."""
+        # TODO: Once PokerKit RNG/dealing is the only source of truth, remove
+        # this manual deck management to avoid divergence between adapter and
+        # engine state.
         deck = [f"{rank}{suit}" for rank in RANKS for suit in SUITS]
         random.shuffle(deck)
         return deck
