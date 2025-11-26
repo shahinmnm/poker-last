@@ -950,7 +950,6 @@ export default function TablePage() {
   
   const isMyTurn =
     isPlaying && heroIdString !== null && currentActorUserId?.toString() === heroIdString
-  const actionableAllowedActions = isMyTurn ? allowedActions : []
 
   useEffect(() => {
     if (liveState?.hand_id !== autoTimeoutRef.current.handId) {
@@ -1133,8 +1132,8 @@ export default function TablePage() {
       viewerIsSeated,
       hasActiveHand: liveState?.hand_id !== null && !isInterHand,
       isMyTurn,
-      allowedActionsCount: actionableAllowedActions.length,
-      allowedActions: actionableAllowedActions,
+      allowedActionsCount: allowedActions.length,
+      allowedActions,
       current_actor: currentActorUserId,
       heroId,
     })
@@ -1192,20 +1191,18 @@ export default function TablePage() {
       liveState &&
       viewerIsSeated &&
       hasActiveHand &&
-      currentActorUserId &&
-      actionableAllowedActions.length > 0
+      currentActorUserId
     ) {
       console.log('[Table ActionDock] Showing action controls:', {
-        allowedActionsCount: actionableAllowedActions.length,
+        allowedActionsCount: allowedActions.length,
         isMyTurn,
         potSize: potDisplayAmount,
         heroStack: heroPlayer?.stack,
       })
       return (
         <ActionBar
-          allowedActions={actionableAllowedActions}
+          allowedActions={allowedActions}
           onAction={handleGameAction}
-          potSize={potDisplayAmount}
           myStack={heroPlayer?.stack ?? 0}
           isProcessing={actionPending || loading}
           isMyTurn={isMyTurn}
