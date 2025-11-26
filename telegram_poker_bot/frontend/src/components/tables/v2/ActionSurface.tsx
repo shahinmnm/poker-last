@@ -41,67 +41,41 @@ export default function ActionSurface({
   const content = useMemo(() => {
     if (isInterHand) {
       return (
-        <div className="pointer-events-auto mx-auto w-full max-w-2xl px-4 pb-6">
-          <div className="overflow-hidden rounded-3xl border border-white/15 bg-white/10 shadow-[0_-12px_50px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
-            <InterHandVoting
-              players={players}
-              readyPlayerIds={readyPlayerIds}
-              deadline={deadline ?? undefined}
-              durationSeconds={interHandSeconds ?? 20}
-              onReady={onReady}
-              isReady={heroId !== null && heroId !== undefined && readyPlayerIds.includes(heroId)}
-            />
-          </div>
+        <div className="pointer-events-auto mx-auto w-full max-w-xl rounded-t-3xl border border-white/10 bg-black/70 p-4 shadow-2xl backdrop-blur-2xl">
+          <InterHandVoting
+            players={players}
+            readyPlayerIds={readyPlayerIds}
+            deadline={deadline ?? undefined}
+            durationSeconds={interHandSeconds ?? 20}
+            onReady={onReady}
+            isReady={heroId !== null && heroId !== undefined && readyPlayerIds.includes(heroId)}
+          />
         </div>
       )
     }
 
-    const hasActions = allowedActions.length > 0
-
-    return (
-      <div className="pointer-events-auto mx-auto w-full max-w-3xl px-4 pb-7">
-        <div className="overflow-hidden rounded-[28px] border border-white/15 bg-white/5 shadow-[0_-14px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
-          <div className="flex items-center justify-between bg-white/5 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-white/70">
-            <span>{isMyTurn ? t('table.actionBar.yourTurnLabel') : t('table.actionBar.sleepLabel', { defaultValue: 'Waiting' })}</span>
-            {!isMyTurn && (
-              <span className="text-[10px] font-medium text-white/50">
-                {t('table.actionBar.waitingHint', { defaultValue: 'Other players acting' })}
-              </span>
-            )}
-          </div>
-          {hasActions ? (
+    if (isMyTurn && allowedActions.length) {
+      return (
+        <div className="pointer-events-auto mx-auto w-full max-w-2xl px-3 pb-3">
+          <div className="overflow-hidden rounded-3xl border border-white/20 bg-white/30 shadow-[0_-8px_30px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
+            <div className="bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-black/80 mix-blend-screen">
+              {t('table.actionBar.yourTurnLabel')}
+            </div>
             <ActionBar
               allowedActions={allowedActions}
               onAction={onAction}
               potSize={potSize}
               myStack={myStack}
               isProcessing={isProcessing}
-              isMyTurn={isMyTurn}
+              isMyTurn
             />
-          ) : (
-            <div className="px-5 py-6 text-center text-sm text-white/70">
-              {t('table.actionBar.noActions', { defaultValue: 'Waiting for next decision...' })}
-            </div>
-          )}
+          </div>
         </div>
-      </div>
-    )
-  }, [
-    allowedActions,
-    deadline,
-    heroId,
-    interHandSeconds,
-    isInterHand,
-    isMyTurn,
-    isProcessing,
-    myStack,
-    onAction,
-    onReady,
-    players,
-    potSize,
-    readyPlayerIds,
-    t,
-  ])
+      )
+    }
+
+    return null
+  }, [allowedActions, deadline, heroId, interHandSeconds, isInterHand, isMyTurn, isProcessing, myStack, onAction, onReady, players, potSize, readyPlayerIds, t])
 
   return content
 }
