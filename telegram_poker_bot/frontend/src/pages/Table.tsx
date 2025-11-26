@@ -691,7 +691,7 @@ export default function TablePage() {
               ready_count: payload.ready_players?.length ?? 0,
               min_players: payload.min_players ?? 2,
               ready_players: payload.ready_players ?? [],
-              players: (payload.players ?? liveState?.players ?? []).map((player: TablePlayerState) => ({
+              players: (payload.players ?? liveState?.players ?? []).map((player) => ({
                 user_id: player.user_id,
                 is_ready: payload.ready_players?.includes(player.user_id as never) ?? false,
                 is_sitting_out_next_hand: player.is_sitting_out_next_hand,
