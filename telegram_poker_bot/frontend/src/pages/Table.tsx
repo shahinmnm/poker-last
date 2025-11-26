@@ -913,8 +913,35 @@ export default function TablePage() {
     return lookup
   }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
 
+  const viewerIsCreator = tableDetails?.viewer?.is_creator ?? false
+  const viewerSeatPosition =
+    liveState?.players.find((p) => heroIdString && p.user_id?.toString() === heroIdString)?.seat ??
+    tableDetails?.viewer?.seat_position ??
+    null
+  const viewerIsSeated =
+    (tableDetails?.viewer?.is_seated ?? false) || viewerSeatPosition !== null || Boolean(heroIdString)
+
+  // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
+  const livePlayerCount = liveState?.players?.length ?? tableDetails?.player_count ?? 0
+  const hasActiveHand = liveState?.hand_id !== null && liveState?.status !== 'waiting'
+  const canStart =
+    viewerIsCreator &&
+    livePlayerCount >= 2 &&
+    (tableDetails?.status === 'waiting' || (tableDetails?.status === 'active' && !hasActiveHand))
+
+  const canJoin = tableDetails?.permissions?.can_join ?? false
+  const canLeave = tableDetails?.permissions?.can_leave ?? false
+  const seatsFilled = liveState?.players?.length ?? tableDetails?.player_count ?? 0
+  const seatsAvailable = tableDetails?.max_players ? seatsFilled < tableDetails.max_players : false
+  const isTableClosedForJoining =
+    tableDetails?.is_expired || ['ended', 'finished', 'closed', 'destroyed', 'expired'].includes(tableStatus)
+  const canViewerJoin = Boolean(canJoin && seatsAvailable && !viewerIsSeated && !isTableClosedForJoining)
+  const showJoinAffordance = Boolean(liveState && canViewerJoin)
+  const missingPlayers = Math.max(0, 2 - livePlayerCount)
+  const players = (tableDetails?.players || []).slice().sort((a, b) => a.position - b.position)
+
   const playerRingEntries = useMemo(() => {
-    if (!liveState) return []
+    if (!liveState || !tableDetails) return []
 
     const maxSeats = Math.max(tableDetails.max_players ?? liveState.players.length ?? 0, liveState.players.length)
     const entries: Array<{ id: string; node: JSX.Element }> = []
@@ -1067,7 +1094,7 @@ export default function TablePage() {
     showdownCardsByPlayer,
     showJoinAffordance,
     t,
-    tableDetails.max_players,
+    tableDetails?.max_players,
   ])
 
   // Log inter-hand state only when isInterHand actually changes (not on every render)
@@ -1246,33 +1273,6 @@ export default function TablePage() {
       />
     )
   }
-
-  const viewerIsCreator = tableDetails.viewer?.is_creator ?? false
-  const viewerSeatPosition =
-    liveState?.players.find((p) => heroIdString && p.user_id?.toString() === heroIdString)?.seat ??
-    tableDetails.viewer?.seat_position ??
-    null
-  const viewerIsSeated =
-    (tableDetails.viewer?.is_seated ?? false) || viewerSeatPosition !== null || Boolean(heroIdString)
-  
-  // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
-  const livePlayerCount = liveState?.players?.length ?? tableDetails.player_count
-  const hasActiveHand = liveState?.hand_id !== null && liveState?.status !== 'waiting'
-  const canStart = viewerIsCreator && 
-                   livePlayerCount >= 2 && 
-                   (tableDetails.status === 'waiting' || 
-                    (tableDetails.status === 'active' && !hasActiveHand))
-  
-  const canJoin = tableDetails.permissions?.can_join ?? false
-  const canLeave = tableDetails.permissions?.can_leave ?? false
-  const seatsFilled = liveState?.players?.length ?? tableDetails.player_count ?? 0
-  const seatsAvailable = seatsFilled < tableDetails.max_players
-  const isTableClosedForJoining =
-    tableDetails.is_expired || ['ended', 'finished', 'closed', 'destroyed', 'expired'].includes(tableStatus)
-  const canViewerJoin = Boolean(canJoin && seatsAvailable && !viewerIsSeated && !isTableClosedForJoining)
-  const showJoinAffordance = Boolean(liveState && canViewerJoin)
-  const missingPlayers = Math.max(0, 2 - livePlayerCount)
-  const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
 
   const joinCta = showJoinAffordance ? (
     <div className="pointer-events-auto mx-auto w-full max-w-sm px-4 pb-6">
