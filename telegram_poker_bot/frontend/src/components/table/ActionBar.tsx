@@ -151,12 +151,28 @@ export default function ActionBar({
       label: string
       disabled?: boolean
       tone: 'danger' | 'primary' | 'warning'
+      size: 'small' | 'large'
+      offset?: 'lowered' | 'none'
     },
   ) => {
-    const tones: Record<typeof options.tone, string> = {
-      danger: 'from-[rgba(255,99,71,0.65)] to-[rgba(255,99,71,0.35)]',
-      primary: 'from-[rgba(34,197,94,0.65)] to-[rgba(74,222,128,0.35)]',
-      warning: 'from-[rgba(251,191,36,0.7)] to-[rgba(251,146,60,0.35)]',
+    const tones: Record<typeof options.tone, { bg: string; shadow: string }> = {
+      danger: {
+        bg: 'bg-[rgba(255,120,80,0.5)]',
+        shadow: 'shadow-[0_0_18px_rgba(255,120,80,0.8),0_10px_25px_rgba(0,0,0,0.35)]',
+      },
+      primary: {
+        bg: 'bg-[rgba(0,220,140,0.5)]',
+        shadow: 'shadow-[0_0_18px_rgba(0,220,140,0.8),0_10px_25px_rgba(0,0,0,0.35)]',
+      },
+      warning: {
+        bg: 'bg-[rgba(255,200,80,0.5)]',
+        shadow: 'shadow-[0_0_18px_rgba(255,200,80,0.8),0_10px_25px_rgba(0,0,0,0.35)]',
+      },
+    }
+
+    const sizes: Record<typeof options.size, string> = {
+      small: 'h-14 w-14 text-base',
+      large: 'h-[72px] w-[72px] text-xl',
     }
 
     return (
@@ -165,10 +181,10 @@ export default function ActionBar({
           type="button"
           onClick={options.onClick}
           disabled={options.disabled}
-          className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${tones[options.tone]} text-white shadow-xl shadow-black/40 backdrop-blur-md transition hover:shadow-2xl focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none`}
+          className={`relative flex items-center justify-center rounded-full ${tones[options.tone].bg} ${tones[options.tone].shadow} ${sizes[options.size]} ${options.offset === 'lowered' ? 'translate-y-1.5' : ''} text-white backdrop-blur-xl transition focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none`}
         >
           <span className="absolute inset-0 rounded-full bg-white/5" />
-          <span className="relative text-lg">{options.icon}</span>
+          <span className="relative">{options.icon}</span>
         </button>
         <span className="text-center text-[12px] font-semibold leading-tight text-white drop-shadow-md">{options.label}</span>
       </div>
@@ -211,8 +227,6 @@ export default function ActionBar({
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 sm:px-6" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)' }}>
       <div className="relative w-full max-w-[520px]">
-        <div className="pointer-events-none absolute inset-x-4 bottom-0 h-32 bg-[radial-gradient(circle_at_center,_rgba(7,13,31,0.85)_0,_transparent_72%)]" />
-
         <div className="relative flex flex-col items-center gap-4 pointer-events-auto">
           {shouldShowSlider && activeBetAction && (
             <div className="w-full max-w-[520px] animate-[fadeInScale_0.18s_ease-out]">
@@ -221,7 +235,7 @@ export default function ActionBar({
                   className="pointer-events-none absolute -top-9"
                   style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}
                 >
-                  <div className="rounded-full border border-white/15 bg-[rgba(12,19,38,0.75)] px-3 py-1 text-[12px] font-semibold text-white shadow-lg shadow-black/50 backdrop-blur-md">
+                  <div className="rounded-full border border-white/15 bg-[rgba(12,19,38,0.7)] px-3 py-1 text-[12px] font-semibold text-white shadow-[0_0_12px_rgba(74,222,128,0.45)] backdrop-blur-xl">
                     {t('table.actionBar.currentBet', {
                       amount: formatNumber(betAmount),
                       defaultValue: `${formatNumber(betAmount)} chips`,
@@ -254,6 +268,8 @@ export default function ActionBar({
               label: t('table.actionBar.fold'),
               disabled: isDisabled || !foldAction,
               tone: 'danger',
+              size: 'small',
+              offset: 'lowered',
             })}
 
             {renderCircularButton({
@@ -262,6 +278,8 @@ export default function ActionBar({
               label: mainLabel,
               disabled: isDisabled || !centerAction,
               tone: 'primary',
+              size: 'large',
+              offset: 'none',
             })}
 
             {renderCircularButton({
@@ -270,6 +288,8 @@ export default function ActionBar({
               label: raiseLabel,
               disabled: isDisabled || !raiseAction,
               tone: 'warning',
+              size: 'small',
+              offset: 'lowered',
             })}
           </div>
         </div>
