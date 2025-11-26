@@ -7,7 +7,7 @@ interface CommunityBoardProps {
   potAmount: number
   cards: string[]
   highlightedCards?: string[]
-  potRef?: RefObject<HTMLDivElement | null>
+  potRef?: RefObject<HTMLDivElement>
 }
 
 export default function CommunityBoard({ potAmount, cards, highlightedCards = [], potRef }: CommunityBoardProps) {
