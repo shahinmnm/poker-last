@@ -107,8 +107,8 @@ const getCardPlacement = (slot: SeatPosition): CardPlacement => {
   const offsetY = 50 - slot.yPercent
   const distance = Math.max(Math.hypot(offsetX, offsetY), 1)
 
-  const translateX = (offsetX / distance) * 28
-  const translateY = (offsetY / distance) * 26
+  const translateX = (offsetX / distance) * 34
+  const translateY = (offsetY / distance) * 32
   const rotation = Math.round((Math.atan2(offsetY, offsetX) * 180) / Math.PI + 90)
 
   return { translateX, translateY, rotation }
