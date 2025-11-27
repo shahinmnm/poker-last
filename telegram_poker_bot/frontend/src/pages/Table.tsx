@@ -156,13 +156,14 @@ export default function TablePage() {
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<string, HTMLElement>>(new Map())
   const tableAreaRef = useRef<HTMLDivElement | null>(null)
-    const tableOvalRef = useRef<HTMLDivElement | null>(null)
-    const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
-    const tableWrapperRef = useRef<HTMLDivElement | null>(null)
-    const tableMenuRef = useRef<HTMLDivElement | null>(null)
+  const tableOvalRef = useRef<HTMLDivElement | null>(null)
+  const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
+  const tableWrapperRef = useRef<HTMLDivElement | null>(null)
+  const tableMenuRef = useRef<HTMLDivElement | null>(null)
   const closedTopRef = useRef<number | null>(null)
   const closedPaddingRef = useRef<number | null>(null)
   const showTableMenuRef = useRef<boolean>(showTableMenu)
+  const initialViewportHeightRef = useRef<number | null>(null)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -185,6 +186,56 @@ export default function TablePage() {
     initDataRef.current = initData
   }, [initData])
 
+  const updateTableLayout = useCallback(() => {
+    if (typeof window === 'undefined') return
+
+    if (initialViewportHeightRef.current === null) {
+      initialViewportHeightRef.current = window.innerHeight
+    }
+
+    const menuBtn = tableMenuButtonRef.current
+    const area = tableAreaRef.current
+    const wrapper = tableWrapperRef.current
+    if (!menuBtn || !area || !wrapper) return
+
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+    const spacingBase = initialViewportHeightRef.current
+      ? Math.min(initialViewportHeightRef.current, viewportHeight)
+      : viewportHeight
+    const spacing = spacingBase * 0.01 // 1vh based on the smallest viewport so far
+
+    const menuBottom = menuBtn.offsetTop + menuBtn.offsetHeight
+    const areaTop = area.offsetTop
+    const wrapperTop = wrapper.offsetTop
+
+    const topPx = Math.max(menuBottom - areaTop + spacing, 0)
+    const desiredPadding = Math.max(menuBottom - wrapperTop + spacing, 0)
+    const measurements = { topPx: Math.round(topPx), paddingPx: Math.round(Math.max(desiredPadding, 24)) }
+
+    const applyMeasurements = (topValue: number, paddingValue: number) => {
+      area.style.setProperty('--table-oval-top', `${topValue}px`)
+      wrapper.style.paddingTop = `${paddingValue}px`
+    }
+
+    // If menu is closed, compute and store measurements. If it's open and
+    // we have stored closed values, re-apply them (do not recompute from open state).
+    if (!showTableMenuRef.current) {
+      // Only update if values are reasonable (avoid 0/NaN/very small values)
+      if (measurements.topPx > 10 && measurements.paddingPx > 10) {
+        closedTopRef.current = measurements.topPx
+        closedPaddingRef.current = measurements.paddingPx
+        applyMeasurements(measurements.topPx, measurements.paddingPx)
+      } else if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
+        // If invalid, re-apply last known good values
+        applyMeasurements(closedTopRef.current, closedPaddingRef.current)
+      }
+    } else if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
+      applyMeasurements(closedTopRef.current, closedPaddingRef.current)
+    } else if (measurements.topPx > 10 && measurements.paddingPx > 10) {
+      applyMeasurements(measurements.topPx, measurements.paddingPx)
+    }
+  }, [])
+
   // Compute and apply a CSS variable and wrapper padding so the table oval
   // stays positioned beneath the capsule menu. We persist closed-state
   // measurements in refs so opening the capsule does not recompute and
@@ -192,70 +243,17 @@ export default function TablePage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const initialViewportHeightRef = { current: window.innerHeight }
+    updateTableLayout()
+    window.addEventListener('resize', updateTableLayout)
+    window.addEventListener('scroll', updateTableLayout, { passive: true })
 
-    const computeMeasurements = () => {
-      const menuBtn = tableMenuButtonRef.current
-      const area = tableAreaRef.current
-      const wrapper = tableWrapperRef.current
-      if (!menuBtn || !area || !wrapper) return null
-
-      // Use layout metrics instead of viewport-relative rects so Telegram's
-      // swipe-down gesture (which changes the visible viewport height) does not
-      // push the table further down. The spacing is based on the initial
-      // viewport height captured at mount to keep the capsule gap consistent.
-      const spacingBase = initialViewportHeightRef.current || window.innerHeight
-      const spacing = spacingBase * 0.01 // 1vh from initial viewport
-
-      const menuBottom = menuBtn.offsetTop + menuBtn.offsetHeight
-      const areaTop = area.offsetTop
-      const wrapperTop = wrapper.offsetTop
-
-      const topPx = Math.max(menuBottom - areaTop + spacing, 0)
-      const desiredPadding = Math.max(menuBottom - wrapperTop + spacing, 0)
-      return { topPx: Math.round(topPx), paddingPx: Math.round(Math.max(desiredPadding, 24)) }
-    }
-
-    const applyMeasurements = (topPx: number, paddingPx: number) => {
-      const area = tableAreaRef.current
-      const wrapper = tableWrapperRef.current
-      if (!area || !wrapper) return
-      area.style.setProperty('--table-oval-top', `${topPx}px`)
-      wrapper.style.paddingTop = `${paddingPx}px`
-    }
-
-    const updateHandler = () => {
-      // If menu is closed, compute and store measurements. If it's open and
-      // we have stored closed values, re-apply them (do not recompute from open state).
-      if (!showTableMenuRef.current) {
-        const m = computeMeasurements()
-        // Only update if values are reasonable (avoid 0/NaN/very small values)
-        if (m && m.topPx > 10 && m.paddingPx > 10) {
-          closedTopRef.current = m.topPx
-          closedPaddingRef.current = m.paddingPx
-          applyMeasurements(m.topPx, m.paddingPx)
-        } else if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
-          // If invalid, re-apply last known good values
-          applyMeasurements(closedTopRef.current, closedPaddingRef.current)
-        }
-      } else {
-        if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
-          applyMeasurements(closedTopRef.current, closedPaddingRef.current)
-        } else {
-          const m = computeMeasurements()
-          if (m && m.topPx > 10 && m.paddingPx > 10) applyMeasurements(m.topPx, m.paddingPx)
-        }
-      }
-    }
-
-    // Initial measurement
-    updateHandler()
-    window.addEventListener('resize', updateHandler)
-    window.addEventListener('scroll', updateHandler, { passive: true })
+    const viewport = window.visualViewport
+    viewport?.addEventListener('resize', updateTableLayout)
+    viewport?.addEventListener('scroll', updateTableLayout)
 
     let ro: ResizeObserver | null = null
     try {
-      ro = new ResizeObserver(updateHandler)
+      ro = new ResizeObserver(updateTableLayout)
       if (tableMenuButtonRef.current) ro.observe(tableMenuButtonRef.current)
       if (tableAreaRef.current) ro.observe(tableAreaRef.current)
       if (tableWrapperRef.current) ro.observe(tableWrapperRef.current)
@@ -264,11 +262,20 @@ export default function TablePage() {
     }
 
     return () => {
-      window.removeEventListener('resize', updateHandler)
-      window.removeEventListener('scroll', updateHandler)
+      window.removeEventListener('resize', updateTableLayout)
+      window.removeEventListener('scroll', updateTableLayout)
+      viewport?.removeEventListener('resize', updateTableLayout)
+      viewport?.removeEventListener('scroll', updateTableLayout)
       if (ro) ro.disconnect()
     }
-  }, [])
+  }, [updateTableLayout])
+
+  useEffect(() => {
+    showTableMenuRef.current = showTableMenu
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(updateTableLayout)
+    }
+  }, [showTableMenu, updateTableLayout])
 
   // Close the table menu when clicking outside the button or the menu itself
   useEffect(() => {
@@ -1484,17 +1491,17 @@ export default function TablePage() {
                   </div>
 
                   {tableDetails && (
-                                    <div className="pointer-events-none absolute left-1/2 top-2 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
+                    <div className="pointer-events-none absolute left-1/2 top-2 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
                       <button
-                                        ref={tableMenuButtonRef}
-                                        type="button"
-                                        onClick={() => setShowTableMenu((prev) => !prev)}
-                                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
+                        ref={tableMenuButtonRef}
+                        type="button"
+                        onClick={() => setShowTableMenu((prev) => !prev)}
+                        className="pointer-events-auto flex w-full max-w-[420px] items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25"
                       >
-                                        <span
-                                          className={`h-2 w-2 rounded-full shadow-[0_0_0_6px_rgba(16,185,129,0.28)] ${
-                                            wsStatus === 'connected'
-                                              ? 'bg-emerald-300'
+                        <span
+                          className={`h-2 w-2 rounded-full shadow-[0_0_0_6px_rgba(16,185,129,0.28)] ${
+                            wsStatus === 'connected'
+                              ? 'bg-emerald-300'
                                               : wsStatus === 'connecting'
                                                 ? 'bg-amber-300 animate-pulse'
                                                 : 'bg-rose-400 animate-pulse'
@@ -1506,12 +1513,12 @@ export default function TablePage() {
                       {showTableMenu && (
                         <div
                           ref={tableMenuRef}
-                          className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-3 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[50vw] max-w-[95%] text-sm"
+                          className="pointer-events-auto w-full max-w-[420px] rounded-2xl border border-white/15 bg-white/12 p-4 text-center text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl text-sm sm:max-w-[460px] sm:text-left"
                         >
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <div>
+                          <div className="mb-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-[1fr_auto] sm:items-center sm:text-left">
+                            <div className="space-y-1">
                               <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
-                              <p className="text-lg font-semibold leading-tight">{tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
+                              <p className="text-base font-semibold leading-tight">{tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
                             </div>
                             <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
                               {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
@@ -1519,21 +1526,21 @@ export default function TablePage() {
                           </div>
 
                           <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.blinds', { defaultValue: 'Blinds' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.small_blind}/{tableDetails.big_blind}</p>
+                              <p className="text-sm font-semibold leading-snug">{tableDetails.small_blind}/{tableDetails.big_blind}</p>
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.player_count} / {tableDetails.max_players}</p>
+                              <p className="text-sm font-semibold leading-snug">{tableDetails.player_count} / {tableDetails.max_players}</p>
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.starting_stack}</p>
+                              <p className="text-sm font-semibold leading-snug">{tableDetails.starting_stack}</p>
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
-                              <p className="text-sm font-semibold">{potDisplayAmount}</p>
+                              <p className="text-sm font-semibold leading-snug">{potDisplayAmount}</p>
                             </div>
                           </div>
 
