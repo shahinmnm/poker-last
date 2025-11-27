@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+import {
+  faArrowLeft,
+  faCircleInfo,
+  faCoins,
+  faGear,
+  faRepeat,
+  faXmark,
+} from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { useTableWebSocket } from '../hooks/useTableWebSocket'
@@ -21,7 +31,6 @@ import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
-import PlayerHeader from '@/components/table/PlayerHeader'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
@@ -128,6 +137,7 @@ export default function TablePage() {
   const [actionPending, setActionPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
+  const [showTableInfo, setShowTableInfo] = useState(false)
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
@@ -1240,10 +1250,10 @@ export default function TablePage() {
             </div>
           </div>
         )
-      }
-
-      return null
     }
+
+    return null
+  }
 
     // Active hand - show action controls when seated and hand is active
     const hasActiveHand = liveState?.hand_id !== null && !isInterHand
@@ -1280,6 +1290,17 @@ export default function TablePage() {
     return null
   }
 
+  const renderIconButton = (icon: IconDefinition, label: string, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/25 text-white/90 shadow-[0_6px_14px_rgba(0,0,0,0.35)] backdrop-blur-sm transition hover:border-white/35 hover:bg-white/15 focus:outline-none"
+    >
+      <FontAwesomeIcon icon={icon} className="text-sm" />
+    </button>
+  )
+
   return (
     <PokerFeltBackground>
       <Toast message={toast.message} visible={toast.visible} />
@@ -1298,23 +1319,85 @@ export default function TablePage() {
         confirmVariant="danger"
         confirmDisabled={isDeleting}
       />
-      
+
+      <div
+        className="pointer-events-none fixed inset-x-0 top-0 z-40"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
+      >
+        <div className="mx-auto flex w-full max-w-5xl items-start justify-between px-4 sm:px-6">
+          <div className="pointer-events-auto flex items-center gap-2">
+            {renderIconButton(
+              faArrowLeft,
+              t('table.actions.backToLobby', { defaultValue: 'Back to lobby' }),
+              () => navigate('/lobby'),
+            )}
+            {renderIconButton(
+              faCircleInfo,
+              t('table.info.title', { defaultValue: 'Table info' }),
+              () => setShowTableInfo(true),
+            )}
+          </div>
+
+          <div className="pointer-events-auto flex flex-col items-center gap-2 text-white">
+            <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 shadow-lg backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <span className="max-w-[220px] truncate text-sm font-semibold leading-tight">
+                  {tableDetails.table_name || t('table.meta.unknown')}
+                </span>
+                <div className="flex items-center gap-1 text-[11px] text-emerald-50/90">
+                  <FontAwesomeIcon icon={faCoins} className="text-amber-200" />
+                  <span className="tabular-nums tracking-tight">
+                    {`${tableDetails.small_blind}/${tableDetails.big_blind}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-white/80">
+              <span className="uppercase tracking-[0.16em] text-white/70">
+                {t('table.actionBar.tableBadge', { id: tableDetails.table_id })}
+              </span>
+              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/25 px-2 py-1">
+                <FontAwesomeIcon icon={faCoins} className="text-amber-200" />
+                <span className="tabular-nums text-xs font-semibold">
+                  {(heroPlayer?.stack ?? 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pointer-events-auto flex items-center gap-2">
+            {renderIconButton(
+              faGear,
+              t('settings.title', { defaultValue: 'Settings' }),
+              () => navigate('/profile'),
+            )}
+            {renderIconButton(
+              faRepeat,
+              t('table.actions.rebuy', { defaultValue: 'Add chips' }),
+              () => navigate('/wallet'),
+            )}
+            {renderIconButton(
+              faXmark,
+              t('table.actions.leave', { defaultValue: 'Exit table' }),
+              () => {
+                if (canLeave) {
+                  handleLeave()
+                } else {
+                  navigate('/lobby')
+                }
+              },
+            )}
+          </div>
+        </div>
+      </div>
+
       <div
         className="relative flex min-h-screen flex-col px-3 pb-24 sm:px-6"
-        style={{ paddingTop: '2%' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 96px)' }}
       >
         {/* Arena - Game Content */}
         {liveState ? (
-          <div className="flex flex-1 flex-col gap-3">
-            <div className="mx-auto w-full max-w-3xl">
-              <PlayerHeader
-                playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
-                chipCount={heroPlayer?.stack ?? 0}
-                tableLabel={t('table.actionBar.tableBadge', { id: tableDetails.table_id })}
-                isMyTurn={isMyTurn}
-              />
-            </div>
-
+          <div className="flex flex-1 flex-col">
             <div className="relative flex-1">
               {isInterHand ? (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -1335,9 +1418,9 @@ export default function TablePage() {
               <div
                 className="absolute inset-0"
                 style={{
-                  paddingTop: '2%',
-                  paddingBottom: viewerIsSeated ? '148px' : '126px',
-                  paddingInline: '2%',
+                  paddingTop: '10px',
+                  paddingBottom: viewerIsSeated ? '184px' : '152px',
+                  paddingInline: '3%',
                 }}
               >
                 <div className="relative mx-auto h-full w-full max-w-[1280px] min-h-[620px]">
@@ -1347,7 +1430,7 @@ export default function TablePage() {
                     <div className="absolute inset-[24px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
                   </div>
 
-                  <div className="absolute left-1/2 top-[22%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
+                  <div className="absolute left-1/2 top-[18%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       cards={liveState.board ?? []}
@@ -1403,6 +1486,14 @@ export default function TablePage() {
                       liveState.status !== 'waiting'
                     const showShowdownCards =
                       playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown')
+                    const shouldShowHiddenCards = Boolean(
+                      player &&
+                      !isHeroPlayer &&
+                      player.in_hand &&
+                      !hasFolded &&
+                      liveState?.hand_id &&
+                      !showShowdownCards,
+                    )
 
                     return (
                       <div
@@ -1445,6 +1536,20 @@ export default function TablePage() {
                                   </div>
                                 )
                               })}
+                            </div>
+                          )}
+
+                          {shouldShowHiddenCards && (
+                            <div className="mb-1.5 flex gap-1.5">
+                              {[0, 1].map((cardIdx) => (
+                                <div
+                                  key={`hidden-card-${playerKey}-${cardIdx}`}
+                                  className="transition-transform"
+                                  style={{ transform: cardIdx === 0 ? 'rotate(-6deg)' : 'rotate(6deg)' }}
+                                >
+                                  <PlayingCard card={`hidden-${cardIdx}`} size="sm" hidden />
+                                </div>
+                              ))}
                             </div>
                           )}
 
@@ -1599,6 +1704,27 @@ export default function TablePage() {
         tableId={parseInt(tableId || '0', 10)}
         initData={initData ?? undefined}
       />
+
+      <Modal
+        isOpen={showTableInfo}
+        onClose={() => setShowTableInfo(false)}
+        title={t('table.info.title', { defaultValue: 'Table info' })}
+      >
+        <div className="space-y-3 text-sm text-white/80">
+          <div className="flex items-center justify-between">
+            <span>{t('table.meta.blinds', { defaultValue: 'Blinds' })}</span>
+            <span className="font-semibold text-white">{tableDetails.small_blind} / {tableDetails.big_blind}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>{t('table.meta.startingStack', { defaultValue: 'Starting stack' })}</span>
+            <span className="font-semibold text-white">{tableDetails.starting_stack}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>{t('table.meta.players', { defaultValue: 'Players' })}</span>
+            <span className="font-semibold text-white">{liveState?.players?.length ?? tableDetails.player_count} / {tableDetails.max_players}</span>
+          </div>
+        </div>
+      </Modal>
 
       <TableExpiredModal
         isOpen={showTableExpiredModal}
