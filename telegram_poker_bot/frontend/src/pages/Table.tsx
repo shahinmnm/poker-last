@@ -897,6 +897,21 @@ export default function TablePage() {
   const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
   const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
+  const viewerIsCreator = tableDetails?.viewer?.is_creator ?? false
+  const viewerIsSeated = tableDetails?.viewer?.is_seated ?? false
+
+  // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
+  const livePlayerCount = liveState?.players?.length ?? tableDetails?.player_count ?? 0
+  const hasActiveHand = liveState?.hand_id !== null && liveState?.status !== 'waiting'
+  const canStart =
+    viewerIsCreator &&
+    livePlayerCount >= 2 &&
+    ((tableDetails?.status === 'waiting') || (tableDetails?.status === 'active' && !hasActiveHand))
+
+  const canJoin = tableDetails?.permissions?.can_join ?? false
+  const canLeave = tableDetails?.permissions?.can_leave ?? false
+  const missingPlayers = Math.max(0, 2 - livePlayerCount)
+  const players = (tableDetails?.players || []).slice().sort((a, b) => a.position - b.position)
   const potDisplayAmount = useMemo(() => {
     if (typeof liveState?.pot === 'number') return liveState.pot
     if (liveState?.pots?.length) {
@@ -1169,22 +1184,6 @@ export default function TablePage() {
       />
     )
   }
-
-  const viewerIsCreator = tableDetails.viewer?.is_creator ?? false
-  const viewerIsSeated = tableDetails.viewer?.is_seated ?? false
-  
-  // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
-  const livePlayerCount = liveState?.players?.length ?? tableDetails.player_count
-  const hasActiveHand = liveState?.hand_id !== null && liveState?.status !== 'waiting'
-  const canStart = viewerIsCreator && 
-                   livePlayerCount >= 2 && 
-                   (tableDetails.status === 'waiting' || 
-                    (tableDetails.status === 'active' && !hasActiveHand))
-  
-  const canJoin = tableDetails.permissions?.can_join ?? false
-  const canLeave = tableDetails.permissions?.can_leave ?? false
-  const missingPlayers = Math.max(0, 2 - livePlayerCount)
-  const players = (tableDetails.players || []).slice().sort((a, b) => a.position - b.position)
 
   const renderActionDock = () => {
     // Log rendering decision
