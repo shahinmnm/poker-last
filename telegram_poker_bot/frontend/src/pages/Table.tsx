@@ -159,6 +159,7 @@ export default function TablePage() {
     const tableOvalRef = useRef<HTMLDivElement | null>(null)
     const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
     const tableWrapperRef = useRef<HTMLDivElement | null>(null)
+    const tableMenuRef = useRef<HTMLDivElement | null>(null)
   const closedTopRef = useRef<number | null>(null)
   const closedPaddingRef = useRef<number | null>(null)
   const showTableMenuRef = useRef<boolean>(showTableMenu)
@@ -256,6 +257,22 @@ export default function TablePage() {
       if (ro) ro.disconnect()
     }
   }, [])
+
+  // Close the table menu when clicking outside the button or the menu itself
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!showTableMenu) return
+      const menuEl = tableMenuRef.current
+      const btnEl = tableMenuButtonRef.current
+      const target = e.target as Node
+      if (menuEl && menuEl.contains(target)) return
+      if (btnEl && btnEl.contains(target)) return
+      setShowTableMenu(false)
+    }
+
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [showTableMenu])
 
   // Track the last hand_id to detect when a new hand starts
   const lastHandIdRef = useRef<number | null>(null)
@@ -717,7 +734,7 @@ export default function TablePage() {
   }, [tableId]) // Only depend on tableId, not the fetch functions (which are stable via useCallback)
 
   // WebSocket connection with stable hook
-  const { waitForConnection } = useTableWebSocket({
+  const { waitForConnection, status: wsStatus } = useTableWebSocket({
     tableId: tableId || '',
     enabled: !!tableId,
     onMessage: useCallback(
@@ -1455,20 +1472,29 @@ export default function TablePage() {
                   </div>
 
                   {tableDetails && (
-                    <div className="pointer-events-none absolute left-1/2 top-4 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
+                                    <div className="pointer-events-none absolute left-1/2 top-4 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
                       <button
-                        ref={tableMenuButtonRef}
-                        type="button"
-                        onClick={() => setShowTableMenu((prev) => !prev)}
-                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
+                                        ref={tableMenuButtonRef}
+                                        type="button"
+                                        onClick={() => setShowTableMenu((prev) => !prev)}
+                                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
                       >
-                        <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.28)]" />
+                                        <span
+                                          className={`h-2 w-2 rounded-full shadow-[0_0_0_6px_rgba(16,185,129,0.28)] ${
+                                            wsStatus === 'connected'
+                                              ? 'bg-emerald-300'
+                                              : wsStatus === 'connecting'
+                                                ? 'bg-amber-300 animate-pulse'
+                                                : 'bg-rose-400 animate-pulse'
+                                          }`}
+                                        />
                         {t('table.meta.tableMenu', { defaultValue: 'Table Capsule' })}
                       </button>
 
                       {showTableMenu && (
                         <div
-                          className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-4 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[50vw] max-w-[95%]"
+                          ref={tableMenuRef}
+                          className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-3 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[50vw] max-w-[95%] text-sm"
                         >
                           <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
