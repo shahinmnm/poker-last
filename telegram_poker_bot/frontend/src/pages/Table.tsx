@@ -156,6 +156,8 @@ export default function TablePage() {
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<string, HTMLElement>>(new Map())
   const tableAreaRef = useRef<HTMLDivElement | null>(null)
+    const tableOvalRef = useRef<HTMLDivElement | null>(null)
+    const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -1357,7 +1359,63 @@ export default function TablePage() {
                   ref={tableAreaRef}
                   className="relative mx-auto h-full w-full max-w-[1380px] min-h-[700px]"
                 >
-                  <div className="absolute inset-[1%] z-0">
+                  {/*
+                    The table background oval is offset from the top to avoid overlapping
+                    the "Table Capsule" UI. We use a calc offset: capsule approx height
+                    (4rem) + 1vh to keep ~1% viewport height gap.
+                  */}
+  // The table background oval is offset from the top to avoid overlapping
+  // the "Table Capsule" UI. We compute this dynamically based on the
+  // capsule (menu) button position so the oval always appears beneath it
+  // with a small 1vh gap.
+  // We'll set a CSS variable (--table-oval-top) on the table area element to
+  // drive the oval top positioning. This keeps styles in CSS and allows
+  // designers/devtools to inspect/override the value.
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const updateOvalTop = () => {
+      const menuBtn = tableMenuButtonRef.current
+      const area = tableAreaRef.current
+      const oval = tableOvalRef.current
+      if (!menuBtn || !area || !oval) return
+
+      const menuRect = menuBtn.getBoundingClientRect()
+      const areaRect = area.getBoundingClientRect()
+      const spacing = window.innerHeight * 0.01 // 1vh
+      const topPx = Math.max(menuRect.bottom - areaRect.top + spacing, 0)
+      // Apply the computed value as a CSS custom property on the table area
+      area.style.setProperty('--table-oval-top', `${Math.round(topPx)}px`)
+    }
+
+    // Initial update and on resize/scroll
+    updateOvalTop()
+    window.addEventListener('resize', updateOvalTop)
+    window.addEventListener('scroll', updateOvalTop, { passive: true })
+
+    // Use ResizeObserver to watch for layout changes
+    let ro: ResizeObserver | null = null
+    try {
+      ro = new ResizeObserver(updateOvalTop)
+      if (tableMenuButtonRef.current) ro.observe(tableMenuButtonRef.current)
+      if (tableAreaRef.current) ro.observe(tableAreaRef.current)
+    } catch (e) {
+      // ResizeObserver not supported; we already have resize listener
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateOvalTop)
+      window.removeEventListener('scroll', updateOvalTop)
+      if (ro) ro.disconnect()
+    }
+  }, [tableMenuButtonRef, tableAreaRef, tableOvalRef, showTableMenu])
+
+                  <div
+                    ref={tableOvalRef}
+                    className="absolute left-[1%] right-[1%] bottom-[1%] z-0"
+                    style={{ top: 'var(--table-oval-top, calc(4rem + 1vh))' }}
+                  >
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
                     <div className="absolute inset-[10px] rounded-[999px] border-[12px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
                     <div className="absolute inset-[22px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
@@ -1366,6 +1424,7 @@ export default function TablePage() {
                   {tableDetails && (
                     <div className="pointer-events-none absolute left-1/2 top-4 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
                       <button
+                        ref={tableMenuButtonRef}
                         type="button"
                         onClick={() => setShowTableMenu((prev) => !prev)}
                         className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
