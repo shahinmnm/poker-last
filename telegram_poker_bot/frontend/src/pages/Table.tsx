@@ -159,6 +159,9 @@ export default function TablePage() {
     const tableOvalRef = useRef<HTMLDivElement | null>(null)
     const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
     const tableWrapperRef = useRef<HTMLDivElement | null>(null)
+  const closedTopRef = useRef<number | null>(null)
+  const closedPaddingRef = useRef<number | null>(null)
+  const showTableMenuRef = useRef<boolean>(showTableMenu)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -182,15 +185,11 @@ export default function TablePage() {
   }, [initData])
 
   // Compute and apply a CSS variable and wrapper padding so the table oval
-  // stays positioned beneath the capsule menu. This runs on resize/scroll
-  // and observes layout changes.
+  // stays positioned beneath the capsule menu. We persist closed-state
+  // measurements in refs so opening the capsule does not recompute and
+  // move the table. The effect sets up listeners once on mount.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    // Keep the closed-state measurements so opening the capsule menu does
-    // not push the table down further. We recompute measurements only when
-    // the menu is closed; while open we re-apply the stored closed values.
-    const closedTopRef = { current: null as number | null }
-    const closedPaddingRef = { current: null as number | null }
 
     const computeMeasurements = () => {
       const menuBtn = tableMenuButtonRef.current
@@ -219,7 +218,7 @@ export default function TablePage() {
     const updateHandler = () => {
       // If menu is closed, compute and store measurements. If it's open and
       // we have stored closed values, re-apply them (do not recompute from open state).
-      if (!showTableMenu) {
+      if (!showTableMenuRef.current) {
         const m = computeMeasurements()
         if (m) {
           closedTopRef.current = m.topPx
@@ -230,7 +229,6 @@ export default function TablePage() {
         if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
           applyMeasurements(closedTopRef.current, closedPaddingRef.current)
         } else {
-          // Fallback: compute if we don't have stored values
           const m = computeMeasurements()
           if (m) applyMeasurements(m.topPx, m.paddingPx)
         }
@@ -257,7 +255,7 @@ export default function TablePage() {
       window.removeEventListener('scroll', updateHandler)
       if (ro) ro.disconnect()
     }
-  }, [showTableMenu])
+  }, [])
 
   // Track the last hand_id to detect when a new hand starts
   const lastHandIdRef = useRef<number | null>(null)
