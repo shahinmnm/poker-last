@@ -1278,10 +1278,10 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <div className="relative flex min-h-screen flex-col px-3 pb-24 pt-5 sm:px-6">
+      <div className="relative flex min-h-screen flex-col px-3 pb-24 pt-4 sm:px-6">
         {/* Arena - Game Content */}
         {liveState ? (
-          <div className="flex flex-1 flex-col gap-5">
+          <div className="flex flex-1 flex-col gap-4">
             <div className="mx-auto w-full max-w-3xl">
               <PlayerHeader
                 playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
@@ -1310,10 +1310,10 @@ export default function TablePage() {
 
               <div
                 className="absolute inset-0"
-                style={{ paddingTop: '20px', paddingBottom: viewerIsSeated ? '170px' : '150px' }}
+                style={{ paddingTop: '12px', paddingBottom: viewerIsSeated ? '190px' : '168px' }}
               >
-                <div className="relative h-full w-full">
-                  <div className="absolute left-1/2 top-[46%] z-20 w-full max-w-[640px] -translate-x-1/2 -translate-y-1/2 px-2 sm:px-4">
+                <div className="relative mx-auto h-full w-full max-w-5xl">
+                  <div className="absolute left-1/2 top-[18%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       cards={liveState.board ?? []}
@@ -1321,7 +1321,7 @@ export default function TablePage() {
                       potRef={potAreaRef}
                     />
                     {liveState.hand_result && (
-                      <div className="mt-1 flex justify-center">
+                      <div className="mt-0.5 flex justify-center">
                         <HandResultPanel liveState={liveState} currentUserId={heroId} />
                       </div>
                     )}
@@ -1379,7 +1379,7 @@ export default function TablePage() {
                         }}
                       >
                         <div
-                          className="flex flex-col items-center gap-2"
+                          className="flex flex-col items-center gap-1.5"
                           ref={(el) => {
                             if (playerKey) {
                               if (el) {
@@ -1391,7 +1391,7 @@ export default function TablePage() {
                           }}
                         >
                           {showHeroCards && (
-                            <div className="mb-2 flex gap-2">
+                            <div className="mb-1.5 flex gap-1.5">
                               {heroCards.map((card, idx) => {
                                 const heroWinner = liveState.hand_result?.winners?.find(
                                   (w) => w.user_id?.toString() === heroIdString,
@@ -1402,10 +1402,10 @@ export default function TablePage() {
                                     key={`hero-card-${idx}`}
                                     className="transition-transform"
                                     style={{
-                                      transform: idx === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
+                                      transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
                                     }}
                                   >
-                                    <PlayingCard card={card} size="md" highlighted={isWinningCard} />
+                                    <PlayingCard card={card} size="sm" highlighted={isWinningCard} />
                                   </div>
                                 )
                               })}
@@ -1431,13 +1431,13 @@ export default function TablePage() {
                           />
 
                           {lastActionText && player?.in_hand && (
-                            <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-300">
+                            <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-200/90">
                               {lastActionText}
                             </p>
                           )}
 
                           {showShowdownCards && (
-                            <div className="mt-1 flex gap-1">
+                            <div className="mt-0.5 flex gap-1">
                               {playerCards.map((card, idx) => {
                                 const winningHand = liveState.hand_result?.winners?.find(
                                   (winner) => winner.user_id?.toString() === playerKey,
