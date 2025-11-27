@@ -947,21 +947,43 @@ export default function TablePage() {
   }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
 
   const heroSeatNumber = heroPlayer?.seat ?? heroPlayer?.position ?? null
-  const totalSeats = useMemo(
-    () => Math.min(Math.max(tableDetails?.max_players ?? liveState?.players?.length ?? 2, 2), 8),
-    [liveState?.players?.length, tableDetails?.max_players],
-  )
+  const occupiedSeatNumbers = useMemo(() => {
+    const seats = new Set<number>()
+    liveState?.players?.forEach((player) => {
+      seats.add(player.seat ?? player.position ?? 0)
+    })
+    return Array.from(seats).sort((a, b) => a - b)
+  }, [liveState?.players])
 
-  const seatLayout = useMemo(() => getSeatLayout(totalSeats), [totalSeats])
+  const suggestedSeatNumber = useMemo(() => {
+    if (viewerIsSeated || !canJoin) return null
+
+    const capacity = Math.min(tableDetails?.max_players ?? occupiedSeatNumbers.length + 1, 8)
+    for (let i = 0; i < capacity; i += 1) {
+      if (!occupiedSeatNumbers.includes(i)) return i
+    }
+
+    return null
+  }, [canJoin, occupiedSeatNumbers, tableDetails?.max_players, viewerIsSeated])
+
+  const visibleSeatNumbers = useMemo(() => {
+    const seats = [...occupiedSeatNumbers]
+    if (suggestedSeatNumber !== null) seats.unshift(suggestedSeatNumber)
+
+    if (!seats.length) return [0]
+    return seats
+  }, [occupiedSeatNumbers, suggestedSeatNumber])
+
+  const seatLayout = useMemo(() => getSeatLayout(visibleSeatNumbers.length), [visibleSeatNumbers.length])
   const seatOrder = useMemo(() => {
-    const seats = Array.from({ length: totalSeats }, (_, idx) => idx)
+    const seats = visibleSeatNumbers
     if (heroSeatNumber === null || heroSeatNumber === undefined) return seats
 
     const heroIndex = seats.indexOf(heroSeatNumber)
     if (heroIndex === -1) return seats
 
-    return seats.map((_, idx) => (heroSeatNumber + idx) % totalSeats)
-  }, [heroSeatNumber, totalSeats])
+    return [...seats.slice(heroIndex), ...seats.slice(0, heroIndex)]
+  }, [heroSeatNumber, visibleSeatNumbers])
 
   const playersBySeat = useMemo(() => {
     const map = new Map<number, TablePlayerState>()
@@ -1315,12 +1337,12 @@ export default function TablePage() {
                 className="absolute inset-0"
                 style={{
                   paddingTop: '2%',
-                  paddingBottom: viewerIsSeated ? '120px' : '104px',
+                  paddingBottom: viewerIsSeated ? '148px' : '126px',
                   paddingInline: '2%',
                 }}
               >
-                <div className="relative mx-auto h-full w-full max-w-6xl min-h-[520px]">
-                  <div className="absolute inset-[2%] z-0">
+                <div className="relative mx-auto h-full w-full max-w-[1280px] min-h-[620px]">
+                  <div className="absolute inset-[1.5%] z-0">
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
                     <div className="absolute inset-[14px] rounded-[999px] border-[10px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
                     <div className="absolute inset-[24px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
@@ -1372,6 +1394,8 @@ export default function TablePage() {
                     })
                     const isSittingOut = Boolean(player?.is_sitting_out_next_hand)
                     const isAllIn = Boolean(player?.is_all_in || (player?.stack ?? 0) <= 0)
+                    const showSeatCta =
+                      !player && seatNumber === suggestedSeatNumber && !viewerIsSeated && canJoin
                     const showHeroCards =
                       isHeroPlayer &&
                       heroCards.length > 0 &&
@@ -1384,7 +1408,7 @@ export default function TablePage() {
                     return (
                       <div
                         key={`seat-${seatNumber}-${layoutIndex}`}
-                        className="absolute z-10"
+                        className={`absolute z-10 ${player ? 'seat-enter' : ''}`}
                         style={{
                           left: `${slot.xPercent}%`,
                           top: `${slot.yPercent}%`,
@@ -1434,7 +1458,7 @@ export default function TablePage() {
                             isActive={isActivePlayer}
                             hasFolded={hasFolded}
                             isEmpty={!player}
-                            callToAction={isHeroSlot && !viewerIsSeated}
+                            callToAction={showSeatCta || (isHeroSlot && !viewerIsSeated && canJoin)}
                             onSit={!player && canJoin && !viewerIsSeated ? handleSeat : undefined}
                             disabled={isSeating || !canJoin || viewerIsSeated}
                             showFoldedLabel={hasFolded}
