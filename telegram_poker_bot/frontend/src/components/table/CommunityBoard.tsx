@@ -55,16 +55,21 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
                 style={{ transform: `translateY(${offset * 2}px)` }}
               >
                 <div
-                  className="flex items-center justify-center rounded-xl border border-white/25 bg-white/15 shadow-[0_10px_24px_-12px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+                  className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-white/12 via-white/6 to-white/14 shadow-[0_14px_34px_rgba(0,0,0,0.4)] backdrop-blur-xl transition-transform duration-200"
                   style={{ height: cardHeight, width: cardWidth }}
                 >
+                  <div className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]" />
                   {card ? (
                     <PlayingCard card={card} size="md" highlighted={highlightedCards.includes(card)} />
                   ) : (
-                    <div className="flex flex-col items-center gap-1 text-white/70">
-                      <span className="text-lg leading-none">⋯</span>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide">
-                        {t('table.waitingForBoard', { defaultValue: 'Waiting for board...' })}
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-white/75">
+                      <div className="flex gap-1 text-xl leading-none">
+                        <span className="animate-pulse">•</span>
+                        <span className="animate-pulse">•</span>
+                        <span className="animate-pulse">•</span>
+                      </div>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                        {t('table.waitingForBoard', { defaultValue: 'Board pending' })}
                       </span>
                     </div>
                   )}
