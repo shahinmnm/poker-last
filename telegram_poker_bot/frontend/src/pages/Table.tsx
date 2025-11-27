@@ -1368,7 +1368,7 @@ export default function TablePage() {
                       <button
                         type="button"
                         onClick={() => setShowTableMenu((prev) => !prev)}
-                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[90vw] sm:w-auto"
+                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
                       >
                         <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.28)]" />
                         {t('table.meta.tableMenu', { defaultValue: 'Table Capsule' })}
@@ -1376,7 +1376,7 @@ export default function TablePage() {
 
                       {showTableMenu && (
                         <div
-                          className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-4 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[90vw] sm:w-[50vw] max-w-[95%]"
+                          className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-4 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[50vw] max-w-[95%]"
                         >
                           <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
