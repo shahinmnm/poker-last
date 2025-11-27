@@ -1484,7 +1484,7 @@ export default function TablePage() {
                   </div>
 
                   {tableDetails && (
-                                    <div className="pointer-events-none absolute left-1/2 top-4 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
+                                    <div className="pointer-events-none absolute left-1/2 top-2 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
                       <button
                                         ref={tableMenuButtonRef}
                                         type="button"
