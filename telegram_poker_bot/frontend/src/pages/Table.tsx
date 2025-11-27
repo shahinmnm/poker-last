@@ -221,17 +221,21 @@ export default function TablePage() {
       // we have stored closed values, re-apply them (do not recompute from open state).
       if (!showTableMenuRef.current) {
         const m = computeMeasurements()
-        if (m) {
+        // Only update if values are reasonable (avoid 0/NaN/very small values)
+        if (m && m.topPx > 10 && m.paddingPx > 10) {
           closedTopRef.current = m.topPx
           closedPaddingRef.current = m.paddingPx
           applyMeasurements(m.topPx, m.paddingPx)
+        } else if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
+          // If invalid, re-apply last known good values
+          applyMeasurements(closedTopRef.current, closedPaddingRef.current)
         }
       } else {
         if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
           applyMeasurements(closedTopRef.current, closedPaddingRef.current)
         } else {
           const m = computeMeasurements()
-          if (m) applyMeasurements(m.topPx, m.paddingPx)
+          if (m && m.topPx > 10 && m.paddingPx > 10) applyMeasurements(m.topPx, m.paddingPx)
         }
       }
     }
