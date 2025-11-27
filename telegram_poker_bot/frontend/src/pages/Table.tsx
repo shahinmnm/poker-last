@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faClockRotateLeft, faDoorOpen, faLayerGroup, faLock, faUserGroup } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { useTableWebSocket } from '../hooks/useTableWebSocket'
@@ -21,7 +23,6 @@ import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
-import PlayerHeader from '@/components/table/PlayerHeader'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
@@ -128,6 +129,7 @@ export default function TablePage() {
   const [actionPending, setActionPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
+  const [isTableMenuOpen, setIsTableMenuOpen] = useState(false)
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
@@ -142,6 +144,7 @@ export default function TablePage() {
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
   const lastCompletedHandIdRef = useRef<number | null>(null)
   const lastHandResultHandIdRef = useRef<number | null>(null)
+  const tableMenuRef = useRef<HTMLDivElement | null>(null)
   
   // Track inter-hand state for logging only when it changes
   const prevIsInterHandRef = useRef<boolean | null>(null)
@@ -1100,6 +1103,23 @@ export default function TablePage() {
     }
   }, [tableDetails?.viewer?.is_seated, setShowBottomNav])
 
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+      if (!isTableMenuOpen || !tableMenuRef.current) return
+      if (!tableMenuRef.current.contains(event.target as Node)) {
+        setIsTableMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('touchstart', handleOutsideClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('touchstart', handleOutsideClick)
+    }
+  }, [isTableMenuOpen])
+
   const handleDeleteTable = async () => {
     if (!tableId) {
       return
@@ -1183,6 +1203,60 @@ export default function TablePage() {
         isPrivate={tableDetails.visibility === 'private' || tableDetails.is_private}
       />
     )
+  }
+
+  const tableNumberLabel = `#${tableDetails.table_id}`
+
+  const tableMenuItems: Array<{
+    icon: typeof faLayerGroup
+    label: string
+    description?: string
+    onClick?: () => void
+    disabled?: boolean
+  }> = [
+    {
+      icon: faLayerGroup,
+      label: t('table.menu.blinds', {
+        sb: tableDetails.small_blind,
+        bb: tableDetails.big_blind,
+        defaultValue: `Blinds ${tableDetails.small_blind}/${tableDetails.big_blind}`,
+      }),
+      description: t('table.menu.stack', {
+        stack: tableDetails.starting_stack,
+        defaultValue: `Stack ${tableDetails.starting_stack}`,
+      }),
+    },
+    {
+      icon: tableDetails.visibility === 'private' || tableDetails.is_private ? faLock : faUserGroup,
+      label: t('table.menu.players', {
+        current: tableDetails.player_count,
+        max: tableDetails.max_players,
+        defaultValue: `${tableDetails.player_count}/${tableDetails.max_players} players`,
+      }),
+      description:
+        tableDetails.visibility === 'private' || tableDetails.is_private
+          ? t('table.menu.private', { defaultValue: 'Private table' })
+          : t('table.menu.public', { defaultValue: 'Public table' }),
+    },
+    {
+      icon: faClockRotateLeft,
+      label: t('table.menu.recentHands', { defaultValue: 'Recent hands' }),
+      onClick: () => setShowRecentHands(true),
+    },
+  ]
+
+  if (canLeave) {
+    tableMenuItems.push({
+      icon: faDoorOpen,
+      label: isLeaving
+        ? t('table.actions.leaving')
+        : t('table.actions.leave', { defaultValue: 'Leave table' }),
+      onClick: () => {
+        setIsTableMenuOpen(false)
+        handleLeave()
+      },
+      disabled: isLeaving,
+    })
   }
 
   const renderActionDock = () => {
@@ -1300,19 +1374,67 @@ export default function TablePage() {
       />
       
       <div
-        className="relative flex min-h-screen flex-col px-3 pb-24 sm:px-6"
-        style={{ paddingTop: '2%' }}
+        className="relative flex min-h-screen flex-col px-3 pb-20 sm:px-5"
+        style={{ paddingTop: '10px' }}
       >
         {/* Arena - Game Content */}
         {liveState ? (
-          <div className="flex flex-1 flex-col gap-3">
-            <div className="mx-auto w-full max-w-3xl">
-              <PlayerHeader
-                playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
-                chipCount={heroPlayer?.stack ?? 0}
-                tableLabel={t('table.actionBar.tableBadge', { id: tableDetails.table_id })}
-                isMyTurn={isMyTurn}
-              />
+          <div className="flex flex-1 flex-col gap-2">
+            <div className="flex justify-end">
+              <div ref={tableMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsTableMenuOpen((prev) => !prev)}
+                  className={`flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-white shadow-lg backdrop-blur-sm transition ${
+                    isTableMenuOpen
+                      ? 'border-emerald-300/70 bg-emerald-900/60 shadow-emerald-500/30'
+                      : 'border-white/15 bg-black/30 hover:bg-black/40'
+                  }`}
+                >
+                  <span>{tableNumberLabel}</span>
+                </button>
+
+                {isTableMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-[240px] rounded-2xl border border-white/10 bg-black/80 shadow-2xl backdrop-blur-xl">
+                    <div className="divide-y divide-white/5">
+                      {tableMenuItems.map((item) => {
+                        const content = (
+                          <div className="flex w-full items-start gap-2 px-4 py-3 text-left">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-emerald-100">
+                              <FontAwesomeIcon icon={item.icon} />
+                            </div>
+                            <div className="flex flex-col leading-tight text-white">
+                              <span className="text-[12px] font-semibold">{item.label}</span>
+                              {item.description ? (
+                                <span className="text-[11px] text-white/70">{item.description}</span>
+                              ) : null}
+                            </div>
+                          </div>
+                        )
+
+                        return item.onClick ? (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() => {
+                              item.onClick?.()
+                              setIsTableMenuOpen(false)
+                            }}
+                            disabled={item.disabled}
+                            className={`w-full text-left transition ${
+                              item.disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/5'
+                            }`}
+                          >
+                            {content}
+                          </button>
+                        ) : (
+                          <div key={item.label}>{content}</div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="relative flex-1">
@@ -1335,19 +1457,19 @@ export default function TablePage() {
               <div
                 className="absolute inset-0"
                 style={{
-                  paddingTop: '2%',
-                  paddingBottom: viewerIsSeated ? '148px' : '126px',
-                  paddingInline: '2%',
+                  paddingTop: '1%',
+                  paddingBottom: viewerIsSeated ? '132px' : '112px',
+                  paddingInline: '1.5%',
                 }}
               >
                 <div className="relative mx-auto h-full w-full max-w-[1280px] min-h-[620px]">
-                  <div className="absolute inset-[1.5%] z-0">
-                    <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
-                    <div className="absolute inset-[14px] rounded-[999px] border-[10px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
-                    <div className="absolute inset-[24px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
+                  <div className="absolute inset-[1%] z-0">
+                    <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-[3px] ring-emerald-500/35" />
+                    <div className="absolute inset-[12px] rounded-[999px] border-[8px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
+                    <div className="absolute inset-[20px] rounded-[999px] bg-gradient-to-b from-white/12 via-transparent to-white/10 opacity-80" />
                   </div>
 
-                  <div className="absolute left-1/2 top-[22%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
+                  <div className="absolute left-1/2 top-[20%] z-20 flex w-full max-w-[760px] -translate-x-1/2 flex-col items-center gap-1.5 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       cards={liveState.board ?? []}
@@ -1403,6 +1525,16 @@ export default function TablePage() {
                       liveState.status !== 'waiting'
                     const showShowdownCards =
                       playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown')
+                    const showFaceDownCards =
+                      !isHeroPlayer &&
+                      player?.in_hand &&
+                      !hasFolded &&
+                      !showShowdownCards &&
+                      liveState?.hand_id
+                    const hiddenCardCount = Math.max(
+                      2,
+                      player?.hole_cards?.length ?? player?.cards?.length ?? 0,
+                    )
 
                     return (
                       <div
@@ -1445,6 +1577,20 @@ export default function TablePage() {
                                   </div>
                                 )
                               })}
+                            </div>
+                          )}
+
+                          {showFaceDownCards && (
+                            <div className="mb-1 flex gap-1">
+                              {Array.from({ length: hiddenCardCount }).map((_, idx) => (
+                                <PlayingCard
+                                  key={`hidden-${playerKey}-${idx}`}
+                                  card={`XX-${idx}`}
+                                  size="sm"
+                                  hidden
+                                  className={idx % 2 === 0 ? '-rotate-2' : 'rotate-2'}
+                                />
+                              ))}
                             </div>
                           )}
 
