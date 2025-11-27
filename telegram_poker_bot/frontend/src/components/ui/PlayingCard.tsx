@@ -15,8 +15,6 @@ export interface PlayingCardProps {
   highlighted?: boolean
 }
 
-const CARD_BACK_URL = '/card-back.svg'
-
 // Map suit letters to Unicode symbols
 const SUIT_SYMBOLS: Record<string, string> = {
   's': '♠', // spades
@@ -41,7 +39,6 @@ const RANK_DISPLAY: Record<string, string> = {
   '3': '3',
   '2': '2',
 }
-
 
 export default function PlayingCard({ card, size = 'sm', hidden = false, highlighted = false }: PlayingCardProps) {
   const { rank, suit, color } = useMemo(() => {
@@ -82,11 +79,9 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
   if (hidden) {
     return (
       <div
-        className={`${sizeClasses} relative overflow-hidden rounded-xl border border-white/20 shadow-[0_8px_16px_rgba(0,0,0,0.35)] bg-cover bg-center`}
-        style={{ backgroundImage: `url(${CARD_BACK_URL})` }}
-        aria-label="Hidden card"
+        className={`${sizeClasses} rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 border border-blue-600/50 shadow-md flex items-center justify-center`}
       >
-        <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-white/10 via-transparent to-white/5" />
+        <span className="text-blue-300 text-2xl">🂠</span>
       </div>
     )
   }
