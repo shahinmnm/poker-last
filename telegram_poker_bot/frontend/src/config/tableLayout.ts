@@ -4,17 +4,17 @@ export interface SeatPosition {
   isHeroPosition?: boolean
 }
 
-const TABLE_CENTER = { x: 50, y: 55 }
-const TABLE_RADIUS = { x: 28, y: 20 }
+const TABLE_CENTER = { x: 50, y: 52 }
+const TABLE_RADIUS = { x: 40, y: 30 }
 
 const angleSets: Record<number, number[]> = {
   2: [90, 270],
   3: [90, 210, 330],
   4: [90, 210, 270, 330],
   5: [90, 150, 210, 330, 30],
-  6: [90, 130, 200, 270, 340, 50],
-  7: [90, 130, 170, 230, 310, 340, 50],
-  8: [90, 120, 170, 220, 270, 320, 20, 60],
+  6: [90, 130, 200, 270, 340, 40],
+  7: [90, 130, 180, 230, 280, 330, 30],
+  8: [90, 135, 180, 225, 270, 315, 0, 45],
 }
 
 const angleToPosition = (angleDegrees: number): SeatPosition => {

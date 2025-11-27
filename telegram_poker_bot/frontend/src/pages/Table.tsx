@@ -1310,10 +1310,20 @@ export default function TablePage() {
 
               <div
                 className="absolute inset-0"
-                style={{ paddingTop: '12px', paddingBottom: viewerIsSeated ? '190px' : '168px' }}
+                style={{
+                  paddingTop: '28px',
+                  paddingBottom: viewerIsSeated ? '150px' : '128px',
+                  paddingInline: '12px',
+                }}
               >
-                <div className="relative mx-auto h-full w-full max-w-5xl">
-                  <div className="absolute left-1/2 top-[18%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
+                <div className="relative mx-auto h-full w-full max-w-6xl min-h-[520px]">
+                  <div className="absolute left-1/2 top-1/2 z-0 h-[78%] w-[92%] -translate-x-1/2 -translate-y-1/2">
+                    <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
+                    <div className="absolute inset-6 rounded-[999px] border-[12px] border-emerald-300/35 shadow-inner shadow-emerald-900/50" />
+                    <div className="absolute inset-10 rounded-[999px] bg-gradient-to-b from-white/10 via-transparent to-white/5 blur-[1px] opacity-70" />
+                  </div>
+
+                  <div className="absolute left-1/2 top-[24%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       cards={liveState.board ?? []}
@@ -1371,7 +1381,7 @@ export default function TablePage() {
                     return (
                       <div
                         key={`seat-${seatNumber}-${layoutIndex}`}
-                        className="absolute"
+                        className="absolute z-10"
                         style={{
                           left: `${slot.xPercent}%`,
                           top: `${slot.yPercent}%`,
