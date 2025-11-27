@@ -5,52 +5,37 @@ export interface SeatPosition {
 }
 
 const TABLE_CENTER = { x: 50, y: 50 }
-const TABLE_RADIUS = { x: 47, y: 35 }
-const TABLE_INSET_PX = 20
-const TABLE_INSET_RATIO = 0.08
-const TABLE_BORDER_WIDTH_PX = 12
-const SEAT_RING_OFFSET_PX = TABLE_INSET_PX + TABLE_BORDER_WIDTH_PX / 2
-const SEAT_DISTANCE_SCALE = 1.0
 
-type TableSize = {
-  width: number
-  height: number
-}
+// Ellipse radius as percentage - should match the table CSS border
+const TABLE_ELLIPSE_RADIUS_X_PERCENT = 49 // horizontal radius (% of width)
+const TABLE_ELLIPSE_RADIUS_Y_PERCENT = 46 // vertical radius (% of height)
+
+// Profile offset from table edge (0 = on edge, negative = inside, positive = outside)
+const PROFILE_OFFSET_PERCENT = 0
 
 const roundToTenth = (value: number) => Math.round(value * 10) / 10
 
-const angleToPosition = (angleDegrees: number, tableSize?: TableSize): SeatPosition => {
+const angleToPosition = (angleDegrees: number): SeatPosition => {
   const radians = (angleDegrees * Math.PI) / 180
 
-  if (tableSize) {
-    const centerX = tableSize.width / 2
-    const centerY = tableSize.height / 2
-    const insetX = Math.max(tableSize.width * TABLE_INSET_RATIO, SEAT_RING_OFFSET_PX)
-    const insetY = Math.max(tableSize.height * TABLE_INSET_RATIO, SEAT_RING_OFFSET_PX)
-    const radiusX = Math.max(centerX - insetX, 0) * SEAT_DISTANCE_SCALE
-    const radiusY = Math.max(centerY - insetY, 0) * SEAT_DISTANCE_SCALE
-
-    return {
-      xPercent: roundToTenth(((centerX + radiusX * Math.cos(radians)) / tableSize.width) * 100),
-      yPercent: roundToTenth(((centerY + radiusY * Math.sin(radians)) / tableSize.height) * 100),
-    }
-  }
+  const effectiveRadiusX = TABLE_ELLIPSE_RADIUS_X_PERCENT + PROFILE_OFFSET_PERCENT
+  const effectiveRadiusY = TABLE_ELLIPSE_RADIUS_Y_PERCENT + PROFILE_OFFSET_PERCENT
 
   return {
-    xPercent: roundToTenth(TABLE_CENTER.x + TABLE_RADIUS.x * Math.cos(radians) * SEAT_DISTANCE_SCALE),
-    yPercent: roundToTenth(TABLE_CENTER.y + TABLE_RADIUS.y * Math.sin(radians) * SEAT_DISTANCE_SCALE),
+    xPercent: roundToTenth(TABLE_CENTER.x + effectiveRadiusX * Math.cos(radians)),
+    yPercent: roundToTenth(TABLE_CENTER.y + effectiveRadiusY * Math.sin(radians)),
   }
 }
 
-export const getSeatLayout = (seatCount: number, tableSize?: TableSize): SeatPosition[] => {
+export const getSeatLayout = (seatCount: number): SeatPosition[] => {
   const clamped = Math.min(Math.max(seatCount, 1), 8)
   const step = 360 / clamped
-  const startAngle = 90
+  const startAngle = 90 // Start from bottom (hero position)
 
   return Array.from({ length: clamped }, (_, index) => {
     const angle = startAngle + step * index
     return {
-      ...angleToPosition(angle, tableSize),
+      ...angleToPosition(angle),
       isHeroPosition: index === 0,
     }
   })
