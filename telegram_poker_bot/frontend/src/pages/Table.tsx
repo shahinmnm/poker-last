@@ -192,19 +192,27 @@ export default function TablePage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    const initialViewportHeightRef = { current: window.innerHeight }
+
     const computeMeasurements = () => {
       const menuBtn = tableMenuButtonRef.current
       const area = tableAreaRef.current
       const wrapper = tableWrapperRef.current
       if (!menuBtn || !area || !wrapper) return null
 
-      const menuRect = menuBtn.getBoundingClientRect()
-      const areaRect = area.getBoundingClientRect()
-      const wrapperRect = wrapper.getBoundingClientRect()
-      const spacing = window.innerHeight * 0.01 // 1vh
+      // Use layout metrics instead of viewport-relative rects so Telegram's
+      // swipe-down gesture (which changes the visible viewport height) does not
+      // push the table further down. The spacing is based on the initial
+      // viewport height captured at mount to keep the capsule gap consistent.
+      const spacingBase = initialViewportHeightRef.current || window.innerHeight
+      const spacing = spacingBase * 0.01 // 1vh from initial viewport
 
-      const topPx = Math.max(menuRect.bottom - areaRect.top + spacing, 0)
-      const desiredPadding = Math.max(menuRect.bottom - wrapperRect.top + spacing, 0)
+      const menuBottom = menuBtn.offsetTop + menuBtn.offsetHeight
+      const areaTop = area.offsetTop
+      const wrapperTop = wrapper.offsetTop
+
+      const topPx = Math.max(menuBottom - areaTop + spacing, 0)
+      const desiredPadding = Math.max(menuBottom - wrapperTop + spacing, 0)
       return { topPx: Math.round(topPx), paddingPx: Math.round(Math.max(desiredPadding, 24)) }
     }
 
