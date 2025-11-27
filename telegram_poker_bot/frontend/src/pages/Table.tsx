@@ -24,7 +24,7 @@ import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
-import { getSeatLayout } from '@/config/tableLayout'
+import { getSeatLayout, type SeatPosition } from '@/config/tableLayout'
 import type {
   AllowedAction,
   AllowedActionsPayload,
@@ -96,6 +96,24 @@ interface TableDetails {
 
 type LastAction = NonNullable<TableState['last_action']>
 
+type CardPlacement = {
+  translateX: number
+  translateY: number
+  rotation: number
+}
+
+const getCardPlacement = (slot: SeatPosition): CardPlacement => {
+  const offsetX = 50 - slot.xPercent
+  const offsetY = 50 - slot.yPercent
+  const distance = Math.max(Math.hypot(offsetX, offsetY), 1)
+
+  const translateX = (offsetX / distance) * 28
+  const translateY = (offsetY / distance) * 26
+  const rotation = Math.round((Math.atan2(offsetY, offsetX) * 180) / Math.PI + 90)
+
+  return { translateX, translateY, rotation }
+}
+
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
 /**
@@ -131,6 +149,7 @@ export default function TablePage() {
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
   const [tableSize, setTableSize] = useState<{ width: number; height: number } | null>(null)
+  const [showTableMenu, setShowTableMenu] = useState(false)
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
@@ -1353,13 +1372,79 @@ export default function TablePage() {
               >
                 <div
                   ref={tableAreaRef}
-                  className="relative mx-auto h-full w-full max-w-[1280px] min-h-[620px]"
+                  className="relative mx-auto h-full w-full max-w-[1380px] min-h-[700px]"
                 >
-                  <div className="absolute inset-[1.5%] z-0">
+                  <div className="absolute inset-[1%] z-0">
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
-                    <div className="absolute inset-[14px] rounded-[999px] border-[10px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
-                    <div className="absolute inset-[24px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
+                    <div className="absolute inset-[10px] rounded-[999px] border-[12px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
+                    <div className="absolute inset-[22px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
                   </div>
+
+                  {tableDetails && (
+                    <div className="pointer-events-none absolute right-3 top-4 z-30 flex flex-col items-end gap-3 sm:right-6">
+                      <button
+                        type="button"
+                        onClick={() => setShowTableMenu((prev) => !prev)}
+                        className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25"
+                      >
+                        <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.28)]" />
+                        {t('table.meta.tableMenu', { defaultValue: 'Table Capsule' })}
+                      </button>
+
+                      {showTableMenu && (
+                        <div className="pointer-events-auto w-72 rounded-3xl border border-white/15 bg-white/12 p-4 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
+                              <p className="text-lg font-semibold leading-tight">{tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
+                            </div>
+                            <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
+                              {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
+                            </div>
+                          </div>
+
+                          <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
+                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.blinds', { defaultValue: 'Blinds' })}</p>
+                              <p className="text-sm font-semibold">{tableDetails.small_blind}/{tableDetails.big_blind}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
+                              <p className="text-sm font-semibold">{tableDetails.player_count} / {tableDetails.max_players}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
+                              <p className="text-sm font-semibold">{tableDetails.starting_stack}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
+                              <p className="text-sm font-semibold">{potDisplayAmount}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              block
+                              onClick={() => setShowRecentHands(true)}
+                            >
+                              {t('table.actions.recentHands', { defaultValue: 'Recent hands' })}
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              block
+                              onClick={handleLeave}
+                              disabled={!canLeave || isLeaving}
+                            >
+                              {isLeaving ? t('table.actions.leaving') : t('table.actions.leave', { defaultValue: 'Leave table' })}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="absolute left-1/2 top-[22%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
@@ -1420,6 +1505,14 @@ export default function TablePage() {
                     const showOpponentBacks =
                       !isHeroPlayer &&
                       Boolean(player?.in_hand && liveState?.hand_id && !hasFolded && !showShowdownCards)
+                    const cardPlacement = getCardPlacement(slot)
+                    const shouldRenderCards = showHeroCards || showOpponentBacks || showShowdownCards
+                    const cardRowStyle = {
+                      left: '50%',
+                      top: '50%',
+                      transform: `translate(-50%, -50%) translate(${cardPlacement.translateX}px, ${cardPlacement.translateY}px) rotate(${cardPlacement.rotation}deg)`,
+                      transformOrigin: 'center',
+                    } as const
 
                     return (
                       <div
@@ -1432,7 +1525,7 @@ export default function TablePage() {
                         }}
                       >
                         <div
-                          className="flex flex-col items-center gap-1.5"
+                          className="relative flex flex-col items-center gap-1.5"
                           ref={(el) => {
                             if (playerKey) {
                               if (el) {
@@ -1443,41 +1536,55 @@ export default function TablePage() {
                             }
                           }}
                         >
-                          {showHeroCards && (
-                            <div className="mb-1.5 flex gap-1.5">
-                              {heroCards.map((card, idx) => {
-                                const heroWinner = liveState.hand_result?.winners?.find(
-                                  (w) => w.user_id?.toString() === heroIdString,
-                                )
-                                const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                                return (
+                          {shouldRenderCards && (
+                            <div className="pointer-events-none absolute flex gap-1.5" style={cardRowStyle}>
+                              {showHeroCards &&
+                                heroCards.map((card, idx) => {
+                                  const heroWinner = liveState.hand_result?.winners?.find(
+                                    (w) => w.user_id?.toString() === heroIdString,
+                                  )
+                                  const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                                  return (
+                                    <div
+                                      key={`hero-card-${idx}`}
+                                      className="transition-transform"
+                                      style={{
+                                        transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
+                                      }}
+                                    >
+                                      <PlayingCard card={card} size="sm" highlighted={isWinningCard} />
+                                    </div>
+                                  )
+                                })}
+
+                              {showOpponentBacks &&
+                                [0, 1].map((cardIndex) => (
                                   <div
-                                    key={`hero-card-${idx}`}
+                                    key={`hidden-card-${playerKey}-${cardIndex}`}
                                     className="transition-transform"
                                     style={{
-                                      transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
+                                      transform: cardIndex === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
                                     }}
                                   >
-                                    <PlayingCard card={card} size="sm" highlighted={isWinningCard} />
+                                    <PlayingCard card="XX" size="sm" hidden />
                                   </div>
-                                )
-                              })}
-                            </div>
-                          )}
+                                ))}
 
-                          {showOpponentBacks && (
-                            <div className="mb-1 flex gap-1">
-                              {[0, 1].map((cardIndex) => (
-                                <div
-                                  key={`hidden-card-${playerKey}-${cardIndex}`}
-                                  className="transition-transform"
-                                  style={{
-                                    transform: cardIndex === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
-                                  }}
-                                >
-                                  <PlayingCard card="XX" size="sm" hidden />
-                                </div>
-                              ))}
+                              {showShowdownCards &&
+                                playerCards.map((card, idx) => {
+                                  const winningHand = liveState.hand_result?.winners?.find(
+                                    (winner) => winner.user_id?.toString() === playerKey,
+                                  )
+                                  const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
+                                  return (
+                                    <PlayingCard
+                                      key={`villain-card-${playerKey}-${card}-${idx}`}
+                                      card={card}
+                                      size="sm"
+                                      highlighted={isWinningCard}
+                                    />
+                                  )
+                                })}
                             </div>
                           )}
 
@@ -1503,25 +1610,6 @@ export default function TablePage() {
                             <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-200/90">
                               {lastActionText}
                             </p>
-                          )}
-
-                          {showShowdownCards && (
-                            <div className="mt-0.5 flex gap-1">
-                              {playerCards.map((card, idx) => {
-                                const winningHand = liveState.hand_result?.winners?.find(
-                                  (winner) => winner.user_id?.toString() === playerKey,
-                                )
-                                const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
-                                return (
-                                  <PlayingCard
-                                    key={`villain-card-${playerKey}-${card}-${idx}`}
-                                    card={card}
-                                    size="sm"
-                                    highlighted={isWinningCard}
-                                  />
-                                )
-                              })}
-                            </div>
                           )}
                         </div>
                       </div>

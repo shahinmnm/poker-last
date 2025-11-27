@@ -79,12 +79,29 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
   if (hidden) {
     return (
       <div
-        className={`${sizeClasses} rounded-md border border-slate-600/70 bg-slate-900/90 shadow-[0_10px_28px_-14px_rgba(0,0,0,0.65)] flex items-center justify-center`}
-        style={{
-          backgroundImage: 'linear-gradient(135deg, rgba(148,163,184,0.08), rgba(30,41,59,0.4))',
-        }}
+        className={`${sizeClasses} relative overflow-hidden rounded-md border border-emerald-200/40 bg-slate-900/90 shadow-[0_10px_28px_-14px_rgba(0,0,0,0.65)]`}
       >
-        <span className="text-[13px] font-semibold uppercase tracking-[0.32em] text-slate-200/90">deck</span>
+        <div className="absolute inset-0 opacity-80" style={{
+          backgroundImage:
+            'radial-gradient(circle at 20% 20%, rgba(34,197,94,0.16), transparent 40%), radial-gradient(circle at 80% 30%, rgba(94,234,212,0.16), transparent 38%)',
+        }} />
+        <div
+          className="absolute inset-0 mix-blend-screen"
+          style={{
+            backgroundImage:
+              'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(8,47,73,0.48) 50%, rgba(52,211,153,0.14) 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{
+            backgroundImage:
+              'linear-gradient(45deg, rgba(255,255,255,0.08) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.08) 75%, transparent 75%, transparent)',
+            backgroundSize: '12px 12px',
+          }}
+        />
+        <div className="absolute inset-[2px] rounded-sm border border-emerald-100/30" />
+        <div className="relative h-full w-full" />
       </div>
     )
   }
