@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, useMemo, useLayoutEffect } from 'react'
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -148,7 +148,6 @@ export default function TablePage() {
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
-  const [tableSize, setTableSize] = useState<{ width: number; height: number } | null>(null)
   const [showTableMenu, setShowTableMenu] = useState(false)
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
@@ -1010,8 +1009,8 @@ export default function TablePage() {
   }, [occupiedSeatNumbers, suggestedSeatNumber])
 
   const seatLayout = useMemo(
-    () => getSeatLayout(visibleSeatNumbers.length, tableSize ?? undefined),
-    [tableSize, visibleSeatNumbers.length],
+    () => getSeatLayout(visibleSeatNumbers.length),
+    [visibleSeatNumbers.length],
   )
   const seatOrder = useMemo(() => {
     const seats = visibleSeatNumbers
@@ -1058,22 +1057,6 @@ export default function TablePage() {
       autoTimeoutRef.current = { handId: liveState?.hand_id ?? null, count: 0 }
     }
   }, [liveState?.hand_id])
-
-  useLayoutEffect(() => {
-    const element = tableAreaRef.current
-    if (!element) return
-
-    const updateSize = () => {
-      const rect = element.getBoundingClientRect()
-      setTableSize({ width: rect.width, height: rect.height })
-    }
-
-    updateSize()
-    const observer = new ResizeObserver(updateSize)
-    observer.observe(element)
-
-    return () => observer.disconnect()
-  }, [])
 
   useEffect(() => {
     if (autoActionTimerRef.current) {
