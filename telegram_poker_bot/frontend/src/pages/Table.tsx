@@ -158,6 +158,7 @@ export default function TablePage() {
   const tableAreaRef = useRef<HTMLDivElement | null>(null)
     const tableOvalRef = useRef<HTMLDivElement | null>(null)
     const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
+    const tableWrapperRef = useRef<HTMLDivElement | null>(null)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -179,6 +180,55 @@ export default function TablePage() {
   useEffect(() => {
     initDataRef.current = initData
   }, [initData])
+
+  // Compute and apply a CSS variable and wrapper padding so the table oval
+  // stays positioned beneath the capsule menu. This runs on resize/scroll
+  // and observes layout changes.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const updateOvalTop = () => {
+      const menuBtn = tableMenuButtonRef.current
+      const area = tableAreaRef.current
+      const oval = tableOvalRef.current
+      const wrapper = tableWrapperRef.current
+      if (!menuBtn || !area || !oval || !wrapper) return
+
+      const menuRect = menuBtn.getBoundingClientRect()
+      const areaRect = area.getBoundingClientRect()
+      const wrapperRect = wrapper.getBoundingClientRect()
+      const spacing = window.innerHeight * 0.01 // 1vh
+
+      // Set CSS variable used by the oval element
+      const topPx = Math.max(menuRect.bottom - areaRect.top + spacing, 0)
+      area.style.setProperty('--table-oval-top', `${Math.round(topPx)}px`)
+
+      // Push the wrapper down so table content doesn't overlap the capsule
+      const desiredPadding = Math.max(menuRect.bottom - wrapperRect.top + spacing, 0)
+      const minPadding = 24
+      wrapper.style.paddingTop = `${Math.max(Math.round(desiredPadding), minPadding)}px`
+    }
+
+    updateOvalTop()
+    window.addEventListener('resize', updateOvalTop)
+    window.addEventListener('scroll', updateOvalTop, { passive: true })
+
+    let ro: ResizeObserver | null = null
+    try {
+      ro = new ResizeObserver(updateOvalTop)
+      if (tableMenuButtonRef.current) ro.observe(tableMenuButtonRef.current)
+      if (tableAreaRef.current) ro.observe(tableAreaRef.current)
+      if (tableWrapperRef.current) ro.observe(tableWrapperRef.current)
+    } catch (e) {
+      // ignore
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateOvalTop)
+      window.removeEventListener('scroll', updateOvalTop)
+      if (ro) ro.disconnect()
+    }
+  }, [showTableMenu])
 
   // Track the last hand_id to detect when a new hand starts
   const lastHandIdRef = useRef<number | null>(null)
@@ -1348,6 +1398,7 @@ export default function TablePage() {
               ) : null}
 
               <div
+                ref={tableWrapperRef}
                 className="absolute inset-0"
                 style={{
                   paddingTop: '2%',
@@ -1364,52 +1415,7 @@ export default function TablePage() {
                     the "Table Capsule" UI. We use a calc offset: capsule approx height
                     (4rem) + 1vh to keep ~1% viewport height gap.
                   */}
-  // The table background oval is offset from the top to avoid overlapping
-  // the "Table Capsule" UI. We compute this dynamically based on the
-  // capsule (menu) button position so the oval always appears beneath it
-  // with a small 1vh gap.
-  // We'll set a CSS variable (--table-oval-top) on the table area element to
-  // drive the oval top positioning. This keeps styles in CSS and allows
-  // designers/devtools to inspect/override the value.
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const updateOvalTop = () => {
-      const menuBtn = tableMenuButtonRef.current
-      const area = tableAreaRef.current
-      const oval = tableOvalRef.current
-      if (!menuBtn || !area || !oval) return
-
-      const menuRect = menuBtn.getBoundingClientRect()
-      const areaRect = area.getBoundingClientRect()
-      const spacing = window.innerHeight * 0.01 // 1vh
-      const topPx = Math.max(menuRect.bottom - areaRect.top + spacing, 0)
-      // Apply the computed value as a CSS custom property on the table area
-      area.style.setProperty('--table-oval-top', `${Math.round(topPx)}px`)
-    }
-
-    // Initial update and on resize/scroll
-    updateOvalTop()
-    window.addEventListener('resize', updateOvalTop)
-    window.addEventListener('scroll', updateOvalTop, { passive: true })
-
-    // Use ResizeObserver to watch for layout changes
-    let ro: ResizeObserver | null = null
-    try {
-      ro = new ResizeObserver(updateOvalTop)
-      if (tableMenuButtonRef.current) ro.observe(tableMenuButtonRef.current)
-      if (tableAreaRef.current) ro.observe(tableAreaRef.current)
-    } catch (e) {
-      // ResizeObserver not supported; we already have resize listener
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateOvalTop)
-      window.removeEventListener('scroll', updateOvalTop)
-      if (ro) ro.disconnect()
-    }
-  }, [tableMenuButtonRef, tableAreaRef, tableOvalRef, showTableMenu])
+                  { /* dynamic top is applied via CSS variable set in the component hooks */ }
 
                   <div
                     ref={tableOvalRef}
