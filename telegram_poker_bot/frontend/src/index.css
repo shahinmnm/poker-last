@@ -560,3 +560,18 @@ a {
   cursor: pointer;
 }
 
+@keyframes seatFadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 10px)) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.seat-enter {
+  animation: seatFadeSlideIn 320ms ease-out;
+}
+
