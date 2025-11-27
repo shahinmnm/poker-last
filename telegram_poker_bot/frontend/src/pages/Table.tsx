@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
+import { useCallback, useEffect, useState, useRef, useMemo, useLayoutEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -130,12 +130,14 @@ export default function TablePage() {
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
+  const [tableSize, setTableSize] = useState<{ width: number; height: number } | null>(null)
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
   
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const tableAreaRef = useRef<HTMLDivElement | null>(null)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -988,7 +990,10 @@ export default function TablePage() {
     return seats
   }, [occupiedSeatNumbers, suggestedSeatNumber])
 
-  const seatLayout = useMemo(() => getSeatLayout(visibleSeatNumbers.length), [visibleSeatNumbers.length])
+  const seatLayout = useMemo(
+    () => getSeatLayout(visibleSeatNumbers.length, tableSize ?? undefined),
+    [tableSize, visibleSeatNumbers.length],
+  )
   const seatOrder = useMemo(() => {
     const seats = visibleSeatNumbers
     if (heroSeatNumber === null || heroSeatNumber === undefined) return seats
@@ -1034,6 +1039,22 @@ export default function TablePage() {
       autoTimeoutRef.current = { handId: liveState?.hand_id ?? null, count: 0 }
     }
   }, [liveState?.hand_id])
+
+  useLayoutEffect(() => {
+    const element = tableAreaRef.current
+    if (!element) return
+
+    const updateSize = () => {
+      const rect = element.getBoundingClientRect()
+      setTableSize({ width: rect.width, height: rect.height })
+    }
+
+    updateSize()
+    const observer = new ResizeObserver(updateSize)
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (autoActionTimerRef.current) {
@@ -1330,7 +1351,10 @@ export default function TablePage() {
                   paddingInline: '2%',
                 }}
               >
-                <div className="relative mx-auto h-full w-full max-w-[1280px] min-h-[620px]">
+                <div
+                  ref={tableAreaRef}
+                  className="relative mx-auto h-full w-full max-w-[1280px] min-h-[620px]"
+                >
                   <div className="absolute inset-[1.5%] z-0">
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
                     <div className="absolute inset-[14px] rounded-[999px] border-[10px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
