@@ -668,6 +668,13 @@
     "blinds": "بلایند",
     "turnCountdown": "تایمر اکشن",
     "waitingForBoard": "در انتظار بورد...",
+    "boardPlaceholders": {
+      "preflop1": "پری‌فلاپ ۱",
+      "preflop2": "پری‌فلاپ ۲",
+      "preflop3": "پری‌فلاپ ۳",
+      "turn": "ترن",
+      "river": "ریور"
+    },
     "betAmount": "شرط: {{amount}}",
     "folded": "فولد کرد",
     "yourHand": "کارت‌های شما",
