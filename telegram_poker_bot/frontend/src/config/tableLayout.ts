@@ -4,8 +4,8 @@ export interface SeatPosition {
   isHeroPosition?: boolean
 }
 
-const TABLE_CENTER = { x: 50, y: 52 }
-const TABLE_RADIUS = { x: 40, y: 30 }
+const TABLE_CENTER = { x: 50, y: 51 }
+const TABLE_RADIUS = { x: 46, y: 46 }
 
 const angleSets: Record<number, number[]> = {
   2: [90, 270],

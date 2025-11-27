@@ -1278,10 +1278,13 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <div className="relative flex min-h-screen flex-col px-3 pb-24 pt-4 sm:px-6">
+      <div
+        className="relative flex min-h-screen flex-col px-3 pb-24 sm:px-6"
+        style={{ paddingTop: '2%' }}
+      >
         {/* Arena - Game Content */}
         {liveState ? (
-          <div className="flex flex-1 flex-col gap-4">
+          <div className="flex flex-1 flex-col gap-3">
             <div className="mx-auto w-full max-w-3xl">
               <PlayerHeader
                 playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
@@ -1311,19 +1314,19 @@ export default function TablePage() {
               <div
                 className="absolute inset-0"
                 style={{
-                  paddingTop: '28px',
-                  paddingBottom: viewerIsSeated ? '150px' : '128px',
-                  paddingInline: '12px',
+                  paddingTop: '2%',
+                  paddingBottom: viewerIsSeated ? '120px' : '104px',
+                  paddingInline: '2%',
                 }}
               >
                 <div className="relative mx-auto h-full w-full max-w-6xl min-h-[520px]">
-                  <div className="absolute left-1/2 top-1/2 z-0 h-[78%] w-[92%] -translate-x-1/2 -translate-y-1/2">
+                  <div className="absolute inset-[2%] z-0">
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
-                    <div className="absolute inset-6 rounded-[999px] border-[12px] border-emerald-300/35 shadow-inner shadow-emerald-900/50" />
-                    <div className="absolute inset-10 rounded-[999px] bg-gradient-to-b from-white/10 via-transparent to-white/5 blur-[1px] opacity-70" />
+                    <div className="absolute inset-[14px] rounded-[999px] border-[10px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
+                    <div className="absolute inset-[24px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
                   </div>
 
-                  <div className="absolute left-1/2 top-[24%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
+                  <div className="absolute left-1/2 top-[22%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       cards={liveState.board ?? []}
