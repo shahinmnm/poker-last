@@ -186,36 +186,65 @@ export default function TablePage() {
   // and observes layout changes.
   useEffect(() => {
     if (typeof window === 'undefined') return
+    // Keep the closed-state measurements so opening the capsule menu does
+    // not push the table down further. We recompute measurements only when
+    // the menu is closed; while open we re-apply the stored closed values.
+    const closedTopRef = { current: null as number | null }
+    const closedPaddingRef = { current: null as number | null }
 
-    const updateOvalTop = () => {
+    const computeMeasurements = () => {
       const menuBtn = tableMenuButtonRef.current
       const area = tableAreaRef.current
-      const oval = tableOvalRef.current
       const wrapper = tableWrapperRef.current
-      if (!menuBtn || !area || !oval || !wrapper) return
+      if (!menuBtn || !area || !wrapper) return null
 
       const menuRect = menuBtn.getBoundingClientRect()
       const areaRect = area.getBoundingClientRect()
       const wrapperRect = wrapper.getBoundingClientRect()
       const spacing = window.innerHeight * 0.01 // 1vh
 
-      // Set CSS variable used by the oval element
       const topPx = Math.max(menuRect.bottom - areaRect.top + spacing, 0)
-      area.style.setProperty('--table-oval-top', `${Math.round(topPx)}px`)
-
-      // Push the wrapper down so table content doesn't overlap the capsule
       const desiredPadding = Math.max(menuRect.bottom - wrapperRect.top + spacing, 0)
-      const minPadding = 24
-      wrapper.style.paddingTop = `${Math.max(Math.round(desiredPadding), minPadding)}px`
+      return { topPx: Math.round(topPx), paddingPx: Math.round(Math.max(desiredPadding, 24)) }
     }
 
-    updateOvalTop()
-    window.addEventListener('resize', updateOvalTop)
-    window.addEventListener('scroll', updateOvalTop, { passive: true })
+    const applyMeasurements = (topPx: number, paddingPx: number) => {
+      const area = tableAreaRef.current
+      const wrapper = tableWrapperRef.current
+      if (!area || !wrapper) return
+      area.style.setProperty('--table-oval-top', `${topPx}px`)
+      wrapper.style.paddingTop = `${paddingPx}px`
+    }
+
+    const updateHandler = () => {
+      // If menu is closed, compute and store measurements. If it's open and
+      // we have stored closed values, re-apply them (do not recompute from open state).
+      if (!showTableMenu) {
+        const m = computeMeasurements()
+        if (m) {
+          closedTopRef.current = m.topPx
+          closedPaddingRef.current = m.paddingPx
+          applyMeasurements(m.topPx, m.paddingPx)
+        }
+      } else {
+        if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
+          applyMeasurements(closedTopRef.current, closedPaddingRef.current)
+        } else {
+          // Fallback: compute if we don't have stored values
+          const m = computeMeasurements()
+          if (m) applyMeasurements(m.topPx, m.paddingPx)
+        }
+      }
+    }
+
+    // Initial measurement
+    updateHandler()
+    window.addEventListener('resize', updateHandler)
+    window.addEventListener('scroll', updateHandler, { passive: true })
 
     let ro: ResizeObserver | null = null
     try {
-      ro = new ResizeObserver(updateOvalTop)
+      ro = new ResizeObserver(updateHandler)
       if (tableMenuButtonRef.current) ro.observe(tableMenuButtonRef.current)
       if (tableAreaRef.current) ro.observe(tableAreaRef.current)
       if (tableWrapperRef.current) ro.observe(tableWrapperRef.current)
@@ -224,8 +253,8 @@ export default function TablePage() {
     }
 
     return () => {
-      window.removeEventListener('resize', updateOvalTop)
-      window.removeEventListener('scroll', updateOvalTop)
+      window.removeEventListener('resize', updateHandler)
+      window.removeEventListener('scroll', updateHandler)
       if (ro) ro.disconnect()
     }
   }, [showTableMenu])
