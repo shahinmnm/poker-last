@@ -1364,18 +1364,20 @@ export default function TablePage() {
                   </div>
 
                   {tableDetails && (
-                    <div className="pointer-events-none absolute right-3 top-4 z-30 flex flex-col items-end gap-3 sm:right-6">
+                    <div className="pointer-events-none absolute left-1/2 top-4 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
                       <button
                         type="button"
                         onClick={() => setShowTableMenu((prev) => !prev)}
-                        className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25"
+                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[90vw] sm:w-auto"
                       >
                         <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.28)]" />
                         {t('table.meta.tableMenu', { defaultValue: 'Table Capsule' })}
                       </button>
 
                       {showTableMenu && (
-                        <div className="pointer-events-auto w-72 rounded-3xl border border-white/15 bg-white/12 p-4 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl">
+                        <div
+                          className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-4 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[90vw] sm:w-[50vw] max-w-[95%]"
+                        >
                           <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
                               <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
