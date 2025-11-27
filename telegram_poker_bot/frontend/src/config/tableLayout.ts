@@ -5,10 +5,12 @@ export interface SeatPosition {
 }
 
 const TABLE_CENTER = { x: 50, y: 50 }
-const TABLE_RADIUS = { x: 47.5, y: 36 }
-const TABLE_INSET_PX = 14
-const TABLE_BORDER_WIDTH_PX = 10
+const TABLE_RADIUS = { x: 47, y: 35 }
+const TABLE_INSET_PX = 20
+const TABLE_INSET_RATIO = 0.08
+const TABLE_BORDER_WIDTH_PX = 12
 const SEAT_RING_OFFSET_PX = TABLE_INSET_PX + TABLE_BORDER_WIDTH_PX / 2
+const SEAT_DISTANCE_SCALE = 0.8
 
 type TableSize = {
   width: number
@@ -23,8 +25,10 @@ const angleToPosition = (angleDegrees: number, tableSize?: TableSize): SeatPosit
   if (tableSize) {
     const centerX = tableSize.width / 2
     const centerY = tableSize.height / 2
-    const radiusX = Math.max(centerX - SEAT_RING_OFFSET_PX, 0)
-    const radiusY = Math.max(centerY - SEAT_RING_OFFSET_PX, 0)
+    const insetX = Math.max(tableSize.width * TABLE_INSET_RATIO, SEAT_RING_OFFSET_PX)
+    const insetY = Math.max(tableSize.height * TABLE_INSET_RATIO, SEAT_RING_OFFSET_PX)
+    const radiusX = Math.max(centerX - insetX, 0) * SEAT_DISTANCE_SCALE
+    const radiusY = Math.max(centerY - insetY, 0) * SEAT_DISTANCE_SCALE
 
     return {
       xPercent: roundToTenth(((centerX + radiusX * Math.cos(radians)) / tableSize.width) * 100),
@@ -33,8 +37,8 @@ const angleToPosition = (angleDegrees: number, tableSize?: TableSize): SeatPosit
   }
 
   return {
-    xPercent: roundToTenth(TABLE_CENTER.x + TABLE_RADIUS.x * Math.cos(radians)),
-    yPercent: roundToTenth(TABLE_CENTER.y + TABLE_RADIUS.y * Math.sin(radians)),
+    xPercent: roundToTenth(TABLE_CENTER.x + TABLE_RADIUS.x * Math.cos(radians) * SEAT_DISTANCE_SCALE),
+    yPercent: roundToTenth(TABLE_CENTER.y + TABLE_RADIUS.y * Math.sin(radians) * SEAT_DISTANCE_SCALE),
   }
 }
 
