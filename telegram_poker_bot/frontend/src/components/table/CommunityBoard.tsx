@@ -31,14 +31,15 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
     <div className="flex w-full flex-col items-center gap-3" style={{ minHeight: 'clamp(150px, 22vh, 230px)' }}>
       <div
         ref={potRef}
-        className={`relative flex min-w-[9.5rem] max-w-[38vw] flex-col items-center rounded-full border border-amber-200/30 bg-amber-400/70 px-4 py-2.5 text-center shadow-[0_0_26px_rgba(249,168,38,0.45)] backdrop-blur-2xl transition ${
+        className={`relative flex min-w-[7.5rem] max-w-[30vw] flex-col items-center gap-1 rounded-full border border-amber-100/30 bg-gradient-to-br from-amber-300/80 via-amber-200/80 to-amber-400/80 px-3 py-2 text-center shadow-[0_12px_38px_rgba(249,168,38,0.4)] backdrop-blur-xl transition ${
           isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''
         }`}
       >
-        <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-950/70">
+        <div className="pointer-events-none absolute inset-[-6px] rounded-full border border-amber-200/40 shadow-[0_10px_30px_rgba(0,0,0,0.35)]" />
+        <span className="text-[9px] font-semibold uppercase tracking-[0.3em] text-amber-950/70">
           {t('table.potLabel', { defaultValue: 'POT' })}
         </span>
-        <span className="text-xl font-semibold leading-tight text-amber-50 drop-shadow-sm sm:text-2xl">{potAmount}</span>
+        <span className="text-lg font-semibold leading-tight text-amber-50 drop-shadow-sm sm:text-xl">{potAmount}</span>
       </div>
 
       <div className="flex w-full justify-center px-2 sm:px-4">
