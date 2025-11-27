@@ -15,6 +15,16 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
   const [isPulsing, setIsPulsing] = useState(false)
 
   const slots = useMemo(() => Array.from({ length: 5 }, (_, idx) => cards[idx]), [cards])
+  const placeholderLabels = useMemo(
+    () => [
+      t('table.boardPlaceholders.preflop1', { defaultValue: 'PREFLOP 1' }),
+      t('table.boardPlaceholders.preflop2', { defaultValue: 'PREFLOP 2' }),
+      t('table.boardPlaceholders.preflop3', { defaultValue: 'PREFLOP 3' }),
+      t('table.boardPlaceholders.turn', { defaultValue: 'TURN' }),
+      t('table.boardPlaceholders.river', { defaultValue: 'RIVER' }),
+    ],
+    [t],
+  )
 
   useEffect(() => {
     if (Number.isNaN(potAmount)) return undefined
@@ -24,11 +34,11 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
     return () => window.clearTimeout(timer)
   }, [potAmount])
 
-  const cardHeight = 'clamp(64px, 13vw, 96px)'
-  const cardWidth = 'clamp(46px, 9.5vw, 68px)'
+  const cardHeight = 'clamp(58px, 12vw, 88px)'
+  const cardWidth = 'clamp(42px, 8.6vw, 60px)'
 
   return (
-    <div className="flex w-full flex-col items-center gap-3" style={{ minHeight: 'clamp(150px, 22vh, 230px)' }}>
+    <div className="flex w-full flex-col items-center gap-3" style={{ minHeight: 'clamp(140px, 21vh, 210px)' }}>
       <div
         ref={potRef}
         className={`relative flex min-w-[7.5rem] max-w-[30vw] flex-col items-center gap-1 rounded-full border border-amber-100/30 bg-gradient-to-br from-amber-300/80 via-amber-200/80 to-amber-400/80 px-3 py-2 text-center shadow-[0_12px_38px_rgba(249,168,38,0.4)] backdrop-blur-xl transition ${
@@ -55,16 +65,16 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
                 style={{ transform: `translateY(${offset * 2}px)` }}
               >
                 <div
-                  className="flex items-center justify-center rounded-xl border border-white/25 bg-white/15 shadow-[0_10px_24px_-12px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+                  className="flex items-center justify-center rounded-md border border-white/20 bg-white/10 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.5)] backdrop-blur-xl"
                   style={{ height: cardHeight, width: cardWidth }}
                 >
                   {card ? (
                     <PlayingCard card={card} size="md" highlighted={highlightedCards.includes(card)} />
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-white/70">
-                      <span className="text-lg leading-none">⋯</span>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide">
-                        {t('table.waitingForBoard', { defaultValue: 'Waiting for board...' })}
+                      <span className="text-base leading-none">⋯</span>
+                      <span className="text-[9.5px] font-semibold uppercase tracking-[0.12em]">
+                        {placeholderLabels[index]}
                       </span>
                     </div>
                   )}

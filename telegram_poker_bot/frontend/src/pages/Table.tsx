@@ -21,7 +21,6 @@ import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
-import PlayerHeader from '@/components/table/PlayerHeader'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
@@ -1306,15 +1305,6 @@ export default function TablePage() {
         {/* Arena - Game Content */}
         {liveState ? (
           <div className="flex flex-1 flex-col gap-3">
-            <div className="mx-auto w-full max-w-3xl">
-              <PlayerHeader
-                playerName={heroPlayer?.display_name || heroPlayer?.username || t('table.meta.unknown')}
-                chipCount={heroPlayer?.stack ?? 0}
-                tableLabel={t('table.actionBar.tableBadge', { id: tableDetails.table_id })}
-                isMyTurn={isMyTurn}
-              />
-            </div>
-
             <div className="relative flex-1">
               {isInterHand ? (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -1403,6 +1393,9 @@ export default function TablePage() {
                       liveState.status !== 'waiting'
                     const showShowdownCards =
                       playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown')
+                    const showOpponentBacks =
+                      !isHeroPlayer &&
+                      Boolean(player?.in_hand && liveState?.hand_id && !hasFolded && !showShowdownCards)
 
                     return (
                       <div
@@ -1445,6 +1438,22 @@ export default function TablePage() {
                                   </div>
                                 )
                               })}
+                            </div>
+                          )}
+
+                          {showOpponentBacks && (
+                            <div className="mb-1 flex gap-1">
+                              {[0, 1].map((cardIndex) => (
+                                <div
+                                  key={`hidden-card-${playerKey}-${cardIndex}`}
+                                  className="transition-transform"
+                                  style={{
+                                    transform: cardIndex === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
+                                  }}
+                                >
+                                  <PlayingCard card="XX" size="sm" hidden />
+                                </div>
+                              ))}
                             </div>
                           )}
 

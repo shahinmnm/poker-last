@@ -638,6 +638,13 @@
     "blinds": "Blinds",
     "turnCountdown": "Action timer",
     "waitingForBoard": "Waiting for board...",
+    "boardPlaceholders": {
+      "preflop1": "PREFLOP 1",
+      "preflop2": "PREFLOP 2",
+      "preflop3": "PREFLOP 3",
+      "turn": "TURN",
+      "river": "RIVER"
+    },
     "betAmount": "Bet: {{amount}}",
     "folded": "Folded",
     "yourHand": "Your Hand",

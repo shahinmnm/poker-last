@@ -81,18 +81,13 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
     return (
       <div
         ref={ref}
-        className={`relative flex min-w-[112px] max-w-[28vw] flex-col items-center gap-1.5 text-white drop-shadow-[0_10px_26px_rgba(0,0,0,0.45)] transition-transform duration-300 ${
-          interactive ? 'cursor-pointer hover:-translate-y-1.5' : 'cursor-default'
+        className={`relative flex min-w-[100px] max-w-[26vw] flex-col items-center gap-1 text-white transition-transform duration-300 ${
+          interactive ? 'cursor-pointer hover:-translate-y-1' : 'cursor-default'
         } ${opacityState}`}
         onClick={interactive ? onSit : undefined}
-        style={{ width: callToAction ? 'min(56vw, 214px)' : 'min(28vw, 180px)' }}
+        style={{ width: callToAction ? 'min(52vw, 200px)' : 'min(26vw, 164px)' }}
       >
-        <div
-          className={`relative flex flex-col items-center gap-2 rounded-2xl bg-black/20 px-3 py-2 backdrop-blur-sm ${
-            isHero ? 'ring-1 ring-cyan-200/30' : 'ring-1 ring-white/10'
-          }`}
-          style={{ width: '100%' }}
-        >
+        <div className="flex flex-col items-center gap-1.5" style={{ width: '100%' }}>
           <div
             className={`relative flex items-center justify-center rounded-full border-2 ${avatarTone} ${ringAccent}`}
             style={{ height: `${avatarSize + 10}px`, width: `${avatarSize + 10}px` }}
@@ -114,12 +109,12 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
             )}
           </div>
 
-          <div className="flex flex-col items-center gap-1 text-center">
+          <div className="flex flex-col items-center gap-0.5 text-center">
             {callToAction || isEmpty ? (
               <button
                 type="button"
                 disabled={disabled || !interactive}
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-semibold uppercase tracking-wide shadow-lg transition-all ${
+                className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide shadow-lg transition-all ${
                   disabled
                     ? 'bg-white/10 text-white/60'
                     : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-emerald-950 hover:brightness-110'
@@ -129,22 +124,22 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
               </button>
             ) : (
               <>
-                <div className={`flex items-center gap-1 text-[12px] font-semibold leading-tight ${textMuted}`}>
-                  <span className="max-w-[136px] truncate leading-snug">{name}</span>
+                <div className={`flex items-center gap-1 text-[11px] font-semibold leading-tight ${textMuted}`}>
+                  <span className="max-w-[132px] truncate leading-snug">{name}</span>
                   {showYouBadge && (
                     <span className="rounded-full bg-sky-400/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-black shadow-sm">
                       {t('table.players.youTag', { defaultValue: 'You' })}
                     </span>
                   )}
                 </div>
-                <div className={`flex items-center gap-1 text-[11px] font-semibold text-emerald-100 ${hasFolded ? 'opacity-60' : ''}`}>
-                  <FontAwesomeIcon icon={faCoins} className="text-[12px] text-amber-200" />
+                <div className={`flex items-center gap-1 text-[10px] font-semibold text-emerald-100 ${hasFolded ? 'opacity-60' : ''}`}>
+                  <FontAwesomeIcon icon={faCoins} className="text-[11px] text-amber-200" />
                   <span className="tabular-nums tracking-tight">{stack?.toLocaleString?.() ?? stack}</span>
                 </div>
               </>
             )}
 
-            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+            <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/70">
               <span>{seatLabel}</span>
               {positionLabel && !callToAction && (
                 <span className="text-emerald-100 drop-shadow">{positionLabel}</span>

@@ -79,20 +79,23 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
   if (hidden) {
     return (
       <div
-        className={`${sizeClasses} rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 border border-blue-600/50 shadow-md flex items-center justify-center`}
+        className={`${sizeClasses} rounded-md border border-slate-600/70 bg-slate-900/90 shadow-[0_10px_28px_-14px_rgba(0,0,0,0.65)] flex items-center justify-center`}
+        style={{
+          backgroundImage: 'linear-gradient(135deg, rgba(148,163,184,0.08), rgba(30,41,59,0.4))',
+        }}
       >
-        <span className="text-blue-300 text-2xl">🂠</span>
+        <span className="text-[13px] font-semibold uppercase tracking-[0.32em] text-slate-200/90">deck</span>
       </div>
     )
   }
 
   return (
     <div
-      className={`${sizeClasses} rounded-lg bg-white border-2 shadow-md flex flex-col items-center justify-center font-bold tracking-tight ${color} relative ${
+      className={`${sizeClasses} rounded-md bg-white border-[1.5px] shadow-md flex flex-col items-center justify-center font-bold tracking-tight ${color} relative ${
         highlighted ? 'border-emerald-400 ring-2 ring-emerald-400/80 shadow-emerald-500/30' : 'border-gray-300'
       }`}
-      style={{ 
-        backgroundImage: 'linear-gradient(to bottom, #ffffff, #f8f8f8)',
+      style={{
+        backgroundImage: 'linear-gradient(to bottom, #ffffff, #f5f5f5)',
       }}
     >
       {/* Main rank and suit */}
