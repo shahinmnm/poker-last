@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next'
 interface SeatCapsuleProps {
   name?: string | null
   stack?: number
-  seatLabel: string
   positionLabel?: string
   isHero?: boolean
   isActive?: boolean
@@ -28,7 +27,6 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
     {
       name,
       stack = 0,
-      seatLabel,
       positionLabel,
       isHero = false,
       isActive = false,
@@ -139,17 +137,18 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
               </>
             )}
 
-            <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/70">
-              <span>{seatLabel}</span>
-              {positionLabel && !callToAction && (
-                <span className="text-emerald-100 drop-shadow">{positionLabel}</span>
-              )}
-              {isAllIn && !isEmpty && !callToAction && (
-                <span className="text-rose-200 drop-shadow-sm">
-                  {t('table.actions.allIn', { defaultValue: 'All-in' })}
-                </span>
-              )}
-            </div>
+            {(positionLabel || (isAllIn && !isEmpty && !callToAction)) && (
+              <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/70">
+                {positionLabel && !callToAction && (
+                  <span className="text-emerald-100 drop-shadow">{positionLabel}</span>
+                )}
+                {isAllIn && !isEmpty && !callToAction && (
+                  <span className="text-rose-200 drop-shadow-sm">
+                    {t('table.actions.allIn', { defaultValue: 'All-in' })}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
