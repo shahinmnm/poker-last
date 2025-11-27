@@ -62,85 +62,77 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
     const interactive = Boolean(onSit) && !disabled && (callToAction || isEmpty)
     const avatarSize = callToAction ? AVATAR_SIZE.cta : AVATAR_SIZE.base
 
-    const textMuted = hasFolded ? 'text-white/60' : 'text-white'
-    const opacityState = hasFolded ? 'opacity-70' : 'opacity-100'
+    const textMuted = hasFolded ? 'text-white/50' : 'text-white'
+    const opacityState = hasFolded ? 'opacity-60' : 'opacity-100'
 
     const ringAccent = isActive
       ? 'shadow-[0_0_0_3px_rgba(52,211,153,0.9)] animate-[pulse_1.2s_ease-in-out_infinite]'
       : isHero
-        ? 'shadow-[0_0_0_2.5px_rgba(34,211,238,0.85)] ring-2 ring-cyan-300/50 shadow-cyan-400/40'
-        : 'shadow-[0_0_0_1.5px_rgba(255,255,255,0.22)]'
+        ? 'shadow-[0_0_0_2.5px_rgba(34,211,238,0.85)] ring-2 ring-cyan-300/50 shadow-cyan-400/50'
+        : 'shadow-[0_0_0_1.5px_rgba(255,255,255,0.25)]'
 
     const avatarTone = useMemo(() => {
-      if (callToAction) return 'border-emerald-200/80 bg-emerald-300/10 text-emerald-50'
-      if (isEmpty) return 'border-white/60 bg-white/5 text-white'
-      if (isHero) return 'border-cyan-200/80 bg-gradient-to-br from-cyan-300/15 via-white/5 to-emerald-300/10'
-      return 'border-white/50 bg-gradient-to-br from-white/10 to-white/0'
+      if (callToAction) return 'border-emerald-200/90 bg-emerald-400/10 text-emerald-50'
+      if (isEmpty) return 'border-white/60 bg-white/10 text-white'
+      if (isHero) return 'border-cyan-200/80 bg-gradient-to-br from-cyan-300/15 via-white/5 to-emerald-300/15'
+      return 'border-white/60 bg-gradient-to-br from-white/15 to-white/5'
     }, [callToAction, isEmpty, isHero])
 
     return (
       <div
         ref={ref}
-        className={`relative flex min-w-[108px] flex-col items-center gap-2 text-white drop-shadow-[0_10px_26px_rgba(0,0,0,0.35)] transition-transform duration-300 ${
-          interactive ? 'cursor-pointer hover:-translate-y-1' : 'cursor-default'
+        className={`relative flex min-w-[112px] max-w-[28vw] flex-col items-center gap-1.5 text-white drop-shadow-[0_10px_26px_rgba(0,0,0,0.45)] transition-transform duration-300 ${
+          interactive ? 'cursor-pointer hover:-translate-y-1.5' : 'cursor-default'
         } ${opacityState}`}
         onClick={interactive ? onSit : undefined}
-        style={{ width: callToAction ? 'min(52vw, 196px)' : 'min(32vw, 176px)' }}
+        style={{ width: callToAction ? 'min(56vw, 214px)' : 'min(28vw, 180px)' }}
       >
-        <div className="flex items-center gap-3">
+        <div
+          className={`relative flex flex-col items-center gap-2 rounded-2xl bg-black/20 px-3 py-2 backdrop-blur-sm ${
+            isHero ? 'ring-1 ring-cyan-200/30' : 'ring-1 ring-white/10'
+          }`}
+          style={{ width: '100%' }}
+        >
           <div
             className={`relative flex items-center justify-center rounded-full border-2 ${avatarTone} ${ringAccent}`}
-            style={{ height: `${avatarSize + 6}px`, width: `${avatarSize + 6}px` }}
+            style={{ height: `${avatarSize + 10}px`, width: `${avatarSize + 10}px` }}
           >
             {isEmpty ? (
               <FontAwesomeIcon icon={faPlus} className="text-base opacity-80" />
             ) : (
               <span className="text-sm font-bold drop-shadow-sm">{initials}</span>
             )}
+            {showFoldedLabel && (
+              <div className="absolute -bottom-2 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-white shadow">
+                {t('table.folded', { defaultValue: 'FOLD' })}
+              </div>
+            )}
+            {isSittingOut && !hasFolded && (
+              <div className="absolute -bottom-2 rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-white/90 shadow">
+                {t('table.sittingOut', { defaultValue: 'Sit out' })}
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-col items-start gap-1 text-left">
-            <div className="flex items-center gap-2">
-              {positionLabel && !callToAction && (
-                <span className="rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-50">
-                  {positionLabel}
-                </span>
-              )}
-              {isAllIn && !isEmpty && !callToAction && (
-                <span className="rounded-full border border-rose-200/60 bg-rose-200/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-rose-50">
-                  {t('table.actions.allIn', { defaultValue: 'All-in' })}
-                </span>
-              )}
-              {showFoldedLabel && (
-                <span className="rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
-                  {t('table.folded', { defaultValue: 'Folded' })}
-                </span>
-              )}
-              {isSittingOut && !hasFolded && (
-                <span className="rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/90">
-                  {t('table.sittingOut', { defaultValue: 'Sit out' })}
-                </span>
-              )}
-            </div>
-
+          <div className="flex flex-col items-center gap-1 text-center">
             {callToAction || isEmpty ? (
               <button
                 type="button"
                 disabled={disabled || !interactive}
-                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.12em] shadow-sm transition-all ${
+                className={`flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-semibold uppercase tracking-wide shadow-lg transition-all ${
                   disabled
-                    ? 'border-white/15 bg-white/5 text-white/60'
-                    : 'border-emerald-200/60 bg-emerald-300/10 text-emerald-50 hover:border-emerald-200 hover:bg-emerald-300/20'
+                    ? 'bg-white/10 text-white/60'
+                    : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-emerald-950 hover:brightness-110'
                 }`}
               >
-                {t('table.actions.takeSeat', { defaultValue: 'Take seat' })}
+                {t('table.actions.takeSeat', { defaultValue: 'Sit at Table' })}
               </button>
             ) : (
               <>
-                <div className={`flex items-center gap-2 text-[12px] font-semibold leading-tight ${textMuted}`}>
-                  <span className="max-w-[152px] truncate leading-snug">{name}</span>
+                <div className={`flex items-center gap-1 text-[12px] font-semibold leading-tight ${textMuted}`}>
+                  <span className="max-w-[136px] truncate leading-snug">{name}</span>
                   {showYouBadge && (
-                    <span className="rounded-full bg-sky-300/90 px-1.5 py-0.5 text-[9px] font-black uppercase text-black shadow-sm">
+                    <span className="rounded-full bg-sky-400/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-black shadow-sm">
                       {t('table.players.youTag', { defaultValue: 'You' })}
                     </span>
                   )}
@@ -152,8 +144,16 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
               </>
             )}
 
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
-              {seatLabel}
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+              <span>{seatLabel}</span>
+              {positionLabel && !callToAction && (
+                <span className="text-emerald-100 drop-shadow">{positionLabel}</span>
+              )}
+              {isAllIn && !isEmpty && !callToAction && (
+                <span className="text-rose-200 drop-shadow-sm">
+                  {t('table.actions.allIn', { defaultValue: 'All-in' })}
+                </span>
+              )}
             </div>
           </div>
         </div>

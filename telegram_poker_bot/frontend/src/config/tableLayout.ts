@@ -4,8 +4,8 @@ export interface SeatPosition {
   isHeroPosition?: boolean
 }
 
-const TABLE_CENTER = { x: 50, y: 50 }
-const TABLE_RADIUS = { x: 47.5, y: 44.5 }
+const TABLE_CENTER = { x: 50, y: 54 }
+const TABLE_RADIUS = { x: 47.5, y: 47.5 }
 
 const angleToPosition = (angleDegrees: number): SeatPosition => {
   const radians = (angleDegrees * Math.PI) / 180
