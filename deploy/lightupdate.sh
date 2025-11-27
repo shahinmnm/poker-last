@@ -27,6 +27,31 @@ WITH_NGINX=false
 RUN_MIGRATIONS=false
 PRUNE_IMAGES=false
 
+LOG_SIZE_THRESHOLD="${LOG_SIZE_THRESHOLD:-100M}"
+BACKUP_DIR="${BACKUP_DIR:-${REPO_ROOT}/backups}"
+
+backup_env_file() {
+  if [[ ! -f "${ENV_FILE}" ]]; then
+    log_warn "Environment file ${ENV_FILE} not found; skipping backup"
+    return
+  fi
+
+  local timestamp backup_path
+  timestamp="$(date +%Y%m%d_%H%M%S)"
+
+  if ! mkdir -p "${BACKUP_DIR}"; then
+    log_warn "Unable to create backup directory ${BACKUP_DIR}; skipping environment backup"
+    return
+  fi
+
+  backup_path="${BACKUP_DIR}/.env.backup.${timestamp}"
+  if cp "${ENV_FILE}" "${backup_path}"; then
+    log_info "Backed up environment file to ${backup_path}"
+  else
+    log_warn "Failed to back up environment file to ${backup_path}"
+  fi
+}
+
 usage() {
   cat <<'USAGE'
 Light update: quickly redeploy code changes without pulling or rebuilding images.
