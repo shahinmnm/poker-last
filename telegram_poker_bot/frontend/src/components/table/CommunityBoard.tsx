@@ -24,14 +24,14 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
     return () => window.clearTimeout(timer)
   }, [potAmount])
 
-  const cardHeight = 'clamp(62px, 12vw, 88px)'
-  const cardWidth = 'clamp(44px, 9vw, 64px)'
+  const cardHeight = 'clamp(64px, 13vw, 96px)'
+  const cardWidth = 'clamp(46px, 9.5vw, 68px)'
 
   return (
-    <div className="flex w-full flex-col items-center gap-2.5" style={{ minHeight: 'clamp(128px, 20vh, 200px)' }}>
+    <div className="flex w-full flex-col items-center gap-3" style={{ minHeight: 'clamp(150px, 22vh, 230px)' }}>
       <div
         ref={potRef}
-        className={`relative flex min-w-[7rem] max-w-[30vw] flex-col items-center gap-0.5 rounded-full border border-amber-100/30 bg-gradient-to-br from-amber-300/80 via-amber-200/80 to-amber-400/80 px-3 py-1.5 text-center shadow-[0_12px_32px_rgba(249,168,38,0.35)] backdrop-blur-xl transition ${
+        className={`relative flex min-w-[7.5rem] max-w-[30vw] flex-col items-center gap-1 rounded-full border border-amber-100/30 bg-gradient-to-br from-amber-300/80 via-amber-200/80 to-amber-400/80 px-3 py-2 text-center shadow-[0_12px_38px_rgba(249,168,38,0.4)] backdrop-blur-xl transition ${
           isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''
         }`}
       >
@@ -55,7 +55,7 @@ export default function CommunityBoard({ potAmount, cards, highlightedCards = []
                 style={{ transform: `translateY(${offset * 2}px)` }}
               >
                 <div
-                  className="flex items-center justify-center rounded-lg border border-white/20 bg-white/10 shadow-[0_10px_20px_-12px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+                  className="flex items-center justify-center rounded-xl border border-white/25 bg-white/15 shadow-[0_10px_24px_-12px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
                   style={{ height: cardHeight, width: cardWidth }}
                 >
                   {card ? (
