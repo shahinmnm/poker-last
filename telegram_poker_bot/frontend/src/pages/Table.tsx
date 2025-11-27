@@ -1305,10 +1305,79 @@ export default function TablePage() {
   return (
     <PokerFeltBackground>
       <Toast message={toast.message} visible={toast.visible} />
-      
+
       {/* Chip Animations */}
       <ChipFlyManager animations={chipAnimations} onAnimationComplete={handleAnimationComplete} />
-      
+
+      {tableDetails && (
+        <div className="pointer-events-none fixed inset-x-0 top-[2%] z-[1100] px-3 sm:px-6">
+          <div className="mx-auto flex w-full max-w-[1440px] justify-center sm:justify-end">
+            <div className="pointer-events-auto flex w-full max-w-[960px] flex-col items-stretch gap-3 sm:w-auto sm:items-end">
+              <button
+                type="button"
+                onClick={() => setShowTableMenu((prev) => !prev)}
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 sm:w-auto"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.28)]" />
+                {t('table.meta.tableMenu', { defaultValue: 'Table Capsule' })}
+              </button>
+
+              {showTableMenu && (
+                <div className="w-full rounded-3xl border border-white/15 bg-white/12 p-4 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl sm:w-80">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
+                      <p className="text-lg font-semibold leading-tight">
+                        {tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
+                      {tableDetails.visibility === 'private' || tableDetails.is_private
+                        ? t('table.meta.private', { defaultValue: 'Private' })
+                        : t('table.meta.public', { defaultValue: 'Public' })}
+                    </div>
+                  </div>
+
+                  <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.blinds', { defaultValue: 'Blinds' })}</p>
+                      <p className="text-sm font-semibold">{tableDetails.small_blind}/{tableDetails.big_blind}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
+                      <p className="text-sm font-semibold">{tableDetails.player_count} / {tableDetails.max_players}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
+                      <p className="text-sm font-semibold">{tableDetails.starting_stack}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
+                      <p className="text-sm font-semibold">{potDisplayAmount}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Button variant="secondary" size="sm" block onClick={() => setShowRecentHands(true)}>
+                      {t('table.actions.recentHands', { defaultValue: 'Recent hands' })}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      block
+                      onClick={handleLeave}
+                      disabled={!canLeave || isLeaving}
+                    >
+                      {isLeaving ? t('table.actions.leaving') : t('table.actions.leave', { defaultValue: 'Leave table' })}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Modal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -1323,7 +1392,7 @@ export default function TablePage() {
       
       <div
         className="relative flex min-h-screen flex-col px-3 pb-24 sm:px-6"
-        style={{ paddingTop: '2%' }}
+        style={{ paddingTop: 'clamp(140px, 16vh, 200px)' }}
       >
         {/* Arena - Game Content */}
         {liveState ? (
@@ -1348,86 +1417,17 @@ export default function TablePage() {
               <div
                 className="absolute inset-0"
                 style={{
-                  paddingTop: '2%',
+                  paddingTop: 'clamp(16px, 2vh, 32px)',
                   paddingBottom: viewerIsSeated ? '148px' : '126px',
                   paddingInline: '2%',
                 }}
               >
-                <div
-                  ref={tableAreaRef}
-                  className="relative mx-auto h-full w-full max-w-[1380px] min-h-[700px]"
-                >
+                <div ref={tableAreaRef} className="relative mx-auto h-full w-full max-w-[1380px] min-h-[700px]">
                   <div className="absolute inset-[1%] z-0">
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
                     <div className="absolute inset-[10px] rounded-[999px] border-[12px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
                     <div className="absolute inset-[22px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
                   </div>
-
-                  {tableDetails && (
-                    <div className="pointer-events-none absolute right-3 top-4 z-30 flex flex-col items-end gap-3 sm:right-6">
-                      <button
-                        type="button"
-                        onClick={() => setShowTableMenu((prev) => !prev)}
-                        className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25"
-                      >
-                        <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.28)]" />
-                        {t('table.meta.tableMenu', { defaultValue: 'Table Capsule' })}
-                      </button>
-
-                      {showTableMenu && (
-                        <div className="pointer-events-auto w-72 rounded-3xl border border-white/15 bg-white/12 p-4 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl">
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
-                              <p className="text-lg font-semibold leading-tight">{tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
-                            </div>
-                            <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
-                              {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
-                            </div>
-                          </div>
-
-                          <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.blinds', { defaultValue: 'Blinds' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.small_blind}/{tableDetails.big_blind}</p>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.player_count} / {tableDetails.max_players}</p>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.starting_stack}</p>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
-                              <p className="text-sm font-semibold">{potDisplayAmount}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              block
-                              onClick={() => setShowRecentHands(true)}
-                            >
-                              {t('table.actions.recentHands', { defaultValue: 'Recent hands' })}
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              block
-                              onClick={handleLeave}
-                              disabled={!canLeave || isLeaving}
-                            >
-                              {isLeaving ? t('table.actions.leaving') : t('table.actions.leave', { defaultValue: 'Leave table' })}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   <div className="absolute left-1/2 top-[22%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
@@ -1469,10 +1469,6 @@ export default function TablePage() {
                       player?.in_hand && playerKey === currentActorUserId?.toString(),
                     )
                     const hasFolded = Boolean(player && !player.in_hand && liveState?.hand_id)
-                    const seatLabel = t('table.seat.label', {
-                      number: seatNumber + 1,
-                      defaultValue: `Seat ${seatNumber + 1}`,
-                    })
                     const isSittingOut = Boolean(player?.is_sitting_out_next_hand)
                     const isAllIn = Boolean(player?.is_all_in || (player?.stack ?? 0) <= 0)
                     const showSeatCta =
@@ -1574,7 +1570,6 @@ export default function TablePage() {
                           <SeatCapsule
                             name={player ? displayName : t('table.seat.empty', { defaultValue: 'Empty seat' })}
                             stack={player?.stack}
-                            seatLabel={seatLabel}
                             positionLabel={positionLabel}
                             isHero={isHeroPlayer}
                             isActive={isActivePlayer}
