@@ -244,12 +244,12 @@ export default function TablePage() {
     if (typeof window === 'undefined') return
 
     updateTableLayout()
+    // Only respond to resizes; scroll bounce in Telegram can fire scroll events
+    // that momentarily shift measurements and cause visible jumps.
     window.addEventListener('resize', updateTableLayout)
-    window.addEventListener('scroll', updateTableLayout, { passive: true })
 
     const viewport = window.visualViewport
     viewport?.addEventListener('resize', updateTableLayout)
-    viewport?.addEventListener('scroll', updateTableLayout)
 
     let ro: ResizeObserver | null = null
     try {
@@ -263,9 +263,7 @@ export default function TablePage() {
 
     return () => {
       window.removeEventListener('resize', updateTableLayout)
-      window.removeEventListener('scroll', updateTableLayout)
       viewport?.removeEventListener('resize', updateTableLayout)
-      viewport?.removeEventListener('scroll', updateTableLayout)
       if (ro) ro.disconnect()
     }
   }, [updateTableLayout])
