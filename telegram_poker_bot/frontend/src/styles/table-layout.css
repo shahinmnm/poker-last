@@ -1,0 +1,85 @@
+:root {
+  /* Adjust these tokens to move the table UI vertically and horizontally */
+  --header-top-offset: calc(env(safe-area-inset-top, 0px) + 3vh); /* change to raise/lower header */
+  --table-top-offset: 12vh; /* change to raise/lower the felt oval */
+  --streets-row-offset: 22vh; /* change to move pot + street capsules */
+  --seat-row-offset: 68vh; /* change to move seats cluster */
+  --start-button-bottom-offset: calc(env(safe-area-inset-bottom, 0px) + 4vh); /* change to move action dock */
+  --table-horizontal-padding: 4vw; /* change to tighten/loosen side padding */
+  --table-vertical-gap: 2vh; /* vertical rhythm between clusters */
+  --table-min-height: 86vh;
+}
+
+.table-screen {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--table-vertical-gap);
+  padding-inline: var(--table-horizontal-padding);
+  padding-top: var(--header-top-offset);
+  padding-bottom: calc(var(--start-button-bottom-offset) + 2vh);
+}
+
+.table-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding-inline: 2vw;
+}
+
+.table-area {
+  position: relative;
+  width: 100%;
+  max-width: 1380px;
+  min-height: var(--table-min-height);
+}
+
+.table-oval {
+  position: absolute;
+  left: 1%;
+  right: 1%;
+  bottom: 1%;
+  top: var(--table-top-offset);
+}
+
+.table-header-capsule {
+  position: absolute;
+  left: 50%;
+  top: var(--header-top-offset);
+  transform: translateX(-50%);
+  width: min(92vw, 440px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--table-vertical-gap);
+}
+
+.table-board-stack {
+  position: absolute;
+  left: 50%;
+  top: var(--streets-row-offset);
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 740px;
+}
+
+.table-action-dock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--start-button-bottom-offset);
+  pointer-events: none;
+}
+
+.table-action-dock > * {
+  pointer-events: auto;
+}
+
+.table-bottom-padding {
+  padding-bottom: var(--seat-row-offset);
+}

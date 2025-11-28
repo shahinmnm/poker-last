@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
+import { useCallback, useEffect, useState, useRef, useMemo, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -25,6 +25,7 @@ import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
 import { getSeatLayout, type SeatPosition } from '@/config/tableLayout'
+import '../styles/table-layout.css'
 import type {
   AllowedAction,
   AllowedActionsPayload,
@@ -155,15 +156,8 @@ export default function TablePage() {
   
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<string, HTMLElement>>(new Map())
-  const tableAreaRef = useRef<HTMLDivElement | null>(null)
-  const tableOvalRef = useRef<HTMLDivElement | null>(null)
   const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
-  const tableWrapperRef = useRef<HTMLDivElement | null>(null)
   const tableMenuRef = useRef<HTMLDivElement | null>(null)
-  const closedTopRef = useRef<number | null>(null)
-  const closedPaddingRef = useRef<number | null>(null)
-  const showTableMenuRef = useRef<boolean>(showTableMenu)
-  const initialViewportHeightRef = useRef<number | null>(null)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -185,95 +179,6 @@ export default function TablePage() {
   useEffect(() => {
     initDataRef.current = initData
   }, [initData])
-
-  const updateTableLayout = useCallback(() => {
-    if (typeof window === 'undefined') return
-
-    if (initialViewportHeightRef.current === null) {
-      initialViewportHeightRef.current = window.innerHeight
-    }
-
-    const menuBtn = tableMenuButtonRef.current
-    const area = tableAreaRef.current
-    const wrapper = tableWrapperRef.current
-    if (!menuBtn || !area || !wrapper) return
-
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight
-    const spacingBase = initialViewportHeightRef.current
-      ? Math.min(initialViewportHeightRef.current, viewportHeight)
-      : viewportHeight
-    const spacing = spacingBase * 0.01 // 1vh based on the smallest viewport so far
-
-    const menuBottom = menuBtn.offsetTop + menuBtn.offsetHeight
-    const areaTop = area.offsetTop
-    const wrapperTop = wrapper.offsetTop
-
-    const topPx = Math.max(menuBottom - areaTop + spacing, 0)
-    const desiredPadding = Math.max(menuBottom - wrapperTop + spacing, 0)
-    const measurements = { topPx: Math.round(topPx), paddingPx: Math.round(Math.max(desiredPadding, 24)) }
-
-    const applyMeasurements = (topValue: number, paddingValue: number) => {
-      area.style.setProperty('--table-oval-top', `${topValue}px`)
-      wrapper.style.paddingTop = `${paddingValue}px`
-    }
-
-    // If menu is closed, compute and store measurements. If it's open and
-    // we have stored closed values, re-apply them (do not recompute from open state).
-    if (!showTableMenuRef.current) {
-      // Only update if values are reasonable (avoid 0/NaN/very small values)
-      if (measurements.topPx > 10 && measurements.paddingPx > 10) {
-        closedTopRef.current = measurements.topPx
-        closedPaddingRef.current = measurements.paddingPx
-        applyMeasurements(measurements.topPx, measurements.paddingPx)
-      } else if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
-        // If invalid, re-apply last known good values
-        applyMeasurements(closedTopRef.current, closedPaddingRef.current)
-      }
-    } else if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
-      applyMeasurements(closedTopRef.current, closedPaddingRef.current)
-    } else if (measurements.topPx > 10 && measurements.paddingPx > 10) {
-      applyMeasurements(measurements.topPx, measurements.paddingPx)
-    }
-  }, [])
-
-  // Compute and apply a CSS variable and wrapper padding so the table oval
-  // stays positioned beneath the capsule menu. We persist closed-state
-  // measurements in refs so opening the capsule does not recompute and
-  // move the table. The effect sets up listeners once on mount.
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    updateTableLayout()
-    // Only respond to resizes; scroll bounce in Telegram can fire scroll events
-    // that momentarily shift measurements and cause visible jumps.
-    window.addEventListener('resize', updateTableLayout)
-
-    const viewport = window.visualViewport
-    viewport?.addEventListener('resize', updateTableLayout)
-
-    let ro: ResizeObserver | null = null
-    try {
-      ro = new ResizeObserver(updateTableLayout)
-      if (tableMenuButtonRef.current) ro.observe(tableMenuButtonRef.current)
-      if (tableAreaRef.current) ro.observe(tableAreaRef.current)
-      if (tableWrapperRef.current) ro.observe(tableWrapperRef.current)
-    } catch (e) {
-      // ignore
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateTableLayout)
-      viewport?.removeEventListener('resize', updateTableLayout)
-      if (ro) ro.disconnect()
-    }
-  }, [updateTableLayout])
-
-  useEffect(() => {
-    showTableMenuRef.current = showTableMenu
-    if (typeof window !== 'undefined') {
-      window.requestAnimationFrame(updateTableLayout)
-    }
-  }, [showTableMenu, updateTableLayout])
 
   // Close the table menu when clicking outside the button or the menu itself
   useEffect(() => {
@@ -1352,7 +1257,7 @@ export default function TablePage() {
       })
       if (viewerIsCreator) {
         return (
-          <div className="absolute inset-0 z-40 flex items-end justify-center pb-12 pointer-events-none">
+          <div className="table-action-dock z-40">
             <div className="pointer-events-auto flex flex-col items-center gap-4">
               <button
                 type="button"
@@ -1369,7 +1274,7 @@ export default function TablePage() {
 
       if (viewerIsSeated) {
         return (
-          <div className="absolute inset-0 z-40 flex items-end justify-center pb-12 pointer-events-none">
+          <div className="table-action-dock z-40">
             <div className="pointer-events-auto px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
               {t('table.messages.waitingForHost')}
             </div>
@@ -1434,10 +1339,7 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <div
-        className="relative flex min-h-screen flex-col px-3 pb-24 sm:px-6"
-        style={{ paddingTop: '2%' }}
-      >
+      <div className="table-screen">
         {/* Arena - Game Content */}
         {liveState ? (
           <div className="flex flex-1 flex-col gap-3">
@@ -1458,38 +1360,19 @@ export default function TablePage() {
                 </div>
               ) : null}
 
-              <div
-                ref={tableWrapperRef}
-                className="absolute inset-0"
-                style={{
-                  paddingTop: '2%',
-                  paddingBottom: viewerIsSeated ? '148px' : '126px',
-                  paddingInline: '2%',
-                }}
-              >
+              <div className="table-wrapper">
                 <div
-                  ref={tableAreaRef}
-                  className="relative mx-auto h-full w-full max-w-[1380px] min-h-[700px]"
+                  className="table-area table-bottom-padding"
+                  style={{ '--seat-row-offset': viewerIsSeated ? '72vh' : '68vh' } as CSSProperties}
                 >
-                  {/*
-                    The table background oval is offset from the top to avoid overlapping
-                    the "Table Capsule" UI. We use a calc offset: capsule approx height
-                    (4rem) + 1vh to keep ~1% viewport height gap.
-                  */}
-                  { /* dynamic top is applied via CSS variable set in the component hooks */ }
-
-                  <div
-                    ref={tableOvalRef}
-                    className="absolute left-[1%] right-[1%] bottom-[1%] z-0"
-                    style={{ top: 'var(--table-oval-top, calc(4rem + 1vh))' }}
-                  >
+                  <div className="table-oval z-0">
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
                     <div className="absolute inset-[10px] rounded-[999px] border-[12px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
                     <div className="absolute inset-[22px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
                   </div>
 
                   {tableDetails && (
-                    <div className="pointer-events-none absolute left-1/2 top-2 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
+                    <div className="table-header-capsule pointer-events-none z-30">
                       <button
                         ref={tableMenuButtonRef}
                         type="button"
@@ -1566,7 +1449,7 @@ export default function TablePage() {
                     </div>
                   )}
 
-                  <div className="absolute left-1/2 top-[22%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
+                  <div className="table-board-stack z-20 flex flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       cards={liveState.board ?? []}
