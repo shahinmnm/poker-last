@@ -1,0 +1,32 @@
+Read the current git changes using:
+
+- git diff --stat
+- git diff
+
+Based on the actual changes, generate:
+
+1. BRANCH_NAME
+   • kebab-case
+   • concise
+   • prefix with "auto/"
+   • max length 40 chars
+   • no spaces, only [a-z0-9-]
+
+2. PR_TITLE
+   • clean, capitalized short summary of the change
+
+3. PR_BODY
+   • 3–6 bullet points summarizing the changes
+   • use $'...\n...' syntax for multiline
+
+Then output a single command that sets all three variables and runs:
+
+./auto-pr-core.sh
+
+Format must be exactly:
+
+BRANCH_NAME="..." PR_TITLE="..." PR_BODY=$'....' ./auto-pr-core.sh
+
+Do NOT ask me questions.
+Do NOT explain anything.
+Just generate and execute the command.
