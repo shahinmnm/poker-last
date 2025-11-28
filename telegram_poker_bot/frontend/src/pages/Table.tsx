@@ -25,6 +25,7 @@ import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
 import { getSeatLayout, type SeatPosition } from '@/config/tableLayout'
+import '../styles/table-layout.css'
 import type {
   AllowedAction,
   AllowedActionsPayload,
@@ -160,14 +161,8 @@ export default function TablePage() {
   
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<string, HTMLElement>>(new Map())
-  const tableAreaRef = useRef<HTMLDivElement | null>(null)
-    const tableOvalRef = useRef<HTMLDivElement | null>(null)
-    const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
-    const tableWrapperRef = useRef<HTMLDivElement | null>(null)
-    const tableMenuRef = useRef<HTMLDivElement | null>(null)
-  const closedTopRef = useRef<number | null>(null)
-  const closedPaddingRef = useRef<number | null>(null)
-  const showTableMenuRef = useRef<boolean>(showTableMenu)
+  const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
+  const tableMenuRef = useRef<HTMLDivElement | null>(null)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -189,83 +184,6 @@ export default function TablePage() {
   useEffect(() => {
     initDataRef.current = initData
   }, [initData])
-
-  // Compute and apply a CSS variable and wrapper padding so the table oval
-  // stays positioned beneath the capsule menu. We persist closed-state
-  // measurements in refs so opening the capsule does not recompute and
-  // move the table. The effect sets up listeners once on mount.
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const computeMeasurements = () => {
-      const menuBtn = tableMenuButtonRef.current
-      const area = tableAreaRef.current
-      const wrapper = tableWrapperRef.current
-      if (!menuBtn || !area || !wrapper) return null
-
-      const menuRect = menuBtn.getBoundingClientRect()
-      const areaRect = area.getBoundingClientRect()
-      const wrapperRect = wrapper.getBoundingClientRect()
-      const spacing = window.innerHeight * 0.01 // 1vh
-
-      const topPx = Math.max(menuRect.bottom - areaRect.top + spacing, 0)
-      const desiredPadding = Math.max(menuRect.bottom - wrapperRect.top + spacing, 0)
-      return { topPx: Math.round(topPx), paddingPx: Math.round(Math.max(desiredPadding, 24)) }
-    }
-
-    const applyMeasurements = (topPx: number, paddingPx: number) => {
-      const area = tableAreaRef.current
-      const wrapper = tableWrapperRef.current
-      if (!area || !wrapper) return
-      area.style.setProperty('--table-oval-top', `${topPx}px`)
-      wrapper.style.paddingTop = `${paddingPx}px`
-    }
-
-    const updateHandler = () => {
-      // If menu is closed, compute and store measurements. If it's open and
-      // we have stored closed values, re-apply them (do not recompute from open state).
-      if (!showTableMenuRef.current) {
-        const m = computeMeasurements()
-        // Only update if values are reasonable (avoid 0/NaN/very small values)
-        if (m && m.topPx > 10 && m.paddingPx > 10) {
-          closedTopRef.current = m.topPx
-          closedPaddingRef.current = m.paddingPx
-          applyMeasurements(m.topPx, m.paddingPx)
-        } else if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
-          // If invalid, re-apply last known good values
-          applyMeasurements(closedTopRef.current, closedPaddingRef.current)
-        }
-      } else {
-        if (closedTopRef.current !== null && closedPaddingRef.current !== null) {
-          applyMeasurements(closedTopRef.current, closedPaddingRef.current)
-        } else {
-          const m = computeMeasurements()
-          if (m && m.topPx > 10 && m.paddingPx > 10) applyMeasurements(m.topPx, m.paddingPx)
-        }
-      }
-    }
-
-    // Initial measurement
-    updateHandler()
-    window.addEventListener('resize', updateHandler)
-    window.addEventListener('scroll', updateHandler, { passive: true })
-
-    let ro: ResizeObserver | null = null
-    try {
-      ro = new ResizeObserver(updateHandler)
-      if (tableMenuButtonRef.current) ro.observe(tableMenuButtonRef.current)
-      if (tableAreaRef.current) ro.observe(tableAreaRef.current)
-      if (tableWrapperRef.current) ro.observe(tableWrapperRef.current)
-    } catch (e) {
-      // ignore
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateHandler)
-      window.removeEventListener('scroll', updateHandler)
-      if (ro) ro.disconnect()
-    }
-  }, [])
 
   // Close the table menu when clicking outside the button or the menu itself
   useEffect(() => {
@@ -1344,7 +1262,7 @@ export default function TablePage() {
       })
       if (viewerIsCreator) {
         return (
-          <div className="absolute inset-0 z-40 flex items-end justify-center pb-12 pointer-events-none">
+          <div className="table-action-dock z-40">
             <div className="pointer-events-auto flex flex-col items-center gap-4">
               <button
                 type="button"
@@ -1361,7 +1279,7 @@ export default function TablePage() {
 
       if (viewerIsSeated) {
         return (
-          <div className="absolute inset-0 z-40 flex items-end justify-center pb-12 pointer-events-none">
+          <div className="table-action-dock z-40">
             <div className="pointer-events-auto px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
               {t('table.messages.waitingForHost')}
             </div>
@@ -1426,10 +1344,7 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      <div
-        className="relative flex min-h-screen flex-col px-3 pb-24 sm:px-6"
-        style={{ paddingTop: '2%' }}
-      >
+      <div className="table-screen">
         {/* Arena - Game Content */}
         {liveState ? (
           <div className="flex flex-1 flex-col gap-3">
@@ -1450,38 +1365,19 @@ export default function TablePage() {
                 </div>
               ) : null}
 
-              <div
-                ref={tableWrapperRef}
-                className="absolute inset-0"
-                style={{
-                  paddingTop: '2%',
-                  paddingBottom: viewerIsSeated ? '148px' : '126px',
-                  paddingInline: '2%',
-                }}
-              >
+              <div className="table-wrapper">
                 <div
-                  ref={tableAreaRef}
-                  className="relative mx-auto h-full w-full max-w-[1380px] min-h-[700px]"
+                  className="table-area table-bottom-padding"
+                  style={{ '--seat-row-offset': viewerIsSeated ? '72vh' : '68vh' } as CSSProperties}
                 >
-                  {/*
-                    The table background oval is offset from the top to avoid overlapping
-                    the "Table Capsule" UI. We use a calc offset: capsule approx height
-                    (4rem) + 1vh to keep ~1% viewport height gap.
-                  */}
-                  { /* dynamic top is applied via CSS variable set in the component hooks */ }
-
-                  <div
-                    ref={tableOvalRef}
-                    className="absolute left-[1%] right-[1%] bottom-[1%] z-0"
-                    style={{ top: 'var(--table-oval-top, calc(4rem + 1vh))' }}
-                  >
+                  <div className="table-oval z-0">
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
                     <div className="absolute inset-[10px] rounded-[999px] border-[12px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
                     <div className="absolute inset-[22px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
                   </div>
 
                   {tableDetails && (
-                                    <div className="pointer-events-none absolute left-1/2 top-4 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
+                    <div className="table-header-capsule pointer-events-none z-30">
                       <button
                         ref={tableMenuButtonRef}
                         type="button"
@@ -1489,10 +1385,10 @@ export default function TablePage() {
                         className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
                         style={TABLE_CAPSULE_STYLE}
                       >
-                                        <span
-                                          className={`h-2 w-2 rounded-full shadow-[0_0_0_6px_rgba(16,185,129,0.28)] ${
-                                            wsStatus === 'connected'
-                                              ? 'bg-emerald-300'
+                        <span
+                          className={`h-2 w-2 rounded-full shadow-[0_0_0_6px_rgba(16,185,129,0.28)] ${
+                            wsStatus === 'connected'
+                              ? 'bg-emerald-300'
                                               : wsStatus === 'connecting'
                                                 ? 'bg-amber-300 animate-pulse'
                                                 : 'bg-rose-400 animate-pulse'
@@ -1507,10 +1403,10 @@ export default function TablePage() {
                           className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-3 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[50vw] max-w-[95%] text-sm"
                           style={TABLE_CAPSULE_STYLE}
                         >
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <div>
+                          <div className="mb-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-[1fr_auto] sm:items-center sm:text-left">
+                            <div className="space-y-1">
                               <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
-                              <p className="text-lg font-semibold leading-tight">{tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
+                              <p className="text-base font-semibold leading-tight">{tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
                             </div>
                             <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
                               {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
@@ -1518,21 +1414,21 @@ export default function TablePage() {
                           </div>
 
                           <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.blinds', { defaultValue: 'Blinds' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.small_blind}/{tableDetails.big_blind}</p>
+                              <p className="text-sm font-semibold leading-snug">{tableDetails.small_blind}/{tableDetails.big_blind}</p>
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.player_count} / {tableDetails.max_players}</p>
+                              <p className="text-sm font-semibold leading-snug">{tableDetails.player_count} / {tableDetails.max_players}</p>
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
-                              <p className="text-sm font-semibold">{tableDetails.starting_stack}</p>
+                              <p className="text-sm font-semibold leading-snug">{tableDetails.starting_stack}</p>
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
-                              <p className="text-sm font-semibold">{potDisplayAmount}</p>
+                              <p className="text-sm font-semibold leading-snug">{potDisplayAmount}</p>
                             </div>
                           </div>
 
@@ -1560,7 +1456,7 @@ export default function TablePage() {
                     </div>
                   )}
 
-                  <div className="absolute left-1/2 top-[22%] z-20 flex w-full max-w-[740px] -translate-x-1/2 flex-col items-center gap-2 px-3 sm:px-4">
+                  <div className="table-board-stack z-20 flex flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       cards={liveState.board ?? []}
