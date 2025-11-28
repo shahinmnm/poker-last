@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -116,6 +116,11 @@ const getCardPlacement = (slot: SeatPosition): CardPlacement => {
 
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
+const TABLE_CAPSULE_MENU_WIDTH = '50vw'
+const TABLE_CAPSULE_STYLE: CSSProperties = {
+  width: TABLE_CAPSULE_MENU_WIDTH,
+
+}
 /**
  * Street names that indicate active gameplay.
  * During gameplay, liveState.status contains the current street name (preflop, flop, turn, river)
@@ -1478,10 +1483,11 @@ export default function TablePage() {
                   {tableDetails && (
                                     <div className="pointer-events-none absolute left-1/2 top-4 z-30 flex flex-col items-center gap-3 transform -translate-x-1/2">
                       <button
-                                        ref={tableMenuButtonRef}
-                                        type="button"
-                                        onClick={() => setShowTableMenu((prev) => !prev)}
-                                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
+                        ref={tableMenuButtonRef}
+                        type="button"
+                        onClick={() => setShowTableMenu((prev) => !prev)}
+                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
+                        style={TABLE_CAPSULE_STYLE}
                       >
                                         <span
                                           className={`h-2 w-2 rounded-full shadow-[0_0_0_6px_rgba(16,185,129,0.28)] ${
@@ -1499,6 +1505,7 @@ export default function TablePage() {
                         <div
                           ref={tableMenuRef}
                           className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-3 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[50vw] max-w-[95%] text-sm"
+                          style={TABLE_CAPSULE_STYLE}
                         >
                           <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
