@@ -164,6 +164,7 @@ export default function TablePage() {
   const closedPaddingRef = useRef<number | null>(null)
   const showTableMenuRef = useRef<boolean>(showTableMenu)
   const initialViewportHeightRef = useRef<number | null>(null)
+  const lastViewportRef = useRef<{ width: number; height: number } | null>(null)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -198,18 +199,34 @@ export default function TablePage() {
     const wrapper = tableWrapperRef.current
     if (!menuBtn || !area || !wrapper) return
 
+    const viewportWidth = window.innerWidth
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+    const lastViewport = lastViewportRef.current
+
+    // Ignore tiny viewport changes (Telegram bounce) once we have a stable layout.
+    if (
+      lastViewport &&
+      Math.abs(viewportWidth - lastViewport.width) < 4 &&
+      Math.abs(viewportHeight - lastViewport.height) < 72 &&
+      closedTopRef.current !== null &&
+      closedPaddingRef.current !== null
+    ) {
+      area.style.setProperty('--table-oval-top', `${closedTopRef.current}px`)
+      wrapper.style.paddingTop = `${closedPaddingRef.current}px`
+      return
+    }
+
     const spacingBase = initialViewportHeightRef.current
       ? Math.min(initialViewportHeightRef.current, viewportHeight)
       : viewportHeight
     const spacing = spacingBase * 0.01 // 1vh based on the smallest viewport so far
 
-    const menuBottom = menuBtn.offsetTop + menuBtn.offsetHeight
-    const areaTop = area.offsetTop
-    const wrapperTop = wrapper.offsetTop
+    const menuRect = menuBtn.getBoundingClientRect()
+    const areaRect = area.getBoundingClientRect()
+    const wrapperRect = wrapper.getBoundingClientRect()
 
-    const topPx = Math.max(menuBottom - areaTop + spacing, 0)
-    const desiredPadding = Math.max(menuBottom - wrapperTop + spacing, 0)
+    const topPx = Math.max(menuRect.bottom - areaRect.top + spacing, 0)
+    const desiredPadding = Math.max(menuRect.bottom - wrapperRect.top + spacing, 0)
     const measurements = { topPx: Math.round(topPx), paddingPx: Math.round(Math.max(desiredPadding, 24)) }
 
     const applyMeasurements = (topValue: number, paddingValue: number) => {
@@ -234,6 +251,8 @@ export default function TablePage() {
     } else if (measurements.topPx > 10 && measurements.paddingPx > 10) {
       applyMeasurements(measurements.topPx, measurements.paddingPx)
     }
+
+    lastViewportRef.current = { width: viewportWidth, height: viewportHeight }
   }, [])
 
   // Compute and apply a CSS variable and wrapper padding so the table oval
@@ -244,12 +263,12 @@ export default function TablePage() {
     if (typeof window === 'undefined') return
 
     updateTableLayout()
+    // Only respond to resizes; scroll bounce in Telegram can fire scroll events
+    // that momentarily shift measurements and cause visible jumps.
     window.addEventListener('resize', updateTableLayout)
-    window.addEventListener('scroll', updateTableLayout, { passive: true })
 
     const viewport = window.visualViewport
     viewport?.addEventListener('resize', updateTableLayout)
-    viewport?.addEventListener('scroll', updateTableLayout)
 
     let ro: ResizeObserver | null = null
     try {
@@ -263,9 +282,7 @@ export default function TablePage() {
 
     return () => {
       window.removeEventListener('resize', updateTableLayout)
-      window.removeEventListener('scroll', updateTableLayout)
       viewport?.removeEventListener('resize', updateTableLayout)
-      viewport?.removeEventListener('scroll', updateTableLayout)
       if (ro) ro.disconnect()
     }
   }, [updateTableLayout])
