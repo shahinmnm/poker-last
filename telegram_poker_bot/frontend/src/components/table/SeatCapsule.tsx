@@ -17,6 +17,7 @@ interface SeatCapsuleProps {
   disabled?: boolean
   showFoldedLabel?: boolean
   showYouBadge?: boolean
+  detailsPlacement?: 'inside' | 'outside'
   isSittingOut?: boolean
   isAllIn?: boolean
 }
@@ -39,11 +40,12 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       disabled = false,
       showFoldedLabel = false,
       showYouBadge = false,
+      detailsPlacement = 'inside',
       isSittingOut = false,
       isAllIn = false,
-    },
-    ref,
-  ) => {
+      },
+      ref,
+    ) => {
     const { t } = useTranslation()
 
     const initials = useMemo(() => {
@@ -61,6 +63,7 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
 
     const interactive = Boolean(onSit) && !disabled && (callToAction || isEmpty)
     const avatarSize = callToAction ? AVATAR_SIZE.cta : AVATAR_SIZE.base
+    const showDetailsInside = detailsPlacement === 'inside'
 
     const textMuted = hasFolded ? 'text-white/50' : 'text-white'
     const opacityState = hasFolded ? 'opacity-60' : 'opacity-100'
@@ -110,7 +113,7 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
           </div>
 
           <div className="flex flex-col items-center gap-0.5 text-center">
-            {callToAction || isEmpty ? (
+            {(callToAction || isEmpty) && (
               <button
                 type="button"
                 disabled={disabled || !interactive}
@@ -122,34 +125,40 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
               >
                 {t('table.actions.takeSeat', { defaultValue: 'Sit at Table' })}
               </button>
-            ) : (
+            )}
+
+            {showDetailsInside && (
               <>
-                <div className={`flex items-center gap-1 text-[11px] font-semibold leading-tight ${textMuted}`}>
-                  <span className="max-w-[132px] truncate leading-snug">{name}</span>
-                  {showYouBadge && (
-                    <span className="rounded-full bg-sky-400/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-black shadow-sm">
-                      {t('table.players.youTag', { defaultValue: 'You' })}
+                {!callToAction && !isEmpty && (
+                  <>
+                    <div className={`flex items-center gap-1 text-[11px] font-semibold leading-tight ${textMuted}`}>
+                      <span className="max-w-[132px] truncate leading-snug">{name}</span>
+                      {showYouBadge && (
+                        <span className="rounded-full bg-sky-400/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-black shadow-sm">
+                          {t('table.players.youTag', { defaultValue: 'You' })}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`flex items-center gap-1 text-[10px] font-semibold text-emerald-100 ${hasFolded ? 'opacity-60' : ''}`}>
+                      <FontAwesomeIcon icon={faCoins} className="text-[11px] text-amber-200" />
+                      <span className="tabular-nums tracking-tight">{stack?.toLocaleString?.() ?? stack}</span>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/70">
+                  <span>{seatLabel}</span>
+                  {positionLabel && !callToAction && (
+                    <span className="text-emerald-100 drop-shadow">{positionLabel}</span>
+                  )}
+                  {isAllIn && !isEmpty && !callToAction && (
+                    <span className="text-rose-200 drop-shadow-sm">
+                      {t('table.actions.allIn', { defaultValue: 'All-in' })}
                     </span>
                   )}
                 </div>
-                <div className={`flex items-center gap-1 text-[10px] font-semibold text-emerald-100 ${hasFolded ? 'opacity-60' : ''}`}>
-                  <FontAwesomeIcon icon={faCoins} className="text-[11px] text-amber-200" />
-                  <span className="tabular-nums tracking-tight">{stack?.toLocaleString?.() ?? stack}</span>
-                </div>
               </>
             )}
-
-            <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/70">
-              <span>{seatLabel}</span>
-              {positionLabel && !callToAction && (
-                <span className="text-emerald-100 drop-shadow">{positionLabel}</span>
-              )}
-              {isAllIn && !isEmpty && !callToAction && (
-                <span className="text-rose-200 drop-shadow-sm">
-                  {t('table.actions.allIn', { defaultValue: 'All-in' })}
-                </span>
-              )}
-            </div>
           </div>
         </div>
       </div>

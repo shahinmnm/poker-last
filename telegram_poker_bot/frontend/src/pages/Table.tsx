@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -24,7 +24,9 @@ import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
-import { getSeatLayout, type SeatPosition } from '@/config/tableLayout'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCoins } from '@fortawesome/free-solid-svg-icons'
+import { getSeatLayout, type SeatLayoutSlot } from '@/config/tableLayout'
 import '../styles/table-layout.css'
 import type {
   AllowedAction,
@@ -103,9 +105,9 @@ type CardPlacement = {
   rotation: number
 }
 
-const getCardPlacement = (slot: SeatPosition): CardPlacement => {
-  const offsetX = 50 - slot.xPercent
-  const offsetY = 50 - slot.yPercent
+const getCardPlacement = (slot: SeatLayoutSlot): CardPlacement => {
+  const offsetX = 50 - slot.avatarX
+  const offsetY = 50 - slot.avatarY
   const distance = Math.max(Math.hypot(offsetX, offsetY), 1)
 
   const translateX = (offsetX / distance) * 34
@@ -1524,105 +1526,149 @@ export default function TablePage() {
                       transformOrigin: 'center',
                     } as const
 
+                    const labelTitle = player ? displayName : seatLabel
+                    const formattedStack =
+                      player?.stack?.toLocaleString?.() ?? (player?.stack ?? 0)
+
                     return (
-                      <div
-                        key={`seat-${seatNumber}-${layoutIndex}`}
-                        className={`absolute z-10 ${player ? 'seat-enter' : ''}`}
-                        style={{
-                          left: `${slot.xPercent}%`,
-                          top: `${slot.yPercent}%`,
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                      >
+                      <Fragment key={`seat-${seatNumber}-${layoutIndex}`}>
                         <div
-                          className="relative flex flex-col items-center gap-1.5"
-                          ref={(el) => {
-                            if (playerKey) {
-                              if (el) {
-                                playerTileRefs.current.set(playerKey, el)
-                              } else {
-                                playerTileRefs.current.delete(playerKey)
-                              }
-                            }
+                          className={`absolute z-10 ${player ? 'seat-enter' : ''}`}
+                          style={{
+                            left: `${slot.xPercent}%`,
+                            top: `${slot.yPercent}%`,
+                            transform: 'translate(-50%, -50%)',
                           }}
                         >
-                          {shouldRenderCards && (
-                            <div className="pointer-events-none absolute flex gap-1.5" style={cardRowStyle}>
-                              {showHeroCards &&
-                                heroCards.map((card, idx) => {
-                                  const heroWinner = liveState.hand_result?.winners?.find(
-                                    (w) => w.user_id?.toString() === heroIdString,
-                                  )
-                                  const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                                  return (
+                          <div
+                            className="relative flex flex-col items-center gap-1.5"
+                            ref={(el) => {
+                              if (playerKey) {
+                                if (el) {
+                                  playerTileRefs.current.set(playerKey, el)
+                                } else {
+                                  playerTileRefs.current.delete(playerKey)
+                                }
+                              }
+                            }}
+                          >
+                            {shouldRenderCards && (
+                              <div className="pointer-events-none absolute flex gap-1.5" style={cardRowStyle}>
+                                {showHeroCards &&
+                                  heroCards.map((card, idx) => {
+                                    const heroWinner = liveState.hand_result?.winners?.find(
+                                      (w) => w.user_id?.toString() === heroIdString,
+                                    )
+                                    const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
+                                    return (
+                                      <div
+                                        key={`hero-card-${idx}`}
+                                        className="transition-transform"
+                                        style={{
+                                          transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
+                                        }}
+                                      >
+                                        <PlayingCard card={card} size="sm" highlighted={isWinningCard} />
+                                      </div>
+                                    )
+                                  })}
+
+                                {showOpponentBacks &&
+                                  [0, 1].map((cardIndex) => (
                                     <div
-                                      key={`hero-card-${idx}`}
+                                      key={`hidden-card-${playerKey}-${cardIndex}`}
                                       className="transition-transform"
                                       style={{
-                                        transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
+                                        transform: cardIndex === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
                                       }}
                                     >
-                                      <PlayingCard card={card} size="sm" highlighted={isWinningCard} />
+                                      <PlayingCard card="XX" size="sm" hidden />
                                     </div>
-                                  )
-                                })}
+                                  ))}
 
-                              {showOpponentBacks &&
-                                [0, 1].map((cardIndex) => (
-                                  <div
-                                    key={`hidden-card-${playerKey}-${cardIndex}`}
-                                    className="transition-transform"
-                                    style={{
-                                      transform: cardIndex === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
-                                    }}
-                                  >
-                                    <PlayingCard card="XX" size="sm" hidden />
-                                  </div>
-                                ))}
+                                {showShowdownCards &&
+                                  playerCards.map((card, idx) => {
+                                    const winningHand = liveState.hand_result?.winners?.find(
+                                      (winner) => winner.user_id?.toString() === playerKey,
+                                    )
+                                    const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
+                                    return (
+                                      <PlayingCard
+                                        key={`villain-card-${playerKey}-${card}-${idx}`}
+                                        card={card}
+                                        size="sm"
+                                        highlighted={isWinningCard}
+                                      />
+                                    )
+                                  })}
+                              </div>
+                            )}
 
-                              {showShowdownCards &&
-                                playerCards.map((card, idx) => {
-                                  const winningHand = liveState.hand_result?.winners?.find(
-                                    (winner) => winner.user_id?.toString() === playerKey,
-                                  )
-                                  const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
-                                  return (
-                                    <PlayingCard
-                                      key={`villain-card-${playerKey}-${card}-${idx}`}
-                                      card={card}
-                                      size="sm"
-                                      highlighted={isWinningCard}
-                                    />
-                                  )
-                                })}
+                            <SeatCapsule
+                              name={player ? displayName : t('table.seat.empty', { defaultValue: 'Empty seat' })}
+                              stack={player?.stack}
+                              seatLabel={seatLabel}
+                              positionLabel={positionLabel}
+                              isHero={isHeroPlayer}
+                              isActive={isActivePlayer}
+                              hasFolded={hasFolded}
+                              isEmpty={!player}
+                              callToAction={showSeatCta || (isHeroSlot && !viewerIsSeated && canJoin)}
+                              onSit={!player && canJoin && !viewerIsSeated ? handleSeat : undefined}
+                              disabled={isSeating || !canJoin || viewerIsSeated}
+                              showFoldedLabel={hasFolded}
+                              showYouBadge={isHeroPlayer}
+                              isSittingOut={isSittingOut}
+                              isAllIn={isAllIn}
+                              detailsPlacement="outside"
+                            />
+
+                            {lastActionText && player?.in_hand && (
+                              <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-200/90">
+                                {lastActionText}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div
+                          className="absolute z-20 pointer-events-none flex flex-col items-center gap-0.5 text-center drop-shadow-[0_0_12px_rgba(0,0,0,0.85)]"
+                          style={{
+                            left: `${slot.labelX}%`,
+                            top: `${slot.labelY}%`,
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                        >
+                          <div
+                            className={`flex items-center gap-1 text-[11px] font-semibold leading-tight ${
+                              hasFolded ? 'text-white/60' : 'text-white'
+                            }`}
+                          >
+                            <span className="max-w-[140px] truncate block">{labelTitle}</span>
+                            {player && isHeroPlayer && (
+                              <span className="rounded-full bg-sky-400/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-black shadow-sm">
+                                {t('table.players.youTag', { defaultValue: 'You' })}
+                              </span>
+                            )}
+                          </div>
+                          {player && (
+                            <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-100">
+                              <FontAwesomeIcon icon={faCoins} className="text-[11px] text-amber-200" />
+                              <span className="tabular-nums">{formattedStack}</span>
                             </div>
                           )}
-
-                          <SeatCapsule
-                            name={player ? displayName : t('table.seat.empty', { defaultValue: 'Empty seat' })}
-                            stack={player?.stack}
-                            seatLabel={seatLabel}
-                            positionLabel={positionLabel}
-                            isHero={isHeroPlayer}
-                            isActive={isActivePlayer}
-                            hasFolded={hasFolded}
-                            isEmpty={!player}
-                            callToAction={showSeatCta || (isHeroSlot && !viewerIsSeated && canJoin)}
-                            onSit={!player && canJoin && !viewerIsSeated ? handleSeat : undefined}
-                            disabled={isSeating || !canJoin || viewerIsSeated}
-                            showFoldedLabel={hasFolded}
-                            showYouBadge={isHeroPlayer}
-                            isSittingOut={isSittingOut}
-                            isAllIn={isAllIn}
-                          />
-
-                          {lastActionText && player?.in_hand && (
-                            <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-200/90">
-                              {lastActionText}
-                            </p>
+                          {player && positionLabel && (
+                            <span className="text-[9px] font-semibold uppercase tracking-[0.3em] text-emerald-100 drop-shadow">
+                              {positionLabel}
+                            </span>
+                          )}
+                          {player && isAllIn && !showSeatCta && (
+                            <span className="text-[9px] font-semibold uppercase tracking-[0.3em] text-rose-200 drop-shadow-sm">
+                              {t('table.actions.allIn', { defaultValue: 'All-in' })}
+                            </span>
                           )}
                         </div>
-                      </div>
+                      </Fragment>
                     )
                   })}
                 </div>
