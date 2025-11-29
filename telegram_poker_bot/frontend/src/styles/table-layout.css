@@ -1,13 +1,20 @@
 :root {
-  /* Adjust these tokens to move the table UI vertically and horizontally */
-  --header-top-offset: calc(env(safe-area-inset-top, 0px) + 3vh); /* change to raise/lower header */
-  --table-top-offset: 12vh; /* change to raise/lower the felt oval */
-  --streets-row-offset: 22vh; /* change to move pot + street capsules */
-  --seat-row-offset: 68vh; /* change to move seats cluster */
-  --start-button-bottom-offset: calc(env(safe-area-inset-bottom, 0px) + 4vh); /* change to move action dock */
-  --table-horizontal-padding: 4vw; /* change to tighten/loosen side padding */
+  /* Safe-area tokens: tweak to nudge board/seat bands without touching colors */
+  --header-top-offset: calc(env(safe-area-inset-top, 0px) + 3vh); /* raise/lower the header cluster */
+  --table-top-offset: 10vh; /* move felt oval up/down to keep the center stable */
+  --streets-row-offset: 20vh; /* safe-top band (pot & board); move this up/down if board touches header */
+  --seat-row-offset: 68vh; /* safe-bottom band (seat ring); move this up/down if seats touch action dock */
+  --start-button-bottom-offset: calc(env(safe-area-inset-bottom, 0px) + 4vh); /* adjust action dock height */
+  --table-horizontal-padding: 4vw; /* tighten/loosen horizontal breathing room */
   --table-vertical-gap: 2vh; /* vertical rhythm between clusters */
   --table-min-height: 86vh;
+}
+
+@media (max-width: 400px) {
+  :root {
+    /* keep the bottom median clear for the action dock on narrow portraits */
+    --seat-row-offset: 72vh;
+  }
 }
 
 .table-screen {
@@ -35,6 +42,8 @@
   width: 100%;
   max-width: 1380px;
   min-height: var(--table-min-height);
+  padding-inline: var(--table-horizontal-padding);
+  /* percentage positions inside this container map directly to the seat layout API */
 }
 
 .table-oval {
@@ -82,4 +91,5 @@
 
 .table-bottom-padding {
   padding-bottom: var(--seat-row-offset);
+  /* keep the seat ring clear of the action dock */
 }
