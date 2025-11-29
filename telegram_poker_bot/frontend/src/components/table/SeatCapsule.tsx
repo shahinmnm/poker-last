@@ -27,20 +27,19 @@ interface SeatCapsuleProps {
 }
 
 const AVATAR_SIZE = { base: 44, cta: 48 }
+const HERO_SCALE = 1.08
 
-type PositionType = 'BTN' | 'SB' | 'BB'
+type TablePosition = 'BTN' | 'SB' | 'BB' | null | undefined
 
-function PositionBadge({ position }: { position?: PositionType }) {
+function PositionBadge({ position }: { position: TablePosition }) {
   if (!position) return null
 
   const badgeClasses = clsx(
-    'seat-capsule-position-badge',
-    'absolute -right-1 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full text-[9px] font-semibold uppercase tracking-[0.2em] shadow-sm',
-    {
-      'bg-amber-300 text-amber-900': position === 'BTN',
-      'bg-sky-400 text-sky-950': position === 'SB',
-      'bg-purple-400 text-purple-950': position === 'BB',
-    },
+    'seat-position-badge',
+    'absolute -right-1 bottom-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold uppercase tracking-[0.2em] shadow-sm',
+    position === 'BTN' && 'seat-position-badge--btn bg-amber-300 text-amber-900',
+    position === 'SB' && 'seat-position-badge--sb bg-sky-400 text-sky-950',
+    position === 'BB' && 'seat-position-badge--bb bg-purple-400 text-purple-950',
   )
 
   return <span className={badgeClasses}>{position}</span>
@@ -56,16 +55,16 @@ function SeatTimerRing({ children, progress = 1 }: SeatTimerRingProps) {
   const degrees = Math.round(safeProgress * 360)
 
   return (
-    <div className="seat-capsule-timer-ring relative flex items-center justify-center overflow-visible rounded-full p-1.5">
+    <div className="seat-timer-shell relative flex items-center justify-center overflow-visible rounded-full p-1.5">
       <span
-        className="absolute inset-0 animate-[pulse_1.2s_ease-in-out_infinite] rounded-full z-0"
+        className="seat-capsule-timer-ring absolute inset-0 z-0 animate-[pulse_1.2s_ease-in-out_infinite] rounded-full"
         style={{
           backgroundImage: `conic-gradient(#34d399 ${degrees}deg, rgba(15,23,42,0.25) ${degrees}deg 360deg)`,
           boxShadow: '0 0 0 3px rgba(52,211,153,0.9)',
         }}
         aria-hidden="true"
       />
-      <span className="relative flex items-center justify-center rounded-full z-10">{children}</span>
+      <span className="relative z-10 flex items-center justify-center rounded-full">{children}</span>
     </div>
   )
 }
@@ -109,7 +108,7 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
 
     const interactive = Boolean(onSit) && !disabled && (callToAction || isEmpty)
     const avatarSize = callToAction ? AVATAR_SIZE.cta : AVATAR_SIZE.base
-    const avatarDiameter = avatarSize + 10
+    const avatarDiameter = Math.round((avatarSize + 8) * (isHero ? HERO_SCALE : 1))
     const showDetailsInside = detailsPlacement === 'inside'
     const opacityState = hasFolded ? 'opacity-60' : 'opacity-100'
     const isActiveTurn = isActive
@@ -124,23 +123,23 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
     const safeName = name || seatLabel
     const safeStack = Number.isFinite(stack) ? stack : 0
     const normalizedPosition = (positionLabel ?? '').toUpperCase()
-    const activePosition = (['BTN', 'SB', 'BB'] as PositionType[]).includes(
-      normalizedPosition as PositionType,
+    const activePosition = (['BTN', 'SB', 'BB'] as TablePosition[]).includes(
+      normalizedPosition as TablePosition,
     )
-      ? (normalizedPosition as PositionType)
+      ? (normalizedPosition as TablePosition)
       : undefined
 
     const frameAccentClass = isHero
-      ? 'shadow-[0_0_0_2.5px_rgba(34,211,238,0.85)] ring-2 ring-cyan-300/50 shadow-cyan-400/50'
-      : 'shadow-[0_0_0_1.5px_rgba(255,255,255,0.25)]'
+      ? 'shadow-[0_0_0_2px_rgba(34,211,238,0.7)] ring-2 ring-cyan-300/40 shadow-cyan-400/40'
+      : 'shadow-[0_0_0_1.5px_rgba(255,255,255,0.2)]'
 
     const avatarFrameClasses = clsx(
-      'seat-capsule-avatar relative flex items-center justify-center rounded-full border-2 text-[11px] font-semibold uppercase shadow-sm',
+      'seat-capsule-avatar-frame relative flex items-center justify-center rounded-full border-2 text-[12px] font-semibold uppercase shadow-sm transition-colors',
       avatarTone,
       !isActiveTurn && frameAccentClass,
     )
 
-    const avatarElement = (
+    const avatarCircle = (
       <div
         className={avatarFrameClasses}
         style={{ height: `${avatarDiameter}px`, width: `${avatarDiameter}px` }}
@@ -154,94 +153,106 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       </div>
     )
 
+    const detailsNode = (
+      <div className="seat-capsule-text flex flex-col items-center gap-0.5 text-center">
+        <div
+          className={clsx(
+            'seat-capsule-name max-w-[140px] truncate text-[11px] font-semibold leading-tight',
+            hasFolded ? 'text-white/60' : 'text-white',
+          )}
+          title={safeName}
+        >
+          {safeName}
+        </div>
+        {!isEmpty && !callToAction && (
+          <div className="seat-capsule-stack flex items-center gap-1 text-[10px] font-medium text-slate-200/90">
+            <span className="seat-capsule-stack-chip h-1.5 w-1.5 rounded-full bg-amber-300" aria-hidden="true" />
+            <span className="tabular-nums">{formatChips(safeStack)}</span>
+          </div>
+        )}
+      </div>
+    )
+
+    const tagsNode =
+      !callToAction && !isEmpty ? (
+        <div className="seat-capsule-tags mt-0.5 flex flex-wrap items-center justify-center gap-1 text-[9px] uppercase tracking-[0.2em] text-white/80">
+          {showYouBadge && (
+            <span className="seat-capsule-tag seat-capsule-tag--hero flex items-center rounded-full bg-sky-400/90 px-2 py-0.5 font-black text-black shadow-sm">
+              {t('table.players.youTag', { defaultValue: 'You' })}
+            </span>
+          )}
+          {showFoldedLabel && hasFolded && (
+            <span className="seat-capsule-tag seat-capsule-tag--muted flex items-center rounded-full bg-white/15 px-2 py-0.5 font-semibold text-[9px] text-white shadow">
+              {t('table.folded', { defaultValue: 'FOLD' })}
+            </span>
+          )}
+          {isSittingOut && !hasFolded && (
+            <span className="seat-capsule-tag seat-capsule-tag--muted flex items-center rounded-full bg-white/20 px-2 py-0.5 font-semibold text-[9px] text-white/80 shadow">
+              {t('table.sittingOut', { defaultValue: 'Sit out' })}
+            </span>
+          )}
+          {isAllIn && (
+            <span className="seat-capsule-tag seat-capsule-tag--alert flex items-center rounded-full bg-rose-500/20 px-2 py-0.5 font-semibold text-[9px] text-rose-200 shadow-sm">
+              {t('table.actions.allIn', { defaultValue: 'All-in' })}
+            </span>
+          )}
+        </div>
+      ) : null
+
+    const rootClasses = clsx(
+      'seat-capsule relative flex w-full min-w-[104px] max-w-[200px] flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-slate-50 shadow-lg backdrop-blur-sm transition-transform duration-300',
+      {
+        'cursor-pointer hover:-translate-y-1': interactive,
+        'cursor-default': !interactive,
+      },
+      opacityState,
+      isHero && 'seat-capsule--hero',
+      isActiveTurn && 'seat-capsule--active',
+      hasFolded && 'seat-capsule--folded',
+    )
+
     return (
       <div
         ref={ref}
-        className={clsx(
-          'seat-capsule relative flex min-w-[100px] max-w-[26vw] flex-col items-center gap-2 text-slate-50 transition-transform duration-300',
-          {
-            'cursor-pointer hover:-translate-y-1': interactive,
-            'cursor-default': !interactive,
-          },
-          opacityState,
-          isHero && 'seat-capsule--hero',
-          isActiveTurn && 'seat-capsule--active',
-        )}
+        className={rootClasses}
         onClick={interactive ? onSit : undefined}
         style={{ width: callToAction ? 'min(52vw, 200px)' : 'min(26vw, 164px)' }}
         aria-label={seatLabel}
       >
-        <div className="seat-capsule-body flex flex-col items-center gap-2">
-          <div className="seat-capsule-avatar-wrapper relative">
-            {isActiveTurn ? (
-              <SeatTimerRing>{avatarElement}</SeatTimerRing>
-            ) : (
-              avatarElement
-            )}
+        <div className="seat-capsule-body flex flex-col items-center gap-1.5">
+          <div className="seat-capsule-avatar-wrapper relative flex items-center justify-center">
+            {isActiveTurn ? <SeatTimerRing>{avatarCircle}</SeatTimerRing> : avatarCircle}
           </div>
 
           {showDetailsInside && (
-            <div className="seat-capsule-details flex flex-col items-center gap-1 text-center">
-              <div
-                className={clsx(
-                  'seat-capsule-name max-w-[120px] truncate text-[11px] font-medium',
-                  hasFolded ? 'text-white/60' : 'text-white',
-                )}
-              >
-                {safeName}
-              </div>
-              {!isEmpty && !callToAction && (
-                <div className="seat-capsule-stack flex items-center gap-1 text-[10px] font-normal text-slate-300">
-                  <span
-                    className="seat-capsule-stack-chip-icon h-1.5 w-1.5 rounded-full bg-amber-300"
-                    aria-hidden="true"
-                  />
-                  <span className="tabular-nums">{formatChips(safeStack)}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {showDetailsInside && !callToAction && !isEmpty && (
-            <div className="seat-capsule-tags mt-0.5 flex flex-wrap items-center justify-center gap-1 text-[9px] uppercase tracking-[0.2em] text-white/80">
-              {showYouBadge && (
-                <span className="seat-capsule-tag flex items-center rounded-full bg-sky-400/80 px-2 py-0.5 font-black text-black shadow-sm">
-                  {t('table.players.youTag', { defaultValue: 'You' })}
-                </span>
-              )}
-              {showFoldedLabel && hasFolded && (
-                <span className="seat-capsule-tag flex items-center rounded-full bg-white/15 px-2 py-0.5 font-semibold text-[9px] text-white shadow">
-                  {t('table.folded', { defaultValue: 'FOLD' })}
-                </span>
-              )}
-              {isSittingOut && !hasFolded && (
-                <span className="seat-capsule-tag flex items-center rounded-full bg-white/20 px-2 py-0.5 font-semibold text-[9px] text-white/80 shadow">
-                  {t('table.sittingOut', { defaultValue: 'Sit out' })}
-                </span>
-              )}
-              {isAllIn && (
-                <span className="seat-capsule-tag flex items-center rounded-full bg-rose-500/20 px-2 py-0.5 font-semibold text-[9px] text-rose-200 shadow-sm">
-                  {t('table.actions.allIn', { defaultValue: 'All-in' })}
-                </span>
-              )}
-            </div>
-          )}
-
-          {(isEmpty || callToAction) && (
-            <button
-              type="button"
-              disabled={disabled || !interactive}
-              className={clsx(
-                'seat-capsule-cta flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide shadow-lg transition-all',
-                disabled
-                  ? 'bg-white/10 text-white/60'
-                  : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-emerald-950 hover:brightness-110',
-              )}
-            >
-              {t('table.actions.takeSeat', { defaultValue: 'Sit at Table' })}
-            </button>
+            <>
+              {detailsNode}
+              {tagsNode}
+            </>
           )}
         </div>
+
+        {!showDetailsInside && (
+          <div className="seat-capsule-details seat-capsule-details--outside flex flex-col items-center gap-1 text-center">
+            {detailsNode}
+            {tagsNode}
+          </div>
+        )}
+
+        {(isEmpty || callToAction) && (
+          <button
+            type="button"
+            disabled={disabled || !interactive}
+            className={clsx(
+              'seat-capsule-cta mt-1 flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide shadow-lg transition-all',
+              disabled
+                ? 'bg-white/10 text-white/60'
+                : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-emerald-950 hover:brightness-110',
+            )}
+          >
+            {t('table.actions.takeSeat', { defaultValue: 'Sit at Table' })}
+          </button>
+        )}
       </div>
     )
   },
