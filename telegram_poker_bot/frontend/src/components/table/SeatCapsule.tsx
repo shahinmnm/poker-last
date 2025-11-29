@@ -1,7 +1,10 @@
 import { forwardRef, useMemo } from 'react'
+import clsx from 'clsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCoins, faPlus } from '@fortawesome/free-solid-svg-icons'
+import { faPlus } from '@fortawesome/free-solid-svg-icons'
 import { useTranslation } from 'react-i18next'
+
+import { formatChips } from '@/utils/formatChips'
 
 interface SeatCapsuleProps {
   name?: string | null
@@ -24,6 +27,24 @@ interface SeatCapsuleProps {
 
 const AVATAR_SIZE = { base: 44, cta: 48 }
 
+type PositionType = 'BTN' | 'SB' | 'BB'
+
+function PositionBadge({ position }: { position?: PositionType }) {
+  if (!position) return null
+
+  const badgeClasses = clsx(
+    'seat-capsule-position-badge',
+    'absolute -right-1 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full text-[9px] font-semibold uppercase tracking-[0.2em] shadow-sm',
+    {
+      'bg-amber-300 text-amber-900': position === 'BTN',
+      'bg-sky-400 text-sky-950': position === 'SB',
+      'bg-purple-400 text-purple-950': position === 'BB',
+    },
+  )
+
+  return <span className={badgeClasses}>{position}</span>
+}
+
 const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
   (
     {
@@ -43,9 +64,9 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       detailsPlacement = 'inside',
       isSittingOut = false,
       isAllIn = false,
-      },
-      ref,
-    ) => {
+    },
+    ref,
+  ) => {
     const { t } = useTranslation()
 
     const initials = useMemo(() => {
@@ -64,8 +85,6 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
     const interactive = Boolean(onSit) && !disabled && (callToAction || isEmpty)
     const avatarSize = callToAction ? AVATAR_SIZE.cta : AVATAR_SIZE.base
     const showDetailsInside = detailsPlacement === 'inside'
-
-    const textMuted = hasFolded ? 'text-white/50' : 'text-white'
     const opacityState = hasFolded ? 'opacity-60' : 'opacity-100'
 
     const ringAccent = isActive
@@ -81,86 +100,103 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       return 'border-white/60 bg-gradient-to-br from-white/15 to-white/5'
     }, [callToAction, isEmpty, isHero])
 
+    const safeName = name || seatLabel
+    const safeStack = Number.isFinite(stack) ? stack : 0
+    const normalizedPosition = (positionLabel ?? '').toUpperCase()
+    const activePosition = (['BTN', 'SB', 'BB'] as PositionType[]).includes(normalizedPosition as PositionType)
+      ? (normalizedPosition as PositionType)
+      : undefined
+
     return (
       <div
         ref={ref}
-        className={`relative flex min-w-[100px] max-w-[26vw] flex-col items-center gap-1 text-white transition-transform duration-300 ${
-          interactive ? 'cursor-pointer hover:-translate-y-1' : 'cursor-default'
-        } ${opacityState}`}
+        className={clsx(
+          'seat-capsule relative flex min-w-[100px] max-w-[26vw] flex-col items-center gap-1 text-slate-50 transition-transform duration-300',
+          {
+            'cursor-pointer hover:-translate-y-1': interactive,
+            'cursor-default': !interactive,
+          },
+          opacityState,
+          isHero && 'seat-capsule--hero',
+          isActive && 'seat-capsule--active',
+        )}
         onClick={interactive ? onSit : undefined}
         style={{ width: callToAction ? 'min(52vw, 200px)' : 'min(26vw, 164px)' }}
+        aria-label={seatLabel}
       >
-        <div className="flex flex-col items-center gap-1.5" style={{ width: '100%' }}>
-          <div
-            className={`relative flex items-center justify-center rounded-full border-2 ${avatarTone} ${ringAccent}`}
-            style={{ height: `${avatarSize + 10}px`, width: `${avatarSize + 10}px` }}
-          >
-            {isEmpty ? (
-              <FontAwesomeIcon icon={faPlus} className="text-base opacity-80" />
-            ) : (
-              <span className="text-sm font-bold drop-shadow-sm">{initials}</span>
-            )}
-            {showFoldedLabel && (
-              <div className="absolute -bottom-2 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-white shadow">
-                {t('table.folded', { defaultValue: 'FOLD' })}
+        <div className="seat-capsule-main flex flex-col items-center gap-1.5">
+          <div className="seat-capsule-avatar-wrapper relative">
+            <div
+              className={clsx(
+                'seat-capsule-avatar relative flex items-center justify-center rounded-full border-2 text-[11px] font-semibold uppercase shadow-sm',
+                avatarTone,
+                ringAccent,
+              )}
+              style={{ height: `${avatarSize + 10}px`, width: `${avatarSize + 10}px` }}
+            >
+              {isEmpty ? (
+                <FontAwesomeIcon icon={faPlus} className="text-base opacity-80" />
+              ) : (
+                <span className="leading-none">{initials}</span>
+              )}
+            </div>
+            <PositionBadge position={activePosition} />
+          </div>
+
+          {showDetailsInside && (
+            <div className="seat-capsule-text flex flex-col items-center gap-0.5 text-center">
+              <div className={clsx('seat-capsule-name max-w-[120px] truncate text-[11px] font-medium', hasFolded ? 'text-white/60' : 'text-white')}>
+                {safeName}
               </div>
+              {!isEmpty && !callToAction && (
+                <div className="seat-capsule-stack flex items-center gap-1 text-[10px] font-normal text-slate-300">
+                  <span className="seat-capsule-stack-chip-icon h-1.5 w-1.5 rounded-full bg-amber-300" aria-hidden="true" />
+                  <span className="tabular-nums">{formatChips(safeStack)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {(isEmpty || callToAction) && (
+          <button
+            type="button"
+            disabled={disabled || !interactive}
+            className={clsx(
+              'seat-capsule-cta mt-1 flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide shadow-lg transition-all',
+              disabled
+                ? 'bg-white/10 text-white/60'
+                : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-emerald-950 hover:brightness-110',
+            )}
+          >
+            {t('table.actions.takeSeat', { defaultValue: 'Sit at Table' })}
+          </button>
+        )}
+
+        {showDetailsInside && !callToAction && !isEmpty && (
+          <div className="seat-capsule-tags mt-0.5 flex flex-wrap items-center justify-center gap-1 text-[9px] uppercase tracking-[0.2em] text-white/80">
+            {showYouBadge && (
+              <span className="seat-capsule-tag flex items-center rounded-full bg-sky-400/80 px-2 py-0.5 font-black text-black shadow-sm">
+                {t('table.players.youTag', { defaultValue: 'You' })}
+              </span>
+            )}
+            {showFoldedLabel && hasFolded && (
+              <span className="seat-capsule-tag flex items-center rounded-full bg-white/15 px-2 py-0.5 font-semibold text-[9px] text-white shadow">
+                {t('table.folded', { defaultValue: 'FOLD' })}
+              </span>
             )}
             {isSittingOut && !hasFolded && (
-              <div className="absolute -bottom-2 rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-semibold uppercase text-white/90 shadow">
+              <span className="seat-capsule-tag flex items-center rounded-full bg-white/20 px-2 py-0.5 font-semibold text-[9px] text-white/80 shadow">
                 {t('table.sittingOut', { defaultValue: 'Sit out' })}
-              </div>
+              </span>
+            )}
+            {isAllIn && (
+              <span className="seat-capsule-tag flex items-center rounded-full bg-rose-500/20 px-2 py-0.5 font-semibold text-[9px] text-rose-200 shadow-sm">
+                {t('table.actions.allIn', { defaultValue: 'All-in' })}
+              </span>
             )}
           </div>
-
-          <div className="flex flex-col items-center gap-0.5 text-center">
-            {(callToAction || isEmpty) && (
-              <button
-                type="button"
-                disabled={disabled || !interactive}
-                className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide shadow-lg transition-all ${
-                  disabled
-                    ? 'bg-white/10 text-white/60'
-                    : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-emerald-950 hover:brightness-110'
-                }`}
-              >
-                {t('table.actions.takeSeat', { defaultValue: 'Sit at Table' })}
-              </button>
-            )}
-
-            {showDetailsInside && (
-              <>
-                {!callToAction && !isEmpty && (
-                  <>
-                    <div className={`flex items-center gap-1 text-[11px] font-semibold leading-tight ${textMuted}`}>
-                      <span className="max-w-[132px] truncate leading-snug">{name}</span>
-                      {showYouBadge && (
-                        <span className="rounded-full bg-sky-400/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-black shadow-sm">
-                          {t('table.players.youTag', { defaultValue: 'You' })}
-                        </span>
-                      )}
-                    </div>
-                    <div className={`flex items-center gap-1 text-[10px] font-semibold text-emerald-100 ${hasFolded ? 'opacity-60' : ''}`}>
-                      <FontAwesomeIcon icon={faCoins} className="text-[11px] text-amber-200" />
-                      <span className="tabular-nums tracking-tight">{stack?.toLocaleString?.() ?? stack}</span>
-                    </div>
-                  </>
-                )}
-
-                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/70">
-                  <span>{seatLabel}</span>
-                  {positionLabel && !callToAction && (
-                    <span className="text-emerald-100 drop-shadow">{positionLabel}</span>
-                  )}
-                  {isAllIn && !isEmpty && !callToAction && (
-                    <span className="text-rose-200 drop-shadow-sm">
-                      {t('table.actions.allIn', { defaultValue: 'All-in' })}
-                    </span>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        )}
       </div>
     )
   },
