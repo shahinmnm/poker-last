@@ -55,12 +55,12 @@ function SeatTimerRing({ children, progress = 1 }: SeatTimerRingProps) {
   const degrees = Math.round(safeProgress * 360)
 
   return (
-    <div className="seat-timer-shell relative flex items-center justify-center overflow-visible rounded-full p-1.5">
+    <div className="seat-timer-shell relative flex items-center justify-center overflow-visible rounded-full p-[6px]">
       <span
         className="seat-capsule-timer-ring absolute inset-0 z-0 animate-[pulse_1.2s_ease-in-out_infinite] rounded-full"
         style={{
-          backgroundImage: `conic-gradient(#34d399 ${degrees}deg, rgba(15,23,42,0.25) ${degrees}deg 360deg)`,
-          boxShadow: '0 0 0 3px rgba(52,211,153,0.9)',
+          backgroundImage: `conic-gradient(#ff6347 ${degrees}deg, rgba(255,255,255,0.08) ${degrees}deg 360deg)`,
+          boxShadow: '0 0 0 3px rgba(255,99,71,0.6)',
         }}
         aria-hidden="true"
       />
@@ -116,8 +116,8 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
     const avatarTone = useMemo(() => {
       if (callToAction) return 'border-emerald-200/90 bg-emerald-400/10 text-emerald-50'
       if (isEmpty) return 'border-white/60 bg-white/10 text-white'
-      if (isHero) return 'border-cyan-200/80 bg-gradient-to-br from-cyan-300/15 via-white/5 to-emerald-300/15'
-      return 'border-white/60 bg-gradient-to-br from-white/15 to-white/5'
+      if (isHero) return 'border-cyan-100/80 bg-gradient-to-br from-white/15 via-cyan-200/10 to-white/10'
+      return 'border-white/40 bg-white/10'
     }, [callToAction, isEmpty, isHero])
 
     const safeName = name || seatLabel
@@ -130,13 +130,14 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       : undefined
 
     const frameAccentClass = isHero
-      ? 'shadow-[0_0_0_2px_rgba(34,211,238,0.7)] ring-2 ring-cyan-300/40 shadow-cyan-400/40'
-      : 'shadow-[0_0_0_1.5px_rgba(255,255,255,0.2)]'
+      ? 'shadow-[0_0_0_2px_rgba(34,211,238,0.5)] ring-2 ring-cyan-200/30 shadow-cyan-300/40'
+      : 'shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
 
     const avatarFrameClasses = clsx(
       'seat-capsule-avatar-frame relative flex items-center justify-center rounded-full border-2 text-[12px] font-semibold uppercase shadow-sm transition-colors',
       avatarTone,
       !isActiveTurn && frameAccentClass,
+      hasFolded && 'grayscale',
     )
 
     const avatarCircle = (
@@ -153,20 +154,27 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       </div>
     )
 
+    const heroBadge =
+      showYouBadge && !isEmpty ? (
+        <span className="seat-capsule-hero-badge absolute -left-1.5 -bottom-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-md">
+          ★
+        </span>
+      ) : null
+
     const detailsNode = (
       <div className="seat-capsule-text flex flex-col items-center gap-0.5 text-center">
         <div
           className={clsx(
-            'seat-capsule-name max-w-[140px] truncate text-[11px] font-semibold leading-tight',
-            hasFolded ? 'text-white/60' : 'text-white',
+            'seat-capsule-name max-w-[140px] truncate text-[12px] font-semibold leading-tight',
+            hasFolded ? 'text-white/50' : 'text-white',
           )}
           title={safeName}
         >
           {safeName}
         </div>
         {!isEmpty && !callToAction && (
-          <div className="seat-capsule-stack flex items-center gap-1 text-[10px] font-medium text-slate-200/90">
-            <span className="seat-capsule-stack-chip h-1.5 w-1.5 rounded-full bg-amber-300" aria-hidden="true" />
+          <div className="seat-capsule-stack flex items-center gap-1 text-[11px] font-semibold text-slate-100">
+            <span className="seat-capsule-stack-chip h-1.5 w-1.5 rounded-full bg-amber-300 shadow-sm" aria-hidden="true" />
             <span className="tabular-nums">{formatChips(safeStack)}</span>
           </div>
         )}
@@ -176,13 +184,8 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
     const tagsNode =
       !callToAction && !isEmpty ? (
         <div className="seat-capsule-tags mt-0.5 flex flex-wrap items-center justify-center gap-1 text-[9px] uppercase tracking-[0.2em] text-white/80">
-          {showYouBadge && (
-            <span className="seat-capsule-tag seat-capsule-tag--hero flex items-center rounded-full bg-sky-400/90 px-2 py-0.5 font-black text-black shadow-sm">
-              {t('table.players.youTag', { defaultValue: 'You' })}
-            </span>
-          )}
           {showFoldedLabel && hasFolded && (
-            <span className="seat-capsule-tag seat-capsule-tag--muted flex items-center rounded-full bg-white/15 px-2 py-0.5 font-semibold text-[9px] text-white shadow">
+            <span className="seat-capsule-tag seat-capsule-tag--muted flex items-center rounded-full bg-white/10 px-2 py-0.5 font-semibold text-[9px] text-white/80 shadow">
               {t('table.folded', { defaultValue: 'FOLD' })}
             </span>
           )}
@@ -200,7 +203,7 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       ) : null
 
     const rootClasses = clsx(
-      'seat-capsule relative flex w-full min-w-[104px] max-w-[200px] flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-slate-50 shadow-lg backdrop-blur-sm transition-transform duration-300',
+      'seat-capsule relative flex w-full min-w-[104px] max-w-[200px] flex-col items-center gap-1 text-slate-50 transition-transform duration-300',
       {
         'cursor-pointer hover:-translate-y-1': interactive,
         'cursor-default': !interactive,
@@ -219,9 +222,10 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
         style={{ width: callToAction ? 'min(52vw, 200px)' : 'min(26vw, 164px)' }}
         aria-label={seatLabel}
       >
-        <div className="seat-capsule-body flex flex-col items-center gap-1.5">
+        <div className="seat-capsule-body flex flex-col items-center gap-1">
           <div className="seat-capsule-avatar-wrapper relative flex items-center justify-center">
             {isActiveTurn ? <SeatTimerRing>{avatarCircle}</SeatTimerRing> : avatarCircle}
+            {heroBadge}
           </div>
 
           {showDetailsInside && (
