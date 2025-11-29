@@ -99,6 +99,17 @@ interface TableDetails {
 
 type LastAction = NonNullable<TableState['last_action']>
 
+const TABLE_CENTER_Y_APPROX = 56
+const SAFE_BOTTOM_CARD_THRESHOLD = 85
+const BASE_CARD_DISTANCE = 40
+const CARD_DISTANCE_Y = BASE_CARD_DISTANCE - 4
+const BOTTOM_CARD_Y_OFFSET = 4
+
+/**
+ * Cards render along the vector between the board center and each seat, staying
+ * far enough from the capsule and action dock. Top vs bottom semantics are
+ * derived from `slot.yPercent` relative to the approximate table center Y.
+ */
 type CardPlacement = {
   translateX: number
   translateY: number
@@ -110,8 +121,12 @@ const getCardPlacement = (slot: SeatLayoutSlot): CardPlacement => {
   const offsetY = 50 - slot.avatarY
   const distance = Math.max(Math.hypot(offsetX, offsetY), 1)
 
-  const translateX = (offsetX / distance) * 34
-  const translateY = (offsetY / distance) * 32
+  const translateX = (offsetX / distance) * BASE_CARD_DISTANCE
+  let translateY = (offsetY / distance) * CARD_DISTANCE_Y
+  if (slot.yPercent >= SAFE_BOTTOM_CARD_THRESHOLD) {
+    translateY = translateY - Math.sign(translateY) * BOTTOM_CARD_Y_OFFSET
+  }
+
   const rotation = Math.round((Math.atan2(offsetY, offsetX) * 180) / Math.PI + 90)
 
   return { translateX, translateY, rotation }
@@ -1517,7 +1532,9 @@ export default function TablePage() {
                     const showOpponentBacks =
                       !isHeroPlayer &&
                       Boolean(player?.in_hand && liveState?.hand_id && !hasFolded && !showShowdownCards)
+                    const isBottomSeat = slot.yPercent >= TABLE_CENTER_Y_APPROX
                     const cardPlacement = getCardPlacement(slot)
+                    const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
                     const shouldRenderCards = showHeroCards || showOpponentBacks || showShowdownCards
                     const cardRowStyle = {
                       left: '50%',
@@ -1624,7 +1641,9 @@ export default function TablePage() {
                             />
 
                             {lastActionText && player?.in_hand && (
-                              <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-200/90">
+                              <p
+                                className={`text-[9px] font-semibold uppercase tracking-wide text-emerald-200/90 ${lastActionSpacingClass}`}
+                              >
                                 {lastActionText}
                               </p>
                             )}

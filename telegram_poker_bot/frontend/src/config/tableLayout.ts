@@ -1,3 +1,8 @@
+/**
+ * The rendered table artwork is merely a visual cue; the player seats live on a
+ * logical seat ring (an ellipse in percentage coordinates) that is then clamped
+ * into the safe area so nothing overlaps the header or action bar.
+ */
 export interface SeatLayoutSlot {
   seatIndex: number
   angle: number
@@ -10,98 +15,68 @@ export interface SeatLayoutSlot {
   isHeroPosition?: boolean
 }
 
-const TABLE_CENTER = { x: 50, y: 50 }
+const SAFE_LEFT_PERCENT = 10
+const SAFE_RIGHT_PERCENT = 90
+const SAFE_TOP_PERCENT = 25
+const SAFE_BOTTOM_PERCENT = 90
 
-const TABLE_ELLIPSE_RADIUS_X_PERCENT = 49
-const TABLE_ELLIPSE_RADIUS_Y_PERCENT = 46
-const PROFILE_OFFSET_PERCENT = 0
-const LABEL_OFFSET_PERCENT = 3
+const TABLE_CENTER_X_PERCENT = 50
+const TABLE_CENTER_Y_PERCENT = 56
+const TABLE_SEAT_RADIUS_X_PERCENT = 40
+const TABLE_SEAT_RADIUS_Y_PERCENT = 28
+const LABEL_RADIUS_X = TABLE_SEAT_RADIUS_X_PERCENT + 6
+const LABEL_RADIUS_Y = TABLE_SEAT_RADIUS_Y_PERCENT + 4
 
-const YOU_ANGLE = 90 // bottom of the ellipse
-const ALLOWED_ARC_START = -150
-const ALLOWED_ARC_END = -30
-const MAX_ALLOWED_ARC_WIDTH = 150
+const HERO_ANGLE_DEG = 90
 
-const roundToTenth = (value: number) => Math.round(value * 10) / 10
-
-const normalizeAngle = (angle: number) => ((angle % 360) + 360) % 360
-
-const getArcWidth = (start: number, end: number) => {
-  const width = normalizeAngle(end - start)
-  return width === 0 ? 360 : width
+const ANGLES_BY_PLAYER_COUNT: Record<number, number[]> = {
+  2: [HERO_ANGLE_DEG, 270],
+  3: [HERO_ANGLE_DEG, 210, 330],
+  4: [HERO_ANGLE_DEG, 210, 270, 330],
+  5: [HERO_ANGLE_DEG, 210, 270, 330, 150],
+  6: [HERO_ANGLE_DEG, 210, 270, 330, 150, 30],
 }
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value))
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180
 
-const computeEllipsePoint = (angleDegrees: number, radiusX: number, radiusY: number) => {
-  const radians = toRadians(angleDegrees)
-  return {
-    x: TABLE_CENTER.x + radiusX * Math.cos(radians),
-    y: TABLE_CENTER.y + radiusY * Math.sin(radians),
-  }
-}
-
-export const getSeatLayout = (seatCount: number): SeatLayoutSlot[] => {
-  const clampedSeatCount = Math.max(1, seatCount)
-  const othersCount = Math.max(clampedSeatCount - 1, 0)
-  const minSeparationAngle = 360 / (clampedSeatCount + 1)
-
-  const baseStart = normalizeAngle(ALLOWED_ARC_START)
-  const baseEnd = normalizeAngle(ALLOWED_ARC_END)
-  const baseArcWidth = getArcWidth(baseStart, baseEnd)
-  const arcCenter = normalizeAngle(baseStart + baseArcWidth / 2)
-
-  let arcWidth = baseArcWidth
-  if (othersCount > 1) {
-    const requiredArcWidth = minSeparationAngle * (othersCount - 1)
-    arcWidth = Math.min(Math.max(arcWidth, requiredArcWidth), MAX_ALLOWED_ARC_WIDTH)
+export const getSeatLayout = (playerCount: number): SeatLayoutSlot[] => {
+  if (playerCount <= 0) {
+    return []
   }
 
-  const expandedStart = normalizeAngle(arcCenter - arcWidth / 2)
+  const angles: number[] =
+    playerCount === 1
+      ? [HERO_ANGLE_DEG]
+      : ANGLES_BY_PLAYER_COUNT[Math.min(playerCount, 6)]
 
-  const angleSlots: number[] = [YOU_ANGLE]
-  if (othersCount === 1) {
-    angleSlots.push(normalizeAngle(arcCenter))
-  } else if (othersCount > 1) {
-    const step = arcWidth / (othersCount - 1)
-    for (let index = 0; index < othersCount; index += 1) {
-      angleSlots.push(normalizeAngle(expandedStart + step * index))
-    }
-  }
+  return angles.map((angleDeg, index) => {
+    const angleRad = toRadians(angleDeg)
 
-  const effectiveRadiusX = TABLE_ELLIPSE_RADIUS_X_PERCENT + PROFILE_OFFSET_PERCENT
-  const effectiveRadiusY = TABLE_ELLIPSE_RADIUS_Y_PERCENT + PROFILE_OFFSET_PERCENT
-  const labelScale = effectiveRadiusY / (effectiveRadiusY + LABEL_OFFSET_PERCENT)
+    const avatarX =
+      TABLE_CENTER_X_PERCENT + TABLE_SEAT_RADIUS_X_PERCENT * Math.cos(angleRad)
+    const avatarY =
+      TABLE_CENTER_Y_PERCENT + TABLE_SEAT_RADIUS_Y_PERCENT * Math.sin(angleRad)
 
-  return angleSlots.map((angle, index) => {
-    const { x: avatarXRaw, y: avatarYRaw } = computeEllipsePoint(
-      angle,
-      effectiveRadiusX,
-      effectiveRadiusY,
-    )
+    const clampedX = clamp(avatarX, SAFE_LEFT_PERCENT, SAFE_RIGHT_PERCENT)
+    const clampedY = clamp(avatarY, SAFE_TOP_PERCENT, SAFE_BOTTOM_PERCENT)
 
-    const avatarX = roundToTenth(avatarXRaw)
-    const avatarY = roundToTenth(avatarYRaw)
-
-    const labelXRaw = avatarX
-    const labelYRaw = avatarY + LABEL_OFFSET_PERCENT
-
-    const labelX = roundToTenth(
-      TABLE_CENTER.x + (labelXRaw - TABLE_CENTER.x) * labelScale,
-    )
-    const labelY = roundToTenth(
-      TABLE_CENTER.y + (labelYRaw - TABLE_CENTER.y) * labelScale,
-    )
+    const labelX =
+      TABLE_CENTER_X_PERCENT + LABEL_RADIUS_X * Math.cos(angleRad)
+    const labelY =
+      TABLE_CENTER_Y_PERCENT + LABEL_RADIUS_Y * Math.sin(angleRad)
 
     return {
       seatIndex: index,
-      angle,
+      angle: angleDeg,
       avatarX,
       avatarY,
-      labelX,
-      labelY,
-      xPercent: avatarX,
-      yPercent: avatarY,
+      labelX: clamp(labelX, SAFE_LEFT_PERCENT, SAFE_RIGHT_PERCENT),
+      labelY: clamp(labelY, SAFE_TOP_PERCENT, SAFE_BOTTOM_PERCENT),
+      xPercent: clampedX,
+      yPercent: clampedY,
       isHeroPosition: index === 0,
     }
   })
