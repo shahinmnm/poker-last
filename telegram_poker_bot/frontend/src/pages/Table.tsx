@@ -24,8 +24,6 @@ import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCoins } from '@fortawesome/free-solid-svg-icons'
 import { getSeatLayout, type SeatLayoutSlot } from '@/config/tableLayout'
 import '../styles/table-layout.css'
 import type {
@@ -1543,10 +1541,6 @@ export default function TablePage() {
                       transformOrigin: 'center',
                     } as const
 
-                    const labelTitle = player ? displayName : seatLabel
-                    const formattedStack =
-                      player?.stack?.toLocaleString?.() ?? (player?.stack ?? 0)
-
                     return (
                       <Fragment key={`seat-${seatNumber}-${layoutIndex}`}>
                         <div
@@ -1650,43 +1644,6 @@ export default function TablePage() {
                           </div>
                         </div>
 
-                        <div
-                          className="absolute z-20 pointer-events-none flex flex-col items-center gap-0.5 text-center drop-shadow-[0_0_12px_rgba(0,0,0,0.85)]"
-                          style={{
-                            left: `${slot.labelX}%`,
-                            top: `${slot.labelY}%`,
-                            transform: 'translate(-50%, -50%)',
-                          }}
-                        >
-                          <div
-                            className={`flex items-center gap-1 text-[11px] font-semibold leading-tight ${
-                              hasFolded ? 'text-white/60' : 'text-white'
-                            }`}
-                          >
-                            <span className="max-w-[140px] truncate block">{labelTitle}</span>
-                            {player && isHeroPlayer && (
-                              <span className="rounded-full bg-sky-400/80 px-1.5 py-0.5 text-[9px] font-black uppercase text-black shadow-sm">
-                                {t('table.players.youTag', { defaultValue: 'You' })}
-                              </span>
-                            )}
-                          </div>
-                          {player && (
-                            <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-100">
-                              <FontAwesomeIcon icon={faCoins} className="text-[11px] text-amber-200" />
-                              <span className="tabular-nums">{formattedStack}</span>
-                            </div>
-                          )}
-                          {player && positionLabel && (
-                            <span className="text-[9px] font-semibold uppercase tracking-[0.3em] text-emerald-100 drop-shadow">
-                              {positionLabel}
-                            </span>
-                          )}
-                          {player && isAllIn && !showSeatCta && (
-                            <span className="text-[9px] font-semibold uppercase tracking-[0.3em] text-rose-200 drop-shadow-sm">
-                              {t('table.actions.allIn', { defaultValue: 'All-in' })}
-                            </span>
-                          )}
-                        </div>
                       </Fragment>
                     )
                   })}
