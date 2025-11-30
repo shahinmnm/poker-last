@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { useTelegram } from '../hooks/useTelegram'
@@ -21,6 +21,7 @@ import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
+import NeonPokerTable from '../components/tables/NeonPokerTable'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import SeatCapsule from '@/components/table/SeatCapsule'
@@ -149,6 +150,7 @@ const ACTIVE_GAMEPLAY_STREETS = ['preflop', 'flop', 'turn', 'river']
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { initData } = useTelegram()
   const { t } = useTranslation()
   const { refetchAll: refetchUserData } = useUserData()
@@ -323,6 +325,10 @@ export default function TablePage() {
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
   const heroCards = liveState?.hero?.cards ?? []
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
+  const neonMode = useMemo(() => {
+    const params = new URLSearchParams(location.search)
+    return params.get('neon') === '1'
+  }, [location.search])
   const currentPhase = useMemo(() => {
     if (liveState?.phase) return liveState.phase
     const normalizedStatus = liveState?.status?.toString().toLowerCase()
@@ -985,6 +991,70 @@ export default function TablePage() {
       liveState?.hand_result?.winners?.flatMap((winner) => winner.best_hand_cards ?? []) ?? [],
     [liveState?.hand_result?.winners],
   )
+
+  const neonPlayers = useMemo(() => {
+    const basePlayers = liveState?.players ?? tableDetails?.players ?? []
+    return basePlayers.map((player, idx) => {
+      const id = player.user_id?.toString() ?? `p-${idx}`
+      const name =
+        (player as any).display_name ||
+        (player as any).username ||
+        (player as any).name ||
+        t('table.meta.unknown')
+      const isHero = heroIdString !== null && id === heroIdString
+      const isTurn = currentActorUserId?.toString() === id
+      const isFolded = Boolean(liveState?.hand_id && !player.in_hand)
+      const canReveal = isHero || normalizedStatus === 'showdown' || isInterHand
+      const showdown = showdownCardsByPlayer.get(id) || []
+      const heroShownCards = isHero ? heroCards : showdown
+      const cards = canReveal ? heroShownCards : []
+      const showCards = canReveal
+
+      return {
+        id,
+        name,
+        chips: player.stack ?? 0,
+        isHero,
+        isTurn,
+        isSB: player.is_small_blind,
+        isBB: player.is_big_blind,
+        isFolded,
+        showCards,
+        cards,
+      }
+    })
+  }, [
+    currentActorUserId,
+    heroIdString,
+    isInterHand,
+    heroCards,
+    liveState?.hand_id,
+    liveState?.players,
+    normalizedStatus,
+    showdownCardsByPlayer,
+    tableDetails?.players,
+    t,
+  ])
+
+  if (neonMode) {
+    if (!liveState) {
+      return (
+        <div className="neon-table-screen">
+          <p className="text-sm text-white/70">{t('common.loading')}</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="neon-table-screen">
+        <NeonPokerTable
+          players={neonPlayers}
+          communityCards={liveState.board ?? []}
+          potAmount={potDisplayAmount}
+        />
+      </div>
+    )
+  }
   const showdownCardsByPlayer = useMemo(() => {
     const lookup = new Map<string, string[]>()
     if (heroIdString && heroCards.length) {
@@ -1558,14 +1628,15 @@ export default function TablePage() {
                     const cardPlacement = getCardPlacement(slot)
                     const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
                     const shouldRenderCards = showHeroCards || showOpponentBacks || showShowdownCards
+                    // Keep avatar overlays only for opponents/back-of-cards to avoid duplicating hero hole cards.
                     const overlayCards = showHeroCards
-                      ? heroCards
+                      ? undefined
                       : showShowdownCards
                         ? playerCards
                         : showOpponentBacks
                           ? ['XX', 'XX']
                           : undefined
-                    const overlayCardsHidden = !showShowdownCards && !showHeroCards && showOpponentBacks
+                    const overlayCardsHidden = Boolean(!showShowdownCards && showOpponentBacks)
                     const cardRowStyle = {
                       left: '50%',
                       top: '50%',
