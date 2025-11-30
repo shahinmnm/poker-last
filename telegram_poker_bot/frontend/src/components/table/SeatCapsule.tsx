@@ -1,10 +1,10 @@
-import { forwardRef, useMemo } from 'react'
-import type { ReactNode } from 'react'
+import { forwardRef } from 'react'
 import clsx from 'clsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlus } from '@fortawesome/free-solid-svg-icons'
 import { useTranslation } from 'react-i18next'
 
+import Avatar from '@/components/ui/Avatar'
 import { formatChips } from '@/utils/formatChips'
 
 interface SeatCapsuleProps {
@@ -45,30 +45,6 @@ function PositionBadge({ position }: { position: TablePosition }) {
   return <span className={badgeClasses}>{position}</span>
 }
 
-type SeatTimerRingProps = {
-  children: ReactNode
-  progress?: number
-}
-
-function SeatTimerRing({ children, progress = 1 }: SeatTimerRingProps) {
-  const safeProgress = Math.min(Math.max(progress ?? 1, 0), 1)
-  const degrees = Math.round(safeProgress * 360)
-
-  return (
-    <div className="seat-timer-shell relative flex items-center justify-center overflow-visible rounded-full p-[6px]">
-      <span
-        className="seat-capsule-timer-ring absolute inset-0 z-0 animate-[pulse_1.2s_ease-in-out_infinite] rounded-full"
-        style={{
-          backgroundImage: `conic-gradient(#ff6347 ${degrees}deg, rgba(255,255,255,0.08) ${degrees}deg 360deg)`,
-          boxShadow: '0 0 0 3px rgba(255,99,71,0.6)',
-        }}
-        aria-hidden="true"
-      />
-      <span className="relative z-10 flex items-center justify-center rounded-full">{children}</span>
-    </div>
-  )
-}
-
 const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
   (
     {
@@ -93,33 +69,12 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
   ) => {
     const { t } = useTranslation()
 
-    const initials = useMemo(() => {
-      if (!name) return '?'
-      const cleaned = name.trim()
-      if (!cleaned) return '?'
-      return cleaned
-        .split(' ')
-        .filter((piece) => piece.length > 0)
-        .map((piece) => piece[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
-    }, [name])
-
     const interactive = Boolean(onSit) && !disabled && (callToAction || isEmpty)
     const avatarSize = callToAction ? AVATAR_SIZE.cta : AVATAR_SIZE.base
     const avatarDiameter = Math.round((avatarSize + 8) * (isHero ? HERO_SCALE : 1))
     const showDetailsInside = detailsPlacement === 'inside'
     const opacityState = hasFolded ? 'opacity-60' : 'opacity-100'
     const isActiveTurn = isActive
-
-    const avatarTone = useMemo(() => {
-      if (callToAction) return 'border-emerald-200/90 bg-emerald-400/10 text-emerald-50'
-      if (isEmpty) return 'border-white/60 bg-white/10 text-white'
-      if (isHero) return 'border-cyan-100/80 bg-gradient-to-br from-white/15 via-cyan-200/10 to-white/10'
-      return 'border-white/40 bg-white/10'
-    }, [callToAction, isEmpty, isHero])
-
     const safeName = name || seatLabel
     const safeStack = Number.isFinite(stack) ? stack : 0
     const normalizedPosition = (positionLabel ?? '').toUpperCase()
@@ -129,29 +84,12 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       ? (normalizedPosition as TablePosition)
       : undefined
 
-    const frameAccentClass = isHero
-      ? 'shadow-[0_0_0_2px_rgba(34,211,238,0.5)] ring-2 ring-cyan-200/30 shadow-cyan-300/40'
-      : 'shadow-[0_0_0_1.5px_rgba(0,0,0,0.35)]'
-
-    const avatarFrameClasses = clsx(
+    const placeholderClasses = clsx(
       'seat-capsule-avatar-frame relative flex items-center justify-center rounded-full border-2 text-[12px] font-semibold uppercase shadow-sm transition-colors',
-      avatarTone,
-      !isActiveTurn && frameAccentClass,
+      callToAction
+        ? 'border-emerald-200/90 bg-emerald-400/10 text-emerald-50'
+        : 'border-white/60 bg-white/10 text-white',
       hasFolded && 'grayscale',
-    )
-
-    const avatarCircle = (
-      <div
-        className={avatarFrameClasses}
-        style={{ height: `${avatarDiameter}px`, width: `${avatarDiameter}px` }}
-      >
-        {isEmpty ? (
-          <FontAwesomeIcon icon={faPlus} className="text-base opacity-80" />
-        ) : (
-          <span className="leading-none">{initials}</span>
-        )}
-        <PositionBadge position={activePosition} />
-      </div>
     )
 
     const heroBadge =
@@ -210,7 +148,7 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       },
       opacityState,
       isHero && 'seat-capsule--hero',
-      isActiveTurn && 'seat-capsule--active',
+      isActiveTurn && 'seat-capsule--active drop-shadow-[0_0_14px_rgba(16,185,129,0.35)]',
       hasFolded && 'seat-capsule--folded',
     )
 
@@ -224,8 +162,41 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       >
         <div className="seat-capsule-body flex flex-col items-center gap-1">
           <div className="seat-capsule-avatar-wrapper relative flex items-center justify-center">
-            {isActiveTurn ? <SeatTimerRing>{avatarCircle}</SeatTimerRing> : avatarCircle}
-            {heroBadge}
+            {isEmpty ? (
+              <div
+                className={placeholderClasses}
+                style={{ height: `${avatarDiameter}px`, width: `${avatarDiameter}px` }}
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-base opacity-80" />
+                <PositionBadge position={activePosition} />
+              </div>
+            ) : (
+              <div className="relative flex items-center justify-center">
+                <Avatar
+                  name={safeName}
+                  seed={safeName || seatLabel}
+                  balance={!isEmpty && !callToAction ? safeStack : undefined}
+                  isActive={isActiveTurn}
+                  hasFolded={hasFolded}
+                  showTurnIndicator={!isEmpty}
+                  showFoldLabel={showFoldedLabel}
+                  size={isHero ? 'lg' : 'md'}
+                  className={clsx('border-2', isHero ? 'border-cyan-200/60' : 'border-white/40')}
+                  style={{
+                    height: `${avatarDiameter}px`,
+                    width: `${avatarDiameter}px`,
+                    fontSize: isHero ? '1.2rem' : '1rem',
+                  }}
+                  wrapperClassName="inline-flex"
+                  overlayContent={
+                    <>
+                      <PositionBadge position={activePosition} />
+                      {heroBadge}
+                    </>
+                  }
+                />
+              </div>
+            )}
           </div>
 
           {showDetailsInside && (

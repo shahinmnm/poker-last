@@ -99,9 +99,10 @@ type LastAction = NonNullable<TableState['last_action']>
 
 const TABLE_CENTER_Y_APPROX = 56
 const SAFE_BOTTOM_CARD_THRESHOLD = 85
-const BASE_CARD_DISTANCE = 40
-const CARD_DISTANCE_Y = BASE_CARD_DISTANCE - 4
-const BOTTOM_CARD_Y_OFFSET = 4
+const BASE_CARD_DISTANCE = 48
+const CARD_CLEARANCE = 12 // extra space to keep hole cards off the avatar/turn indicator
+const CARD_DISTANCE_Y = BASE_CARD_DISTANCE - 6
+const BOTTOM_CARD_Y_OFFSET = 6
 
 /**
  * Cards render along the vector between the board center and each seat, staying
@@ -118,9 +119,11 @@ const getCardPlacement = (slot: SeatLayoutSlot): CardPlacement => {
   const offsetX = 50 - slot.avatarX
   const offsetY = 50 - slot.avatarY
   const distance = Math.max(Math.hypot(offsetX, offsetY), 1)
+  const vectorX = offsetX / distance
+  const vectorY = offsetY / distance
 
-  const translateX = (offsetX / distance) * BASE_CARD_DISTANCE
-  let translateY = (offsetY / distance) * CARD_DISTANCE_Y
+  const translateX = vectorX * (BASE_CARD_DISTANCE + CARD_CLEARANCE)
+  let translateY = vectorY * (CARD_DISTANCE_Y + CARD_CLEARANCE * 0.6)
   if (slot.yPercent >= SAFE_BOTTOM_CARD_THRESHOLD) {
     translateY = translateY - Math.sign(translateY) * BOTTOM_CARD_Y_OFFSET
   }
@@ -1539,6 +1542,7 @@ export default function TablePage() {
                       top: '50%',
                       transform: `translate(-50%, -50%) translate(${cardPlacement.translateX}px, ${cardPlacement.translateY}px) rotate(${cardPlacement.rotation}deg)`,
                       transformOrigin: 'center',
+                      zIndex: 30,
                     } as const
 
                     return (
@@ -1564,7 +1568,7 @@ export default function TablePage() {
                             }}
                           >
                             {shouldRenderCards && (
-                              <div className="pointer-events-none absolute flex gap-1.5" style={cardRowStyle}>
+                              <div className="pointer-events-none absolute z-30 flex gap-2" style={cardRowStyle}>
                                 {showHeroCards &&
                                   heroCards.map((card, idx) => {
                                     const heroWinner = liveState.hand_result?.winners?.find(
@@ -1579,7 +1583,7 @@ export default function TablePage() {
                                           transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
                                         }}
                                       >
-                                        <PlayingCard card={card} size="sm" highlighted={isWinningCard} />
+                                        <PlayingCard card={card} size="md" highlighted={isWinningCard} />
                                       </div>
                                     )
                                   })}
@@ -1593,7 +1597,7 @@ export default function TablePage() {
                                         transform: cardIndex === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
                                       }}
                                     >
-                                      <PlayingCard card="XX" size="sm" hidden />
+                                      <PlayingCard card="XX" size="md" hidden />
                                     </div>
                                   ))}
 
@@ -1607,7 +1611,7 @@ export default function TablePage() {
                                       <PlayingCard
                                         key={`villain-card-${playerKey}-${card}-${idx}`}
                                         card={card}
-                                        size="sm"
+                                        size="md"
                                         highlighted={isWinningCard}
                                       />
                                     )

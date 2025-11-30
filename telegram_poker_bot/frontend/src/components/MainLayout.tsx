@@ -53,7 +53,12 @@ export default function MainLayout() {
           >
             <div className="mx-auto flex w-full max-w-4xl items-center gap-3">
               <Link to="/profile" className="flex items-center gap-2.5">
-                <Avatar size="sm" className="relative" style={{ border: '1px solid rgba(255, 255, 255, 0.3)' }} />
+                <Avatar
+                  size="sm"
+                  className="relative"
+                  style={{ border: '1px solid rgba(255, 255, 255, 0.3)' }}
+                  showTurnIndicator={false}
+                />
               </Link>
 
               <div className="flex flex-1 items-center justify-between gap-3">
