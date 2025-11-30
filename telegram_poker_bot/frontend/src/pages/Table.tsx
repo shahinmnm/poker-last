@@ -169,6 +169,7 @@ export default function TablePage() {
   const [actionPending, setActionPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
+  const [turnProgress, setTurnProgress] = useState(1)
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
@@ -1152,6 +1153,26 @@ export default function TablePage() {
     liveState?.hand_id,
   ])
 
+  useEffect(() => {
+    if (!liveState?.action_deadline) {
+      setTurnProgress(1)
+      return
+    }
+
+    const deadlineMs = new Date(liveState.action_deadline).getTime()
+    const totalMs = Math.max(2000, (liveState?.turn_timeout_seconds ?? 12) * 1000)
+
+    const updateProgress = () => {
+      const remaining = Math.max(0, deadlineMs - Date.now())
+      const pct = Math.max(0, Math.min(1, remaining / totalMs))
+      setTurnProgress(pct)
+    }
+
+    updateProgress()
+    const interval = window.setInterval(updateProgress, 120)
+    return () => window.clearInterval(interval)
+  }, [liveState?.action_deadline, liveState?.turn_timeout_seconds])
+
   // Control bottom navigation visibility based on seated status
   useEffect(() => {
     // Hide bottom nav when seated and playing, show it when spectating
@@ -1537,6 +1558,14 @@ export default function TablePage() {
                     const cardPlacement = getCardPlacement(slot)
                     const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
                     const shouldRenderCards = showHeroCards || showOpponentBacks || showShowdownCards
+                    const overlayCards = showHeroCards
+                      ? heroCards
+                      : showShowdownCards
+                        ? playerCards
+                        : showOpponentBacks
+                          ? ['XX', 'XX']
+                          : undefined
+                    const overlayCardsHidden = !showShowdownCards && !showHeroCards && showOpponentBacks
                     const cardRowStyle = {
                       left: '50%',
                       top: '50%',
@@ -1637,6 +1666,9 @@ export default function TablePage() {
                               isSittingOut={isSittingOut}
                               isAllIn={isAllIn}
                               detailsPlacement="outside"
+                              turnProgress={isActivePlayer ? turnProgress : null}
+                              overlayCards={overlayCards}
+                              overlayCardsHidden={overlayCardsHidden}
                             />
 
                             {lastActionText && player?.in_hand && (
