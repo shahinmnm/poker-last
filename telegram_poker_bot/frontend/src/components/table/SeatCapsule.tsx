@@ -24,6 +24,9 @@ interface SeatCapsuleProps {
   detailsPlacement?: 'inside' | 'outside'
   isSittingOut?: boolean
   isAllIn?: boolean
+  turnProgress?: number | null
+  overlayCards?: string[]
+  overlayCardsHidden?: boolean
 }
 
 const AVATAR_SIZE = { base: 44, cta: 48 }
@@ -64,6 +67,9 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
       detailsPlacement = 'inside',
       isSittingOut = false,
       isAllIn = false,
+      turnProgress = null,
+      overlayCards,
+      overlayCardsHidden = false,
     },
     ref,
   ) => {
@@ -180,6 +186,9 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
                   hasFolded={hasFolded}
                   showTurnIndicator={!isEmpty}
                   showFoldLabel={showFoldedLabel}
+                  turnProgress={turnProgress}
+                  cards={overlayCards}
+                  cardsHidden={overlayCardsHidden}
                   size={isHero ? 'lg' : 'md'}
                   className={clsx('border-2', isHero ? 'border-cyan-200/60' : 'border-white/40')}
                   style={{

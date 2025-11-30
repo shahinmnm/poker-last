@@ -2,6 +2,7 @@ import { useMemo, type CSSProperties, type ReactNode } from 'react'
 import { useTelegram } from '../../hooks/useTelegram'
 import { cn } from '../../utils/cn'
 import { formatChips } from '../../utils/formatChips'
+import PlayingCard from './PlayingCard'
 
 interface AvatarProps {
   size?: 'sm' | 'md' | 'lg' | 'xl'
@@ -17,6 +18,9 @@ interface AvatarProps {
   showFoldLabel?: boolean
   chipTone?: 'gold' | 'emerald' | 'blue' | 'slate'
   overlayContent?: ReactNode
+  turnProgress?: number | null
+  cards?: string[]
+  cardsHidden?: boolean
 }
 
 const sizeClasses: Record<NonNullable<AvatarProps['size']>, string> = {
@@ -132,6 +136,9 @@ export default function Avatar({
   showFoldLabel = true,
   chipTone,
   overlayContent,
+  turnProgress = null,
+  cards,
+  cardsHidden = false,
 }: AvatarProps) {
   const { user } = useTelegram()
   const displayName = name || user?.first_name || user?.username || ''
@@ -141,36 +148,65 @@ export default function Avatar({
   const initials = useMemo(() => getInitials(displayName || avatarSeed), [displayName, avatarSeed])
   const chipLabel = useMemo(() => formatBalance(balance), [balance])
   const tone = useMemo(() => resolveChipTone(balance, chipTone), [balance, chipTone])
+  const clampedProgress =
+    typeof turnProgress === 'number' ? Math.max(0, Math.min(1, turnProgress)) : null
 
   const ringBackground = useMemo(() => {
+    if (!showTurnIndicator) return null
     if (hasFolded) {
-      return 'conic-gradient(from 90deg, rgba(148,163,184,0.6), rgba(239,68,68,0.5), rgba(148,163,184,0.6))'
+      return {
+        track: 'rgba(148,163,184,0.35)',
+        fill: 'conic-gradient(from -90deg, rgba(148,163,184,0.7), rgba(120,113,108,0.4) 300deg, rgba(148,163,184,0.7))',
+      }
     }
-    if (isActive && showTurnIndicator) {
-      return 'conic-gradient(from 90deg, #fbbf24, #34d399, #38bdf8, #fbbf24)'
+    if (isActive) {
+      const degrees = Math.round((clampedProgress ?? 1) * 360)
+      const activeFill =
+        clampedProgress !== null
+          ? `conic-gradient(from -90deg, #f97316 ${degrees}deg, rgba(255,255,255,0.08) ${degrees}deg 360deg)`
+          : 'conic-gradient(from -90deg, #22c55e, #38bdf8, #f97316, #22c55e)'
+      return {
+        track: 'rgba(56,189,248,0.25)',
+        fill: activeFill,
+      }
     }
-    return 'conic-gradient(from 90deg, rgba(255,255,255,0.22), rgba(148,163,184,0.45), rgba(255,255,255,0.22))'
-  }, [hasFolded, isActive, showTurnIndicator])
+    return {
+      track: 'rgba(255,255,255,0.15)',
+      fill: 'conic-gradient(from -90deg, rgba(255,255,255,0.32), rgba(148,163,184,0.28), rgba(255,255,255,0.32))',
+    }
+  }, [showTurnIndicator, hasFolded, isActive, clampedProgress])
 
   return (
     <div className={cn('relative inline-flex flex-col items-center gap-2', wrapperClassName)}>
       <div className="relative flex items-center justify-center">
-        {showTurnIndicator && (
-          <span
-            className={cn(
-              'pointer-events-none absolute inset-[-8px] rounded-full opacity-90',
-              isActive && !hasFolded ? 'animate-[spin_9s_linear_infinite]' : 'animate-none',
-            )}
-            style={{
-              background: ringBackground,
-              boxShadow: isActive
-                ? '0 0 0 4px rgba(16,185,129,0.18), 0 0 18px rgba(59,130,246,0.2)'
-                : '0 0 0 3px rgba(255,255,255,0.06)',
-              filter: hasFolded ? 'grayscale(0.7)' : undefined,
-              transform: 'translateZ(0)',
-            }}
-            aria-hidden
-          />
+        {showTurnIndicator && ringBackground && (
+          <>
+            <span
+              className="pointer-events-none absolute inset-[-9px] rounded-full opacity-80"
+              style={{
+                background: ringBackground.track,
+                boxShadow: isActive
+                  ? '0 0 0 3px rgba(56,189,248,0.25)'
+                  : '0 0 0 2px rgba(255,255,255,0.05)',
+              }}
+              aria-hidden
+            />
+            <span
+              className={cn(
+                'pointer-events-none absolute inset-[-9px] rounded-full',
+                clampedProgress === null && isActive && !hasFolded && 'animate-[spin_9s_linear_infinite]',
+              )}
+              style={{
+                background: ringBackground.fill,
+                boxShadow: isActive
+                  ? '0 0 12px rgba(59,130,246,0.35)'
+                  : '0 0 0 1px rgba(255,255,255,0.08)',
+                filter: hasFolded ? 'grayscale(0.7)' : undefined,
+                transform: 'translateZ(0)',
+              }}
+              aria-hidden
+            />
+          </>
         )}
 
         <div
@@ -190,6 +226,20 @@ export default function Avatar({
 
         {overlayContent && (
           <div className="pointer-events-none absolute inset-0">{overlayContent}</div>
+        )}
+
+        {cards && cards.length > 0 && (
+          <div className="pointer-events-none absolute -right-7 bottom-0 z-20 flex gap-1.5">
+            {cards.slice(0, 2).map((card, idx) => (
+              <div
+                key={`${card}-${idx}`}
+                className="drop-shadow-md"
+                style={{ transform: idx === 0 ? 'rotate(-8deg)' : 'rotate(6deg)' }}
+              >
+                <PlayingCard card={cardsHidden ? 'XX' : card} size="sm" hidden={cardsHidden} />
+              </div>
+            ))}
+          </div>
         )}
 
         {hasFolded && showFoldLabel && (
