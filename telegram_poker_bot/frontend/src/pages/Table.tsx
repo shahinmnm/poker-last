@@ -1548,11 +1548,12 @@ export default function TablePage() {
                     return (
                       <Fragment key={`seat-${seatNumber}-${layoutIndex}`}>
                         <div
-                          className={`absolute z-10 ${player ? 'seat-enter' : ''}`}
+                          className={`absolute ${player ? 'seat-enter' : ''}`}
                           style={{
                             left: `${slot.xPercent}%`,
                             top: `${slot.yPercent}%`,
                             transform: 'translate(-50%, -50%)',
+                            zIndex: 25,
                           }}
                         >
                           <div
