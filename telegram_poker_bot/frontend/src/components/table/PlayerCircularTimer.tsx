@@ -32,7 +32,7 @@ const computeRemainingSeconds = (deadlineMs: number, totalSeconds: number) => {
 export default function PlayerCircularTimer({
   deadline,
   totalSeconds,
-  size = 80,
+  size = 84,
   strokeWidth = 6,
   className,
 }: PlayerCircularTimerProps) {
@@ -67,7 +67,7 @@ export default function PlayerCircularTimer({
   return (
     <svg
       className={clsx(
-        'pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+        'pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
         className,
       )}
       width={size}
