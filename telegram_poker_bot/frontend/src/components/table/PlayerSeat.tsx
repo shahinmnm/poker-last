@@ -116,9 +116,9 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
               <PlayerCircularTimer
                 deadline={turnDeadline}
                 totalSeconds={totalTime}
-                size={76}
+                size={66}
                 strokeWidth={4}
-                className="z-30 h-[76px] w-[76px]"
+                className="z-10 h-[66px] w-[66px]"
               />
             )}
 
