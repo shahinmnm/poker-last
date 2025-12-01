@@ -109,37 +109,6 @@ export default function HomePage() {
     )
   }
 
-  const actionItems = [
-    {
-      key: 'public',
-      icon: faUsers,
-      label: t('home.actions.public.label', 'Play Public Tables'),
-      subtitle: t('home.actions.public.subtitle', 'Join live tables'),
-      path: '/lobby',
-    },
-    {
-      key: 'friends',
-      icon: faUserGroup,
-      label: t('home.actions.friends.label', 'Play with Friends'),
-      subtitle: t('home.actions.friends.subtitle', 'Create a private table'),
-      path: '/games/create?mode=private',
-    },
-    {
-      key: 'group',
-      icon: faUsersRectangle,
-      label: t('home.actions.group.label', 'Start Group Game'),
-      subtitle: t('home.actions.group.subtitle', 'Launch inside a Telegram group'),
-      path: '/group/invite',
-    },
-    {
-      key: 'neon-demo',
-      icon: faArrowRight,
-      label: 'Neon Table Preview',
-      subtitle: 'Try the neon circular UI',
-      path: '/neon-table-demo',
-    },
-  ]
-
   return (
     <div className="space-y-6">
       {activeTable && (
@@ -197,7 +166,29 @@ export default function HomePage() {
       )}
 
       <div className="grid gap-3">
-        {actionItems.map((action) => (
+        {[
+          {
+            key: 'public',
+            icon: faUsers,
+            label: t('home.actions.public.label', 'Play Public Tables'),
+            subtitle: t('home.actions.public.subtitle', 'Join live tables'),
+            path: '/lobby',
+          },
+          {
+            key: 'friends',
+            icon: faUserGroup,
+            label: t('home.actions.friends.label', 'Play with Friends'),
+            subtitle: t('home.actions.friends.subtitle', 'Create a private table'),
+            path: '/games/create?mode=private',
+          },
+          {
+            key: 'group',
+            icon: faUsersRectangle,
+            label: t('home.actions.group.label', 'Start Group Game'),
+            subtitle: t('home.actions.group.subtitle', 'Launch inside a Telegram group'),
+            path: '/group/invite',
+          },
+        ].map((action) => (
           <button
             key={action.key}
             onClick={() => navigate(action.path)}

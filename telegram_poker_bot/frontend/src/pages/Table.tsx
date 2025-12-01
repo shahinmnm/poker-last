@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { useTelegram } from '../hooks/useTelegram'
@@ -20,7 +20,6 @@ import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
-import NeonPokerTable from '../components/tables/NeonPokerTable'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import PlayerSeat from '@/components/table/PlayerSeat'
@@ -115,7 +114,6 @@ const ACTIVE_GAMEPLAY_STREETS = ['preflop', 'flop', 'turn', 'river']
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
-  const location = useLocation()
   const { initData } = useTelegram()
   const { t } = useTranslation()
   const { refetchAll: refetchUserData } = useUserData()
@@ -290,10 +288,6 @@ export default function TablePage() {
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
   const heroCards = liveState?.hero?.cards ?? []
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
-  const neonMode = useMemo(() => {
-    const params = new URLSearchParams(location.search)
-    return params.get('neon') === '1'
-  }, [location.search])
   const currentPhase = useMemo(() => {
     if (liveState?.phase) return liveState.phase
     const normalizedStatus = liveState?.status?.toString().toLowerCase()
@@ -992,82 +986,6 @@ export default function TablePage() {
 
     return lookup
   }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
-
-  const neonPlayers = useMemo(() => {
-    const basePlayers: Array<TablePlayerState | TablePlayer> =
-      (liveState?.players as Array<TablePlayerState | TablePlayer> | undefined) ??
-      (tableDetails?.players as Array<TablePlayerState | TablePlayer> | undefined) ??
-      []
-
-    return basePlayers.map((player, idx) => {
-      const id = (player as any).user_id?.toString() ?? `p-${idx}`
-      const name =
-        (player as any).display_name ||
-        (player as any).username ||
-        (player as any).name ||
-        t('table.meta.unknown')
-
-      const isHero = heroIdString !== null && id === heroIdString
-      const isTurn = currentActorUserId?.toString() === id
-      const isStatePlayer = 'in_hand' in player
-      const inHand = isStatePlayer ? Boolean((player as TablePlayerState).in_hand) : true
-      const stackValue = isStatePlayer
-        ? (player as TablePlayerState).stack ?? 0
-        : (player as TablePlayer).chips ?? 0
-      const isSB = isStatePlayer ? Boolean((player as TablePlayerState).is_small_blind) : false
-      const isBB = isStatePlayer ? Boolean((player as TablePlayerState).is_big_blind) : false
-
-      const isFolded = Boolean(liveState?.hand_id && !inHand)
-      const canReveal = isHero || normalizedStatus === 'showdown' || isInterHand
-      const showdown = showdownCardsByPlayer.get(id) || []
-      const heroShownCards = isHero ? heroCards : showdown
-      const cards = canReveal ? heroShownCards : []
-
-      return {
-        id,
-        name,
-        chips: stackValue,
-        isHero,
-        isTurn,
-        isSB,
-        isBB,
-        isFolded,
-        showCards: canReveal,
-        cards,
-      }
-    })
-  }, [
-    currentActorUserId,
-    heroCards,
-    heroIdString,
-    isInterHand,
-    liveState?.hand_id,
-    liveState?.players,
-    normalizedStatus,
-    showdownCardsByPlayer,
-    tableDetails?.players,
-    t,
-  ])
-
-  if (neonMode) {
-    if (!liveState) {
-      return (
-        <div className="neon-table-screen">
-          <p className="text-sm text-white/70">{t('common.loading')}</p>
-        </div>
-      )
-    }
-
-    return (
-      <div className="neon-table-screen">
-        <NeonPokerTable
-          players={neonPlayers}
-          communityCards={liveState.board ?? []}
-          potAmount={potDisplayAmount}
-        />
-      </div>
-    )
-  }
 
   const heroSeatNumber = heroPlayer?.seat ?? heroPlayer?.position ?? null
   const occupiedSeatNumbers = useMemo(() => {
