@@ -26,7 +26,7 @@ const formatChips = (value: number): string => {
 }
 
 const CARD_BASE =
-  'absolute h-14 w-10 rounded-[6px] border border-slate-200 bg-white text-slate-900 shadow-[0_14px_32px_rgba(0,0,0,0.35)] flex items-center justify-center text-[11px] font-semibold relative overflow-hidden'
+  'absolute h-14 w-10 rounded-[6px] border border-slate-200 bg-white text-slate-900 shadow-[0_14px_32px_rgba(0,0,0,0.35)] flex items-center justify-center text-[11px] font-semibold overflow-hidden'
 
 const renderCardFace = (card?: string) => {
   if (!card || card.length < 2) return null
@@ -124,7 +124,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         aria-label={seatLabel}
       >
         {/* Avatar */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-20">
           <div className="relative h-16 w-16">
             <div
               className={clsx(
@@ -159,31 +159,26 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         </div>
 
         {/* Card fan */}
-        <div className="pointer-events-none absolute left-[44px] top-1/2 -translate-y-1/2">
-          {/* Back card */}
-          <div
-            className={clsx(
-              CARD_BASE,
-              'left-0 -top-1 rotate-[18deg]',
-              'bg-white text-slate-900',
-              !showFaces && showCardBacks && 'bg-gradient-to-br from-white to-slate-100 text-slate-700',
-            )}
-            style={{ zIndex: 1 }}
-          >
-            {showFaces ? renderCardFace(holeCards[1]) : null}
-          </div>
+        <div className="pointer-events-none absolute left-[60px] top-1/2 -translate-y-1/2 z-10">
+          <div className="relative flex h-16 w-[96px] items-end justify-center">
+            {holeCards.slice(0, 2).map((card, index) => {
+              const isBackCard = index === 0
 
-          {/* Front card */}
-          <div
-            className={clsx(
-              CARD_BASE,
-              '-left-2 top-3 rotate-[4deg]',
-              'bg-white text-slate-900',
-              !showFaces && showCardBacks && 'bg-gradient-to-br from-white to-slate-100 text-slate-700',
-            )}
-            style={{ zIndex: 2 }}
-          >
-            {showFaces ? renderCardFace(holeCards[0]) : null}
+              return (
+                <div
+                  key={`${card}-${index}`}
+                  className={clsx(
+                    CARD_BASE,
+                    isBackCard
+                      ? 'z-10 -rotate-[8deg] origin-bottom'
+                      : 'z-20 rotate-[8deg] translate-x-[15px] origin-bottom',
+                    !showFaces && showCardBacks && 'bg-gradient-to-br from-white to-slate-100 text-slate-700',
+                  )}
+                >
+                  {showFaces ? renderCardFace(card) : null}
+                </div>
+              )
+            })}
           </div>
         </div>
 
