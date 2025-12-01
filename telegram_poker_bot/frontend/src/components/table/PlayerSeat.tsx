@@ -26,7 +26,7 @@ const formatChips = (value: number): string => {
 }
 
 const CARD_BASE =
-  'absolute h-10 w-8 rounded-[4px] border border-white/25 bg-white text-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.45)] flex items-center justify-center text-[11px] font-semibold'
+  'absolute h-14 w-10 rounded-[6px] border border-white/60 bg-gradient-to-br from-white to-slate-100 text-slate-900 shadow-[0_12px_28px_rgba(0,0,0,0.45)] flex items-center justify-center text-[11px] font-semibold relative overflow-hidden'
 
 const renderCardFace = (card?: string) => {
   if (!card || card.length < 2) return null
@@ -37,10 +37,32 @@ const renderCardFace = (card?: string) => {
   const isRed = suit === 'h' || suit === 'd'
 
   return (
-    <span className={clsx('flex flex-col items-center justify-center leading-none', isRed ? 'text-rose-500' : 'text-slate-900')}>
-      <span className="text-[11px] font-bold">{rank}</span>
-      <span className="text-[12px]">{suitIcon}</span>
-    </span>
+    <div className="relative h-full w-full px-1.5 py-1">
+      <span
+        className={clsx(
+          'absolute left-1 top-1 text-[11px] font-bold leading-none',
+          isRed ? 'text-rose-600' : 'text-slate-900',
+        )}
+      >
+        {rank}
+      </span>
+      <span
+        className={clsx(
+          'absolute right-1 bottom-1 text-[11px] font-bold leading-none',
+          isRed ? 'text-rose-600' : 'text-slate-900',
+        )}
+      >
+        {suitIcon}
+      </span>
+      <div
+        className={clsx(
+          'flex h-full items-center justify-center text-xl font-semibold',
+          isRed ? 'text-rose-500' : 'text-slate-800',
+        )}
+      >
+        {suitIcon}
+      </div>
+    </div>
   )
 }
 
@@ -95,7 +117,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       <div
         ref={ref}
         className={clsx(
-          'relative inline-block h-[84px] w-[156px]',
+          'relative inline-block h-[100px] w-[188px]',
           mutedState && 'grayscale opacity-50',
         )}
         aria-label={seatLabel}
@@ -128,7 +150,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
             {progress !== null && (
               <div
-                className="pointer-events-none absolute inset-[-8px] rounded-full p-[4px]"
+                className="pointer-events-none absolute inset-[-10px] rounded-full p-[5px]"
                 style={ringStyle}
               >
                 <div className="h-full w-full rounded-full bg-slate-950/80" />
@@ -138,7 +160,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         </div>
 
         {/* Card fan */}
-        <div className="pointer-events-none absolute left-12 top-1/2 -translate-y-1/2">
+        <div className="pointer-events-none absolute left-14 top-1/2 -translate-y-1/2">
           {/* Back card */}
           <div
             className={clsx(
