@@ -9,7 +9,7 @@ export interface PlayingCardProps {
   /** Card string in format like "Ah", "Kd", "Ts", "2c" */
   card: string
   /** Size of the card */
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   /** Whether to show card back (hidden card) */
   hidden?: boolean
   /** Whether to highlight the card (for winning cards) */
