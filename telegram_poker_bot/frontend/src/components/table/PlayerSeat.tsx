@@ -26,7 +26,23 @@ const formatChips = (value: number): string => {
 }
 
 const CARD_BASE =
-  'absolute h-16 w-12 rounded-xl border border-white/25 bg-white text-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.45)] flex items-center justify-center text-sm font-semibold'
+  'absolute h-10 w-8 rounded-[4px] border border-white/25 bg-white text-slate-900 shadow-[0_10px_24px_rgba(0,0,0,0.45)] flex items-center justify-center text-[11px] font-semibold'
+
+const renderCardFace = (card?: string) => {
+  if (!card || card.length < 2) return null
+  const rank = card.slice(0, -1).toUpperCase()
+  const suit = card.slice(-1).toLowerCase()
+  const suitIcon =
+    suit === 'h' ? '♥' : suit === 'd' ? '♦' : suit === 'c' ? '♣' : suit === 's' ? '♠' : '★'
+  const isRed = suit === 'h' || suit === 'd'
+
+  return (
+    <span className={clsx('flex flex-col items-center justify-center leading-none', isRed ? 'text-rose-500' : 'text-slate-900')}>
+      <span className="text-[11px] font-bold">{rank}</span>
+      <span className="text-[12px]">{suitIcon}</span>
+    </span>
+  )
+}
 
 const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
   (
@@ -57,10 +73,19 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         ? null
         : Math.max(0, Math.min(1, turnProgress > 1 ? turnProgress / 100 : turnProgress))
 
+    const ringColor =
+      progress === null
+        ? '#22d3ee'
+        : progress > 0.5
+          ? '#22c55e' // green
+          : progress > 0.25
+            ? '#eab308' // yellow
+            : '#ef4444' // red
+
     const ringStyle =
       progress !== null
         ? {
-            background: `conic-gradient(#22d3ee ${Math.round(progress * 360)}deg, rgba(255,255,255,0.08) 0deg)`,
+            background: `conic-gradient(${ringColor} ${Math.round(progress * 360)}deg, rgba(255,255,255,0.08) 0deg)`,
           }
         : undefined
 
@@ -80,7 +105,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
           <div className="relative h-16 w-16">
             <div
               className={clsx(
-                'relative flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white shadow-[0_14px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/20',
+                'relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_14px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/20',
                 isHero && 'ring-2 ring-amber-300/90 shadow-amber-400/25',
                 isActive &&
                   'shadow-[0_0_24px_rgba(56,189,248,0.55)] ring-2 ring-cyan-300/90',
@@ -103,7 +128,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
             {progress !== null && (
               <div
-                className="pointer-events-none absolute inset-[-6px] rounded-full p-[2px]"
+                className="pointer-events-none absolute inset-[-8px] rounded-full p-[4px]"
                 style={ringStyle}
               >
                 <div className="h-full w-full rounded-full bg-slate-950/80" />
@@ -118,13 +143,13 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
           <div
             className={clsx(
               CARD_BASE,
-              'left-5 top-0 rotate-[15deg] bg-gradient-to-br from-slate-900 to-slate-800 text-white',
+              'left-3 top-0 rotate-[15deg] bg-gradient-to-br from-slate-900 to-slate-800 text-white',
               showFaces && 'bg-white text-slate-900',
               !showFaces && showCardBacks && 'bg-[radial-gradient(circle_at_30%_30%,_rgba(59,130,246,0.45),_rgba(15,23,42,0.95))]',
             )}
             style={{ zIndex: 1 }}
           >
-            {showFaces ? holeCards[1] : showCardBacks ? '' : null}
+            {showFaces ? renderCardFace(holeCards[1]) : showCardBacks ? '' : null}
           </div>
 
           {/* Front card */}
@@ -137,7 +162,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             )}
             style={{ zIndex: 2 }}
           >
-            {showFaces ? holeCards[0] : showCardBacks ? '' : null}
+            {showFaces ? renderCardFace(holeCards[0]) : showCardBacks ? '' : null}
           </div>
         </div>
 
