@@ -73,58 +73,61 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         )}
         aria-label={seatLabel}
       >
-        {/* Avatar & timer */}
-        <div className="relative flex items-center justify-center">
-          <div className="relative h-16 w-16 flex items-center justify-center">
-            {showTimer && turnDeadline && totalTime !== null && (
-              <PlayerCircularTimer
-                deadline={turnDeadline}
-                totalSeconds={totalTime}
-                size={66}
-                strokeWidth={3}
-                className="z-0 h-[66px] w-[66px]"
-              />
-            )}
-
-            <div
-              className={clsx(
-                'relative z-10 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-[2.5px] ring-white/20',
-                isHero && 'ring-2 ring-amber-300/90 shadow-amber-400/25',
-              )}
-            >
-              <span>{initial}</span>
-
-              {isAllIn && (
-                <span className="absolute -bottom-3 right-0 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
-                  ALL-IN
-                </span>
+        {/* Avatar + card fan row */}
+        <div className="flex items-center justify-center gap-3">
+          <div className="relative flex items-center justify-center">
+            <div className="relative h-16 w-16 flex items-center justify-center z-20">
+              {showTimer && turnDeadline && totalTime !== null && (
+                <PlayerCircularTimer
+                  deadline={turnDeadline}
+                  totalSeconds={totalTime}
+                  size={66}
+                  strokeWidth={3}
+                  className="z-0 h-[66px] w-[66px]"
+                />
               )}
 
-              {positionLabel && (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white/90 px-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-900 shadow">
-                  {positionLabel}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Card fan */}
-        <div className="relative -mt-3 flex items-center justify-center gap-1">
-          {safeCards.map((card, index) => {
-            const isBackCard = index === 0
-            return (
               <div
-                key={`${card}-${index}-${isBackCard ? 'back' : 'front'}`}
                 className={clsx(
-                  'relative',
-                  isBackCard ? '-translate-x-[6px] -rotate-[10deg]' : 'translate-x-[6px] rotate-[10deg]',
+                  'relative z-20 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-[2.5px] ring-white/20',
+                  isHero && 'ring-2 ring-amber-300/90 shadow-amber-400/25',
                 )}
               >
-                <PlayingCard card={cardsHidden ? 'XX' : card} hidden={cardsHidden} size="xs" />
+                <span>{initial}</span>
+
+                {isAllIn && (
+                  <span className="absolute -bottom-3 right-0 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
+                    ALL-IN
+                  </span>
+                )}
+
+                {positionLabel && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white/90 px-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-900 shadow">
+                    {positionLabel}
+                  </span>
+                )}
               </div>
-            )
-          })}
+            </div>
+          </div>
+
+          <div className="pointer-events-none relative flex h-16 w-[96px] items-center justify-center z-10">
+            {safeCards.map((card, index) => {
+              const isBackCard = index === 0
+              return (
+                <div
+                  key={`${card}-${index}-${isBackCard ? 'back' : 'front'}`}
+                  className={clsx(
+                    'absolute origin-bottom',
+                    isBackCard
+                      ? 'z-10 -rotate-[8deg]'
+                      : 'z-20 rotate-[8deg] translate-x-[15px]',
+                  )}
+                >
+                  <PlayingCard card={cardsHidden ? 'XX' : card} hidden={cardsHidden} size="xs" />
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {/* Labels */}
