@@ -991,6 +991,70 @@ export default function TablePage() {
       liveState?.hand_result?.winners?.flatMap((winner) => winner.best_hand_cards ?? []) ?? [],
     [liveState?.hand_result?.winners],
   )
+
+  const neonPlayers = useMemo(() => {
+    const basePlayers = liveState?.players ?? tableDetails?.players ?? []
+    return basePlayers.map((player, idx) => {
+      const id = player.user_id?.toString() ?? `p-${idx}`
+      const name =
+        (player as any).display_name ||
+        (player as any).username ||
+        (player as any).name ||
+        t('table.meta.unknown')
+      const isHero = heroIdString !== null && id === heroIdString
+      const isTurn = currentActorUserId?.toString() === id
+      const isFolded = Boolean(liveState?.hand_id && !player.in_hand)
+      const canReveal = isHero || normalizedStatus === 'showdown' || isInterHand
+      const showdown = showdownCardsByPlayer.get(id) || []
+      const heroShownCards = isHero ? heroCards : showdown
+      const cards = canReveal ? heroShownCards : []
+      const showCards = canReveal
+
+      return {
+        id,
+        name,
+        chips: player.stack ?? 0,
+        isHero,
+        isTurn,
+        isSB: player.is_small_blind,
+        isBB: player.is_big_blind,
+        isFolded,
+        showCards,
+        cards,
+      }
+    })
+  }, [
+    currentActorUserId,
+    heroIdString,
+    isInterHand,
+    heroCards,
+    liveState?.hand_id,
+    liveState?.players,
+    normalizedStatus,
+    showdownCardsByPlayer,
+    tableDetails?.players,
+    t,
+  ])
+
+  if (neonMode) {
+    if (!liveState) {
+      return (
+        <div className="neon-table-screen">
+          <p className="text-sm text-white/70">{t('common.loading')}</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="neon-table-screen">
+        <NeonPokerTable
+          players={neonPlayers}
+          communityCards={liveState.board ?? []}
+          potAmount={potDisplayAmount}
+        />
+      </div>
+    )
+  }
   const showdownCardsByPlayer = useMemo(() => {
     const lookup = new Map<string, string[]>()
     if (heroIdString && heroCards.length) {
@@ -1027,82 +1091,6 @@ export default function TablePage() {
 
     return lookup
   }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
-
-  const neonPlayers = useMemo(() => {
-    const basePlayers: Array<TablePlayerState | TablePlayer> =
-      (liveState?.players as Array<TablePlayerState | TablePlayer> | undefined) ??
-      (tableDetails?.players as Array<TablePlayerState | TablePlayer> | undefined) ??
-      []
-
-    return basePlayers.map((player, idx) => {
-      const id = (player as any).user_id?.toString() ?? `p-${idx}`
-      const name =
-        (player as any).display_name ||
-        (player as any).username ||
-        (player as any).name ||
-        t('table.meta.unknown')
-
-      const isHero = heroIdString !== null && id === heroIdString
-      const isTurn = currentActorUserId?.toString() === id
-      const isStatePlayer = 'in_hand' in player
-      const inHand = isStatePlayer ? Boolean((player as TablePlayerState).in_hand) : true
-      const stackValue = isStatePlayer
-        ? (player as TablePlayerState).stack ?? 0
-        : (player as TablePlayer).chips ?? 0
-      const isSB = isStatePlayer ? Boolean((player as TablePlayerState).is_small_blind) : false
-      const isBB = isStatePlayer ? Boolean((player as TablePlayerState).is_big_blind) : false
-
-      const isFolded = Boolean(liveState?.hand_id && !inHand)
-      const canReveal = isHero || normalizedStatus === 'showdown' || isInterHand
-      const showdown = showdownCardsByPlayer.get(id) || []
-      const heroShownCards = isHero ? heroCards : showdown
-      const cards = canReveal ? heroShownCards : []
-
-      return {
-        id,
-        name,
-        chips: stackValue,
-        isHero,
-        isTurn,
-        isSB,
-        isBB,
-        isFolded,
-        showCards: canReveal,
-        cards,
-      }
-    })
-  }, [
-    currentActorUserId,
-    heroCards,
-    heroIdString,
-    isInterHand,
-    liveState?.hand_id,
-    liveState?.players,
-    normalizedStatus,
-    showdownCardsByPlayer,
-    tableDetails?.players,
-    t,
-  ])
-
-  if (neonMode) {
-    if (!liveState) {
-      return (
-        <div className="neon-table-screen">
-          <p className="text-sm text-white/70">{t('common.loading')}</p>
-        </div>
-      )
-    }
-
-    return (
-      <div className="neon-table-screen">
-        <NeonPokerTable
-          players={neonPlayers}
-          communityCards={liveState.board ?? []}
-          potAmount={potDisplayAmount}
-        />
-      </div>
-    )
-  }
 
   const heroSeatNumber = heroPlayer?.seat ?? heroPlayer?.position ?? null
   const occupiedSeatNumbers = useMemo(() => {
