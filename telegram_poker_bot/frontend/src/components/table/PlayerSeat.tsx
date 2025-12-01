@@ -111,12 +111,12 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       >
         {/* Avatar */}
         <div className="absolute left-0 top-1/2 -translate-y-1/2 z-20 relative">
-          <div className="relative h-16 w-16">
+          <div className="relative h-16 w-16 flex items-center justify-center">
             {showTimer && turnDeadline && totalTime !== null && (
               <PlayerCircularTimer
                 deadline={turnDeadline}
                 totalSeconds={totalTime}
-                className="z-30 h-20 w-20"
+                className="z-30 h-[84px] w-[84px]"
               />
             )}
 
