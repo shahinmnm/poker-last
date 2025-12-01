@@ -1,5 +1,6 @@
 import { forwardRef, useMemo } from 'react'
 import clsx from 'clsx'
+import PlayerCircularTimer from './PlayerCircularTimer'
 
 type PositionLabel = 'BTN' | 'SB' | 'BB' | null | undefined
 
@@ -14,6 +15,8 @@ export interface PlayerSeatProps {
   isSittingOut: boolean
   isAllIn: boolean
   turnProgress?: number | null
+  turnDeadline?: string | null
+  turnTotalSeconds?: number | null
   holeCards?: string[]
   showCardBacks?: boolean
 }
@@ -78,7 +81,8 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       hasFolded,
       isSittingOut,
       isAllIn,
-      turnProgress = null,
+      turnDeadline = null,
+      turnTotalSeconds = null,
       holeCards = [],
       showCardBacks = false,
     },
@@ -90,27 +94,9 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     )
 
     const showFaces = holeCards.length >= 2 && !showCardBacks
-    const progress =
-      turnProgress === null || turnProgress === undefined
-        ? null
-        : Math.max(0, Math.min(1, turnProgress > 1 ? turnProgress / 100 : turnProgress))
-
-    const showRing = isActive && progress !== null
-    const ringColor =
-      !showRing
-        ? '#22d3ee'
-        : progress > 0.5
-          ? '#22c55e'
-          : progress > 0.25
-            ? '#eab308'
-            : '#ef4444'
-
-    const ringStyle =
-      showRing && progress !== null
-        ? {
-            background: `conic-gradient(${ringColor} ${Math.round(progress * 360)}deg, rgba(255,255,255,0.08) 0deg)`,
-          }
-        : undefined
+    const totalTime = typeof turnTotalSeconds === 'number' ? turnTotalSeconds : null
+    const showTimer =
+      isActive && Boolean(turnDeadline) && totalTime !== null && totalTime > 0
 
     const mutedState = hasFolded || isSittingOut
 
@@ -126,6 +112,14 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         {/* Avatar */}
         <div className="absolute left-0 top-1/2 -translate-y-1/2 z-20">
           <div className="relative h-16 w-16">
+            {showTimer && turnDeadline && totalTime !== null && (
+              <PlayerCircularTimer
+                deadline={turnDeadline}
+                totalSeconds={totalTime}
+                className="z-30 h-20 w-20"
+              />
+            )}
+
             <div
               className={clsx(
                 'relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_14px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/20',
@@ -146,15 +140,6 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
                 </span>
               )}
             </div>
-
-            {showRing && ringStyle && (
-              <div
-                className="pointer-events-none absolute inset-[-10px] rounded-full p-[5px]"
-                style={ringStyle}
-              >
-                <div className="h-full w-full rounded-full bg-slate-950/80" />
-              </div>
-            )}
           </div>
         </div>
 

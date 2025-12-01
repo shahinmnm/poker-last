@@ -1563,6 +1563,8 @@ export default function TablePage() {
                               isSittingOut={isSittingOut}
                               isAllIn={isAllIn}
                               turnProgress={isActivePlayer ? turnProgress : null}
+                              turnDeadline={isActivePlayer ? liveState?.action_deadline ?? null : null}
+                              turnTotalSeconds={isActivePlayer ? liveState?.turn_timeout_seconds ?? null : null}
                               holeCards={seatHoleCards}
                               showCardBacks={showCardBacks}
                             />
