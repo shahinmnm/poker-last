@@ -14,7 +14,6 @@ import ProfilePage from './pages/Profile'
 import StatsPage from './pages/Stats'
 import WalletPage from './pages/Wallet'
 import TablePage from './pages/Table'
-import NeonTableDemoPage from './pages/NeonTableDemo'
 import GroupInvitePage from './pages/GroupInvite'
 import GroupJoinPage from './pages/GroupJoin'
 import { useTelegram } from './hooks/useTelegram'
@@ -67,7 +66,6 @@ function App() {
                       <Route path="stats" element={<StatsPage />} />
                     </Route>
                     <Route path="wallet" element={<WalletPage />} />
-                    <Route path="neon-table-demo" element={<NeonTableDemoPage />} />
                     <Route path="table/:tableId" element={<TablePage />} />
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
