@@ -33,7 +33,7 @@ export default function PlayerCircularTimer({
   deadline,
   totalSeconds,
   size = 66,
-  strokeWidth = 4,
+  strokeWidth = 3,
   className,
 }: PlayerCircularTimerProps) {
   const deadlineMs = useMemo(() => Date.parse(deadline), [deadline])

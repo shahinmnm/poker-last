@@ -3,6 +3,7 @@
  */
 
 import { useMemo } from 'react'
+import clsx from 'clsx'
 
 export interface PlayingCardProps {
   /** Card string in format like "Ah", "Kd", "Ts", "2c" */
@@ -66,6 +67,8 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
 
   const sizeClasses = useMemo(() => {
     switch (size) {
+      case 'xs':
+        return 'w-[26px] h-[38px] text-[10px]'
       case 'lg':
         return 'w-14 h-20 text-lg'
       case 'md':
@@ -79,28 +82,24 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
   if (hidden) {
     return (
       <div
-        className={`${sizeClasses} relative overflow-hidden rounded-md border border-emerald-200/40 bg-slate-900/90 shadow-[0_10px_28px_-14px_rgba(0,0,0,0.65)]`}
+        className={`${sizeClasses} relative overflow-hidden rounded-md border border-slate-700/60 bg-[#0b142b] shadow-[0_10px_24px_-16px_rgba(0,0,0,0.8)]`}
       >
-        <div className="absolute inset-0 opacity-80" style={{
-          backgroundImage:
-            'radial-gradient(circle at 20% 20%, rgba(34,197,94,0.16), transparent 40%), radial-gradient(circle at 80% 30%, rgba(94,234,212,0.16), transparent 38%)',
-        }} />
         <div
-          className="absolute inset-0 mix-blend-screen"
+          className="absolute inset-0 opacity-90"
           style={{
             backgroundImage:
-              'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(8,47,73,0.48) 50%, rgba(52,211,153,0.14) 100%)',
+              'repeating-linear-gradient(45deg, rgba(86,105,255,0.16) 0, rgba(86,105,255,0.16) 4px, transparent 4px, transparent 10px), repeating-linear-gradient(-45deg, rgba(86,105,255,0.16) 0, rgba(86,105,255,0.16) 4px, transparent 4px, transparent 10px)',
           }}
         />
         <div
-          className="absolute inset-0 opacity-60"
+          className="absolute inset-0 opacity-75"
           style={{
             backgroundImage:
-              'linear-gradient(45deg, rgba(255,255,255,0.08) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.08) 75%, transparent 75%, transparent)',
-            backgroundSize: '12px 12px',
+              'radial-gradient(circle at 25% 30%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 2px, transparent 3px), radial-gradient(circle at 70% 70%, rgba(56,189,248,0.14) 0, rgba(56,189,248,0.14) 2px, transparent 3px)',
+            backgroundSize: '18px 18px',
           }}
         />
-        <div className="absolute inset-[2px] rounded-sm border border-emerald-100/30" />
+        <div className="absolute inset-[2px] rounded-sm border border-slate-300/20" />
         <div className="relative h-full w-full" />
       </div>
     )
@@ -117,8 +116,8 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
     >
       {/* Main rank and suit */}
       <div className="flex flex-col items-center gap-0.5">
-        <span className="leading-none">{rank}</span>
-        <span className="leading-none text-lg">{suit}</span>
+        <span className={clsx('leading-none', size === 'xs' ? 'text-[11px]' : '')}>{rank}</span>
+        <span className={clsx('leading-none', size === 'xs' ? 'text-sm' : 'text-lg')}>{suit}</span>
       </div>
     </div>
   )

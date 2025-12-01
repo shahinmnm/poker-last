@@ -1,6 +1,9 @@
 import { forwardRef, useMemo } from 'react'
 import clsx from 'clsx'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCoins } from '@fortawesome/free-solid-svg-icons'
 import PlayerCircularTimer from './PlayerCircularTimer'
+import PlayingCard from '../ui/PlayingCard'
 
 type PositionLabel = 'BTN' | 'SB' | 'BB' | null | undefined
 
@@ -26,47 +29,6 @@ const formatChips = (value: number): string => {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`
   if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}k`
   return `${value}`
-}
-
-const CARD_BASE =
-  'absolute h-14 w-10 rounded-[6px] border border-slate-200 bg-white text-slate-900 shadow-[0_14px_32px_rgba(0,0,0,0.35)] flex items-center justify-center text-[11px] font-semibold overflow-hidden'
-
-const renderCardFace = (card?: string) => {
-  if (!card || card.length < 2) return null
-  const rank = card.slice(0, -1).toUpperCase()
-  const suit = card.slice(-1).toLowerCase()
-  const suitIcon =
-    suit === 'h' ? '♥' : suit === 'd' ? '♦' : suit === 'c' ? '♣' : suit === 's' ? '♠' : '★'
-  const isRed = suit === 'h' || suit === 'd'
-
-  return (
-    <div className="relative h-full w-full px-1.5 py-1">
-      <span
-        className={clsx(
-          'absolute left-1 top-1 text-[11px] font-bold leading-none',
-          isRed ? 'text-rose-600' : 'text-slate-900',
-        )}
-      >
-        {rank}
-      </span>
-      <span
-        className={clsx(
-          'absolute right-1 bottom-1 text-[11px] font-bold leading-none',
-          isRed ? 'text-rose-600' : 'text-slate-900',
-        )}
-      >
-        {suitIcon}
-      </span>
-      <div
-        className={clsx(
-          'flex h-full items-center justify-center text-xl font-semibold',
-          isRed ? 'text-rose-500' : 'text-slate-800',
-        )}
-      >
-        {suitIcon}
-      </div>
-    </div>
-  )
 }
 
 const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
@@ -97,6 +59,8 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     const totalTime = typeof turnTotalSeconds === 'number' ? turnTotalSeconds : null
     const showTimer =
       isActive && Boolean(turnDeadline) && totalTime !== null && totalTime > 0
+    const safeCards = showFaces ? holeCards.slice(0, 2) : ['XX', 'XX']
+    const cardsHidden = !showFaces
 
     const mutedState = hasFolded || isSittingOut
 
@@ -104,27 +68,27 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       <div
         ref={ref}
         className={clsx(
-          'relative inline-block h-[100px] w-[188px]',
+          'relative inline-flex w-[180px] flex-col items-center -space-y-4',
           mutedState && 'grayscale opacity-50',
         )}
         aria-label={seatLabel}
       >
-        {/* Avatar */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-20 relative">
+        {/* Avatar & timer */}
+        <div className="relative flex items-center justify-center">
           <div className="relative h-16 w-16 flex items-center justify-center">
             {showTimer && turnDeadline && totalTime !== null && (
               <PlayerCircularTimer
                 deadline={turnDeadline}
                 totalSeconds={totalTime}
                 size={66}
-                strokeWidth={4}
-                className="z-10 h-[66px] w-[66px]"
+                strokeWidth={3}
+                className="z-0 h-[66px] w-[66px]"
               />
             )}
 
             <div
               className={clsx(
-                'relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_14px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/20',
+                'relative z-10 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-[2.5px] ring-white/20',
                 isHero && 'ring-2 ring-amber-300/90 shadow-amber-400/25',
               )}
             >
@@ -146,41 +110,33 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         </div>
 
         {/* Card fan */}
-        <div className="pointer-events-none absolute left-[60px] top-1/2 -translate-y-1/2 z-10">
-          <div className="relative flex h-16 w-[96px] items-end justify-center">
-            {holeCards.slice(0, 2).map((card, index) => {
-              const isBackCard = index === 0
-
-              return (
-                <div
-                  key={`${card}-${index}`}
-                  className={clsx(
-                    CARD_BASE,
-                    isBackCard
-                      ? 'z-10 -rotate-[8deg] origin-bottom'
-                      : 'z-20 rotate-[8deg] translate-x-[15px] origin-bottom',
-                    !showFaces && showCardBacks && 'bg-gradient-to-br from-white to-slate-100 text-slate-700',
-                  )}
-                >
-                  {showFaces ? renderCardFace(card) : null}
-                </div>
-              )
-            })}
-          </div>
+        <div className="relative -mt-3 flex items-center justify-center gap-1">
+          {safeCards.map((card, index) => {
+            const isBackCard = index === 0
+            return (
+              <div
+                key={`${card}-${index}-${isBackCard ? 'back' : 'front'}`}
+                className={clsx(
+                  'relative',
+                  isBackCard ? '-translate-x-[6px] -rotate-[10deg]' : 'translate-x-[6px] rotate-[10deg]',
+                )}
+              >
+                <PlayingCard card={cardsHidden ? 'XX' : card} hidden={cardsHidden} size="xs" />
+              </div>
+            )
+          })}
         </div>
 
         {/* Labels */}
-        <div className="absolute bottom-1 left-0 right-0 flex items-center justify-between px-1">
-          <div className="flex flex-col leading-tight">
-            <span className="text-[13px] font-semibold text-white drop-shadow-sm">
-              {playerName || seatLabel}
-            </span>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-100/80">
-              {seatLabel}
-            </span>
-          </div>
-          <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-100/90">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+        <div className="flex flex-col items-center leading-tight space-y-0.5">
+          <span className="text-[12px] font-semibold tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
+            {playerName || seatLabel}
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
+            {seatLabel}
+          </span>
+          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
+            <FontAwesomeIcon icon={faCoins} className="h-3 w-3 text-amber-300" />
             <span className="tabular-nums">{formatChips(chipCount)}</span>
           </div>
         </div>
