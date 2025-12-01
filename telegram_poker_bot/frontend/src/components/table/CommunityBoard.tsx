@@ -21,17 +21,6 @@ export default function CommunityBoard({
   const [isPulsing, setIsPulsing] = useState(false)
 
   const slots = useMemo(() => Array.from({ length: 5 }, (_, idx) => cards[idx]), [cards])
-  const placeholderLabels = useMemo(
-    () => [
-      t('table.boardPlaceholders.preflop1', { defaultValue: 'PREFLOP 1' }),
-      t('table.boardPlaceholders.preflop2', { defaultValue: 'PREFLOP 2' }),
-      t('table.boardPlaceholders.preflop3', { defaultValue: 'PREFLOP 3' }),
-      t('table.boardPlaceholders.turn', { defaultValue: 'TURN' }),
-      t('table.boardPlaceholders.river', { defaultValue: 'RIVER' }),
-    ],
-    [t],
-  )
-
   useEffect(() => {
     if (!Number.isFinite(potAmount)) return undefined
 
@@ -40,15 +29,16 @@ export default function CommunityBoard({
     return () => window.clearTimeout(timer)
   }, [potAmount])
 
-  const cardHeight = 'clamp(58px, 12vw, 88px)'
-  const cardWidth = 'clamp(42px, 8.6vw, 60px)'
+  const cardHeight = 'clamp(50px, 10vw, 76px)'
+  const cardWidth = 'clamp(36px, 7.6vw, 54px)'
   const safePotAmount = Number.isFinite(potAmount) ? potAmount : 0
 
   return (
-    <div className="flex w-full flex-col items-center gap-3" style={{ minHeight: 'clamp(140px, 21vh, 210px)' }}>
+    <div className="flex w-full flex-col items-center gap-2.5" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
       <div
         ref={potRef}
         className={`table-pot-container ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
+        style={{ transform: 'scale(0.9)', transformOrigin: 'center center' }}
       >
         <div className="table-pot-pill">
           <span className="table-pot-pill-label">
@@ -63,7 +53,7 @@ export default function CommunityBoard({
           {slots.map((card, index) => {
             const offset = Math.abs(2 - index)
             const spacingClass =
-              index === 0 || index === 4 ? 'mx-2 sm:mx-3' : index === 1 || index === 3 ? 'mx-1.5 sm:mx-2' : 'mx-1.5'
+              index === 0 || index === 4 ? 'mx-1.5 sm:mx-2.5' : index === 1 || index === 3 ? 'mx-1.5 sm:mx-2' : 'mx-1.5'
 
             return (
               <div
@@ -72,17 +62,14 @@ export default function CommunityBoard({
                 style={{ transform: `translateY(${offset * 2}px)` }}
               >
                 <div
-                  className="flex items-center justify-center rounded-md border border-white/20 bg-white/10 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.5)] backdrop-blur-xl"
+                  className="flex items-center justify-center rounded-lg border border-white/20 bg-white/10 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.45)] backdrop-blur-xl"
                   style={{ height: cardHeight, width: cardWidth }}
                 >
                   {card ? (
                     <PlayingCard card={card} size="md" highlighted={highlightedCards.includes(card)} />
                   ) : (
-                    <div className="flex flex-col items-center gap-1 text-white/70">
-                      <span className="text-base leading-none">⋯</span>
-                      <span className="text-[9.5px] font-semibold uppercase tracking-[0.12em]">
-                        {placeholderLabels[index]}
-                      </span>
+                    <div className="flex h-full w-full items-center justify-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
                     </div>
                   )}
                 </div>

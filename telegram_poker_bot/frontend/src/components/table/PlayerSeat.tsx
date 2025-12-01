@@ -26,7 +26,7 @@ const formatChips = (value: number): string => {
 }
 
 const CARD_BASE =
-  'absolute h-14 w-10 rounded-[6px] border border-white/60 bg-gradient-to-br from-white to-slate-100 text-slate-900 shadow-[0_12px_28px_rgba(0,0,0,0.45)] flex items-center justify-center text-[11px] font-semibold relative overflow-hidden'
+  'absolute h-14 w-10 rounded-[6px] border border-slate-200 bg-white text-slate-900 shadow-[0_14px_32px_rgba(0,0,0,0.35)] flex items-center justify-center text-[11px] font-semibold relative overflow-hidden'
 
 const renderCardFace = (card?: string) => {
   if (!card || card.length < 2) return null
@@ -95,17 +95,18 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         ? null
         : Math.max(0, Math.min(1, turnProgress > 1 ? turnProgress / 100 : turnProgress))
 
+    const showRing = isActive && progress !== null
     const ringColor =
-      progress === null
+      !showRing
         ? '#22d3ee'
         : progress > 0.5
-          ? '#22c55e' // green
+          ? '#22c55e'
           : progress > 0.25
-            ? '#eab308' // yellow
-            : '#ef4444' // red
+            ? '#eab308'
+            : '#ef4444'
 
     const ringStyle =
-      progress !== null
+      showRing && progress !== null
         ? {
             background: `conic-gradient(${ringColor} ${Math.round(progress * 360)}deg, rgba(255,255,255,0.08) 0deg)`,
           }
@@ -129,8 +130,6 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
               className={clsx(
                 'relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_14px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/20',
                 isHero && 'ring-2 ring-amber-300/90 shadow-amber-400/25',
-                isActive &&
-                  'shadow-[0_0_24px_rgba(56,189,248,0.55)] ring-2 ring-cyan-300/90',
               )}
             >
               <span>{initial}</span>
@@ -148,7 +147,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
               )}
             </div>
 
-            {progress !== null && (
+            {showRing && ringStyle && (
               <div
                 className="pointer-events-none absolute inset-[-10px] rounded-full p-[5px]"
                 style={ringStyle}
@@ -160,31 +159,31 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         </div>
 
         {/* Card fan */}
-        <div className="pointer-events-none absolute left-14 top-1/2 -translate-y-1/2">
+        <div className="pointer-events-none absolute left-[44px] top-1/2 -translate-y-1/2">
           {/* Back card */}
           <div
             className={clsx(
               CARD_BASE,
-              'left-3 top-0 rotate-[15deg] bg-gradient-to-br from-slate-900 to-slate-800 text-white',
-              showFaces && 'bg-white text-slate-900',
-              !showFaces && showCardBacks && 'bg-[radial-gradient(circle_at_30%_30%,_rgba(59,130,246,0.45),_rgba(15,23,42,0.95))]',
+              'left-0 -top-1 rotate-[18deg]',
+              'bg-white text-slate-900',
+              !showFaces && showCardBacks && 'bg-gradient-to-br from-white to-slate-100 text-slate-700',
             )}
             style={{ zIndex: 1 }}
           >
-            {showFaces ? renderCardFace(holeCards[1]) : showCardBacks ? '' : null}
+            {showFaces ? renderCardFace(holeCards[1]) : null}
           </div>
 
           {/* Front card */}
           <div
             className={clsx(
               CARD_BASE,
-              'left-0 top-2 rotate-[5deg] bg-gradient-to-br from-slate-800 to-slate-900 text-white',
-              showFaces && 'bg-white text-slate-900',
-              !showFaces && showCardBacks && 'bg-[radial-gradient(circle_at_30%_30%,_rgba(59,130,246,0.45),_rgba(15,23,42,0.95))]',
+              '-left-2 top-3 rotate-[4deg]',
+              'bg-white text-slate-900',
+              !showFaces && showCardBacks && 'bg-gradient-to-br from-white to-slate-100 text-slate-700',
             )}
             style={{ zIndex: 2 }}
           >
-            {showFaces ? renderCardFace(holeCards[0]) : showCardBacks ? '' : null}
+            {showFaces ? renderCardFace(holeCards[0]) : null}
           </div>
         </div>
 
