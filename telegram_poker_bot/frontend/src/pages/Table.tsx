@@ -9,7 +9,6 @@ import { useLayout } from '../providers/LayoutProvider'
 import { apiFetch, ApiError } from '../utils/apiClient'
 import Toast from '../components/Toast'
 import Card from '../components/ui/Card'
-import PlayingCard from '../components/ui/PlayingCard'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
@@ -24,8 +23,8 @@ import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import NeonPokerTable from '../components/tables/NeonPokerTable'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
-import SeatCapsule from '@/components/table/SeatCapsule'
-import { getSeatLayout, type SeatLayoutSlot } from '@/config/tableLayout'
+import PlayerSeat from '@/components/table/PlayerSeat'
+import { getSeatLayout } from '@/config/tableLayout'
 import '../styles/table-layout.css'
 import type {
   AllowedAction,
@@ -99,40 +98,6 @@ interface TableDetails {
 type LastAction = NonNullable<TableState['last_action']>
 
 const TABLE_CENTER_Y_APPROX = 56
-const SAFE_BOTTOM_CARD_THRESHOLD = 85
-const BASE_CARD_DISTANCE = 48
-const CARD_CLEARANCE = 12 // extra space to keep hole cards off the avatar/turn indicator
-const CARD_DISTANCE_Y = BASE_CARD_DISTANCE - 6
-const BOTTOM_CARD_Y_OFFSET = 6
-
-/**
- * Cards render along the vector between the board center and each seat, staying
- * far enough from the capsule and action dock. Top vs bottom semantics are
- * derived from `slot.yPercent` relative to the approximate table center Y.
- */
-type CardPlacement = {
-  translateX: number
-  translateY: number
-  rotation: number
-}
-
-const getCardPlacement = (slot: SeatLayoutSlot): CardPlacement => {
-  const offsetX = 50 - slot.avatarX
-  const offsetY = 50 - slot.avatarY
-  const distance = Math.max(Math.hypot(offsetX, offsetY), 1)
-  const vectorX = offsetX / distance
-  const vectorY = offsetY / distance
-
-  const translateX = vectorX * (BASE_CARD_DISTANCE + CARD_CLEARANCE)
-  let translateY = vectorY * (CARD_DISTANCE_Y + CARD_CLEARANCE * 0.6)
-  if (slot.yPercent >= SAFE_BOTTOM_CARD_THRESHOLD) {
-    translateY = translateY - Math.sign(translateY) * BOTTOM_CARD_Y_OFFSET
-  }
-
-  const rotation = Math.round((Math.atan2(offsetY, offsetX) * 180) / Math.PI + 90)
-
-  return { translateX, translateY, rotation }
-}
 
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
@@ -1623,8 +1588,6 @@ export default function TablePage() {
                     })
                     const isSittingOut = Boolean(player?.is_sitting_out_next_hand)
                     const isAllIn = Boolean(player?.is_all_in || (player?.stack ?? 0) <= 0)
-                    const showSeatCta =
-                      !player && seatNumber === suggestedSeatNumber && !viewerIsSeated && canJoin
                     const showHeroCards =
                       isHeroPlayer &&
                       heroCards.length > 0 &&
@@ -1637,25 +1600,13 @@ export default function TablePage() {
                       !isHeroPlayer &&
                       Boolean(player?.in_hand && liveState?.hand_id && !hasFolded && !showShowdownCards)
                     const isBottomSeat = slot.yPercent >= TABLE_CENTER_Y_APPROX
-                    const cardPlacement = getCardPlacement(slot)
                     const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
-                    const shouldRenderCards = showHeroCards || showOpponentBacks || showShowdownCards
-                    // Keep avatar overlays only for opponents/back-of-cards to avoid duplicating hero hole cards.
-                    const overlayCards = showHeroCards
-                      ? undefined
+                    const seatHoleCards = showHeroCards
+                      ? heroCards
                       : showShowdownCards
                         ? playerCards
-                        : showOpponentBacks
-                          ? ['XX', 'XX']
-                          : undefined
-                    const overlayCardsHidden = Boolean(!showShowdownCards && showOpponentBacks)
-                    const cardRowStyle = {
-                      left: '50%',
-                      top: '50%',
-                      transform: `translate(-50%, -50%) translate(${cardPlacement.translateX}px, ${cardPlacement.translateY}px) rotate(${cardPlacement.rotation}deg)`,
-                      transformOrigin: 'center',
-                      zIndex: 30,
-                    } as const
+                        : []
+                    const showCardBacks = showOpponentBacks
 
                     return (
                       <Fragment key={`seat-${seatNumber}-${layoutIndex}`}>
@@ -1670,88 +1621,32 @@ export default function TablePage() {
                         >
                           <div
                             className="relative flex flex-col items-center gap-1.5"
-                            ref={(el) => {
-                              if (playerKey) {
+                            onClick={!player && canJoin && !viewerIsSeated ? handleSeat : undefined}
+                          >
+                            <PlayerSeat
+                              ref={playerKey ? (el) => {
                                 if (el) {
                                   playerTileRefs.current.set(playerKey, el)
                                 } else {
                                   playerTileRefs.current.delete(playerKey)
                                 }
+                              } : undefined}
+                              playerName={
+                                player
+                                  ? displayName
+                                  : t('table.seat.empty', { defaultValue: 'Empty seat' })
                               }
-                            }}
-                          >
-                            {shouldRenderCards && (
-                              <div className="pointer-events-none absolute z-30 flex gap-2" style={cardRowStyle}>
-                                {showHeroCards &&
-                                  heroCards.map((card, idx) => {
-                                    const heroWinner = liveState.hand_result?.winners?.find(
-                                      (w) => w.user_id?.toString() === heroIdString,
-                                    )
-                                    const isWinningCard = heroWinner?.best_hand_cards?.includes(card) ?? false
-                                    return (
-                                      <div
-                                        key={`hero-card-${idx}`}
-                                        className="transition-transform"
-                                        style={{
-                                          transform: idx === 0 ? 'rotate(-3deg)' : 'rotate(3deg)',
-                                        }}
-                                      >
-                                        <PlayingCard card={card} size="md" highlighted={isWinningCard} />
-                                      </div>
-                                    )
-                                  })}
-
-                                {showOpponentBacks &&
-                                  [0, 1].map((cardIndex) => (
-                                    <div
-                                      key={`hidden-card-${playerKey}-${cardIndex}`}
-                                      className="transition-transform"
-                                      style={{
-                                        transform: cardIndex === 0 ? 'rotate(-4deg)' : 'rotate(4deg)',
-                                      }}
-                                    >
-                                      <PlayingCard card="XX" size="md" hidden />
-                                    </div>
-                                  ))}
-
-                                {showShowdownCards &&
-                                  playerCards.map((card, idx) => {
-                                    const winningHand = liveState.hand_result?.winners?.find(
-                                      (winner) => winner.user_id?.toString() === playerKey,
-                                    )
-                                    const isWinningCard = winningHand?.best_hand_cards?.includes(card) ?? false
-                                    return (
-                                      <PlayingCard
-                                        key={`villain-card-${playerKey}-${card}-${idx}`}
-                                        card={card}
-                                        size="md"
-                                        highlighted={isWinningCard}
-                                      />
-                                    )
-                                  })}
-                              </div>
-                            )}
-
-                            <SeatCapsule
-                              name={player ? displayName : t('table.seat.empty', { defaultValue: 'Empty seat' })}
-                              stack={player?.stack}
+                              chipCount={player?.stack ?? 0}
                               seatLabel={seatLabel}
-                              positionLabel={positionLabel}
+                              positionLabel={positionLabel ?? null}
                               isHero={isHeroPlayer}
                               isActive={isActivePlayer}
                               hasFolded={hasFolded}
-                              isEmpty={!player}
-                              callToAction={showSeatCta || (isHeroSlot && !viewerIsSeated && canJoin)}
-                              onSit={!player && canJoin && !viewerIsSeated ? handleSeat : undefined}
-                              disabled={isSeating || !canJoin || viewerIsSeated}
-                              showFoldedLabel={hasFolded}
-                              showYouBadge={isHeroPlayer}
                               isSittingOut={isSittingOut}
                               isAllIn={isAllIn}
-                              detailsPlacement="outside"
                               turnProgress={isActivePlayer ? turnProgress : null}
-                              overlayCards={overlayCards}
-                              overlayCardsHidden={overlayCardsHidden}
+                              holeCards={seatHoleCards}
+                              showCardBacks={showCardBacks}
                             />
 
                             {lastActionText && player?.in_hand && (
