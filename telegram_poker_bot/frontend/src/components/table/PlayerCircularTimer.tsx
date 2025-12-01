@@ -32,8 +32,8 @@ const computeRemainingSeconds = (deadlineMs: number, totalSeconds: number) => {
 export default function PlayerCircularTimer({
   deadline,
   totalSeconds,
-  size = 84,
-  strokeWidth = 6,
+  size = 76,
+  strokeWidth = 4,
   className,
 }: PlayerCircularTimerProps) {
   const deadlineMs = useMemo(() => Date.parse(deadline), [deadline])
@@ -60,7 +60,10 @@ export default function PlayerCircularTimer({
   }
 
   const fraction = clamp(remaining / totalSeconds, 0, 1)
-  const strokeColor = interpolateColor('#3b82f6', '#ef4444', 1 - fraction)
+  const strokeColor =
+    fraction > 0.5
+      ? interpolateColor('#22c55e', '#facc15', 1 - (fraction - 0.5) * 2)
+      : interpolateColor('#facc15', '#ef4444', 1 - fraction * 2)
   const dashOffset = circumference * (1 - fraction)
   const center = size / 2
 
