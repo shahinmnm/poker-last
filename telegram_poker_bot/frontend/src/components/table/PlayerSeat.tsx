@@ -110,7 +110,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         aria-label={seatLabel}
       >
         {/* Avatar */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-20">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-20 relative">
           <div className="relative h-16 w-16">
             {showTimer && turnDeadline && totalTime !== null && (
               <PlayerCircularTimer
