@@ -32,7 +32,7 @@ const computeRemainingSeconds = (deadlineMs: number, totalSeconds: number) => {
 export default function PlayerCircularTimer({
   deadline,
   totalSeconds,
-  size = 76,
+  size = 66,
   strokeWidth = 4,
   className,
 }: PlayerCircularTimerProps) {
