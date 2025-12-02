@@ -980,7 +980,9 @@ export default function TablePage() {
   const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
   const viewerIsCreator = tableDetails?.viewer?.is_creator ?? false
-  const viewerIsSeated = tableDetails?.viewer?.is_seated ?? false
+  const viewerIsSeated =
+    tableDetails?.viewer?.is_seated ??
+    Boolean(heroId && liveState?.players?.some((p) => p.user_id?.toString() === heroId.toString()))
 
   // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
   const livePlayerCount = liveState?.players?.length ?? tableDetails?.player_count ?? 0
