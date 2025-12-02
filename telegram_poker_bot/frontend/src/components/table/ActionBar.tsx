@@ -2,6 +2,8 @@ import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 import type { AllowedAction } from '@/types/game'
 import { formatChips } from '@/utils/formatChips'
 
@@ -166,6 +168,23 @@ export default function ActionBar({
   const foldDisabled = !isMyTurn || !foldAction
   const centerDisabled = isDisabled || (!checkAction && !callAction)
   const raiseDisabled = isDisabled || !sliderLabelAction
+
+  if (!isMyTurn) {
+    // Root cause note: disabled fold/raise states were confusing when it wasn't the hero's turn.
+    // Render a neutral waiting panel instead of disabled betting controls.
+    return (
+      <div className="table-action-dock z-40">
+        <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/60 px-4 py-3 text-white/80 backdrop-blur-md">
+          <Badge variant="info" size="sm">
+            {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent…' })}
+          </Badge>
+          <Button variant="ghost" size="sm" disabled block>
+            {t('table.actions.notYourTurn', { defaultValue: 'Not your turn' })}
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
