@@ -1,5 +1,6 @@
 """Database models for the Telegram Poker Bot."""
 
+import enum
 from enum import Enum as PyEnum
 
 from sqlalchemy import (
@@ -8,6 +9,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    Enum as PgEnum,
     ForeignKey,
     Integer,
     String,
@@ -49,6 +51,13 @@ class HandStatus(PyEnum):
     SHOWDOWN = "showdown"
     ENDED = "ended"
     INTER_HAND_WAIT = "inter_hand_wait"  # 20-second wait phase between hands
+
+
+class GameVariant(enum.Enum):
+    """Supported game variants for poker tables."""
+
+    NO_LIMIT_TEXAS_HOLDEM = "no_limit_texas_holdem"
+    NO_LIMIT_SHORT_DECK_HOLDEM = "no_limit_short_deck_holdem"
 
 
 class ActionType(PyEnum):
@@ -186,6 +195,15 @@ class Table(Base):
     min_buy_in = Column(
         BigInteger, nullable=False, default=0, server_default="0"
     )  # Minimum buy-in stored as bigint for precision
+    is_persistent = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    game_variant = Column(
+        PgEnum(GameVariant),
+        nullable=False,
+        default=GameVariant.NO_LIMIT_TEXAS_HOLDEM,
+        server_default=GameVariant.NO_LIMIT_TEXAS_HOLDEM.value,
+    )
 
     # Relationships
     group = relationship("Group", back_populates="tables")

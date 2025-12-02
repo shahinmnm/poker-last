@@ -10,6 +10,7 @@ export interface CreateTableOptions {
   maxPlayers: number
   visibility: TableVisibility
   autoSeatHost?: boolean
+  gameVariant?: 'no_limit_texas_holdem' | 'no_limit_short_deck_holdem'
 }
 
 export interface TableViewerState {
@@ -47,6 +48,8 @@ export interface TableSummary {
   is_public?: boolean
   is_private?: boolean
   creator_user_id?: number | null
+  game_variant?: string
+  is_persistent?: boolean
   viewer?: TableViewerState | null
   host?: TableHostInfo | null
   invite?: TableInviteInfo | null
@@ -66,6 +69,7 @@ export async function createTable(
     max_players: options.maxPlayers,
     visibility: options.visibility,
     auto_seat_host: options.autoSeatHost,
+    game_variant: options.gameVariant,
   }
 
   const requestOptions: ApiFetchOptions = {

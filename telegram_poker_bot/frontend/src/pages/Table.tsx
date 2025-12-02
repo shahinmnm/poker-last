@@ -92,6 +92,8 @@ interface TableDetails {
   is_public?: boolean
   visibility?: 'public' | 'private'
   group_title?: string | null
+  game_variant?: string
+  is_persistent?: boolean
 }
 
 type LastAction = NonNullable<TableState['last_action']>
@@ -151,6 +153,13 @@ export default function TablePage() {
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
   const [showTableMenu, setShowTableMenu] = useState(false)
+
+  const variantLabel = useMemo(() => {
+    const variant = tableDetails?.game_variant
+    if (!variant) return "Texas Hold'em"
+    if (variant === 'no_limit_short_deck_holdem') return "Short-Deck Hold'em"
+    return "Texas Hold'em"
+  }, [tableDetails?.game_variant])
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
@@ -1509,8 +1518,13 @@ export default function TablePage() {
                               <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
                               <p className="text-base font-semibold leading-tight">{tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
                             </div>
-                            <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
-                              {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
+                            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+                              <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
+                                {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
+                              </div>
+                              <div className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                                {variantLabel}
+                              </div>
                             </div>
                           </div>
 

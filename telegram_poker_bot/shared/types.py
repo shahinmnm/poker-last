@@ -5,6 +5,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from telegram_poker_bot.shared.models import GameVariant
+
 
 class GameMode(str, Enum):
     """Game mode enumeration."""
@@ -62,6 +64,7 @@ class TableCreateRequest(BaseModel):
     max_players: int = Field(default=8, ge=2, le=9)
     visibility: TableVisibility = TableVisibility.PUBLIC
     auto_seat_host: Optional[bool] = None
+    game_variant: GameVariant = GameVariant.NO_LIMIT_TEXAS_HOLDEM
 
 
 class GroupGameInviteStatus(str, Enum):
@@ -96,6 +99,8 @@ class Table(BaseModel):
     config_json: dict
     creator_user_id: Optional[int] = None
     is_public: bool = True
+    is_persistent: bool = False
+    game_variant: Optional[GameVariant] = GameVariant.NO_LIMIT_TEXAS_HOLDEM
 
 
 class Seat(BaseModel):

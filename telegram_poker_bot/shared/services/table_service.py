@@ -17,6 +17,7 @@ from telegram_poker_bot.shared.models import (
     Seat,
     Group,
     GameMode,
+    GameVariant,
     TableStatus,
     GroupGameInvite,
     GroupGameInviteStatus,
@@ -128,6 +129,8 @@ async def create_table_with_config(
     group_id: Optional[int] = None,
     is_private: bool = False,
     auto_seat_creator: bool = False,
+    game_variant: GameVariant = GameVariant.NO_LIMIT_TEXAS_HOLDEM,
+    is_persistent: bool = False,
 ) -> Table:
     """Create a table with explicit configuration options."""
 
@@ -149,9 +152,11 @@ async def create_table_with_config(
             # Fallback to longer code
             invite_code = _generate_invite_code(length=INVITE_CODE_FALLBACK_LENGTH)
 
-    # Set expiration time (10 minutes from now)
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=TABLE_EXPIRATION_MINUTES
+    # Set expiration time (10 minutes from now) unless table is persistent
+    expires_at = (
+        None
+        if is_persistent
+        else datetime.now(timezone.utc) + timedelta(minutes=TABLE_EXPIRATION_MINUTES)
     )
 
     table = Table(
@@ -162,6 +167,8 @@ async def create_table_with_config(
         is_public=is_public,
         invite_code=invite_code,
         expires_at=expires_at,
+        is_persistent=is_persistent,
+        game_variant=game_variant,
         config_json={
             "small_blind": small_blind,
             "big_blind": big_blind,
@@ -171,6 +178,8 @@ async def create_table_with_config(
             "creator_user_id": creator_user_id,
             "is_private": not is_public,
             "visibility": "public" if is_public else "private",
+            "game_variant": game_variant.value,
+            "is_persistent": is_persistent,
         },
     )
     db.add(table)
@@ -663,6 +672,12 @@ async def get_table_info(
         "creator_user_id": creator_user_id,
         "group_id": table.group_id,
         "group_title": group_title,
+        "is_persistent": table.is_persistent,
+        "game_variant": (
+            table.game_variant.value
+            if hasattr(table.game_variant, "value")
+            else str(table.game_variant)
+        ),
         "created_at": table.created_at.isoformat() if table.created_at else None,
         "updated_at": table.updated_at.isoformat() if table.updated_at else None,
         "expires_at": table.expires_at.isoformat() if table.expires_at else None,
@@ -813,6 +828,12 @@ async def list_available_tables(
                     "table_id": table.id,
                     "mode": table.mode.value,
                     "status": table.status.value,
+                    "is_persistent": table.is_persistent,
+                    "game_variant": (
+                        table.game_variant.value
+                        if hasattr(table.game_variant, "value")
+                        else str(table.game_variant)
+                    ),
                     "player_count": player_count,
                     "max_players": max_players,
                     "small_blind": config.get("small_blind", 25),
@@ -889,6 +910,10 @@ async def list_available_tables(
                 "is_creator": entry.get("creator_user_id") == viewer_user_id,
             }
         entry["viewer"] = viewer_details
+        entry.setdefault("is_persistent", False)
+        entry.setdefault(
+            "game_variant", GameVariant.NO_LIMIT_TEXAS_HOLDEM.value
+        )
 
     return tables_data
 

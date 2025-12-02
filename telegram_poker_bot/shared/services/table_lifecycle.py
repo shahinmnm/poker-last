@@ -301,6 +301,10 @@ async def check_and_enforce_lifecycle(
     Returns:
         (was_expired, reason) tuple
     """
+    # Persistent tables never expire via lifecycle rules
+    if getattr(table, "is_persistent", False):
+        return False, None
+
     # Check pre-start expiry
     should_expire, reason = await compute_prestart_expiry(db, table)
     if should_expire:

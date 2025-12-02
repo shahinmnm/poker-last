@@ -39,6 +39,7 @@ from telegram_poker_bot.shared.models import (
     ActionType,
     User,
     Group,
+    GameVariant,
     GroupGameInviteStatus,
     TableStatus,
     Seat,
@@ -1760,6 +1761,8 @@ async def create_table(
         table_name=request_data.table_name,
         is_private=private_flag,
         auto_seat_creator=auto_seat,
+        game_variant=request_data.game_variant,
+        is_persistent=False,
     )
 
     await db.commit()

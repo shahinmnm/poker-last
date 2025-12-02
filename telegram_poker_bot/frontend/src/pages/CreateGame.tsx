@@ -19,6 +19,7 @@ interface CreateTableFormState {
   autoSeatHost: boolean
   autoStart: boolean
   tableMode: 'casual' | 'turbo' | 'ranked'
+  gameVariant: 'no_limit_texas_holdem' | 'no_limit_short_deck_holdem'
 }
 
 type ViewState = 'idle' | 'loading' | 'success' | 'error'
@@ -44,6 +45,7 @@ export default function CreateGamePage() {
     autoSeatHost: defaultVisibility === 'public',
     autoStart: false,
     tableMode: 'casual',
+    gameVariant: 'no_limit_texas_holdem',
   })
   const [status, setStatus] = useState<ViewState>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -94,6 +96,7 @@ export default function CreateGamePage() {
             maxPlayers: formState.maxPlayers,
             visibility: formState.visibility,
             autoSeatHost: formState.autoSeatHost,
+            gameVariant: formState.gameVariant,
           },
           initData,
         )
@@ -232,6 +235,27 @@ export default function CreateGamePage() {
                 style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="game-variant">
+              {t('createGame.form.gameVariant', 'Game variant')}
+            </label>
+            <select
+              id="game-variant"
+              value={formState.gameVariant}
+              onChange={(event) =>
+                handleFieldChange(
+                  'gameVariant',
+                  event.target.value as CreateTableFormState['gameVariant'],
+                )
+              }
+              className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
+              style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
+            >
+              <option value="no_limit_texas_holdem">{t('createGame.form.variantTexas', "Texas Hold'em")}</option>
+              <option value="no_limit_short_deck_holdem">{t('createGame.form.variantShortDeck', "Short-Deck Hold'em")}</option>
+            </select>
           </div>
 
           <label className="flex items-center justify-between border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)]" style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}>
