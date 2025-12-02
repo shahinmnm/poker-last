@@ -259,6 +259,27 @@ export default function TablePage() {
               ? previous?.current_actor_user_id ?? mergedCurrentActor
               : mergedCurrentActor
 
+        let mergedAllowedActions = incoming.allowed_actions
+        let mergedAllowedActionsLegacy = (incoming as any)?.allowed_actions_legacy
+
+        // Prevent stale viewers (non-actor or spectator fetches) from clearing the actor's
+        // allowed_actions during the same hand. This was causing fold to disappear mid-hand.
+        if (
+          isSameHand &&
+          Array.isArray(incoming.allowed_actions) &&
+          incoming.allowed_actions.length === 0
+        ) {
+          mergedAllowedActions = previous?.allowed_actions ?? mergedAllowedActions
+        }
+        if (
+          isSameHand &&
+          Array.isArray((incoming as any)?.allowed_actions_legacy) &&
+          (incoming as any)?.allowed_actions_legacy?.length === 0
+        ) {
+          mergedAllowedActionsLegacy =
+            (previous as any)?.allowed_actions_legacy ?? mergedAllowedActionsLegacy
+        }
+
         const nextState: TableState = {
           ...(previous ?? incoming),
           ...incoming,
@@ -270,9 +291,11 @@ export default function TablePage() {
           players: mergedPlayers,
           current_actor: mergedCurrentActor,
           current_actor_user_id: mergedCurrentActorUserId,
-          allowed_actions: incoming.allowed_actions ?? (isSameHand ? previous?.allowed_actions : undefined),
+          allowed_actions:
+            mergedAllowedActions ??
+            (isSameHand ? previous?.allowed_actions : undefined),
           allowed_actions_legacy:
-            incoming.allowed_actions_legacy ??
+            mergedAllowedActionsLegacy ??
             (isSameHand ? previous?.allowed_actions_legacy : undefined),
         }
 
