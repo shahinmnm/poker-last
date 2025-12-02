@@ -126,7 +126,7 @@ const notifyLobbyTableRemoved = (tableId?: number | string | null) => {
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
-  const { initData } = useTelegram()
+  const { initData, user } = useTelegram()
   const { t } = useTranslation()
   const { refetchAll: refetchUserData } = useUserData()
   const { setShowBottomNav } = useLayout()
@@ -223,10 +223,28 @@ export default function TablePage() {
   )
 
   const lastSourceRef = useRef<'ws' | 'rest' | null>(null)
+  const hasWsStateRef = useRef<boolean>(false)
 
   const applyIncomingState = useCallback(
     (incoming: TableState, source: 'ws' | 'rest' = 'ws') => {
       setLiveState((previous) => {
+        // Drop stale payloads (e.g., an older REST "waiting" response arriving after a WS hand state)
+        const previousHandId = previous?.hand_id ?? null
+        const incomingHandId = incoming.hand_id ?? null
+        const incomingIsOlderHand =
+          previousHandId !== null &&
+          (incomingHandId === null || incomingHandId < previousHandId)
+        if (incomingIsOlderHand) {
+          console.warn('STATE UPDATE IGNORED (stale hand)', {
+            source,
+            previousHandId,
+            incomingHandId,
+            previousStatus: previous?.status,
+            incomingStatus: incoming.status,
+          })
+          return previous ?? incoming
+        }
+
         const isSameHand = incoming.hand_id !== null && previous?.hand_id === incoming.hand_id
         const mergedHero = incoming.hero ?? (isSameHand ? previous?.hero ?? null : null)
         const mergedHandResult = incoming.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
@@ -307,6 +325,9 @@ export default function TablePage() {
             (isSameHand ? previous?.allowed_actions_legacy : undefined),
         }
 
+        if (source === 'ws') {
+          hasWsStateRef.current = true
+        }
         lastSourceRef.current = source
         console.log('STATE UPDATE', {
           source,
@@ -336,7 +357,12 @@ export default function TablePage() {
     }
   }, [applyIncomingState, tableId])
 
-  const heroId = liveState?.hero?.user_id ?? null
+  // Fallback hero ID to tableDetails.viewer when liveState.hero is missing (WS is unauthenticated)
+  const heroId =
+    liveState?.hero?.user_id ??
+    tableDetails?.viewer?.user_id ??
+    user?.id ??
+    null
   const heroIdString = heroId !== null ? heroId.toString() : null
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
   const heroCards = liveState?.hero?.cards ?? []
