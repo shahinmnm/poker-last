@@ -1,6 +1,6 @@
 """Add persistent table flag and game variants.
 
-Revision ID: 017_add_persistent_tables_and_game_variants
+Revision ID: 017_persistent_tables
 Revises: 016_add_inter_hand_wait
 Create Date: 2025-03-05 00:00:00.000000
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "017_add_persistent_tables_and_game_variants"
+revision = "017_persistent_tables"
 down_revision = "016_add_inter_hand_wait"
 branch_labels = None
 depends_on = None
@@ -21,7 +21,6 @@ def upgrade() -> None:
         "no_limit_texas_holdem",
         "no_limit_short_deck_holdem",
         name="gamevariant",
-        create_type=False,
     )
     gamevariant_enum.create(op.get_bind(), checkfirst=True)
 
