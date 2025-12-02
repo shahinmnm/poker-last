@@ -1209,28 +1209,6 @@ class PokerKitTableRuntime:
             allowed_actions_raw
         )
 
-        # Safety net: only offer fold when a fold is legal/meaningful to avoid backend errors.
-        if (
-            current_actor_user_id is not None
-            and self.engine
-            and self.engine.state.actor_index is not None
-        ):
-            call_amount = poker_state.get("call_amount", 0)
-            can_check_call = poker_state.get("can_check_or_call", True)
-            can_fold_now = (
-                getattr(self.engine.state, "can_fold", lambda: False)()
-                or call_amount > 0
-                or not can_check_call
-            )
-            has_fold = any(
-                action.get("action_type") == "fold" for action in allowed_actions
-            )
-
-            if can_fold_now and not has_fold:
-                allowed_actions.append({"action_type": "fold"})
-                allowed_actions_legacy = dict(allowed_actions_legacy or {})
-                allowed_actions_legacy["can_fold"] = True
-
         # Log allowed_actions calculation for diagnostics
         logger.info(
             "State payload generation",
