@@ -18,6 +18,8 @@ interface TableInfo {
   visibility?: string
   expires_at?: string
   created_at?: string
+  is_persistent?: boolean
+  game_variant?: string
 }
 
 type TabKey = 'public' | 'private' | 'my'
@@ -201,6 +203,97 @@ export default function LobbyPage() {
     }
     return true
   })
+  const persistentTables = currentTables.filter((table) => table.is_persistent)
+  const onDemandTables = currentTables.filter((table) => !table.is_persistent)
+
+  const formatVariant = (variant?: string) => {
+    if (!variant) return "Texas Hold'em"
+    if (variant === 'no_limit_short_deck_holdem') return "Short-Deck Hold'em"
+    return "Texas Hold'em"
+  }
+
+  const renderTableButton = (table: TableInfo) => (
+    <button
+      key={table.table_id}
+      onClick={() => navigate(`/table/${table.table_id}`)}
+      className="flex w-full items-center justify-between rounded-xl p-4 text-left transition-transform active:scale-98"
+      style={{
+        background: 'var(--glass-bg)',
+        backdropFilter: 'blur(var(--glass-blur))',
+        WebkitBackdropFilter: 'blur(var(--glass-blur))',
+        border: '1px solid var(--glass-border)',
+        boxShadow: 'var(--glass-shadow)',
+      }}
+    >
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
+            {table.table_name || `Table #${table.table_id}`}
+          </p>
+          <span
+            className="rounded-lg px-2 py-0.5 text-xs font-semibold"
+            style={{
+              background: 'var(--color-success-bg)',
+              color: 'var(--color-success-text)',
+            }}
+          >
+            {table.status || 'Active'}
+          </span>
+          {table.game_variant && (
+            <span
+              className="rounded-lg px-2 py-0.5 text-xs font-semibold"
+              style={{
+                background: 'var(--color-accent-soft)',
+                color: 'var(--color-accent)',
+              }}
+            >
+              {formatVariant(table.game_variant)}
+            </span>
+          )}
+          {table.is_persistent && (
+            <span
+              className="rounded-lg px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
+              style={{
+                background: 'var(--glass-bg-elevated)',
+                color: 'var(--color-text-muted)',
+                border: '1px solid var(--glass-border)',
+              }}
+            >
+              {t('lobby.persistent.label', 'Persistent')}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+          <span className="flex items-center gap-1">
+            <span>Blinds {table.small_blind}/{table.big_blind}</span>
+          </span>
+          <span>•</span>
+          <span className="flex items-center gap-1">
+            <FontAwesomeIcon icon={faUserGroup} className="text-xs" />
+            <span>{table.player_count}/{table.max_players}</span>
+          </span>
+          {table.expires_at && !table.is_persistent && (
+            <>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <FontAwesomeIcon icon={faClock} className="text-xs" />
+                <span>{new Date(table.expires_at).toLocaleTimeString()}</span>
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+      <span
+        className="rounded-lg px-4 py-2 text-sm font-semibold"
+        style={{
+          background: 'var(--color-accent-soft)',
+          color: 'var(--color-accent)',
+        }}
+      >
+        {t('lobby.actions.join', 'Join')}
+      </span>
+    </button>
+  )
 
   if (!ready || loading) {
     return (
@@ -291,90 +384,66 @@ export default function LobbyPage() {
             {t('lobby.empty.private', 'Private tables coming soon')}
           </p>
         </div>
-      ) : currentTables.length === 0 ? (
-        <div
-          className="rounded-2xl p-8 text-center"
-          style={{
-            background: 'var(--glass-bg)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          <p className="mb-4 text-sm" style={{ color: 'var(--color-text)' }}>
-            {activeTab === 'my' ? t('lobby.myTables.empty', 'No active tables') : t('lobby.availableTables.empty', 'No public tables right now')}
-          </p>
-          <button
-            onClick={() => navigate('/games/create')}
-            className="rounded-xl px-6 py-3 font-semibold transition-transform active:scale-98"
-            style={{
-              background: 'linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end))',
-              color: '#fff',
-              boxShadow: 'var(--shadow-button)',
-            }}
-          >
-            {t('lobby.empty.createPublic', 'Create a public table')}
-          </button>
-        </div>
       ) : (
-        <div className="space-y-2">
-          {currentTables.map((table) => (
-            <button
-              key={table.table_id}
-              onClick={() => navigate(`/table/${table.table_id}`)}
-              className="flex w-full items-center justify-between rounded-xl p-4 text-left transition-transform active:scale-98"
-              style={{
-                background: 'var(--glass-bg)',
-                backdropFilter: 'blur(var(--glass-blur))',
-                WebkitBackdropFilter: 'blur(var(--glass-blur))',
-                border: '1px solid var(--glass-border)',
-                boxShadow: 'var(--glass-shadow)',
-              }}
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
-                    {table.table_name || `Table #${table.table_id}`}
-                  </p>
-                  <span 
-                    className="rounded-lg px-2 py-0.5 text-xs font-semibold"
-                    style={{
-                      background: 'var(--color-success-bg)',
-                      color: 'var(--color-success-text)',
-                    }}
-                  >
-                    {table.status || 'Active'}
-                  </span>
-                </div>
-                <div className="flex gap-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  <span className="flex items-center gap-1">
-                    <span>Blinds {table.small_blind}/{table.big_blind}</span>
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <FontAwesomeIcon icon={faUserGroup} className="text-xs" />
-                    <span>{table.player_count}/{table.max_players}</span>
-                  </span>
-                  {table.expires_at && (
-                    <>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <FontAwesomeIcon icon={faClock} className="text-xs" />
-                        <span>{new Date(table.expires_at).toLocaleTimeString()}</span>
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <span 
-                className="rounded-lg px-4 py-2 text-sm font-semibold"
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
+              {t('lobby.sections.persistent', 'Persistent Lobbies')}
+            </h2>
+            {persistentTables.length === 0 ? (
+              <div
+                className="rounded-2xl p-4 text-sm"
                 style={{
-                  background: 'var(--color-accent-soft)',
-                  color: 'var(--color-accent)',
+                  background: 'var(--glass-bg)',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--color-text-muted)',
                 }}
               >
-                {t('lobby.actions.join', 'Join')}
-              </span>
-            </button>
-          ))}
+                {t('lobby.sections.persistentEmpty', 'No persistent lobbies yet.')}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {persistentTables.map(renderTableButton)}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
+              {t('lobby.sections.custom', 'Custom Games')}
+            </h2>
+            {onDemandTables.length === 0 ? (
+              <div
+                className="rounded-2xl p-4 text-sm"
+                style={{
+                  background: 'var(--glass-bg)',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                <p className="mb-4">
+                  {activeTab === 'my'
+                    ? t('lobby.myTables.empty', 'No active tables')
+                    : t('lobby.availableTables.empty', 'No public tables right now')}
+                </p>
+                <button
+                  onClick={() => navigate('/games/create')}
+                  className="rounded-xl px-6 py-3 font-semibold transition-transform active:scale-98"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end))',
+                    color: '#fff',
+                    boxShadow: 'var(--shadow-button)',
+                  }}
+                >
+                  {t('lobby.empty.createPublic', 'Create a public table')}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {onDemandTables.map(renderTableButton)}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

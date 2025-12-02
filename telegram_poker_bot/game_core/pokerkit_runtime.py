@@ -15,6 +15,7 @@ from sqlalchemy import select, inspect
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from pokerkit import Mode
+from pokerkit.games import NoLimitTexasHoldem, NoLimitShortDeckHoldem
 
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.models import (
@@ -25,6 +26,7 @@ from telegram_poker_bot.shared.models import (
     Seat,
     Table,
     TableStatus,
+    GameVariant,
 )
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.services import table_lifecycle
@@ -79,6 +81,23 @@ class PokerKitTableRuntime:
             None  # Track inter-hand wait phase
         )
         self.ready_players: Set[int] = set()
+
+    def _resolve_game_class(self):
+        """Return the GameVariant and PokerKit game class for this table."""
+
+        variant = getattr(self.table, "game_variant", GameVariant.NO_LIMIT_TEXAS_HOLDEM)
+        if isinstance(variant, str):
+            try:
+                variant = GameVariant(variant)
+            except ValueError:
+                variant = GameVariant.NO_LIMIT_TEXAS_HOLDEM
+
+        if variant == GameVariant.NO_LIMIT_TEXAS_HOLDEM:
+            return variant, NoLimitTexasHoldem
+        if variant == GameVariant.NO_LIMIT_SHORT_DECK_HOLDEM:
+            return variant, NoLimitShortDeckHoldem
+
+        raise NotImplementedError(f"Game variant {variant} is not supported.")
 
     def _get_active_players_in_hand(self) -> List[Seat]:
         """
@@ -668,6 +687,8 @@ class PokerKitTableRuntime:
                     hand_no=self.hand_no,
                 )
 
+        game_variant, game_class = self._resolve_game_class()
+
         # Create PokerKit engine with explicit button index
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
@@ -676,6 +697,7 @@ class PokerKitTableRuntime:
             big_blind=big_blind,
             mode=Mode.TOURNAMENT,
             button_index=button_index,
+            game_class=game_class,
         )
 
         # Deal hole cards
@@ -702,6 +724,9 @@ class PokerKitTableRuntime:
             players=len(active_seats),
             button_index=button_index,
             actor_index=self.engine.state.actor_index,
+            game_variant=game_variant.value
+            if hasattr(game_variant, "value")
+            else str(game_variant),
             actor_indices=(
                 list(self.engine.state.actor_indices)
                 if self.engine.state.actor_indices
@@ -742,6 +767,8 @@ class PokerKitTableRuntime:
         # Use button_index=0 for first hand (this is deprecated sync method)
         button_index = 0
 
+        game_variant, game_class = self._resolve_game_class()
+
         # Create PokerKit engine with explicit button index
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
@@ -750,6 +777,7 @@ class PokerKitTableRuntime:
             big_blind=big_blind,
             mode=Mode.TOURNAMENT,
             button_index=button_index,
+            game_class=game_class,
         )
 
         # Deal hole cards
@@ -761,6 +789,9 @@ class PokerKitTableRuntime:
             hand_no=self.hand_no,
             players=len(active_seats),
             button_index=button_index,
+            game_variant=game_variant.value
+            if hasattr(game_variant, "value")
+            else str(game_variant),
         )
 
         # Return initial state

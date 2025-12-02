@@ -26,6 +26,7 @@ class PokerEngineAdapter:
         big_blind: int,
         mode: Mode = Mode.TOURNAMENT,
         button_index: Optional[int] = None,
+        game_class: type = NoLimitTexasHoldem,
     ):
         if player_count < 2 or player_count > 8:
             raise ValueError("Player count must be between 2 and 8")
@@ -40,6 +41,7 @@ class PokerEngineAdapter:
         self.mode = mode
         self._deck: List[str] = []
         self._pre_showdown_stacks: Optional[List[int]] = None
+        self.game_class = game_class
 
         if button_index is None or not (0 <= button_index < player_count):
             if button_index is not None and not (0 <= button_index < player_count):
@@ -52,7 +54,7 @@ class PokerEngineAdapter:
 
         self.button_index = button_index
 
-        self.state: State = NoLimitTexasHoldem.create_state(
+        self.state: State = self.game_class.create_state(
             automations=(
                 Automation.ANTE_POSTING,
                 Automation.BET_COLLECTION,
@@ -79,6 +81,7 @@ class PokerEngineAdapter:
             big_blind=big_blind,
             mode=mode.value,
             button_index=self.button_index,
+            game_class=getattr(self.game_class, "__name__", str(self.game_class)),
         )
 
     def deal_new_hand(self) -> None:
