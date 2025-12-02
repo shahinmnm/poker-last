@@ -11,7 +11,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 import { apiFetch } from '../utils/apiClient'
-import { formatCurrency, getTransactionTypeInfo } from '../utils/currency'
+import { formatByCurrency, getTransactionTypeInfo } from '../utils/currency'
 
 interface Transaction {
   id: number
@@ -21,6 +21,7 @@ interface Transaction {
   reference_id: string | null
   metadata: Record<string, any>
   created_at: string | null
+  currency_type?: 'REAL' | 'PLAY'
 }
 
 interface TransactionHistoryProps {
@@ -118,6 +119,7 @@ export default function TransactionHistory({ limit = 20 }: TransactionHistoryPro
       {transactions.map((transaction) => {
         const typeInfo = getTransactionTypeInfo(transaction.type)
         const isPositive = transaction.amount > 0
+        const currencyType = transaction.currency_type || 'REAL'
 
         return (
           <div
@@ -158,7 +160,7 @@ export default function TransactionHistory({ limit = 20 }: TransactionHistoryPro
                     style={{ color: isPositive ? 'var(--color-success)' : 'var(--color-danger)' }}
                   >
                     {isPositive ? '+' : ''}
-                    {formatCurrency(Math.abs(transaction.amount))}
+                    {formatByCurrency(Math.abs(transaction.amount), currencyType)}
                   </p>
                 </div>
 
@@ -167,7 +169,7 @@ export default function TransactionHistory({ limit = 20 }: TransactionHistoryPro
                     {formatDate(transaction.created_at)}
                   </p>
                   <p className="text-xs ml-2" style={{ color: 'var(--color-text-muted)' }}>
-                    Balance: {formatCurrency(transaction.balance_after)}
+                    Balance: {formatByCurrency(transaction.balance_after, currencyType)}
                   </p>
                 </div>
 

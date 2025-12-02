@@ -1763,6 +1763,7 @@ async def create_table(
         auto_seat_creator=auto_seat,
         game_variant=request_data.game_variant,
         is_persistent=False,
+        currency_type=request_data.currency_type,
     )
 
     await db.commit()
@@ -2237,12 +2238,12 @@ async def get_my_balance(
 
     user = await ensure_user(db, auth)
 
-    # Use wallet_service to get balance
-    from telegram_poker_bot.shared.services.wallet_service import get_wallet_balance
+    # Use wallet_service to get balances
+    from telegram_poker_bot.shared.services.wallet_service import get_balances
 
-    balance = await get_wallet_balance(db, user.id)
+    balances = await get_balances(db, user.id)
 
-    return {"balance": balance}
+    return balances
 
 
 @api_app.get("/users/me/transactions")
@@ -2286,6 +2287,9 @@ async def get_my_transactions(
             "balance_after": t.balance_after,
             "reference_id": t.reference_id,
             "metadata": t.metadata_json or {},
+            "currency_type": (
+                t.currency_type.value if hasattr(t.currency_type, "value") else str(t.currency_type)
+            ),
             "created_at": t.created_at.isoformat() if t.created_at else None,
         }
         for t in transactions

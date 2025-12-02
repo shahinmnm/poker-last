@@ -9,211 +9,182 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.models import (
-    Wallet,
+    CurrencyType,
     Transaction,
     TransactionType,
+    User,
 )
 
 logger = get_logger(__name__)
 settings = get_settings()
 
+# Default play balance (in cents/chips) for new users
+DEFAULT_PLAY_BALANCE = 100_000
 
-async def ensure_wallet(db: AsyncSession, user_id: int) -> Wallet:
+
+async def ensure_wallet(db: AsyncSession, user_id: int) -> User:
     """
-    Ensure a wallet exists for a user.
+    Ensure user balances are initialized.
 
-    Creates a wallet if it doesn't exist with initial balance from settings.
-
-    Args:
-        db: Database session
-        user_id: User ID
-
-    Returns:
-        Wallet instance
+    Uses row-level locking to safely initialize missing balance fields.
     """
-    result = await db.execute(select(Wallet).where(Wallet.user_id == user_id))
-    wallet = result.scalar_one_or_none()
+    result = await db.execute(
+        select(User).where(User.id == user_id).with_for_update()
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise ValueError(f"User {user_id} not found")
 
-    if not wallet:
-        wallet = Wallet(user_id=user_id, balance=settings.initial_balance_cents)
-        db.add(wallet)
+    updated = False
+    if user.balance_real is None:
+        user.balance_real = settings.initial_balance_cents
+        updated = True
+    if user.balance_play is None:
+        user.balance_play = DEFAULT_PLAY_BALANCE
+        updated = True
+
+    if updated:
         await db.flush()
         logger.info(
-            "Created wallet for user",
+            "Initialized user balances",
             user_id=user_id,
-            initial_balance=settings.initial_balance_cents,
+            balance_real=user.balance_real,
+            balance_play=user.balance_play,
         )
 
-    return wallet
+    return user
 
 
-async def get_wallet_balance(db: AsyncSession, user_id: int) -> int:
-    """
-    Get user's wallet balance.
-
-    Args:
-        db: Database session
-        user_id: User ID
-
-    Returns:
-        Balance in smallest currency unit (e.g., cents)
-    """
-    wallet = await ensure_wallet(db, user_id)
-    return wallet.balance
+async def get_balance(
+    db: AsyncSession, user_id: int, currency_type: CurrencyType
+) -> int:
+    """Return the user's balance for the specified currency."""
+    user = await ensure_wallet(db, user_id)
+    if currency_type == CurrencyType.PLAY:
+        return user.balance_play
+    return user.balance_real
 
 
-async def transfer_to_table(
+async def get_balances(db: AsyncSession, user_id: int) -> dict[str, int]:
+    """Return both balances for the user."""
+    user = await ensure_wallet(db, user_id)
+    return {
+        "balance_real": user.balance_real,
+        "balance_play": user.balance_play,
+    }
+
+
+async def get_wallet_balance(
+    db: AsyncSession, user_id: int, currency_type: CurrencyType = CurrencyType.REAL
+) -> int:
+    """Backward-compatible helper returning a single balance (default REAL)."""
+    return await get_balance(db, user_id, currency_type)
+
+
+def _get_balance_field(currency_type: CurrencyType) -> str:
+    return "balance_play" if currency_type == CurrencyType.PLAY else "balance_real"
+
+
+async def process_buy_in(
     db: AsyncSession,
     user_id: int,
     amount: int,
+    currency_type: CurrencyType,
+    *,
     table_id: int,
     reference_id: Optional[str] = None,
 ) -> bool:
     """
-    Transfer chips from user wallet to table (Buy-in).
-
-    Uses row-level locking to prevent race conditions.
-    Creates a transaction record in the ledger.
-
-    Args:
-        db: Database session
-        user_id: User ID
-        amount: Amount to transfer (in smallest units, must be positive)
-        table_id: Table ID
-        reference_id: Optional reference (e.g., "hand_123")
-
-    Returns:
-        True if successful, False if insufficient balance
-
-    Raises:
-        ValueError: If amount is not positive
+    Deduct buy-in from the user's wallet with row-level locking.
     """
     if amount <= 0:
-        raise ValueError(f"Transfer amount must be positive, got {amount}")
+        raise ValueError(f"Buy-in amount must be positive, got {amount}")
 
-    # Lock the wallet row to prevent concurrent modifications
-    result = await db.execute(
-        select(Wallet)
-        .where(Wallet.user_id == user_id)
-        .with_for_update()  # Row-level lock
-    )
-    wallet = result.scalar_one_or_none()
+    user = await ensure_wallet(db, user_id)
+    balance_field = _get_balance_field(currency_type)
+    current_balance = getattr(user, balance_field)
 
-    if not wallet:
-        wallet = Wallet(user_id=user_id, balance=settings.initial_balance_cents)
-        db.add(wallet)
-        await db.flush()
-
-    # Check sufficient balance
-    if wallet.balance < amount:
+    if current_balance < amount:
         logger.warning(
-            "Insufficient balance for transfer to table",
+            "Insufficient balance for buy-in",
             user_id=user_id,
-            wallet_balance=wallet.balance,
+            balance=current_balance,
             amount=amount,
+            currency_type=currency_type.value,
             table_id=table_id,
         )
         return False
 
-    # Deduct from wallet
-    wallet.balance -= amount
-    balance_after = wallet.balance
+    new_balance = current_balance - amount
+    setattr(user, balance_field, new_balance)
 
-    # Create transaction record
     transaction = Transaction(
         user_id=user_id,
-        amount=-amount,  # Negative because money is leaving wallet
-        balance_after=balance_after,
+        amount=-amount,
+        balance_after=new_balance,
         type=TransactionType.BUY_IN,
         table_id=table_id,
         reference_id=reference_id or f"table_{table_id}",
         metadata_json={"table_id": table_id},
+        currency_type=currency_type,
     )
     db.add(transaction)
 
     logger.info(
-        "Transferred chips to table",
+        "Processed buy-in",
         user_id=user_id,
         amount=amount,
+        currency_type=currency_type.value,
+        balance_after=new_balance,
         table_id=table_id,
-        balance_after=balance_after,
     )
-
     return True
 
 
-async def cash_out_from_table(
+async def process_cash_out(
     db: AsyncSession,
     user_id: int,
     amount: int,
+    currency_type: CurrencyType,
+    *,
     table_id: int,
     reference_id: Optional[str] = None,
 ) -> bool:
     """
-    Cash out chips from table to user wallet.
-
-    Uses row-level locking to prevent race conditions.
-    Creates a transaction record in the ledger.
-
-    Args:
-        db: Database session
-        user_id: User ID
-        amount: Amount to cash out (in smallest units, must be non-negative)
-        table_id: Table ID
-        reference_id: Optional reference (e.g., "hand_123")
-
-    Returns:
-        True if successful
-
-    Raises:
-        ValueError: If amount is negative
+    Credit cash-out/winnings back to the appropriate wallet with locking.
     """
     if amount < 0:
-        raise ValueError(f"Cash out amount must be non-negative, got {amount}")
-
+        raise ValueError(f"Cash-out amount must be non-negative, got {amount}")
     if amount == 0:
-        logger.info(
-            "Cash out amount is zero, skipping", user_id=user_id, table_id=table_id
-        )
+        logger.info("Cash-out amount is zero, skipping", user_id=user_id)
         return True
 
-    # Lock the wallet row to prevent concurrent modifications
-    result = await db.execute(
-        select(Wallet)
-        .where(Wallet.user_id == user_id)
-        .with_for_update()  # Row-level lock
-    )
-    wallet = result.scalar_one_or_none()
+    user = await ensure_wallet(db, user_id)
+    balance_field = _get_balance_field(currency_type)
+    current_balance = getattr(user, balance_field)
+    new_balance = current_balance + amount
+    setattr(user, balance_field, new_balance)
 
-    if not wallet:
-        wallet = Wallet(user_id=user_id, balance=settings.initial_balance_cents)
-        db.add(wallet)
-        await db.flush()
-
-    # Add to wallet
-    wallet.balance += amount
-    balance_after = wallet.balance
-
-    # Create transaction record
     transaction = Transaction(
         user_id=user_id,
-        amount=amount,  # Positive because money is entering wallet
-        balance_after=balance_after,
+        amount=amount,
+        balance_after=new_balance,
         type=TransactionType.CASH_OUT,
         table_id=table_id,
         reference_id=reference_id or f"table_{table_id}",
         metadata_json={"table_id": table_id},
+        currency_type=currency_type,
     )
     db.add(transaction)
 
     logger.info(
-        "Cashed out chips from table",
+        "Processed cash-out",
         user_id=user_id,
         amount=amount,
+        currency_type=currency_type.value,
+        balance_after=new_balance,
         table_id=table_id,
-        balance_after=balance_after,
     )
-
     return True
 
 
@@ -223,52 +194,31 @@ async def record_game_win(
     amount: int,
     hand_id: int,
     table_id: int,
+    currency_type: CurrencyType,
     reference_id: Optional[str] = None,
 ) -> None:
-    """
-    Record a game win transaction.
-
-    This function records a win in the transaction ledger and updates the wallet balance.
-
-    Args:
-        db: Database session
-        user_id: User ID
-        amount: Amount won (in smallest units, must be positive)
-        hand_id: Hand ID
-        table_id: Table ID
-        reference_id: Optional reference
-    """
+    """Record a game win and update wallet with correct currency."""
     if amount <= 0:
         logger.warning(
             "Game win amount must be positive, skipping", user_id=user_id, amount=amount
         )
         return
 
-    # Lock the wallet row
-    result = await db.execute(
-        select(Wallet).where(Wallet.user_id == user_id).with_for_update()
-    )
-    wallet = result.scalar_one_or_none()
+    user = await ensure_wallet(db, user_id)
+    balance_field = _get_balance_field(currency_type)
+    new_balance = getattr(user, balance_field) + amount
+    setattr(user, balance_field, new_balance)
 
-    if not wallet:
-        wallet = Wallet(user_id=user_id, balance=settings.initial_balance_cents)
-        db.add(wallet)
-        await db.flush()
-
-    # Add winnings
-    wallet.balance += amount
-    balance_after = wallet.balance
-
-    # Create transaction record
     transaction = Transaction(
         user_id=user_id,
         amount=amount,
-        balance_after=balance_after,
+        balance_after=new_balance,
         type=TransactionType.GAME_WIN,
         hand_id=hand_id,
         table_id=table_id,
         reference_id=reference_id or f"hand_{hand_id}",
         metadata_json={"hand_id": hand_id, "table_id": table_id},
+        currency_type=currency_type,
     )
     db.add(transaction)
 
@@ -277,7 +227,8 @@ async def record_game_win(
         user_id=user_id,
         amount=amount,
         hand_id=hand_id,
-        balance_after=balance_after,
+        balance_after=new_balance,
+        currency_type=currency_type.value,
     )
 
 
@@ -286,37 +237,24 @@ async def record_rake(
     amount: int,
     hand_id: int,
     table_id: int,
+    currency_type: CurrencyType,
     reference_id: Optional[str] = None,
 ) -> None:
-    """
-    Record a rake (commission) transaction.
-
-    Rake transactions have no user_id (system transaction).
-    The balance_after is set to 0 since rake is a system-level transaction
-    and does not affect any user's wallet balance.
-
-    Args:
-        db: Database session
-        amount: Rake amount (in smallest units, must be positive)
-        hand_id: Hand ID
-        table_id: Table ID
-        reference_id: Optional reference
-    """
+    """Record a rake (system transaction) with currency context."""
     if amount <= 0:
         logger.warning("Rake amount must be positive, skipping", amount=amount)
         return
 
-    # Create transaction record (no user_id for system rake)
-    # balance_after=0 since this is a system transaction, not tied to user wallets
     transaction = Transaction(
-        user_id=None,  # System transaction
+        user_id=None,
         amount=amount,
-        balance_after=0,  # Not applicable for system transactions
+        balance_after=0,
         type=TransactionType.RAKE,
         hand_id=hand_id,
         table_id=table_id,
         reference_id=reference_id or f"hand_{hand_id}",
         metadata_json={"hand_id": hand_id, "table_id": table_id},
+        currency_type=currency_type,
     )
     db.add(transaction)
 
@@ -325,6 +263,7 @@ async def record_rake(
         amount=amount,
         hand_id=hand_id,
         table_id=table_id,
+        currency_type=currency_type.value,
     )
 
 
@@ -334,18 +273,7 @@ async def get_transaction_history(
     limit: int = 50,
     offset: int = 0,
 ) -> list[Transaction]:
-    """
-    Get user's transaction history.
-
-    Args:
-        db: Database session
-        user_id: User ID
-        limit: Maximum number of transactions to return
-        offset: Number of transactions to skip
-
-    Returns:
-        List of Transaction objects ordered by created_at desc
-    """
+    """Get user's transaction history ordered by most recent."""
     result = await db.execute(
         select(Transaction)
         .where(Transaction.user_id == user_id)
@@ -354,5 +282,4 @@ async def get_transaction_history(
         .offset(offset)
     )
     transactions = result.scalars().all()
-
     return list(transactions)

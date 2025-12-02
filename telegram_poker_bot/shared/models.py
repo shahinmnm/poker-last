@@ -94,6 +94,13 @@ class TransactionType(str, PyEnum):
     RAKE = "rake"  # System Commission
 
 
+class CurrencyType(str, PyEnum):
+    """Currency type for tables and wallets."""
+
+    REAL = "REAL"
+    PLAY = "PLAY"
+
+
 class GroupGameInviteStatus(str, PyEnum):
     """Status for group game invite lifecycle."""
 
@@ -109,9 +116,18 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    balance = Column(
-        BigInteger, nullable=False, server_default="0", default=0
-    )  # Wallet balance stored in smallest currency unit
+    balance_real = Column(
+        BigInteger,
+        nullable=False,
+        server_default="0",
+        default=0,
+    )  # Real money balance stored in cents
+    balance_play = Column(
+        BigInteger,
+        nullable=False,
+        server_default="100000",
+        default=100000,
+    )  # Play money balance stored in cents
     tg_user_id = Column(BigInteger, unique=True, nullable=False, index=True)
     language = Column(String(10), default="en", nullable=False)
     username = Column(String(255), nullable=True)
@@ -207,6 +223,16 @@ class Table(Base):
         nullable=False,
         default=GameVariant.NO_LIMIT_TEXAS_HOLDEM,
         server_default=GameVariant.NO_LIMIT_TEXAS_HOLDEM.value,
+    )
+    currency_type = Column(
+        Enum(
+            CurrencyType,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="currencytype",
+        ),
+        nullable=False,
+        default=CurrencyType.REAL,
+        server_default=CurrencyType.REAL.value,
     )
 
     # Relationships
@@ -542,6 +568,16 @@ class Transaction(Base):
     hand_id = Column(Integer, ForeignKey("hands.id", ondelete="SET NULL"), nullable=True)
     reference_id = Column(String(255), nullable=True)  # e.g., "hand_123" or "table_5"
     metadata_json = Column(JSONB, default=dict)  # Additional context data
+    currency_type = Column(
+        Enum(
+            CurrencyType,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="currencytype",
+        ),
+        nullable=False,
+        default=CurrencyType.REAL,
+        server_default=CurrencyType.REAL.value,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (Index("idx_transactions_user_created", "user_id", "created_at"),)

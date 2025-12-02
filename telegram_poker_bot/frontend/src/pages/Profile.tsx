@@ -20,6 +20,7 @@ import {
 import { useTelegram } from '../hooks/useTelegram'
 import { useTheme } from '../providers/ThemeProvider'
 import { useUserData } from '../providers/UserDataProvider'
+import { formatMoney } from '../utils/currency'
 
 type DropdownKey = 'language' | 'theme' | 'help' | null
 
@@ -27,7 +28,7 @@ export default function ProfilePage() {
   const { t, i18n } = useTranslation()
   const { user } = useTelegram()
   const { mode, setMode } = useTheme()
-  const { stats, balance, loading } = useUserData()
+  const { stats, balanceReal, loading } = useUserData()
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null)
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window === 'undefined') return true
@@ -144,7 +145,7 @@ export default function ProfilePage() {
           {
             icon: faCoins,
             label: t('profile.balance'),
-            value: balance !== null ? balance.toLocaleString() : '...',
+            value: balanceReal !== null ? formatMoney(balanceReal) : '...',
             color: 'var(--color-accent)',
           },
         ].map((stat, idx) => (

@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from telegram_poker_bot.shared.models import GameVariant
+from telegram_poker_bot.shared.models import GameVariant, CurrencyType
 
 
 class GameMode(str, Enum):
@@ -65,6 +65,7 @@ class TableCreateRequest(BaseModel):
     visibility: TableVisibility = TableVisibility.PUBLIC
     auto_seat_host: Optional[bool] = None
     game_variant: GameVariant = GameVariant.NO_LIMIT_TEXAS_HOLDEM
+    currency_type: CurrencyType = CurrencyType.REAL
 
 
 class GroupGameInviteStatus(str, Enum):
@@ -101,6 +102,7 @@ class Table(BaseModel):
     is_public: bool = True
     is_persistent: bool = False
     game_variant: Optional[GameVariant] = GameVariant.NO_LIMIT_TEXAS_HOLDEM
+    currency_type: CurrencyType = CurrencyType.REAL
 
 
 class Seat(BaseModel):

@@ -21,9 +21,11 @@ from telegram_poker_bot.shared.models import (
     TableStatus,
     GroupGameInvite,
     GroupGameInviteStatus,
+    CurrencyType,
 )
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.services import table_lifecycle
+from telegram_poker_bot.shared.services.table_buyin_service import TableBuyInService
 
 logger = get_logger(__name__)
 
@@ -131,6 +133,7 @@ async def create_table_with_config(
     auto_seat_creator: bool = False,
     game_variant: GameVariant = GameVariant.NO_LIMIT_TEXAS_HOLDEM,
     is_persistent: bool = False,
+    currency_type: CurrencyType = CurrencyType.REAL,
 ) -> Table:
     """Create a table with explicit configuration options."""
 
@@ -169,6 +172,7 @@ async def create_table_with_config(
         expires_at=expires_at,
         is_persistent=is_persistent,
         game_variant=game_variant,
+        currency_type=currency_type,
         config_json={
             "small_blind": small_blind,
             "big_blind": big_blind,
@@ -180,6 +184,7 @@ async def create_table_with_config(
             "visibility": "public" if is_public else "private",
             "game_variant": game_variant.value,
             "is_persistent": is_persistent,
+            "currency_type": currency_type.value,
         },
     )
     db.add(table)
@@ -195,6 +200,7 @@ async def create_table_with_config(
         mode=mode.value,
         invite_code=invite_code,
         expires_at=expires_at.isoformat(),
+        currency_type=currency_type.value,
     )
 
     await game_runtime.refresh_table_runtime(db, table.id)
@@ -241,6 +247,7 @@ async def create_private_table(
     starting_stack: int = 10000,
     max_players: int = 8,
     table_name: Optional[str] = None,
+    currency_type: CurrencyType = CurrencyType.REAL,
 ) -> Table:
     """Create a private table (used for invite-based games)."""
 
@@ -254,6 +261,7 @@ async def create_private_table(
         table_name=table_name,
         is_private=True,
         auto_seat_creator=False,
+        currency_type=currency_type,
     )
 
 
@@ -265,6 +273,7 @@ async def create_group_table(
     big_blind: int = 50,
     starting_stack: int = 10000,
     max_players: int = 8,
+    currency_type: CurrencyType = CurrencyType.REAL,
 ) -> Table:
     """
     Create a table linked to a Telegram group.
@@ -292,6 +301,7 @@ async def create_group_table(
         group_id=group_id,
         is_private=False,
         auto_seat_creator=False,
+        currency_type=currency_type,
     )
 
 
@@ -364,6 +374,12 @@ async def seat_user_at_table(
 
     # Get starting stack from table config
     starting_stack = config.get("starting_stack", 10000)
+    currency_type = getattr(table, "currency_type", CurrencyType.REAL)
+
+    # Gatekeeper: ensure correct wallet/currency has funds
+    await TableBuyInService.reserve_buy_in(
+        db, table=table, user_id=user_id, buy_in_amount=starting_stack
+    )
 
     # Create seat
     seat = Seat(
@@ -484,7 +500,27 @@ async def leave_table(
             session_profit=session_profit,
         )
 
+    # Cash out remaining chips back to the correct wallet
+    currency_type = getattr(table, "currency_type", CurrencyType.REAL)
+    if isinstance(currency_type, str):
+        try:
+            currency_type = CurrencyType(currency_type)
+        except ValueError:
+            currency_type = CurrencyType.REAL
+
+    from telegram_poker_bot.shared.services.wallet_service import process_cash_out
+
+    await process_cash_out(
+        db=db,
+        user_id=user_id,
+        amount=seat.chips,
+        currency_type=currency_type,
+        table_id=table_id,
+        reference_id=f"table_{table_id}_cashout",
+    )
+
     seat.left_at = datetime.now(timezone.utc)
+    seat.chips = 0
     seat.table.updated_at = datetime.now(timezone.utc)
     await db.flush()
 
@@ -678,6 +714,11 @@ async def get_table_info(
             if hasattr(table.game_variant, "value")
             else str(table.game_variant)
         ),
+        "currency_type": (
+            table.currency_type.value
+            if hasattr(table.currency_type, "value")
+            else str(table.currency_type or CurrencyType.REAL.value)
+        ),
         "created_at": table.created_at.isoformat() if table.created_at else None,
         "updated_at": table.updated_at.isoformat() if table.updated_at else None,
         "expires_at": table.expires_at.isoformat() if table.expires_at else None,
@@ -834,6 +875,11 @@ async def list_available_tables(
                         if hasattr(table.game_variant, "value")
                         else str(table.game_variant)
                     ),
+                    "currency_type": (
+                        table.currency_type.value
+                        if hasattr(table.currency_type, "value")
+                        else str(table.currency_type or CurrencyType.REAL.value)
+                    ),
                     "player_count": player_count,
                     "max_players": max_players,
                     "small_blind": config.get("small_blind", 25),
@@ -914,6 +960,7 @@ async def list_available_tables(
         entry.setdefault(
             "game_variant", GameVariant.NO_LIMIT_TEXAS_HOLDEM.value
         )
+        entry.setdefault("currency_type", CurrencyType.REAL.value)
 
     return tables_data
 

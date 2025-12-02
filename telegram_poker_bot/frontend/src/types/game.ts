@@ -1,3 +1,5 @@
+import type { CurrencyType } from '../utils/currency'
+
 export type TableStatus =
   | 'waiting'
   | 'preflop'
@@ -113,6 +115,7 @@ export interface TableState {
   street: string | null
   board: string[]
   pot: number
+  currency_type?: CurrencyType
   pots?: TablePot[]
   current_bet: number
   min_raise: number

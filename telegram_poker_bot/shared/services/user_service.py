@@ -376,6 +376,18 @@ async def apply_hand_result_to_wallets_and_stats(
         hand_result: Hand result dict with winners info (post-rake amounts)
     """
     from telegram_poker_bot.shared.services.wallet_service import record_game_win
+    from telegram_poker_bot.shared.models import CurrencyType
+
+    currency_type = (
+        table.currency_type
+        if hasattr(table, "currency_type")
+        else CurrencyType.REAL
+    )
+    if isinstance(currency_type, str):
+        try:
+            currency_type = CurrencyType(currency_type)
+        except ValueError:
+            currency_type = CurrencyType.REAL
 
     # Get all winners from hand_result
     winners = hand_result.get("winners", [])
@@ -398,6 +410,7 @@ async def apply_hand_result_to_wallets_and_stats(
                 amount=hand_profit,
                 hand_id=hand.id,
                 table_id=table.id,
+                currency_type=currency_type,
                 reference_id=f"hand_{hand.hand_no}",
             )
 
