@@ -1209,15 +1209,19 @@ class PokerKitTableRuntime:
             allowed_actions_raw
         )
 
-        # Safety net: ensure fold is always offered to the current actor.
-        # Root cause: PokerKit may return can_fold=False when facing a free check,
-        # and downstream payload merges could drop the legacy flag, hiding fold mid-hand.
+        # Safety net: only offer fold when a fold is legal/meaningful to avoid backend errors.
         if (
             current_actor_user_id is not None
             and self.engine
             and self.engine.state.actor_index is not None
         ):
-            can_fold_now = True  # allow fold any time it's the actor's turn
+            call_amount = poker_state.get("call_amount", 0)
+            can_check_call = poker_state.get("can_check_or_call", True)
+            can_fold_now = (
+                getattr(self.engine.state, "can_fold", lambda: False)()
+                or call_amount > 0
+                or not can_check_call
+            )
             has_fold = any(
                 action.get("action_type") == "fold" for action in allowed_actions
             )

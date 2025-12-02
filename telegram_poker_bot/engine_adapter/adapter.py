@@ -234,10 +234,10 @@ class PokerEngineAdapter:
         player_bet = self.state.bets[player_index]
         call_amount = max(current_bet - player_bet, 0)
 
-        # PokerKit can return False for can_fold when facing a free check,
-        # but UX (and standard rules) allow folding any time it is your turn.
-        actions["can_fold"] = True
+        # Offer fold when there's a meaningful decision (facing a bet or PokerKit allows it).
         can_check_call = self.state.can_check_or_call()
+        can_fold = self.state.can_fold() or call_amount > 0 or not can_check_call
+        actions["can_fold"] = can_fold
         actions["can_check"] = can_check_call and call_amount == 0
         actions["can_call"] = can_check_call and call_amount > 0
         actions["call_amount"] = call_amount if actions["can_call"] else 0
@@ -297,17 +297,16 @@ class PokerEngineAdapter:
         if self.state.actor_index is None:
             raise ValueError("Cannot fold: no actor")
 
-        # Allow fold even when PokerKit's can_fold is false (e.g., facing a free check).
-        # Poker rules permit folding any time it's your turn.
-        try:
-            operation = self.state.fold()
-        except Exception as exc:
-            logger.warning(
-                "Forced fold despite PokerKit guard",
-                player_index=self.state.actor_index,
-                error=str(exc),
-            )
-            raise
+        current_bet = max(self.state.bets) if self.state.bets else 0
+        player_bet = self.state.bets[self.state.actor_index]
+        call_amount = max(current_bet - player_bet, 0)
+        can_check_call = self.state.can_check_or_call()
+
+        # Only allow fold when PokerKit permits or there's a bet to face.
+        if not (self.state.can_fold() or call_amount > 0 or not can_check_call):
+            raise ValueError("Cannot fold at this time")
+
+        operation = self.state.fold()
 
         logger.info("Player folded", player_index=self.state.actor_index)
         # Auto-advance streets if needed
