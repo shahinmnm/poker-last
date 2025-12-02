@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faBolt, faCoins, faShield, faShuffle } from '@fortawesome/free-solid-svg-icons'
+import { faBolt, faShield, faShuffle } from '@fortawesome/free-solid-svg-icons'
 
 import { useUserData } from '../providers/UserDataProvider'
 import { CurrencyType, formatMoney, formatPlayMoney } from '../utils/currency'
