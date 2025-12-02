@@ -236,7 +236,7 @@ class PokerEngineAdapter:
 
         # Offer fold when there's a meaningful decision (facing a bet or PokerKit allows it).
         can_check_call = self.state.can_check_or_call()
-        can_fold = self.state.can_fold() or call_amount > 0 or not can_check_call
+        can_fold = self.state.can_fold()
         actions["can_fold"] = can_fold
         actions["can_check"] = can_check_call and call_amount == 0
         actions["can_call"] = can_check_call and call_amount > 0
@@ -296,15 +296,6 @@ class PokerEngineAdapter:
         """Fold for the current actor, raising on illegal attempts."""
         if self.state.actor_index is None:
             raise ValueError("Cannot fold: no actor")
-
-        current_bet = max(self.state.bets) if self.state.bets else 0
-        player_bet = self.state.bets[self.state.actor_index]
-        call_amount = max(current_bet - player_bet, 0)
-        can_check_call = self.state.can_check_or_call()
-
-        # Only allow fold when PokerKit permits or there's a bet to face.
-        if not (self.state.can_fold() or call_amount > 0 or not can_check_call):
-            raise ValueError("Cannot fold at this time")
 
         operation = self.state.fold()
 
