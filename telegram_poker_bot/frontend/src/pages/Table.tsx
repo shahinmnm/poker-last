@@ -128,7 +128,7 @@ const notifyLobbyTableRemoved = (tableId?: number | string | null) => {
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
-  const { initData } = useTelegram()
+  const { initData, user } = useTelegram()
   const { t } = useTranslation()
   const { refetchAll: refetchUserData } = useUserData()
   const { setShowBottomNav } = useLayout()
@@ -231,9 +231,29 @@ export default function TablePage() {
     [],
   )
 
+  const lastSourceRef = useRef<'ws' | 'rest' | null>(null)
+  const hasWsStateRef = useRef<boolean>(false)
+
   const applyIncomingState = useCallback(
-    (incoming: TableState) => {
+    (incoming: TableState, source: 'ws' | 'rest' = 'ws') => {
       setLiveState((previous) => {
+        // Drop stale payloads (e.g., an older REST "waiting" response arriving after a WS hand state)
+        const previousHandId = previous?.hand_id ?? null
+        const incomingHandId = incoming.hand_id ?? null
+        const incomingIsOlderHand =
+          previousHandId !== null &&
+          (incomingHandId === null || incomingHandId < previousHandId)
+        if (incomingIsOlderHand) {
+          console.warn('STATE UPDATE IGNORED (stale hand)', {
+            source,
+            previousHandId,
+            incomingHandId,
+            previousStatus: previous?.status,
+            incomingStatus: incoming.status,
+          })
+          return previous ?? incoming
+        }
+
         const isSameHand = incoming.hand_id !== null && previous?.hand_id === incoming.hand_id
         const mergedHero = incoming.hero ?? (isSameHand ? previous?.hero ?? null : null)
         const mergedHandResult = incoming.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
@@ -268,6 +288,33 @@ export default function TablePage() {
               ? previous?.current_actor_user_id ?? mergedCurrentActor
               : mergedCurrentActor
 
+        let mergedAllowedActions = incoming.allowed_actions
+        let mergedAllowedActionsLegacy = (incoming as any)?.allowed_actions_legacy
+
+        // If REST payload would clear actor actions while WS already provided them, ignore it.
+        if (
+          source === 'rest' &&
+          lastSourceRef.current === 'ws' &&
+          isSameHand &&
+          Array.isArray(previous?.allowed_actions) &&
+          previous.allowed_actions.length > 0 &&
+          Array.isArray(incoming.allowed_actions) &&
+          incoming.allowed_actions.length === 0
+        ) {
+          return previous ?? incoming
+        }
+        if (
+          source === 'rest' &&
+          lastSourceRef.current === 'ws' &&
+          isSameHand &&
+          Array.isArray((previous as any)?.allowed_actions_legacy) &&
+          (previous as any)?.allowed_actions_legacy?.length > 0 &&
+          Array.isArray((incoming as any)?.allowed_actions_legacy) &&
+          (incoming as any)?.allowed_actions_legacy?.length === 0
+        ) {
+          return previous ?? incoming
+        }
+
         const nextState: TableState = {
           ...(previous ?? incoming),
           ...incoming,
@@ -279,11 +326,23 @@ export default function TablePage() {
           players: mergedPlayers,
           current_actor: mergedCurrentActor,
           current_actor_user_id: mergedCurrentActorUserId,
-          allowed_actions: incoming.allowed_actions ?? (isSameHand ? previous?.allowed_actions : undefined),
+          allowed_actions:
+            mergedAllowedActions ??
+            (isSameHand ? previous?.allowed_actions : undefined),
           allowed_actions_legacy:
-            incoming.allowed_actions_legacy ??
+            mergedAllowedActionsLegacy ??
             (isSameHand ? previous?.allowed_actions_legacy : undefined),
         }
+
+        if (source === 'ws') {
+          hasWsStateRef.current = true
+        }
+        lastSourceRef.current = source
+        console.log('STATE UPDATE', {
+          source,
+          actor: nextState.current_actor_user_id ?? nextState.current_actor,
+          allowed: nextState.allowed_actions,
+        })
 
         syncHandResults(nextState.hand_id ?? null, mergedHandResult, isSameHand)
         return nextState
@@ -301,13 +360,18 @@ export default function TablePage() {
         method: 'GET',
         initData: initDataRef.current ?? undefined,
       })
-      applyIncomingState(data)
+      applyIncomingState(data, 'rest')
     } catch (err) {
       console.warn('Unable to fetch live state', err)
     }
   }, [applyIncomingState, tableId])
 
-  const heroId = liveState?.hero?.user_id ?? null
+  // Fallback hero ID to tableDetails.viewer when liveState.hero is missing (WS is unauthenticated)
+  const heroId =
+    liveState?.hero?.user_id ??
+    tableDetails?.viewer?.user_id ??
+    user?.id ??
+    null
   const heroIdString = heroId !== null ? heroId.toString() : null
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
   const heroCards = liveState?.hero?.cards ?? []
@@ -453,7 +517,7 @@ export default function TablePage() {
         )
 
         if (state && (state as TableState).type === 'table_state') {
-          applyIncomingState(state as TableState)
+          applyIncomingState(state as TableState, 'rest')
         } else if ('ready_players' in state) {
           setLiveState((previous) =>
             previous ? { ...previous, ready_players: state.ready_players ?? [] } : previous,
@@ -689,7 +753,7 @@ export default function TablePage() {
         })
 
         if (payload?.type === 'table_state') {
-          applyIncomingState(payload as TableState)
+          applyIncomingState(payload as TableState, 'ws')
           return
         }
 
@@ -772,11 +836,10 @@ export default function TablePage() {
             ready_players: payload.ready_players ?? [],
           }
 
-          applyIncomingState(interHandState)
+          applyIncomingState(interHandState, 'ws')
           if (handResult) {
             setLastHandResult(handResult)
           }
-          fetchLiveState()
           return
         }
 
@@ -807,15 +870,14 @@ export default function TablePage() {
           return
         }
 
-        const isNewHand = payload.hand_id !== null && lastHandIdRef.current !== payload.hand_id
-        applyIncomingState(payload)
+        applyIncomingState(payload, 'ws')
 
+        const isNewHand = payload.hand_id !== null && lastHandIdRef.current !== payload.hand_id
         if (isNewHand && payload.hand_id !== null) {
           lastHandIdRef.current = payload.hand_id
-          fetchLiveState()
         }
       },
-      [applyIncomingState, fetchLiveState, navigate, showToast, t],
+      [applyIncomingState, navigate, showToast, t],
     ),
     onConnect: useCallback(() => {
       console.log('[Table WebSocket] Connected to table', tableId)
@@ -920,7 +982,7 @@ export default function TablePage() {
         method: 'POST',
         initData,
       })
-      applyIncomingState(state)
+      applyIncomingState(state, 'rest')
       await fetchTable()
       await fetchLiveState()
       showToast(t('table.toast.started'))
@@ -953,7 +1015,9 @@ export default function TablePage() {
   const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
   const viewerIsCreator = tableDetails?.viewer?.is_creator ?? false
-  const viewerIsSeated = tableDetails?.viewer?.is_seated ?? false
+  const viewerIsSeated =
+    tableDetails?.viewer?.is_seated ??
+    Boolean(heroId && liveState?.players?.some((p) => p.user_id?.toString() === heroId.toString()))
 
   // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
   const livePlayerCount = liveState?.players?.length ?? tableDetails?.player_count ?? 0

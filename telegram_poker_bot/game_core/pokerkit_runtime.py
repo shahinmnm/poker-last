@@ -1177,6 +1177,28 @@ class PokerKitTableRuntime:
         user_id_by_index = {
             idx: uid for uid, idx in self.user_id_to_player_index.items()
         }
+        expected_player_count = len(poker_state.get("players", []))
+        missing_indices = [
+            i for i in range(expected_player_count) if i not in user_id_by_index
+        ]
+        if missing_indices:
+            # Fallback: rebuild mapping from current seats to avoid KeyError when state is restored inconsistently
+            active_seats = [
+                s for s in self.seats if s.left_at is None
+            ]
+            active_seats.sort(key=lambda s: s.position)
+            for i, seat in enumerate(active_seats):
+                if i >= expected_player_count:
+                    break
+                user_id_by_index[i] = seat.user_id
+                self.user_id_to_player_index[seat.user_id] = i
+            logger.warning(
+                "Rebuilt user_id_to_player_index due to missing player indices",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+                missing_indices=missing_indices,
+                rebuilt_count=len(user_id_by_index),
+            )
         seat_by_user_id = {s.user_id: s for s in self.seats}
 
         # Get current actor user ID
