@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { ComponentType } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { Zap, Layers, Diamond } from 'lucide-react'
 import type { GameVariant } from '@/types'
 
@@ -12,7 +12,7 @@ export interface GameVariantConfig {
   accent: string
   accentSoft: string
   text: string
-  icon: ComponentType<{ className?: string; size?: number }>
+  icon: LucideIcon
   pulse?: boolean
 }
 
