@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
@@ -1113,20 +1114,22 @@ async def ensure_user(db: AsyncSession, auth: UserAuth) -> User:
     user = await find_user_by_tg_id(db, auth.user_id)
 
     if not user:
-        user = User(
-            tg_user_id=auth.user_id,
-            username=auth.username,
-            language=normalized_language or "en",
+        insert_stmt = (
+            insert(User)
+            .values(
+                tg_user_id=auth.user_id,
+                username=auth.username,
+                language=normalized_language or "en",
+            )
+            .on_conflict_do_nothing(index_elements=["tg_user_id"])
+            .returning(User)
         )
-        db.add(user)
-        try:
-            await db.flush()
-        except IntegrityError:
-            await db.rollback()
-            # Another request created the user concurrently; fetch the existing row.
+        result = await db.execute(insert_stmt)
+        user = result.scalar_one_or_none()
+        if not user:
             user = await find_user_by_tg_id(db, auth.user_id)
             if not user:
-                raise
+                raise RuntimeError("Failed to create or fetch user record")
 
     updated = False
     if auth.username and user.username != auth.username:
