@@ -61,6 +61,8 @@ export function useTableActions({
         min_raise_to?: number
         max_raise_to?: number
         ready?: boolean
+        current_pot?: number
+        player_stack?: number
       } = {}
 
       payload.forEach((action) => {
@@ -99,9 +101,17 @@ export function useTableActions({
         }
       })
 
+      // Preserve numeric helpers if already provided in legacy payload
+      derived.current_pot =
+        (gameState as any)?.allowed_actions?.current_pot ??
+        derived.current_pot
+      derived.player_stack =
+        (gameState as any)?.allowed_actions?.player_stack ??
+        derived.player_stack
+
       return derived
     },
-    []
+    [gameState]
   )
 
   /**
