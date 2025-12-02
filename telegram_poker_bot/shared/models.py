@@ -53,7 +53,7 @@ class HandStatus(PyEnum):
     INTER_HAND_WAIT = "inter_hand_wait"  # 20-second wait phase between hands
 
 
-class GameVariant(enum.Enum):
+class GameVariant(str, enum.Enum):
     """Supported game variants for poker tables."""
 
     NO_LIMIT_TEXAS_HOLDEM = "no_limit_texas_holdem"
@@ -199,7 +199,11 @@ class Table(Base):
         Boolean, nullable=False, default=False, server_default="false"
     )
     game_variant = Column(
-        PgEnum(GameVariant),
+        PgEnum(
+            GameVariant,
+            values_callable=lambda enum: [variant.value for variant in enum],
+            name="gamevariant",
+        ),
         nullable=False,
         default=GameVariant.NO_LIMIT_TEXAS_HOLDEM,
         server_default=GameVariant.NO_LIMIT_TEXAS_HOLDEM.value,
