@@ -1209,6 +1209,29 @@ class PokerKitTableRuntime:
             allowed_actions_raw
         )
 
+        # Safety net: ensure fold is always offered to the current actor when PokerKit allows it.
+        # Root cause: downstream payload merges could drop the legacy can_fold flag,
+        # which disabled the fold button after preflop even when legal.
+        if (
+            current_actor_user_id is not None
+            and self.engine
+            and self.engine.state.actor_index is not None
+        ):
+            can_fold_now = False
+            try:
+                can_fold_now = self.engine.state.can_fold()
+            except Exception:
+                can_fold_now = False
+
+            has_fold = any(
+                action.get("action_type") == "fold" for action in allowed_actions
+            )
+
+            if can_fold_now and not has_fold:
+                allowed_actions.append({"action_type": "fold"})
+                allowed_actions_legacy = dict(allowed_actions_legacy or {})
+                allowed_actions_legacy["can_fold"] = True
+
         # Log allowed_actions calculation for diagnostics
         logger.info(
             "State payload generation",
