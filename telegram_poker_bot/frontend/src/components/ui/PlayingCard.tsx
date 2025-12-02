@@ -81,20 +81,20 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
   if (hidden) {
     return (
       <div
-        className={`${sizeClasses} relative overflow-hidden rounded-[6px] bg-[#0d0b14] shadow-[0_8px_18px_rgba(0,0,0,0.5)]`}
+        className={`${sizeClasses} relative overflow-hidden rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.25)]`}
       >
         <div
-          className="absolute inset-0 opacity-80"
+          className="absolute inset-0 opacity-75"
           style={{
             backgroundImage:
-              'repeating-linear-gradient(45deg, rgba(215,38,61,0.2) 0, rgba(215,38,61,0.2) 4px, transparent 4px, transparent 10px), repeating-linear-gradient(-45deg, rgba(215,38,61,0.16) 0, rgba(215,38,61,0.16) 4px, transparent 4px, transparent 10px)',
+              'repeating-linear-gradient(45deg, rgba(17,24,39,0.14) 0, rgba(17,24,39,0.14) 4px, transparent 4px, transparent 10px), repeating-linear-gradient(-45deg, rgba(17,24,39,0.12) 0, rgba(17,24,39,0.12) 4px, transparent 4px, transparent 10px)',
           }}
         />
         <div
-          className="absolute inset-0 opacity-70"
+          className="absolute inset-0 opacity-55"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 25% 30%, rgba(255,255,255,0.09) 0, rgba(255,255,255,0.09) 2px, transparent 3px), radial-gradient(circle at 70% 70%, rgba(215,38,61,0.2) 0, rgba(215,38,61,0.2) 2px, transparent 3px)',
+              'radial-gradient(circle at 25% 30%, rgba(0,0,0,0.08) 0, rgba(0,0,0,0.08) 2px, transparent 3px), radial-gradient(circle at 70% 70%, rgba(0,0,0,0.14) 0, rgba(0,0,0,0.14) 2px, transparent 3px)',
             backgroundSize: '18px 18px',
           }}
         />
@@ -105,18 +105,38 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
 
   return (
     <div
-      className={`${sizeClasses} rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center font-bold tracking-tight ${color} relative ${
+      className={`${sizeClasses} rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.2)] flex items-center justify-center font-bold tracking-tight ${color} relative ${
         highlighted ? 'ring-2 ring-emerald-400/80 shadow-emerald-500/30' : ''
       }`}
       style={{
         backgroundImage: 'linear-gradient(180deg, #ffffff 0%, #f4f4f5 100%)',
       }}
     >
-      {/* Main rank and suit */}
-      <div className="flex flex-col items-center gap-0.5">
-        <span className={clsx('leading-none', size === 'xs' ? 'text-[11px]' : '')}>{rank}</span>
-        <span className={clsx('leading-none', size === 'xs' ? 'text-sm' : 'text-lg')}>{suit}</span>
-      </div>
+      {/* Rank/suits layout */}
+      <span
+        className={clsx(
+          'absolute left-1.5 top-1.5 leading-none',
+          size === 'xs' ? 'text-[11px]' : 'text-sm',
+        )}
+      >
+        {rank}
+      </span>
+      <span
+        className={clsx(
+          'absolute bottom-1.5 right-1.5 leading-none',
+          size === 'xs' ? 'text-[10px]' : 'text-xs',
+        )}
+      >
+        {suit}
+      </span>
+      <span
+        className={clsx(
+          'leading-none',
+          size === 'xs' ? 'text-lg' : 'text-2xl',
+        )}
+      >
+        {suit}
+      </span>
     </div>
   )
 }
