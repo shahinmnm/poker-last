@@ -78,6 +78,13 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
     }
   }, [size])
 
+  const rankClass =
+    size === 'xs' ? 'text-[11px]' : size === 'sm' ? 'text-sm' : size === 'md' ? 'text-base' : 'text-lg'
+  const cornerSuitClass =
+    size === 'xs' ? 'text-[10px]' : size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'
+  const centerSuitClass =
+    size === 'xs' ? 'text-lg' : size === 'sm' ? 'text-2xl' : size === 'md' ? 'text-3xl' : 'text-4xl'
+
   if (hidden) {
     return (
       <div
@@ -105,7 +112,7 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
 
   return (
     <div
-      className={`${sizeClasses} rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.2)] flex items-center justify-center font-bold tracking-tight ${color} relative ${
+      className={`${sizeClasses} rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.2)] flex items-center justify-center font-semibold tracking-tight ${color} relative ${
         highlighted ? 'ring-2 ring-emerald-400/80 shadow-emerald-500/30' : ''
       }`}
       style={{
@@ -116,7 +123,7 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
       <span
         className={clsx(
           'absolute left-1.5 top-1.5 leading-none',
-          size === 'xs' ? 'text-[11px]' : 'text-sm',
+          rankClass,
         )}
       >
         {rank}
@@ -124,7 +131,7 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
       <span
         className={clsx(
           'absolute bottom-1.5 right-1.5 leading-none',
-          size === 'xs' ? 'text-[10px]' : 'text-xs',
+          cornerSuitClass,
         )}
       >
         {suit}
@@ -132,7 +139,7 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
       <span
         className={clsx(
           'leading-none',
-          size === 'xs' ? 'text-lg' : 'text-2xl',
+          centerSuitClass,
         )}
       >
         {suit}

@@ -74,7 +74,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         aria-label={seatLabel}
       >
         {/* Avatar + card fan row */}
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-1 -ml-2">
           <div className="relative flex items-center justify-center">
             <div className="relative h-16 w-16 flex items-center justify-center z-20">
               {showTimer && turnDeadline && totalTime !== null && (
@@ -110,7 +110,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             </div>
           </div>
 
-          <div className="pointer-events-none relative flex h-16 w-[96px] items-center justify-center z-10">
+          <div className="pointer-events-none relative flex h-18 w-[120px] items-center justify-center z-10 -ml-2">
             {safeCards.map((card, index) => {
               const isBackCard = index === 0
               return (
@@ -123,7 +123,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
                       : 'z-20 rotate-[8deg] translate-x-[15px]',
                   )}
                 >
-                  <PlayingCard card={cardsHidden ? 'XX' : card} hidden={cardsHidden} size="xs" />
+                  <PlayingCard card={cardsHidden ? 'XX' : card} hidden={cardsHidden} size="sm" />
                 </div>
               )
             })}
@@ -134,9 +134,6 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         <div className="flex flex-col items-center leading-tight space-y-0.5 mt-2">
           <span className="text-[12px] font-semibold tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
             {playerName || seatLabel}
-          </span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
-            {seatLabel}
           </span>
           <div className="flex items-center gap-1 text-[11px] font-bold text-amber-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
             <FontAwesomeIcon icon={faCoins} className="h-3 w-3 text-amber-300" />
