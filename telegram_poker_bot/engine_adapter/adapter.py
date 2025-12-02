@@ -5,7 +5,7 @@ from collections import deque
 from typing import Any, Dict, List, Optional
 
 from pokerkit import Automation, Mode, NoLimitTexasHoldem, State
-from pokerkit.state import Operation
+from pokerkit.state import Folding, Operation
 
 from telegram_poker_bot.shared.logging import get_logger
 
@@ -234,9 +234,16 @@ class PokerEngineAdapter:
         player_bet = self.state.bets[player_index]
         call_amount = max(current_bet - player_bet, 0)
 
-        # Offer fold when there's a meaningful decision (facing a bet or PokerKit allows it).
+        # PokerKit guards against folding when call_amount == 0 (tournament mode).
+        # We still want to expose a voluntary fold on the player's turn so the UI
+        # never hides the button. The fold operation handler performs a safe
+        # fallback if PokerKit raises the "no reason to fold" error.
         can_check_call = self.state.can_check_or_call()
-        can_fold = self.state.can_fold()
+        can_fold = (
+            self.state.actor_index is not None
+            and self.state.actor_index == player_index
+            and self.state.statuses[player_index]
+        ) or self.state.can_fold()
         actions["can_fold"] = can_fold
         actions["can_check"] = can_check_call and call_amount == 0
         actions["can_call"] = can_check_call and call_amount > 0
@@ -297,9 +304,42 @@ class PokerEngineAdapter:
         if self.state.actor_index is None:
             raise ValueError("Cannot fold: no actor")
 
-        operation = self.state.fold()
+        forced_player_index: Optional[int] = None
+        try:
+            operation = self.state.fold()
+        except ValueError as exc:
+            # PokerKit disallows folding when call_amount == 0 in tournaments.
+            # For UX parity we still honor a voluntary fold by bypassing the guard.
+            message = str(exc)
+            if "no reason for this player to fold" not in message.lower():
+                raise
 
-        logger.info("Player folded", player_index=self.state.actor_index)
+            player_index = self.state.actor_index
+            assert player_index is not None
+
+            # Replicate PokerKit's fold mechanics without the verification guard.
+            player_index = self.state._pop_actor_index()
+            assert self.state.stacks[player_index]
+            self.state._muck_hole_cards(player_index)
+            operation = Folding(player_index)
+            self.state._update_betting(operation)
+            forced_player_index = player_index
+
+            logger.warning(
+                "Forced fold despite PokerKit guard",
+                player_index=player_index,
+                call_amount=max(self.state.bets) - self.state.bets[player_index],
+            )
+
+        actor_for_log = forced_player_index
+        if actor_for_log is None:
+            actor_for_log = (
+                operation.player_index
+                if hasattr(operation, "player_index")
+                else self.state.actor_index
+            )
+
+        logger.info("Player folded", player_index=actor_for_log)
         # Auto-advance streets if needed
         self._auto_advance_streets()
         return operation
