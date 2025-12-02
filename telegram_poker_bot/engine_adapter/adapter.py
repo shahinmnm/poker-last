@@ -234,7 +234,9 @@ class PokerEngineAdapter:
         player_bet = self.state.bets[player_index]
         call_amount = max(current_bet - player_bet, 0)
 
-        actions["can_fold"] = self.state.can_fold()
+        # PokerKit can return False for can_fold when facing a free check,
+        # but UX (and standard rules) allow folding any time it is your turn.
+        actions["can_fold"] = True
         can_check_call = self.state.can_check_or_call()
         actions["can_check"] = can_check_call and call_amount == 0
         actions["can_call"] = can_check_call and call_amount > 0
@@ -292,10 +294,21 @@ class PokerEngineAdapter:
 
     def fold(self) -> Operation:
         """Fold for the current actor, raising on illegal attempts."""
-        if not self.state.can_fold():
-            raise ValueError("Cannot fold at this time")
+        if self.state.actor_index is None:
+            raise ValueError("Cannot fold: no actor")
 
-        operation = self.state.fold()
+        # Allow fold even when PokerKit's can_fold is false (e.g., facing a free check).
+        # Poker rules permit folding any time it's your turn.
+        try:
+            operation = self.state.fold()
+        except Exception as exc:
+            logger.warning(
+                "Forced fold despite PokerKit guard",
+                player_index=self.state.actor_index,
+                error=str(exc),
+            )
+            raise
+
         logger.info("Player folded", player_index=self.state.actor_index)
         # Auto-advance streets if needed
         self._auto_advance_streets()
