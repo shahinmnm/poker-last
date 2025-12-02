@@ -6,6 +6,8 @@ import { faRefresh, faQrcode, faUserGroup, faClock } from '@fortawesome/free-sol
 
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, type ApiFetchOptions, resolveWebSocketUrl } from '../utils/apiClient'
+import GameVariantBadge from '../components/ui/GameVariantBadge'
+import type { GameVariant } from '@/types'
 
 interface TableInfo {
   table_id: number
@@ -19,7 +21,7 @@ interface TableInfo {
   expires_at?: string
   created_at?: string
   is_persistent?: boolean
-  game_variant?: string
+  game_variant?: GameVariant
 }
 
 type TabKey = 'public' | 'private' | 'my'
@@ -206,12 +208,6 @@ export default function LobbyPage() {
   const persistentTables = currentTables.filter((table) => table.is_persistent)
   const onDemandTables = currentTables.filter((table) => !table.is_persistent)
 
-  const formatVariant = (variant?: string) => {
-    if (!variant) return "Texas Hold'em"
-    if (variant === 'no_limit_short_deck_holdem') return "Short-Deck Hold'em"
-    return "Texas Hold'em"
-  }
-
   const renderTableButton = (table: TableInfo) => (
     <button
       key={table.table_id}
@@ -239,17 +235,7 @@ export default function LobbyPage() {
           >
             {table.status || 'Active'}
           </span>
-          {table.game_variant && (
-            <span
-              className="rounded-lg px-2 py-0.5 text-xs font-semibold"
-              style={{
-                background: 'var(--color-accent-soft)',
-                color: 'var(--color-accent)',
-              }}
-            >
-              {formatVariant(table.game_variant)}
-            </span>
-          )}
+          <GameVariantBadge variant={table.game_variant} size="sm" />
           {table.is_persistent && (
             <span
               className="rounded-lg px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"

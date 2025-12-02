@@ -20,10 +20,12 @@ import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly
 import InterHandVoting from '../components/tables/InterHandVoting'
 import WinnerShowcase from '../components/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
+import GameVariantBadge from '../components/ui/GameVariantBadge'
 import CommunityBoard from '@/components/table/CommunityBoard'
 import ActionBar from '@/components/table/ActionBar'
 import PlayerSeat from '@/components/table/PlayerSeat'
 import { getSeatLayout } from '@/config/tableLayout'
+import { useGameVariant } from '@/utils/gameVariant'
 import '../styles/table-layout.css'
 import type {
   AllowedAction,
@@ -32,6 +34,7 @@ import type {
   TablePlayerState,
   TableState,
 } from '@/types/game'
+import type { GameVariant } from '@/types'
 
 interface TablePlayer {
   user_id: number
@@ -92,7 +95,7 @@ interface TableDetails {
   is_public?: boolean
   visibility?: 'public' | 'private'
   group_title?: string | null
-  game_variant?: string
+  game_variant?: GameVariant
   is_persistent?: boolean
 }
 
@@ -153,13 +156,8 @@ export default function TablePage() {
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
   const [showTableMenu, setShowTableMenu] = useState(false)
-
-  const variantLabel = useMemo(() => {
-    const variant = tableDetails?.game_variant
-    if (!variant) return "Texas Hold'em"
-    if (variant === 'no_limit_short_deck_holdem') return "Short-Deck Hold'em"
-    return "Texas Hold'em"
-  }, [tableDetails?.game_variant])
+  const [showVariantRules, setShowVariantRules] = useState(false)
+  const variantConfig = useGameVariant(tableDetails?.game_variant)
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
@@ -189,6 +187,16 @@ export default function TablePage() {
   useEffect(() => {
     initDataRef.current = initData
   }, [initData])
+
+  useEffect(() => {
+    if (variantConfig.id === 'no_limit_short_deck_holdem') {
+      setShowVariantRules(true)
+      const timer = window.setTimeout(() => setShowVariantRules(false), 9000)
+      return () => window.clearTimeout(timer)
+    }
+    setShowVariantRules(false)
+    return undefined
+  }, [variantConfig.id])
 
   // Close the table menu when clicking outside the button or the menu itself
   useEffect(() => {
@@ -1477,7 +1485,7 @@ export default function TablePage() {
 
               <div className="table-wrapper">
                 <div
-                  className="table-area table-bottom-padding"
+                  className="table-area table-bottom-padding relative"
                   style={{ '--seat-row-offset': viewerIsSeated ? '72vh' : '68vh' } as CSSProperties}
                 >
                   <div className="table-oval z-0">
@@ -1505,6 +1513,7 @@ export default function TablePage() {
                                           }`}
                                         />
                         {t('table.meta.tableMenu', { defaultValue: 'Table Capsule' })}
+                        <GameVariantBadge variant={tableDetails.game_variant} size="sm" className="ml-2" />
                       </button>
 
                       {showTableMenu && (
@@ -1522,9 +1531,7 @@ export default function TablePage() {
                               <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
                                 {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
                               </div>
-                              <div className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-                                {variantLabel}
-                              </div>
+                              <GameVariantBadge variant={tableDetails.game_variant} size="lg" />
                             </div>
                           </div>
 
@@ -1570,6 +1577,30 @@ export default function TablePage() {
                       )}
                     </div>
                   )}
+
+                  {variantConfig.id === 'no_limit_short_deck_holdem' && showVariantRules ? (
+                    <div
+                      className="pointer-events-auto absolute bottom-6 right-6 z-20 flex items-center gap-3 rounded-full border px-4 py-2 text-xs text-amber-100 shadow-xl backdrop-blur-lg"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,193,7,0.12), rgba(255,87,34,0.18))',
+                        borderColor: 'rgba(255,193,7,0.3)',
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
+                      }}
+                    >
+                      <span className="text-lg">⚠️</span>
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-semibold uppercase tracking-wide">Short Deck Tips</span>
+                        <span className="text-[11px] opacity-80">Flush beats Full House • No 2-5 cards</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowVariantRules(false)}
+                        className="rounded-full border border-white/10 bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                  ) : null}
 
                   <div className="table-board-stack z-20 flex flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard

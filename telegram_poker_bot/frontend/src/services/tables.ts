@@ -1,4 +1,5 @@
 import { apiFetch, type ApiFetchOptions } from '../utils/apiClient'
+import type { GameVariant } from '@/types'
 
 export type TableVisibility = 'public' | 'private'
 
@@ -10,7 +11,7 @@ export interface CreateTableOptions {
   maxPlayers: number
   visibility: TableVisibility
   autoSeatHost?: boolean
-  gameVariant?: 'no_limit_texas_holdem' | 'no_limit_short_deck_holdem'
+  gameVariant?: GameVariant
 }
 
 export interface TableViewerState {
@@ -48,7 +49,7 @@ export interface TableSummary {
   is_public?: boolean
   is_private?: boolean
   creator_user_id?: number | null
-  game_variant?: string
+  game_variant?: GameVariant
   is_persistent?: boolean
   viewer?: TableViewerState | null
   host?: TableHostInfo | null
