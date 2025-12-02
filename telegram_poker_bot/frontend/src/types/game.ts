@@ -147,5 +147,6 @@ export interface TableState {
     }>
   } | null
   allowed_actions?: AllowedActionsPayload
+  allowed_actions_legacy?: AllowedActionsPayload
   ready_players?: Array<number | string>
 }

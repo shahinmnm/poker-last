@@ -14,7 +14,7 @@ Do NOT create parallel lifecycle mechanisms elsewhere.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,36 @@ if TYPE_CHECKING:  # pragma: no cover
     pass
 
 logger = get_logger(__name__)
+
+
+_table_status_listeners: List[
+    Callable[[int, TableStatus, str], Awaitable[None]]
+] = []
+
+
+def register_table_status_listener(
+    listener: Callable[[int, TableStatus, str], Awaitable[None]]
+) -> None:
+    """Register a callback that is invoked when a table status changes."""
+
+    _table_status_listeners.append(listener)
+
+
+async def _emit_table_status_event(
+    table: Table, status: TableStatus, reason: str
+) -> None:
+    """Notify all registered listeners of a table lifecycle change."""
+
+    for listener in list(_table_status_listeners):
+        try:
+            await listener(table.id, status, reason)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning(
+                "Table status listener failed",
+                table_id=table.id,
+                status=getattr(status, "value", str(status)),
+                error=str(exc),
+            )
 
 
 async def should_table_be_listed_publicly(table: Table) -> bool:
@@ -81,6 +111,14 @@ async def compute_prestart_expiry(
     # Only applies to WAITING tables
     if table.status != TableStatus.WAITING:
         return False, None
+
+    # If no active seats remain, expire immediately to avoid ghost lobby entries
+    result = await db.execute(
+        select(Seat).where(Seat.table_id == table.id, Seat.left_at.is_(None))
+    )
+    active_seats = result.scalars().all()
+    if not active_seats:
+        return True, "no players remaining at table"
 
     # Check if expires_at is set and in the past
     if table.expires_at:
@@ -175,6 +213,8 @@ async def mark_table_expired(db: AsyncSession, table: Table, reason: str) -> Non
         ),
     )
 
+    await _emit_table_status_event(table, table.status, reason)
+
 
 async def mark_table_completed_and_cleanup(
     db: AsyncSession, table: Table, reason: str
@@ -223,6 +263,8 @@ async def mark_table_completed_and_cleanup(
         table_id=table.id,
         reason=reason,
     )
+
+    await _emit_table_status_event(table, table.status, reason)
 
 
 async def check_player_balance_requirements(
