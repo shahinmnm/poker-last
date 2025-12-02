@@ -68,7 +68,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       <div
         ref={ref}
         className={clsx(
-          'relative inline-flex w-[180px] flex-col items-center -space-y-4',
+          'relative inline-flex w-[180px] flex-col items-center -space-y-2',
           mutedState && 'grayscale opacity-50',
         )}
         aria-label={seatLabel}
@@ -131,7 +131,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         </div>
 
         {/* Labels */}
-        <div className="flex flex-col items-center leading-tight space-y-0.5">
+        <div className="flex flex-col items-center leading-tight space-y-0.5 mt-1">
           <span className="text-[12px] font-semibold tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
             {playerName || seatLabel}
           </span>

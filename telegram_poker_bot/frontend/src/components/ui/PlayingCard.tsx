@@ -53,10 +53,9 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
     const displayRank = RANK_DISPLAY[rankChar] || rankChar
     const displaySuit = SUIT_SYMBOLS[suitChar] || suitChar
     
-    // Red for hearts and diamonds, black/blue for spades and clubs
-    const suitColor = (suitChar === 'h' || suitChar === 'd') 
-      ? 'text-rose-400' 
-      : 'text-sky-300'
+    // Deep red for hearts/diamonds, charcoal for spades/clubs
+    const suitColor =
+      suitChar === 'h' || suitChar === 'd' ? 'text-[#d7263d]' : 'text-slate-900'
     
     return {
       rank: displayRank,
@@ -82,24 +81,23 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
   if (hidden) {
     return (
       <div
-        className={`${sizeClasses} relative overflow-hidden rounded-md border border-slate-700/60 bg-[#0b142b] shadow-[0_10px_24px_-16px_rgba(0,0,0,0.8)]`}
+        className={`${sizeClasses} relative overflow-hidden rounded-[6px] bg-[#0d0b14] shadow-[0_8px_18px_rgba(0,0,0,0.5)]`}
       >
         <div
-          className="absolute inset-0 opacity-90"
+          className="absolute inset-0 opacity-80"
           style={{
             backgroundImage:
-              'repeating-linear-gradient(45deg, rgba(86,105,255,0.16) 0, rgba(86,105,255,0.16) 4px, transparent 4px, transparent 10px), repeating-linear-gradient(-45deg, rgba(86,105,255,0.16) 0, rgba(86,105,255,0.16) 4px, transparent 4px, transparent 10px)',
+              'repeating-linear-gradient(45deg, rgba(215,38,61,0.2) 0, rgba(215,38,61,0.2) 4px, transparent 4px, transparent 10px), repeating-linear-gradient(-45deg, rgba(215,38,61,0.16) 0, rgba(215,38,61,0.16) 4px, transparent 4px, transparent 10px)',
           }}
         />
         <div
-          className="absolute inset-0 opacity-75"
+          className="absolute inset-0 opacity-70"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 25% 30%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 2px, transparent 3px), radial-gradient(circle at 70% 70%, rgba(56,189,248,0.14) 0, rgba(56,189,248,0.14) 2px, transparent 3px)',
+              'radial-gradient(circle at 25% 30%, rgba(255,255,255,0.09) 0, rgba(255,255,255,0.09) 2px, transparent 3px), radial-gradient(circle at 70% 70%, rgba(215,38,61,0.2) 0, rgba(215,38,61,0.2) 2px, transparent 3px)',
             backgroundSize: '18px 18px',
           }}
         />
-        <div className="absolute inset-[2px] rounded-sm border border-slate-300/20" />
         <div className="relative h-full w-full" />
       </div>
     )
@@ -107,11 +105,11 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
 
   return (
     <div
-      className={`${sizeClasses} rounded-md bg-white border-[1.5px] shadow-md flex flex-col items-center justify-center font-bold tracking-tight ${color} relative ${
-        highlighted ? 'border-emerald-400 ring-2 ring-emerald-400/80 shadow-emerald-500/30' : 'border-gray-300'
+      className={`${sizeClasses} rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center font-bold tracking-tight ${color} relative ${
+        highlighted ? 'ring-2 ring-emerald-400/80 shadow-emerald-500/30' : ''
       }`}
       style={{
-        backgroundImage: 'linear-gradient(to bottom, #ffffff, #f5f5f5)',
+        backgroundImage: 'linear-gradient(180deg, #ffffff 0%, #f4f4f5 100%)',
       }}
     >
       {/* Main rank and suit */}
