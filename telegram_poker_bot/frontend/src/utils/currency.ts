@@ -2,6 +2,8 @@
  * Currency formatting utilities for cent-based system
  */
 
+export type CurrencyType = 'REAL' | 'PLAY'
+
 // Currency configuration (matches backend config)
 const CURRENCY_SMALLEST_UNIT_FACTOR = 100 // 100 cents = $1
 
@@ -22,6 +24,8 @@ export function formatCurrency(amount: number | bigint, symbol = '$'): string {
   const dollars = Number(amount) / CURRENCY_SMALLEST_UNIT_FACTOR
   return `${symbol}${dollars.toFixed(2)}`
 }
+
+export const formatMoney = (amount: number | bigint): string => formatCurrency(amount, '$')
 
 /**
  * Format amount with smart abbreviations for large numbers
@@ -85,12 +89,31 @@ export function parseCurrencyInput(input: string): number | null {
  * formatChips(2050) // "20.50"
  * formatChips(100000) // "1,000.00"
  */
-export function formatChips(amount: number): string {
-  const value = amount / CURRENCY_SMALLEST_UNIT_FACTOR
+export function formatChips(amount: number | bigint, withDecimals = true): string {
+  const value = Number(amount) / CURRENCY_SMALLEST_UNIT_FACTOR
   return value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: withDecimals ? 2 : 0,
+    maximumFractionDigits: withDecimals ? 2 : 0,
   })
+}
+
+export function formatPlayMoney(amount: number | bigint, withDecimals = false): string {
+  const value = Number(amount)
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: withDecimals ? 2 : 0,
+    maximumFractionDigits: withDecimals ? 2 : 0,
+  })
+}
+
+export function formatByCurrency(
+  amount: number | bigint,
+  currencyType: CurrencyType,
+  opts: { withDecimals?: boolean } = {},
+): string {
+  if (currencyType === 'PLAY') {
+    return formatPlayMoney(amount, opts.withDecimals ?? false)
+  }
+  return formatMoney(amount)
 }
 
 /**

@@ -13,6 +13,7 @@ import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
 import { useUserData } from '../providers/UserDataProvider'
 import { useLayout } from '../providers/LayoutProvider'
+import { formatByCurrency } from '../utils/currency'
 
 const bottomNavKeys = ['home', 'lobby', 'wallet', 'profile'] as const
 
@@ -32,11 +33,7 @@ export default function MainLayout() {
   const isTablePage = location.pathname.startsWith('/table/')
 
   const displayName = user?.first_name || user?.username || 'Player'
-  const formatBalance = (bal: number) => {
-    if (bal >= 1000000) return `${(bal / 1000000).toFixed(1)}M`
-    if (bal >= 1000) return `${(bal / 1000).toFixed(1)}K`
-    return bal.toString()
-  }
+  const formatBalance = (bal: number) => formatByCurrency(bal, 'REAL')
 
   return (
     <>

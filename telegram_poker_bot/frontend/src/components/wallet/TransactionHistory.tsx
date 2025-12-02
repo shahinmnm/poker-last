@@ -6,10 +6,14 @@ interface Transaction {
   type: 'buy_in' | 'cash_out' | 'game_win' | 'game_bet' | 'deposit' | 'withdrawal'
   amount: number
   balance_after: number
+  currency_type: 'REAL' | 'PLAY'
   created_at: string
 }
 
-const centsToDollars = (value: number) => `$${(value / 100).toFixed(2)}`
+const formatAmount = (value: number, currencyType: Transaction['currency_type']) =>
+  currencyType === 'PLAY'
+    ? value.toLocaleString('en-US')
+    : `$${(value / 100).toFixed(2)}`
 
 const typeLabels: Record<Transaction['type'], string> = {
   buy_in: 'Table Buy-in',
@@ -34,8 +38,9 @@ export default function TransactionHistory() {
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const response = await axios.get<Transaction[]>('/users/me/transactions')
-        setTransactions(response.data || [])
+        const response = await axios.get<{ transactions: Transaction[] }>('/users/me/transactions')
+        const payload = response.data?.transactions ?? (response.data as unknown as Transaction[])
+        setTransactions(payload || [])
       } catch (err) {
         console.error('Failed to fetch transactions', err)
         setError('Unable to load transactions right now.')
@@ -65,7 +70,7 @@ export default function TransactionHistory() {
     <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
       {transactions.map((transaction) => {
         const credit = isCredit(transaction.type)
-        const amountLabel = `${credit ? '+' : '-'}${centsToDollars(Math.abs(transaction.amount))}`
+        const amountLabel = `${credit ? '+' : '-'}${formatAmount(Math.abs(transaction.amount), transaction.currency_type)}`
         return (
           <div
             key={transaction.id}
@@ -93,7 +98,9 @@ export default function TransactionHistory() {
             </div>
             <div className="text-right">
               <p className={`text-sm font-bold ${credit ? 'text-emerald-400' : 'text-red-400'}`}>{amountLabel}</p>
-              <p className="text-[11px] text-white/60">Balance: {centsToDollars(transaction.balance_after)}</p>
+              <p className="text-[11px] text-white/60">
+                Balance: {formatAmount(transaction.balance_after, transaction.currency_type)}
+              </p>
             </div>
           </div>
         )

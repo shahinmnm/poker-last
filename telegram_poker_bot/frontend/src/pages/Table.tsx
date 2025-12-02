@@ -26,6 +26,7 @@ import ActionBar from '@/components/table/ActionBar'
 import PlayerSeat from '@/components/table/PlayerSeat'
 import { getSeatLayout } from '@/config/tableLayout'
 import { useGameVariant } from '@/utils/gameVariant'
+import { CurrencyType, formatByCurrency } from '@/utils/currency'
 import '../styles/table-layout.css'
 import type {
   AllowedAction,
@@ -97,6 +98,7 @@ interface TableDetails {
   group_title?: string | null
   game_variant?: GameVariant
   is_persistent?: boolean
+  currency_type?: CurrencyType
 }
 
 type LastAction = NonNullable<TableState['last_action']>
@@ -1039,6 +1041,10 @@ export default function TablePage() {
   const canLeave = tableDetails?.permissions?.can_leave ?? false
   const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails?.players || []).slice().sort((a, b) => a.position - b.position)
+  const currencyType: CurrencyType =
+    (liveState?.currency_type as CurrencyType | undefined) ||
+    (tableDetails?.currency_type as CurrencyType | undefined) ||
+    'REAL'
   const potDisplayAmount = useMemo(() => {
     if (typeof liveState?.pot === 'number') return liveState.pot
     if (liveState?.pots?.length) {
@@ -1046,6 +1052,10 @@ export default function TablePage() {
     }
     return 0
   }, [liveState?.pot, liveState?.pots])
+  const formattedPot = useMemo(
+    () => formatByCurrency(potDisplayAmount, currencyType, { withDecimals: currencyType === 'REAL' }),
+    [potDisplayAmount, currencyType],
+  )
   const winningBoardCards = useMemo(
     () =>
       liveState?.hand_result?.winners?.flatMap((winner) => winner.best_hand_cards ?? []) ?? [],
@@ -1469,7 +1479,7 @@ export default function TablePage() {
             <div className="relative flex-1">
               {isInterHand ? (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-                  <WinnerShowcase handResult={lastHandResult} players={liveState.players} />
+                  <WinnerShowcase handResult={lastHandResult} players={liveState.players} currencyType={currencyType} />
                   <div className="mt-6">
                     <InterHandVoting
                       players={liveState.players}
@@ -1538,7 +1548,9 @@ export default function TablePage() {
                           <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
                             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.blinds', { defaultValue: 'Blinds' })}</p>
-                              <p className="text-sm font-semibold leading-snug">{tableDetails.small_blind}/{tableDetails.big_blind}</p>
+                              <p className="text-sm font-semibold leading-snug">
+                                {formatByCurrency(tableDetails.small_blind, currencyType, { withDecimals: currencyType === 'REAL' })} / {formatByCurrency(tableDetails.big_blind, currencyType, { withDecimals: currencyType === 'REAL' })}
+                              </p>
                             </div>
                             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
@@ -1546,11 +1558,13 @@ export default function TablePage() {
                             </div>
                             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
-                              <p className="text-sm font-semibold leading-snug">{tableDetails.starting_stack}</p>
+                              <p className="text-sm font-semibold leading-snug">
+                                {formatByCurrency(tableDetails.starting_stack, currencyType, { withDecimals: currencyType === 'REAL' })}
+                              </p>
                             </div>
                             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
-                              <p className="text-sm font-semibold leading-snug">{potDisplayAmount}</p>
+                              <p className="text-sm font-semibold leading-snug">{formattedPot}</p>
                             </div>
                           </div>
 
@@ -1605,6 +1619,7 @@ export default function TablePage() {
                   <div className="table-board-stack z-20 flex flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
+                      currencyType={currencyType}
                       cards={liveState.board ?? []}
                       highlightedCards={winningBoardCards}
                       potRef={potAreaRef}

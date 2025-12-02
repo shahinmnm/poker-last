@@ -2,13 +2,14 @@ import { RefObject, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import PlayingCard from '@/components/ui/PlayingCard'
-import { formatChips } from '@/utils/formatChips'
+import { CurrencyType, formatByCurrency } from '@/utils/currency'
 
 interface CommunityBoardProps {
   potAmount: number
   cards: string[]
   highlightedCards?: string[]
   potRef?: RefObject<HTMLDivElement>
+  currencyType?: CurrencyType
 }
 
 export default function CommunityBoard({
@@ -16,6 +17,7 @@ export default function CommunityBoard({
   cards,
   highlightedCards = [],
   potRef,
+  currencyType = 'REAL',
 }: CommunityBoardProps) {
   const { t } = useTranslation()
   const [isPulsing, setIsPulsing] = useState(false)
@@ -32,6 +34,7 @@ export default function CommunityBoard({
   const cardHeight = 'clamp(50px, 10vw, 76px)'
   const cardWidth = 'clamp(36px, 7.6vw, 54px)'
   const safePotAmount = Number.isFinite(potAmount) ? potAmount : 0
+  const displayPot = formatByCurrency(safePotAmount, currencyType, { withDecimals: currencyType === 'REAL' })
 
   return (
     <div className="flex w-full flex-col items-center gap-2.5" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
@@ -44,7 +47,7 @@ export default function CommunityBoard({
           <span className="table-pot-pill-label">
             {t('table.potLabel', { defaultValue: 'POT' })}
           </span>
-          <div className="table-pot-pill-amount">{formatChips(safePotAmount)}</div>
+          <div className="table-pot-pill-amount">{displayPot}</div>
         </div>
       </div>
 

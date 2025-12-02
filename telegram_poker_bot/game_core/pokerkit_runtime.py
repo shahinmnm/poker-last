@@ -27,6 +27,7 @@ from telegram_poker_bot.shared.models import (
     Table,
     TableStatus,
     GameVariant,
+    CurrencyType,
 )
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.services import table_lifecycle
@@ -309,6 +310,12 @@ class PokerKitTableRuntime:
             raise ValueError("Cannot apply hand result without active hand/engine")
 
         hand_ended_event: Dict[str, Any] = {}
+        currency_type = getattr(self.table, "currency_type", CurrencyType.REAL)
+        if isinstance(currency_type, str):
+            try:
+                currency_type = CurrencyType(currency_type)
+            except ValueError:
+                currency_type = CurrencyType.REAL
 
         try:
             async with db.begin_nested():
@@ -335,6 +342,7 @@ class PokerKitTableRuntime:
                         amount=rake_amount,
                         hand_id=self.current_hand.id,
                         table_id=self.table.id,
+                        currency_type=currency_type,
                         reference_id=f"hand_{self.hand_no}",
                     )
                     logger.info(
@@ -1115,6 +1123,13 @@ class PokerKitTableRuntime:
         Returns:
             State dictionary matching frontend expectations
         """
+        currency_type = getattr(self.table, "currency_type", CurrencyType.REAL)
+        if isinstance(currency_type, str):
+            try:
+                currency_type = CurrencyType(currency_type)
+            except ValueError:
+                currency_type = CurrencyType.REAL
+
         if not self.engine:
             # No active hand
             seated_players = []
@@ -1163,6 +1178,7 @@ class PokerKitTableRuntime:
                 "hero": None,
                 "last_action": None,
                 "ready_players": list(self.ready_players),
+                "currency_type": currency_type.value,
             }
 
         # Get viewer player index
@@ -1331,6 +1347,7 @@ class PokerKitTableRuntime:
             "hand_complete": hand_status_value == "complete"
             or (actor_index is None and poker_state.get("street") == "showdown"),
             "phase": phase,
+            "currency_type": currency_type.value,
         }
 
         if payload["hand_complete"]:

@@ -1,17 +1,21 @@
 import type { HandResultPayload } from '@/types/game'
+import type { CurrencyType } from '@/utils/currency'
+import { formatByCurrency } from '@/utils/currency'
 
 import PlayingCard from '../ui/PlayingCard'
 
 interface WinnerShowcaseProps {
   handResult?: HandResultPayload | null
   players: Array<{ user_id: number | string; display_name?: string | null; username?: string | null }>
+  currencyType?: CurrencyType
 }
 
-function formatChips(amount: number): string {
-  return amount >= 0 ? `+$${amount.toLocaleString()}` : `-$${Math.abs(amount).toLocaleString()}`
+function formatChips(amount: number, currencyType: CurrencyType = 'REAL'): string {
+  const display = formatByCurrency(Math.abs(amount), currencyType, { withDecimals: currencyType === 'REAL' })
+  return amount >= 0 ? `+${display}` : `-${display}`
 }
 
-export default function WinnerShowcase({ handResult, players }: WinnerShowcaseProps) {
+export default function WinnerShowcase({ handResult, players, currencyType = 'REAL' }: WinnerShowcaseProps) {
   const winners = handResult?.winners ?? []
   const primaryWinner =
     winners.length > 0
@@ -42,7 +46,9 @@ export default function WinnerShowcase({ handResult, players }: WinnerShowcasePr
     <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-500/10 via-cyan-500/5 to-sky-500/10 px-6 py-5 text-center shadow-2xl backdrop-blur-md">
       <p className="text-xs uppercase tracking-[0.18em] text-emerald-200/80">Winner</p>
       <h2 className="mt-1 text-3xl font-black text-white drop-shadow-sm">{winnerName}</h2>
-      <p className="mt-2 text-lg font-semibold text-emerald-300">{formatChips(primaryWinner.amount)}</p>
+      <p className="mt-2 text-lg font-semibold text-emerald-300">
+        {formatChips(primaryWinner.amount, currencyType)}
+      </p>
       {primaryWinner.hand_rank && (
         <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-white/80">{primaryWinner.hand_rank}</p>
       )}

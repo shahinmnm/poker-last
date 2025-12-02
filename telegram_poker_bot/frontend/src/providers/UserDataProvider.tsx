@@ -13,11 +13,15 @@ interface UserStats {
 }
 
 interface UserBalance {
-  balance: number
+  balance_real: number
+  balance_play: number
 }
 
 interface UserDataContextValue {
   balance: number | null
+  balances: UserBalance | null
+  balanceReal: number | null
+  balancePlay: number | null
   stats: UserStats | null
   loading: boolean
   refetchBalance: () => Promise<void>
@@ -27,6 +31,9 @@ interface UserDataContextValue {
 
 const UserDataContext = createContext<UserDataContextValue>({
   balance: null,
+  balances: null,
+  balanceReal: null,
+  balancePlay: null,
   stats: null,
   loading: false,
   refetchBalance: async () => {},
@@ -36,7 +43,7 @@ const UserDataContext = createContext<UserDataContextValue>({
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
   const { initData, ready } = useTelegram()
-  const [balance, setBalance] = useState<number | null>(null)
+  const [balances, setBalances] = useState<UserBalance | null>(null)
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -45,7 +52,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     
     try {
       const data = await apiFetch<UserBalance>('/users/me/balance', { initData })
-      setBalance(data.balance)
+      setBalances(data)
     } catch (err) {
       console.warn('Failed to fetch balance', err)
     }
@@ -80,7 +87,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   }, [ready, initData, refetchAll])
 
   const value: UserDataContextValue = {
-    balance,
+    balance: balances?.balance_real ?? null,
+    balances,
+    balanceReal: balances?.balance_real ?? null,
+    balancePlay: balances?.balance_play ?? null,
     stats,
     loading,
     refetchBalance,
