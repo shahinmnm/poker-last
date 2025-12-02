@@ -8,6 +8,7 @@ import PageHeader from '../components/ui/PageHeader'
 import Toggle from '../components/ui/Toggle'
 import { useTelegram } from '../hooks/useTelegram'
 import { createTable, type TableSummary, type TableVisibility } from '../services/tables'
+import type { GameVariant } from '@/types'
 
 interface CreateTableFormState {
   tableName: string
@@ -19,7 +20,7 @@ interface CreateTableFormState {
   autoSeatHost: boolean
   autoStart: boolean
   tableMode: 'casual' | 'turbo' | 'ranked'
-  gameVariant: 'no_limit_texas_holdem' | 'no_limit_short_deck_holdem'
+  gameVariant: GameVariant
 }
 
 type ViewState = 'idle' | 'loading' | 'success' | 'error'
@@ -255,6 +256,7 @@ export default function CreateGamePage() {
             >
               <option value="no_limit_texas_holdem">{t('createGame.form.variantTexas', "Texas Hold'em")}</option>
               <option value="no_limit_short_deck_holdem">{t('createGame.form.variantShortDeck', "Short-Deck Hold'em")}</option>
+              <option value="pot_limit_omaha_holdem">{t('createGame.form.variantOmaha', 'Pot-Limit Omaha')}</option>
             </select>
           </div>
 
