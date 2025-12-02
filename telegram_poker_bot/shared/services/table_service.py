@@ -314,14 +314,20 @@ async def seat_user_at_table(
     config = table.config_json or {}
     max_players = config.get("max_players", 8)
 
-    # Check if user already seated
+    # Check if user already seated (tolerate accidental duplicate rows by collapsing to one)
     result = await db.execute(
-        select(Seat).where(
-            Seat.table_id == table_id, Seat.user_id == user_id, Seat.left_at.is_(None)
-        )
+        select(Seat)
+        .where(Seat.table_id == table_id, Seat.user_id == user_id, Seat.left_at.is_(None))
+        .order_by(Seat.joined_at.desc())
     )
-    existing_seat = result.scalar_one_or_none()
-    if existing_seat:
+    existing_seats = result.scalars().all()
+    if existing_seats:
+        # If multiple active seats exist, mark all but the most recent as left to self-heal.
+        if len(existing_seats) > 1:
+            now = datetime.now(timezone.utc)
+            for duplicate in existing_seats[1:]:
+                duplicate.left_at = now
+            await db.flush()
         raise ValueError(f"User {user_id} already seated at table {table_id}")
 
     # Count current players
