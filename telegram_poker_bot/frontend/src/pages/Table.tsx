@@ -111,6 +111,18 @@ const TABLE_CAPSULE_STYLE: CSSProperties = {
  * rather than 'active'. Action buttons should be shown when tableStatus is one of these values.
  */
 const ACTIVE_GAMEPLAY_STREETS = ['preflop', 'flop', 'turn', 'river']
+
+const notifyLobbyTableRemoved = (tableId?: number | string | null) => {
+  const numericId = Number(tableId)
+  if (!Number.isFinite(numericId)) return
+
+  window.dispatchEvent(
+    new CustomEvent('lobby:table-removed', {
+      detail: { tableId: numericId },
+    }),
+  )
+}
+
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
@@ -259,6 +271,9 @@ export default function TablePage() {
           current_actor: mergedCurrentActor,
           current_actor_user_id: mergedCurrentActorUserId,
           allowed_actions: incoming.allowed_actions ?? (isSameHand ? previous?.allowed_actions : undefined),
+          allowed_actions_legacy:
+            incoming.allowed_actions_legacy ??
+            (isSameHand ? previous?.allowed_actions_legacy : undefined),
         }
 
         syncHandResults(nextState.hand_id ?? null, mergedHandResult, isSameHand)
@@ -605,6 +620,7 @@ export default function TablePage() {
       if (err instanceof ApiError) {
         if (err.status === 404) {
           setError(t('table.errors.notFound'))
+          notifyLobbyTableRemoved(tableId)
         } else if (err.status === 401) {
           setError(t('table.errors.unauthorized'))
         } else {
@@ -756,6 +772,7 @@ export default function TablePage() {
         }
 
         if (payload?.type === 'table_ended') {
+          notifyLobbyTableRemoved(payload.table_id ?? tableId ?? null)
           setTableExpiredReason(payload.reason || t('table.messages.notEnoughPlayers', 'Not enough players'))
           setShowTableExpiredModal(true)
           return
@@ -775,6 +792,7 @@ export default function TablePage() {
     onStateChange: useCallback(
       (payload: TableState) => {
         if (payload.status === 'expired' || payload.table_status === 'expired') {
+          notifyLobbyTableRemoved(payload.table_id ?? tableId ?? null)
           showToast(t('table.expiration.expired', { defaultValue: 'Table has expired' }))
           setTimeout(() => navigate('/lobby', { replace: true }), EXPIRED_TABLE_REDIRECT_DELAY_MS)
           return
@@ -917,7 +935,9 @@ export default function TablePage() {
     }
   }
 
-  const allowedActions = normalizeAllowedActions(liveState?.allowed_actions)
+  const allowedActionsSource =
+    liveState?.allowed_actions ?? liveState?.allowed_actions_legacy
+  const allowedActions = normalizeAllowedActions(allowedActionsSource)
   const callAction = allowedActions.find((action) => action.action_type === 'call')
   const canCheckAction = allowedActions.some((action) => action.action_type === 'check')
   const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
@@ -1058,6 +1078,19 @@ export default function TablePage() {
   
   const isMyTurn =
     isPlaying && heroIdString !== null && currentActorUserId?.toString() === heroIdString
+
+  const lastActorRef = useRef<string | null>(null)
+  useEffect(() => {
+    const actor = currentActorUserId ? currentActorUserId.toString() : null
+    if (actor !== lastActorRef.current) {
+      lastActorRef.current = actor
+      console.log('[Table] Allowed actions for current actor changed', {
+        actor,
+        allowed_actions: allowedActions,
+        raw_allowed_actions: liveState?.allowed_actions,
+      })
+    }
+  }, [allowedActions, currentActorUserId, liveState?.allowed_actions])
 
   useEffect(() => {
     if (liveState?.hand_id !== autoTimeoutRef.current.handId) {

@@ -1003,6 +1003,77 @@ class PokerKitTableRuntime:
 
         return result
 
+    def _normalize_allowed_actions(
+        self, allowed_actions_raw: Any
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """
+        Convert PokerKit allowed_actions into a normalized list for the frontend.
+
+        Returns a tuple of (list_payload, legacy_map) so we can keep backwards
+        compatibility while guaranteeing a canonical list with action_type strings.
+        """
+
+        def _to_int(value: Any) -> int:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return 0
+
+        if isinstance(allowed_actions_raw, list):
+            # Already normalized (e.g., inter-hand ready actions)
+            return allowed_actions_raw, {}
+
+        if not isinstance(allowed_actions_raw, dict):
+            return [], {}
+
+        allowed_map: dict[str, Any] = dict(allowed_actions_raw)
+        actions: list[dict[str, Any]] = []
+
+        if allowed_map.get("can_fold"):
+            actions.append({"action_type": "fold"})
+
+        if allowed_map.get("can_check"):
+            actions.append({"action_type": "check"})
+
+        if allowed_map.get("can_call"):
+            actions.append(
+                {"action_type": "call", "amount": _to_int(allowed_map.get("call_amount"))}
+            )
+
+        min_raise = _to_int(allowed_map.get("min_raise_to"))
+        max_raise = _to_int(allowed_map.get("max_raise_to"))
+
+        if allowed_map.get("can_bet"):
+            actions.append(
+                {
+                    "action_type": "bet",
+                    "min_amount": min_raise,
+                    "max_amount": max_raise,
+                }
+            )
+
+        if allowed_map.get("can_raise"):
+            actions.append(
+                {
+                    "action_type": "raise",
+                    "min_amount": min_raise,
+                    "max_amount": max_raise,
+                }
+            )
+        elif allowed_map.get("can_all_in"):
+            actions.append(
+                {
+                    "action_type": "all_in",
+                    "min_amount": max_raise or min_raise,
+                    "max_amount": max_raise or min_raise,
+                }
+            )
+
+        if allowed_map.get("ready"):
+            actions.append({"action_type": "ready"})
+
+        return actions, allowed_map
+
     def to_payload(self, viewer_user_id: Optional[int] = None) -> Dict[str, Any]:
         """
         Serialize table state for frontend consumption.
@@ -1132,8 +1203,11 @@ class PokerKitTableRuntime:
                 }
             )
 
-        # Get allowed actions from poker state
-        allowed_actions = poker_state.get("allowed_actions", {})
+        # Get allowed actions from poker state and normalize to list form
+        allowed_actions_raw = poker_state.get("allowed_actions", {})
+        allowed_actions, allowed_actions_legacy = self._normalize_allowed_actions(
+            allowed_actions_raw
+        )
 
         # Log allowed_actions calculation for diagnostics
         logger.info(
@@ -1199,6 +1273,7 @@ class PokerKitTableRuntime:
             ),
             "last_action": None,
             "allowed_actions": allowed_actions,
+            "allowed_actions_legacy": allowed_actions_legacy,
             "ready_players": list(self.ready_players),
             "hand_complete": hand_status_value == "complete"
             or (actor_index is None and poker_state.get("street") == "showdown"),
@@ -1206,7 +1281,8 @@ class PokerKitTableRuntime:
         }
 
         if payload["hand_complete"]:
-            payload["allowed_actions"] = {}
+            payload["allowed_actions"] = []
+            payload["allowed_actions_legacy"] = {}
             payload["current_actor_user_id"] = None
 
         if self.last_hand_result and (not self.engine or not self.engine.state.status):
@@ -1269,6 +1345,7 @@ class PokerKitTableRuntime:
                 {"action_type": "ready"}
                 for _ in range(1 if can_ready else 0)
             ]
+            payload["allowed_actions_legacy"] = {"ready": can_ready}
             payload["ready_players"] = ready_players
             payload["inter_hand"] = {
                 "hand_no": self.hand_no,

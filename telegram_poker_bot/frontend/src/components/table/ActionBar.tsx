@@ -129,7 +129,8 @@ export default function ActionBar({
     : t('table.actionBar.raise', { defaultValue: 'RAISE' }).toUpperCase()
 
   const handleFold = () => {
-    if (!foldAction || isDisabled) return
+    if (!foldAction || !isMyTurn) return
+    if (isProcessing) return
     onAction('fold')
     setIsAdjustingBet(false)
   }
@@ -162,7 +163,7 @@ export default function ActionBar({
   }
 
   const foldLabel = t('table.actionBar.fold', { defaultValue: 'Fold' }).toUpperCase()
-  const foldDisabled = isDisabled || !foldAction
+  const foldDisabled = !isMyTurn || !foldAction
   const centerDisabled = isDisabled || (!checkAction && !callAction)
   const raiseDisabled = isDisabled || !sliderLabelAction
 

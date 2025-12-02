@@ -305,7 +305,86 @@ class ConnectionManager:
         )
 
 
+class LobbyConnectionManager:
+    """Manage WebSocket connections for lobby-wide updates."""
+
+    def __init__(self) -> None:
+        self.connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket) -> None:
+        await websocket.accept()
+        self.connections.append(websocket)
+        logger.info("Lobby WebSocket connected", active=len(self.connections))
+
+    def disconnect(self, websocket: WebSocket) -> None:
+        if websocket in self.connections:
+            self.connections.remove(websocket)
+        logger.info("Lobby WebSocket disconnected", active=len(self.connections))
+
+    async def broadcast(self, message: Dict[str, Any]) -> None:
+        if not self.connections:
+            logger.debug("No lobby connections to broadcast", message_type=message.get("type"))
+            return
+
+        payload_type = message.get("type", "unknown")
+        active_connections = list(self.connections)
+        logger.info(
+            "Broadcasting lobby message",
+            message_type=payload_type,
+            recipient_count=len(active_connections),
+        )
+
+        failures = 0
+        for connection in active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                failures += 1
+                logger.warning(
+                    "Lobby broadcast failed",
+                    message_type=payload_type,
+                    error=str(exc),
+                )
+        logger.info(
+            "Lobby broadcast complete",
+            message_type=payload_type,
+            successful=len(active_connections) - failures,
+            failed=failures,
+        )
+
+    async def close_all(self) -> None:
+        if not self.connections:
+            return
+
+        connections = list(self.connections)
+        self.connections.clear()
+        for connection in connections:
+            try:
+                await connection.close()
+            except Exception as exc:
+                logger.warning("Failed to close lobby socket", error=str(exc))
+
+
 manager = ConnectionManager()
+lobby_manager = LobbyConnectionManager()
+
+
+async def _broadcast_lobby_table_update(
+    table_id: int, status: TableStatus, reason: str
+) -> None:
+    """Send lobby-wide notification when a table expires or ends."""
+
+    await lobby_manager.broadcast(
+        {
+            "type": "TABLE_REMOVED",
+            "table_id": table_id,
+            "status": getattr(status, "value", str(status)).lower(),
+            "reason": reason,
+        }
+    )
+
+
+table_lifecycle.register_table_status_listener(_broadcast_lobby_table_update)
 
 
 _auto_fold_task: Optional[asyncio.Task] = None
@@ -447,6 +526,82 @@ async def check_table_inactivity():
 
                     for table in tables:
                         try:
+                            seats_result = await db.execute(
+                                select(Seat).where(
+                                    Seat.table_id == table.id,
+                                    Seat.left_at.is_(None),
+                                )
+                            )
+                            active_seats = seats_result.scalars().all()
+                            active_player_count = len(
+                                [
+                                    seat
+                                    for seat in active_seats
+                                    if not seat.is_sitting_out_next_hand
+                                ]
+                            )
+
+                            if table.status == TableStatus.WAITING and not active_seats:
+                                reason = "no active players remaining"
+                                await table_lifecycle.mark_table_expired(
+                                    db, table, reason
+                                )
+                                logger.info(
+                                    "Table expired due to zero players",
+                                    table_id=table.id,
+                                    reason=reason,
+                                )
+                                try:
+                                    runtime_mgr = get_pokerkit_runtime_manager()
+                                    final_state = await runtime_mgr.get_state(
+                                        db, table.id, viewer_user_id=None
+                                    )
+                                    final_state["status"] = table.status.value.lower()
+                                    final_state["table_status"] = (
+                                        table.status.value.lower()
+                                    )
+                                    await manager.broadcast(table.id, final_state)
+                                except Exception as broadcast_err:
+                                    logger.error(
+                                        "Failed to broadcast lifecycle state",
+                                        table_id=table.id,
+                                        error=str(broadcast_err),
+                                    )
+                                await manager.close_all_connections(table.id)
+                                continue
+
+                            if table.status == TableStatus.ACTIVE and active_player_count < 2:
+                                reason = (
+                                    f"lack of minimum player ({active_player_count}/2 required)"
+                                )
+                                await table_lifecycle.mark_table_completed_and_cleanup(
+                                    db, table, reason
+                                )
+                                logger.info(
+                                    "Table completed due to insufficient active players",
+                                    table_id=table.id,
+                                    active_player_count=active_player_count,
+                                    reason=reason,
+                                )
+                                try:
+                                    runtime_mgr = get_pokerkit_runtime_manager()
+                                    final_state = await runtime_mgr.get_state(
+                                        db, table.id, viewer_user_id=None
+                                    )
+                                    final_state["status"] = table.status.value.lower()
+                                    final_state["table_status"] = (
+                                        table.status.value.lower()
+                                    )
+                                    await manager.broadcast(table.id, final_state)
+                                except Exception as broadcast_err:
+                                    logger.error(
+                                        "Failed to broadcast lifecycle state",
+                                        table_id=table.id,
+                                        error=str(broadcast_err),
+                                    )
+                                await manager.close_all_connections(table.id)
+                                continue
+
                             # Use canonical lifecycle check
                             was_expired, reason = (
                                 await table_lifecycle.check_and_enforce_lifecycle(
@@ -484,14 +639,6 @@ async def check_table_inactivity():
 
                             # Additional check for all-sit-out timeout (post-start only)
                             elif table.status == TableStatus.ACTIVE:
-                                seats_result = await db.execute(
-                                    select(Seat).where(
-                                        Seat.table_id == table.id,
-                                        Seat.left_at.is_(None),
-                                    )
-                                )
-                                active_seats = seats_result.scalars().all()
-
                                 if active_seats:
                                     all_sitting_out = all(
                                         seat.is_sitting_out_next_hand
@@ -2031,6 +2178,15 @@ async def delete_table(
 
     await db.commit()
 
+    await lobby_manager.broadcast(
+        {
+            "type": "TABLE_REMOVED",
+            "table_id": table_id,
+            "status": "ended",
+            "reason": "deleted_by_host",
+        }
+    )
+
     # Invalidate public table cache
     try:
         matchmaking_pool = await get_matchmaking_pool()
@@ -2463,6 +2619,65 @@ async def get_user_hands(
     }
 
 
+@api_app.websocket("/ws/lobby")
+async def lobby_websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for lobby updates (table removals/refresh)."""
+
+    await lobby_manager.connect(websocket)
+    ping_task = None
+
+    async def send_pings():
+        try:
+            while True:
+                await asyncio.sleep(30)
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except Exception as exc:
+                    logger.debug("Lobby ping failed", error=str(exc))
+                    break
+        except asyncio.CancelledError:
+            pass
+
+    try:
+        ping_task = asyncio.create_task(send_pings())
+        while True:
+            try:
+                data = await websocket.receive_text()
+                try:
+                    message = json.loads(data) if data else {}
+                    msg_type = message.get("type") if isinstance(message, dict) else None
+
+                    if msg_type == "pong":
+                        continue
+                    if msg_type == "ping":
+                        await websocket.send_json({"type": "pong"})
+                        continue
+
+                    await websocket.send_json({"type": "ack", "data": data})
+                except json.JSONDecodeError:
+                    await websocket.send_json({"type": "ack", "data": data})
+            except WebSocketDisconnect:
+                logger.info("Lobby WebSocket client disconnected normally")
+                break
+            except Exception as exc:
+                logger.warning(
+                    "Lobby WebSocket receive error",
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+                await asyncio.sleep(0.1)
+    finally:
+        if ping_task:
+            ping_task.cancel()
+            try:
+                await ping_task
+            except asyncio.CancelledError:
+                pass
+
+        lobby_manager.disconnect(websocket)
+        logger.info("Lobby WebSocket connection closed")
+
+
 @api_app.websocket("/ws/{table_id}")
 async def websocket_endpoint(websocket: WebSocket, table_id: int):
     """
@@ -2585,6 +2800,11 @@ else:
     async def container_websocket_endpoint(websocket: WebSocket, table_id: int):
         """WebSocket endpoint registered on container app for proper routing."""
         await websocket_endpoint(websocket, table_id)
+
+    @container_app.websocket("/ws/lobby")
+    async def container_lobby_websocket_endpoint(websocket: WebSocket):
+        """Lobby WebSocket endpoint registered on container app for proper routing."""
+        await lobby_websocket_endpoint(websocket)
 
     app = container_app
 

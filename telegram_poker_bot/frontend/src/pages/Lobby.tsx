@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faRefresh, faQrcode, faUserGroup, faClock } from '@fortawesome/free-solid-svg-icons'
 
 import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch, type ApiFetchOptions } from '../utils/apiClient'
+import { apiFetch, type ApiFetchOptions, resolveWebSocketUrl } from '../utils/apiClient'
 
 interface TableInfo {
   table_id: number
@@ -41,6 +41,15 @@ export default function LobbyPage() {
   const [loading, setLoading] = useState(true)
   const [inviteCode, setInviteCode] = useState('')
   const abortControllerRef = useRef<AbortController | null>(null)
+  const lobbySocketRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<number | null>(null)
+  const staleTableIdsRef = useRef<Set<number>>(new Set())
+
+  const removeTableLocally = useCallback((tableId: number) => {
+    staleTableIdsRef.current.add(tableId)
+    setPublicTables((previous) => previous.filter((table) => table.table_id !== tableId))
+    setMyTables((previous) => previous.filter((table) => table.table_id !== tableId))
+  }, [])
 
   const loadTables = useCallback(async () => {
     if (!ready) return
@@ -61,8 +70,11 @@ export default function LobbyPage() {
 
       if (controller.signal.aborted) return
 
-      setPublicTables(publicData)
-      setMyTables(myData)
+      const filteredPublic = publicData.filter((table) => !staleTableIdsRef.current.has(table.table_id))
+      const filteredMy = myData.filter((table) => !staleTableIdsRef.current.has(table.table_id))
+
+      setPublicTables(filteredPublic)
+      setMyTables(filteredMy)
     } catch (error) {
       if (!controller.signal.aborted) {
         console.error('Error loading tables:', error)
@@ -74,10 +86,104 @@ export default function LobbyPage() {
     }
   }, [ready, initData])
 
+  const handleLobbyMessage = useCallback(
+    (payload: any) => {
+      const messageType = payload?.type
+      if (!messageType) return
+
+      if (messageType === 'TABLE_REMOVED') {
+        const tableId = Number(payload.table_id ?? payload.tableId)
+        if (Number.isFinite(tableId)) {
+          removeTableLocally(tableId)
+        }
+        return
+      }
+
+      if (messageType === 'LOBBY_UPDATE_REQUIRED') {
+        loadTables()
+      }
+    },
+    [loadTables, removeTableLocally],
+  )
+
+  const connectLobbySocket = useCallback(() => {
+    if (!ready) return
+    if (lobbySocketRef.current && lobbySocketRef.current.readyState === WebSocket.OPEN) {
+      return
+    }
+
+    if (lobbySocketRef.current) {
+      lobbySocketRef.current.close()
+    }
+
+    try {
+      const wsUrl = resolveWebSocketUrl('/ws/lobby')
+      const socket = new WebSocket(wsUrl)
+      lobbySocketRef.current = socket
+
+      socket.onopen = () => {
+        console.log('[Lobby WebSocket] Connected')
+      }
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data?.type === 'ping') {
+            socket.send(JSON.stringify({ type: 'pong' }))
+            return
+          }
+          handleLobbyMessage(data)
+        } catch (error) {
+          console.warn('[Lobby WebSocket] Failed to parse message', error)
+        }
+      }
+
+      socket.onerror = (error) => {
+        console.error('[Lobby WebSocket] Error', error)
+      }
+
+      socket.onclose = () => {
+        console.log('[Lobby WebSocket] Disconnected')
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+        }
+        reconnectTimeoutRef.current = window.setTimeout(connectLobbySocket, 1500)
+      }
+    } catch (error) {
+      console.error('[Lobby WebSocket] Failed to connect', error)
+    }
+  }, [handleLobbyMessage, ready])
+
   useEffect(() => {
     loadTables()
     return () => abortControllerRef.current?.abort()
   }, [loadTables])
+
+  useEffect(() => {
+    connectLobbySocket()
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (lobbySocketRef.current) {
+        lobbySocketRef.current.close()
+        lobbySocketRef.current = null
+      }
+    }
+  }, [connectLobbySocket])
+
+  useEffect(() => {
+    const handleLocalRemoval = (event: Event) => {
+      const detail = (event as CustomEvent<{ tableId?: number | string }>).detail
+      if (!detail?.tableId && detail?.tableId !== 0) return
+      const tableId = Number(detail.tableId)
+      if (!Number.isFinite(tableId)) return
+      removeTableLocally(tableId)
+    }
+
+    window.addEventListener('lobby:table-removed', handleLocalRemoval)
+    return () => window.removeEventListener('lobby:table-removed', handleLocalRemoval)
+  }, [removeTableLocally])
 
   const handleJoinInvite = () => {
     if (inviteCode.trim()) {
@@ -86,6 +192,7 @@ export default function LobbyPage() {
   }
 
   const currentTables = (activeTab === 'my' ? myTables : activeTab === 'public' ? publicTables : []).filter((table) => {
+    if (staleTableIdsRef.current.has(table.table_id)) return false
     // Filter out expired tables
     if (table.status === 'expired') return false
     if (table.expires_at) {

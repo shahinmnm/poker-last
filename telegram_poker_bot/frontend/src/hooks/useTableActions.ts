@@ -45,6 +45,65 @@ export function useTableActions({
 }: UseTableActionsProps) {
   const { t } = useTranslation()
 
+  const parseAllowedActions = useCallback(
+    (payload?: TableState['allowed_actions']) => {
+      if (!payload) return undefined
+      if (!Array.isArray(payload)) return payload
+
+      const derived: {
+        can_fold?: boolean
+        can_check?: boolean
+        can_call?: boolean
+        call_amount?: number
+        can_bet?: boolean
+        can_raise?: boolean
+        can_all_in?: boolean
+        min_raise_to?: number
+        max_raise_to?: number
+        ready?: boolean
+      } = {}
+
+      payload.forEach((action) => {
+        const amount = action.amount ?? action.min_amount ?? 0
+        const maxAmount = action.max_amount ?? amount
+
+        switch (action.action_type) {
+          case 'fold':
+            derived.can_fold = true
+            break
+          case 'check':
+            derived.can_check = true
+            break
+          case 'call':
+            derived.can_call = true
+            derived.call_amount = amount
+            break
+          case 'bet':
+            derived.can_bet = true
+            derived.min_raise_to = action.min_amount ?? amount
+            derived.max_raise_to = action.max_amount ?? amount
+            break
+          case 'raise':
+            derived.can_raise = true
+            derived.min_raise_to = action.min_amount ?? derived.min_raise_to ?? amount
+            derived.max_raise_to = action.max_amount ?? derived.max_raise_to ?? maxAmount
+            break
+          case 'all_in':
+            derived.can_all_in = true
+            derived.max_raise_to = maxAmount
+            derived.min_raise_to = action.min_amount ?? amount
+            break
+          case 'ready':
+            derived.ready = true
+            break
+        }
+      })
+
+      return derived
+    },
+    []
+  )
+
   /**
    * Validate bet amount against min/max constraints
    * 
@@ -64,10 +123,7 @@ export function useTableActions({
         return { isValid: false, error: t('table.errors.playerNotFound') }
       }
 
-      const allowedActions =
-        gameState.allowed_actions && !Array.isArray(gameState.allowed_actions)
-          ? gameState.allowed_actions
-          : undefined
+      const allowedActions = parseAllowedActions(gameState.allowed_actions)
 
       const minRaise = allowedActions?.min_raise_to ?? gameState.min_raise
       const maxRaise = allowedActions?.max_raise_to ?? heroPlayer.stack + heroPlayer.bet
@@ -88,7 +144,7 @@ export function useTableActions({
 
       return { isValid: true }
     },
-    [gameState, t]
+    [gameState, parseAllowedActions, t]
   )
 
   /**
@@ -198,10 +254,7 @@ export function useTableActions({
     const heroPlayer = gameState?.players.find((p) => p.user_id === heroId)
     const amountToCall = Math.max((gameState?.current_bet ?? 0) - (heroPlayer?.bet ?? 0), 0)
     const isMyTurn = gameState?.current_actor === heroId
-    const allowedActions =
-      gameState?.allowed_actions && !Array.isArray(gameState.allowed_actions)
-        ? gameState.allowed_actions
-        : undefined
+    const allowedActions = parseAllowedActions(gameState?.allowed_actions)
 
     const canCheck = amountToCall === 0 || Boolean(allowedActions?.can_check)
     const canBet = amountToCall === 0 && Boolean(allowedActions?.can_bet)
@@ -222,7 +275,7 @@ export function useTableActions({
       currentPot,
       heroPlayer,
     }
-  }, [gameState])
+  }, [gameState, parseAllowedActions])
 
   return {
     // Actions
