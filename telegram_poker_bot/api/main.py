@@ -55,7 +55,7 @@ from telegram_poker_bot.shared.services.group_invites import (
     generate_unique_game_id,
     token_length_for_ttl,
 )
-from telegram_poker_bot.shared.services import user_service, table_service
+from telegram_poker_bot.shared.services import user_service, table_service, table_lifecycle
 from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import get_matchmaking_pool, get_redis_client
