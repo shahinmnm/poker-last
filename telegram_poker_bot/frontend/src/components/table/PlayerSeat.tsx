@@ -74,7 +74,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         aria-label={seatLabel}
       >
         {/* Avatar + card fan row */}
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-2">
           <div className="relative flex items-center justify-center">
             <div className="relative h-16 w-16 flex items-center justify-center z-20">
               {showTimer && turnDeadline && totalTime !== null && (
@@ -90,7 +90,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
               <div
                 className={clsx(
                   'relative z-20 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-[2.5px] ring-white/20',
-                  isHero && 'ring-2 ring-amber-300/90 shadow-amber-400/25',
+                  isHero && 'ring-2 ring-amber-200/80',
                 )}
               >
                 <span>{initial}</span>
@@ -102,7 +102,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
                 )}
 
                 {positionLabel && (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white/90 px-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-900 shadow">
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[18px] items-center justify-center rounded-full bg-white/90 px-1 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow">
                     {positionLabel}
                   </span>
                 )}
@@ -131,7 +131,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         </div>
 
         {/* Labels */}
-        <div className="flex flex-col items-center leading-tight space-y-0.5 mt-1">
+        <div className="flex flex-col items-center leading-tight space-y-0.5 mt-2">
           <span className="text-[12px] font-semibold tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
             {playerName || seatLabel}
           </span>
