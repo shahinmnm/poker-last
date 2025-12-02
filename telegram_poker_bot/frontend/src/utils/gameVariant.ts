@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import type { ComponentType } from 'react'
 import { Zap, Layers, Diamond } from 'lucide-react'
 import type { GameVariant } from '@/types'
 
@@ -11,7 +12,7 @@ export interface GameVariantConfig {
   accent: string
   accentSoft: string
   text: string
-  icon: React.ComponentType<{ className?: string; size?: number }>
+  icon: ComponentType<{ className?: string; size?: number }>
   pulse?: boolean
 }
 
