@@ -28,4 +28,48 @@ export interface TableSummary {
   visibility?: string
 }
 
+// Analytics types
+
+export interface TableSnapshot {
+  id: number
+  table_id: number
+  snapshot_time: string
+  player_count: number
+  is_active: boolean
+  metadata?: Record<string, any>
+}
+
+export interface TableSnapshotsResponse {
+  table_id: number
+  snapshots: TableSnapshot[]
+  count: number
+}
+
+export interface HourlyTableStats {
+  id: number
+  table_id: number
+  hour_start: string
+  avg_players: number
+  max_players: number
+  total_hands: number
+  activity_minutes: number
+  metadata?: Record<string, any>
+}
+
+export interface HourlyStatsResponse {
+  table_id: number
+  hourly_stats: HourlyTableStats[]
+  count: number
+}
+
+export interface RecentSnapshotsResponse {
+  snapshots: TableSnapshot[]
+  count: number
+}
+
+export interface RecentHourlyStatsResponse {
+  hourly_stats: HourlyTableStats[]
+  count: number
+}
+
 export type { TableState, TablePlayerState, HandResultPayload } from './game'

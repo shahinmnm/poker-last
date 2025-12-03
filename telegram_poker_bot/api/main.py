@@ -59,6 +59,7 @@ from telegram_poker_bot.shared.services.group_invites import (
 )
 from telegram_poker_bot.shared.services import user_service, table_service, table_lifecycle
 from telegram_poker_bot.shared.services.avatar_service import generate_avatar
+from telegram_poker_bot.shared.services.scheduler import get_analytics_scheduler
 from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import get_matchmaking_pool, get_redis_client
 from telegram_poker_bot.game_core.pokerkit_runtime import (
@@ -1075,7 +1076,12 @@ async def startup_event():
     global _auto_fold_task, _inactivity_check_task
     _auto_fold_task = asyncio.create_task(auto_fold_expired_actions())
     _inactivity_check_task = asyncio.create_task(check_table_inactivity())
-    logger.info("Started background tasks: auto-fold and inactivity check")
+    
+    # Start analytics scheduler
+    scheduler = get_analytics_scheduler()
+    await scheduler.start()
+    
+    logger.info("Started background tasks: auto-fold, inactivity check, and analytics scheduler")
 
 
 @api_app.on_event("shutdown")
@@ -1096,6 +1102,10 @@ async def shutdown_event():
             await _inactivity_check_task
         except asyncio.CancelledError:
             pass
+
+    # Stop analytics scheduler
+    scheduler = get_analytics_scheduler()
+    await scheduler.stop()
 
     logger.info("Stopped background tasks")
 
@@ -2867,6 +2877,173 @@ async def get_user_hands(
             }
             for h in histories
         ]
+    }
+
+
+# Analytics Endpoints
+
+
+@api_app.get("/analytics/tables/{table_id}/snapshots")
+async def get_table_snapshots(
+    table_id: int,
+    hours: int = Query(default=24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get recent snapshots for a specific table.
+    
+    Args:
+        table_id: Table ID
+        hours: Number of hours of snapshots to retrieve (1-168)
+    """
+    from telegram_poker_bot.shared.models import TableSnapshot
+    from sqlalchemy import and_
+    
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    
+    result = await db.execute(
+        select(TableSnapshot)
+        .where(
+            and_(
+                TableSnapshot.table_id == table_id,
+                TableSnapshot.snapshot_time >= cutoff_time,
+            )
+        )
+        .order_by(TableSnapshot.snapshot_time.desc())
+    )
+    snapshots = result.scalars().all()
+    
+    return {
+        "table_id": table_id,
+        "snapshots": [
+            {
+                "id": s.id,
+                "snapshot_time": s.snapshot_time.isoformat() if s.snapshot_time else None,
+                "player_count": s.player_count,
+                "is_active": s.is_active,
+                "metadata": s.metadata_json,
+            }
+            for s in snapshots
+        ],
+        "count": len(snapshots),
+    }
+
+
+@api_app.get("/analytics/tables/{table_id}/hourly-stats")
+async def get_table_hourly_stats(
+    table_id: int,
+    days: int = Query(default=7, ge=1, le=30),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get hourly stats for a specific table.
+    
+    Args:
+        table_id: Table ID
+        days: Number of days of stats to retrieve (1-30)
+    """
+    from telegram_poker_bot.shared.models import HourlyTableStats
+    from sqlalchemy import and_
+    
+    cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    result = await db.execute(
+        select(HourlyTableStats)
+        .where(
+            and_(
+                HourlyTableStats.table_id == table_id,
+                HourlyTableStats.hour_start >= cutoff_time,
+            )
+        )
+        .order_by(HourlyTableStats.hour_start.desc())
+    )
+    stats = result.scalars().all()
+    
+    return {
+        "table_id": table_id,
+        "hourly_stats": [
+            {
+                "id": s.id,
+                "hour_start": s.hour_start.isoformat() if s.hour_start else None,
+                "avg_players": s.avg_players,
+                "max_players": s.max_players,
+                "total_hands": s.total_hands,
+                "activity_minutes": s.activity_minutes,
+                "metadata": s.metadata_json,
+            }
+            for s in stats
+        ],
+        "count": len(stats),
+    }
+
+
+@api_app.get("/analytics/snapshots/recent")
+async def get_recent_snapshots(
+    limit: int = Query(default=100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get recent snapshots across all tables.
+    
+    Args:
+        limit: Maximum number of snapshots to return (1-500)
+    """
+    from telegram_poker_bot.shared.models import TableSnapshot
+    
+    result = await db.execute(
+        select(TableSnapshot)
+        .order_by(TableSnapshot.snapshot_time.desc())
+        .limit(limit)
+    )
+    snapshots = result.scalars().all()
+    
+    return {
+        "snapshots": [
+            {
+                "id": s.id,
+                "table_id": s.table_id,
+                "snapshot_time": s.snapshot_time.isoformat() if s.snapshot_time else None,
+                "player_count": s.player_count,
+                "is_active": s.is_active,
+                "metadata": s.metadata_json,
+            }
+            for s in snapshots
+        ],
+        "count": len(snapshots),
+    }
+
+
+@api_app.get("/analytics/hourly-stats/recent")
+async def get_recent_hourly_stats(
+    limit: int = Query(default=100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get recent hourly stats across all tables.
+    
+    Args:
+        limit: Maximum number of stats records to return (1-500)
+    """
+    from telegram_poker_bot.shared.models import HourlyTableStats
+    
+    result = await db.execute(
+        select(HourlyTableStats)
+        .order_by(HourlyTableStats.hour_start.desc())
+        .limit(limit)
+    )
+    stats = result.scalars().all()
+    
+    return {
+        "hourly_stats": [
+            {
+                "id": s.id,
+                "table_id": s.table_id,
+                "hour_start": s.hour_start.isoformat() if s.hour_start else None,
+                "avg_players": s.avg_players,
+                "max_players": s.max_players,
+                "total_hands": s.total_hands,
+                "activity_minutes": s.activity_minutes,
+                "metadata": s.metadata_json,
+            }
+            for s in stats
+        ],
+        "count": len(stats),
     }
 
 
