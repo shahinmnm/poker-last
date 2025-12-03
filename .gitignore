@@ -221,4 +221,6 @@ fabric.properties
 # Deployment backups are stored outside the repository (see README).
 # This ignore entry keeps accidental local backups/ folders from dirtying the worktree.
 backups/
+pgdata/
+../pgdata/
 
