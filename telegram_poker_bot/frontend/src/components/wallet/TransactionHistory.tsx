@@ -39,8 +39,13 @@ export default function TransactionHistory() {
     const fetchTransactions = async () => {
       try {
         const response = await axios.get<{ transactions: Transaction[] }>('/users/me/transactions')
-        const payload = response.data?.transactions ?? (response.data as unknown as Transaction[])
-        setTransactions(payload || [])
+        const payload = response.data?.transactions
+        const normalized = Array.isArray(payload)
+          ? payload
+          : Array.isArray(response.data)
+            ? (response.data as unknown as Transaction[])
+            : []
+        setTransactions(normalized)
       } catch (err) {
         console.error('Failed to fetch transactions', err)
         setError('Unable to load transactions right now.')
