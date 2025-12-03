@@ -14,7 +14,7 @@ from telegram_poker_bot.shared.models import (
     Table,
     TableStatus,
 )
-from telegram_poker_bot.shared.services.insights_engine import InsightsEngine
+from telegram_poker_bot.shared.services.insights_engine import get_insights_engine
 from telegram_poker_bot.shared.services.insights_delivery import (
     InsightsDeliveryService,
     LoggingChannel,
@@ -28,17 +28,38 @@ admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
 # TODO: Add admin authentication dependency
 # For now, this is a placeholder - implement actual admin auth in production
+# 
+# SECURITY WARNING: This placeholder ALWAYS returns True, meaning admin endpoints
+# are currently accessible without authentication. This MUST be replaced with
+# proper authentication before production deployment.
+#
+# Recommended implementations:
+# - JWT tokens with admin role claims
+# - API keys validated against secure storage
+# - OAuth with admin scope verification
+# - Integration with existing authentication system
+#
 async def verify_admin_access() -> bool:
     """Verify that the requester has admin privileges.
     
-    This is a placeholder for admin authentication.
-    In production, implement actual admin verification using:
-    - JWT tokens with admin role
-    - API keys
-    - OAuth with admin scope
-    - etc.
+    WARNING: This is a PLACEHOLDER implementation that bypasses authentication.
+    DO NOT use in production without implementing proper admin verification.
+    
+    Production implementation should:
+    1. Validate authentication token/credentials
+    2. Check user has admin role/permissions
+    3. Log access attempts
+    4. Return False for unauthorized access
+    5. Raise HTTPException(403) for denied access
+    
+    Returns:
+        bool: True if admin access granted (currently always True - INSECURE)
     """
     # TODO: Implement actual admin verification
+    # Example:
+    # if not user_has_admin_role(current_user):
+    #     raise HTTPException(status_code=403, detail="Admin access required")
+    # return True
     return True
 
 
@@ -333,7 +354,7 @@ async def generate_insights(
     
     Admin-only endpoint.
     """
-    insights = await InsightsEngine.generate_all_insights(db, analysis_hours=hours)
+    insights = await get_insights_engine().generate_all_insights(db, analysis_hours=hours)
     
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -372,7 +393,7 @@ async def deliver_insights(
     Admin-only endpoint.
     """
     # Generate insights
-    insights = await InsightsEngine.generate_all_insights(db, analysis_hours=hours)
+    insights = await get_insights_engine().generate_all_insights(db, analysis_hours=hours)
     
     # Deliver through configured channels
     delivery_service = InsightsDeliveryService(channels=[LoggingChannel()])

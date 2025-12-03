@@ -16,7 +16,9 @@ from telegram_poker_bot.shared.models import (
     GameMode,
 )
 from telegram_poker_bot.shared.services.insights_engine import (
-    InsightsEngine,
+    get_insights_engine,
+)
+from telegram_poker_bot.shared.services.insights_models import (
     InsightType,
     InsightSeverity,
 )
@@ -87,7 +89,7 @@ async def test_analyze_high_traffic(db_session: AsyncSession, sample_table: Tabl
     await db_session.commit()
     
     # Analyze
-    insights = await InsightsEngine.analyze_recent_activity(db_session, hours=1)
+    insights = await get_insights_engine().analyze_recent_activity(db_session, hours=1)
     
     # Should detect high traffic
     high_traffic_insights = [
@@ -116,7 +118,7 @@ async def test_analyze_low_traffic(db_session: AsyncSession, sample_table: Table
     await db_session.commit()
     
     # Analyze
-    insights = await InsightsEngine.analyze_recent_activity(db_session, hours=1)
+    insights = await get_insights_engine().analyze_recent_activity(db_session, hours=1)
     
     # Should detect low traffic
     low_traffic_insights = [
@@ -146,7 +148,7 @@ async def test_analyze_rapid_player_change(db_session: AsyncSession, sample_tabl
     await db_session.commit()
     
     # Analyze
-    insights = await InsightsEngine.analyze_recent_activity(db_session, hours=1)
+    insights = await get_insights_engine().analyze_recent_activity(db_session, hours=1)
     
     # Should detect rapid changes
     rapid_change_insights = [
@@ -173,7 +175,7 @@ async def test_detect_inactivity_patterns(db_session: AsyncSession, sample_table
     await db_session.commit()
     
     # Analyze
-    insights = await InsightsEngine.detect_inactivity_patterns(db_session)
+    insights = await get_insights_engine().detect_inactivity_patterns(db_session)
     
     # Should detect inactivity
     inactivity_insights = [
@@ -202,7 +204,7 @@ async def test_analyze_waitlist_trends(db_session: AsyncSession, sample_table: T
     await db_session.commit()
     
     # Analyze
-    insights = await InsightsEngine.analyze_waitlist_trends(db_session, hours=24)
+    insights = await get_insights_engine().analyze_waitlist_trends(db_session, hours=24)
     
     # Should detect waitlist surge
     waitlist_insights = [
@@ -231,7 +233,7 @@ async def test_generate_all_insights(db_session: AsyncSession, sample_table: Tab
     await db_session.commit()
     
     # Generate all insights
-    insights = await InsightsEngine.generate_all_insights(db_session, analysis_hours=1)
+    insights = await get_insights_engine().generate_all_insights(db_session, analysis_hours=1)
     
     assert isinstance(insights, list)
     # Should have at least one insight

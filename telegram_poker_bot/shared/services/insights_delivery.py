@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 
 from telegram_poker_bot.shared.logging import get_logger
-from telegram_poker_bot.shared.services.insights_engine import Insight
+from telegram_poker_bot.shared.services.insights_models import Insight
 
 logger = get_logger(__name__)
 

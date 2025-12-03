@@ -2,84 +2,58 @@
 
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
-from enum import Enum
-from sqlalchemy import select, func, and_, desc
+from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.models import (
     TableSnapshot,
-    HourlyTableStats,
     Table,
     TableStatus,
+)
+from telegram_poker_bot.shared.services.insights_models import (
+    Insight,
+    InsightType,
+    InsightSeverity,
 )
 
 logger = get_logger(__name__)
 
 
-class InsightType(str, Enum):
-    """Types of insights that can be generated."""
+class InsightsEngineConfig:
+    """Configuration for insights engine thresholds.
     
-    UNUSUAL_ACTIVITY = "unusual_activity"
-    HIGH_TRAFFIC = "high_traffic"
-    LOW_TRAFFIC = "low_traffic"
-    WAITLIST_SURGE = "waitlist_surge"
-    INACTIVITY_PATTERN = "inactivity_pattern"
-    RAPID_PLAYER_CHANGE = "rapid_player_change"
-
-
-class InsightSeverity(str, Enum):
-    """Severity levels for insights."""
-    
-    INFO = "info"
-    WARNING = "warning"
-    CRITICAL = "critical"
-
-
-class Insight:
-    """Represents a generated insight about table or system behavior."""
+    These can be overridden via environment variables or settings in production.
+    """
     
     def __init__(
         self,
-        insight_type: InsightType,
-        severity: InsightSeverity,
-        title: str,
-        message: str,
-        table_id: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        high_traffic_threshold: int = 8,
+        low_traffic_threshold: int = 2,
+        rapid_change_threshold: int = 4,
+        inactivity_hours: int = 2,
+        waitlist_surge_threshold: int = 3,
     ):
-        self.insight_type = insight_type
-        self.severity = severity
-        self.title = title
-        self.message = message
-        self.table_id = table_id
-        self.metadata = metadata or {}
-        self.timestamp = datetime.now(timezone.utc)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert insight to dictionary for serialization."""
-        return {
-            "type": self.insight_type.value,
-            "severity": self.severity.value,
-            "title": self.title,
-            "message": self.message,
-            "table_id": self.table_id,
-            "metadata": self.metadata,
-            "timestamp": self.timestamp.isoformat(),
-        }
+        self.high_traffic_threshold = high_traffic_threshold
+        self.low_traffic_threshold = low_traffic_threshold
+        self.rapid_change_threshold = rapid_change_threshold
+        self.inactivity_hours = inactivity_hours
+        self.waitlist_surge_threshold = waitlist_surge_threshold
 
 
 class InsightsEngine:
     """Engine for analyzing analytics data and generating insights."""
     
-    # Configuration thresholds
-    HIGH_TRAFFIC_THRESHOLD = 8  # Players
-    LOW_TRAFFIC_THRESHOLD = 2   # Players
-    RAPID_CHANGE_THRESHOLD = 4  # Players changed in snapshot interval
-    INACTIVITY_HOURS = 2        # Hours without activity
+    def __init__(self, config: Optional[InsightsEngineConfig] = None):
+        """Initialize insights engine with optional configuration.
+        
+        Args:
+            config: Optional configuration for thresholds
+        """
+        self.config = config or InsightsEngineConfig()
     
-    @staticmethod
     async def analyze_recent_activity(
+        self,
         db: AsyncSession,
         hours: int = 1,
     ) -> List[Insight]:
@@ -117,7 +91,7 @@ class InsightsEngine:
             
             # Check for high traffic
             max_players = max(s.player_count for s in table_snapshots)
-            if max_players >= InsightsEngine.HIGH_TRAFFIC_THRESHOLD:
+            if max_players >= self.config.high_traffic_threshold:
                 insights.append(Insight(
                     insight_type=InsightType.HIGH_TRAFFIC,
                     severity=InsightSeverity.INFO,
@@ -129,7 +103,7 @@ class InsightsEngine:
             
             # Check for low traffic
             avg_players = sum(s.player_count for s in table_snapshots) / len(table_snapshots)
-            if avg_players < InsightsEngine.LOW_TRAFFIC_THRESHOLD:
+            if avg_players < self.config.low_traffic_threshold:
                 insights.append(Insight(
                     insight_type=InsightType.LOW_TRAFFIC,
                     severity=InsightSeverity.WARNING,
@@ -147,7 +121,7 @@ class InsightsEngine:
                 ]
                 max_change = max(player_changes) if player_changes else 0
                 
-                if max_change >= InsightsEngine.RAPID_CHANGE_THRESHOLD:
+                if max_change >= self.config.rapid_change_threshold:
                     insights.append(Insight(
                         insight_type=InsightType.RAPID_PLAYER_CHANGE,
                         severity=InsightSeverity.WARNING,
@@ -159,8 +133,8 @@ class InsightsEngine:
         
         return insights
     
-    @staticmethod
     async def detect_inactivity_patterns(
+        self,
         db: AsyncSession,
     ) -> List[Insight]:
         """Detect tables with prolonged inactivity.
@@ -173,7 +147,7 @@ class InsightsEngine:
         """
         insights: List[Insight] = []
         cutoff_time = datetime.now(timezone.utc) - timedelta(
-            hours=InsightsEngine.INACTIVITY_HOURS
+            hours=self.config.inactivity_hours
         )
         
         # Get all active/waiting tables
@@ -213,8 +187,8 @@ class InsightsEngine:
         
         return insights
     
-    @staticmethod
     async def analyze_waitlist_trends(
+        self,
         db: AsyncSession,
         hours: int = 24,
     ) -> List[Insight]:
@@ -253,7 +227,7 @@ class InsightsEngine:
                 if "waitlist_count" in metadata:
                     waitlist_counts.append(metadata["waitlist_count"])
             
-            if waitlist_counts and max(waitlist_counts) > 3:
+            if waitlist_counts and max(waitlist_counts) > self.config.waitlist_surge_threshold:
                 max_waitlist = max(waitlist_counts)
                 insights.append(Insight(
                     insight_type=InsightType.WAITLIST_SURGE,
@@ -266,8 +240,8 @@ class InsightsEngine:
         
         return insights
     
-    @staticmethod
     async def generate_all_insights(
+        self,
         db: AsyncSession,
         analysis_hours: int = 1,
     ) -> List[Insight]:
@@ -284,13 +258,13 @@ class InsightsEngine:
         
         # Gather insights from different analyzers
         all_insights.extend(
-            await InsightsEngine.analyze_recent_activity(db, hours=analysis_hours)
+            await self.analyze_recent_activity(db, hours=analysis_hours)
         )
         all_insights.extend(
-            await InsightsEngine.detect_inactivity_patterns(db)
+            await self.detect_inactivity_patterns(db)
         )
         all_insights.extend(
-            await InsightsEngine.analyze_waitlist_trends(db, hours=24)
+            await self.analyze_waitlist_trends(db, hours=24)
         )
         
         logger.info(
@@ -303,3 +277,22 @@ class InsightsEngine:
         )
         
         return all_insights
+
+
+# Singleton instance with default configuration
+_default_engine: Optional[InsightsEngine] = None
+
+
+def get_insights_engine(config: Optional[InsightsEngineConfig] = None) -> InsightsEngine:
+    """Get or create the default insights engine instance.
+    
+    Args:
+        config: Optional configuration for thresholds
+        
+    Returns:
+        InsightsEngine instance
+    """
+    global _default_engine
+    if _default_engine is None or config is not None:
+        _default_engine = InsightsEngine(config)
+    return _default_engine
