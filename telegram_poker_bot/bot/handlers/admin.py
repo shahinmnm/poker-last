@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm import joinedload
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
@@ -31,6 +32,10 @@ from telegram_poker_bot.shared.models import (
     TableStatus,
     TransactionType,
     User,
+)
+from telegram_poker_bot.shared.services.table_service import (
+    get_table_game_variant,
+    get_template_config,
 )
 from telegram_poker_bot.shared.services import (
     promo_service,
@@ -685,12 +690,14 @@ async def _fetch_active_tables(session) -> List[Dict[str, Any]]:
     """Gather active/waiting tables with seat counts and latest pot."""
     now = datetime.now(timezone.utc)
     result = await session.execute(
-        select(Table).where(
+        select(Table)
+        .options(joinedload(Table.template))
+        .where(
             Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE]),
             or_(Table.expires_at.is_(None), Table.expires_at > now),
         )
     )
-    tables = result.scalars().all()
+    tables = result.scalars().unique().all()
     if not tables:
         return []
 
@@ -721,12 +728,8 @@ async def _fetch_active_tables(session) -> List[Dict[str, Any]]:
 
     payload: List[Dict[str, Any]] = []
     for table in tables:
-        config = table.config_json or {}
-        variant_raw = (
-            table.game_variant.value
-            if hasattr(table.game_variant, "value")
-            else str(table.game_variant)
-        )
+        config = get_template_config(table)
+        variant_raw = get_table_game_variant(table)
         variant_label = _variant_label(variant_raw)
 
         payload.append(

@@ -9,7 +9,6 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
-    Enum as PgEnum,
     ForeignKey,
     Integer,
     String,
@@ -58,6 +57,14 @@ class GameVariant(str, enum.Enum):
 
     NO_LIMIT_TEXAS_HOLDEM = "no_limit_texas_holdem"
     NO_LIMIT_SHORT_DECK_HOLDEM = "no_limit_short_deck_holdem"
+
+
+class TableTemplateType(str, enum.Enum):
+    """Table template type enumeration."""
+
+    PERSISTENT = "PERSISTENT"
+    EXPIRING = "EXPIRING"
+    PRIVATE = "PRIVATE"
 
 
 class ActionType(PyEnum):
@@ -189,6 +196,29 @@ class Group(Base):
     __table_args__ = (Index("idx_groups_tg_chat_id", "tg_chat_id"),)
 
 
+class TableTemplate(Base):
+    """Template used to configure tables."""
+
+    __tablename__ = "table_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    table_type = Column(
+        Enum(
+            TableTemplateType,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="tabletemplatetype",
+        ),
+        nullable=False,
+    )
+    has_waitlist = Column(Boolean, nullable=False, default=False, server_default="false")
+    config_json = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    tables = relationship("Table", back_populates="template")
+
+
 class Table(Base):
     """Table model."""
 
@@ -210,7 +240,11 @@ class Table(Base):
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    config_json = Column(JSONB, default=dict)
+    template_id = Column(
+        Integer,
+        ForeignKey("table_templates.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
     creator_user_id = Column(
         Integer,
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -221,35 +255,10 @@ class Table(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
     invite_code = Column(String(16), nullable=True, unique=True, index=True)
     last_action_at = Column(DateTime(timezone=True), nullable=True, index=True)
-    min_buy_in = Column(
-        BigInteger, nullable=False, default=0, server_default="0"
-    )  # Minimum buy-in stored as bigint for precision
-    is_persistent = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
-    game_variant = Column(
-        PgEnum(
-            GameVariant,
-            values_callable=lambda enum: [variant.value for variant in enum],
-            name="gamevariant",
-        ),
-        nullable=False,
-        default=GameVariant.NO_LIMIT_TEXAS_HOLDEM,
-        server_default=GameVariant.NO_LIMIT_TEXAS_HOLDEM.value,
-    )
-    currency_type = Column(
-        Enum(
-            CurrencyType,
-            values_callable=lambda enum: [member.value for member in enum],
-            name="currencytype",
-        ),
-        nullable=False,
-        default=CurrencyType.REAL,
-        server_default=CurrencyType.REAL.value,
-    )
 
     # Relationships
     group = relationship("Group", back_populates="tables")
+    template = relationship("TableTemplate", back_populates="tables")
     seats = relationship(
         "Seat",
         back_populates="table",
@@ -275,7 +284,31 @@ class Table(Base):
         Index("idx_tables_mode_status", "mode", "status"),
         Index("ix_tables_is_public_status", "is_public", "status"),
         Index("ix_tables_status_created_at", "status", "created_at"),
+        Index("ix_tables_template_id", "template_id"),
     )
+
+    @property
+    def config_json(self):
+        """Expose template configuration for backward compatibility."""
+
+        if self.template and self.template.config_json is not None:
+            return self.template.config_json
+        return {}
+
+    @config_json.setter
+    def config_json(self, value):
+        """Allow writing configuration through the template relationship."""
+
+        config_value = value or {}
+        if self.template is None:
+            self.template = TableTemplate(
+                name=f"Table Template {self.id or 'new'}",
+                table_type=TableTemplateType.EXPIRING,
+                has_waitlist=False,
+                config_json=config_value,
+            )
+        else:
+            self.template.config_json = config_value
 
 
 class Seat(Base):
