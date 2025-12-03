@@ -224,7 +224,6 @@ def get_profile_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     ])
 
 
-
 def get_waitlist_keyboard(table_id: int, lang: str = "en", joined: bool = False) -> InlineKeyboardMarkup:
     """Build waitlist action keyboard."""
     if joined:

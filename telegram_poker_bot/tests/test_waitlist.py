@@ -1,5 +1,6 @@
 """Tests for waitlist functionality."""
 
+import asyncio
 import pytest
 import pytest_asyncio
 from datetime import datetime, timezone, timedelta
@@ -184,7 +185,6 @@ async def test_get_next_waiting_player(
     await db_session.flush()
 
     # Small delay to ensure different timestamps
-    import asyncio
     await asyncio.sleep(0.01)
 
     await waitlist_service.join_waitlist(db_session, table_id, test_users[1].id)
@@ -361,7 +361,6 @@ async def test_waitlist_ordering_fifo(
     for i in range(3):
         await waitlist_service.join_waitlist(db_session, table_id, test_users[i].id)
         await db_session.flush()
-        import asyncio
         await asyncio.sleep(0.01)  # Ensure different timestamps
 
     # Get entries and verify order
