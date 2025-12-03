@@ -51,8 +51,24 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     if (!initData) return
     
     try {
-      const data = await apiFetch<UserBalance>('/users/me/balance', { initData })
-      setBalances(data)
+      const data = await apiFetch<UserBalance | { balance: number } | number>('/users/me/balance', { initData })
+      let balanceReal = 0
+      let balancePlay = 0
+
+      if (typeof data === 'number') {
+        balanceReal = data
+      } else if (data && typeof data === 'object') {
+        const maybeBalance = (data as any).balance
+        const maybeReal = (data as any).balance_real
+        const maybePlay = (data as any).balance_play
+        balanceReal = typeof maybeReal === 'number' ? maybeReal : typeof maybeBalance === 'number' ? maybeBalance : 0
+        balancePlay = typeof maybePlay === 'number' ? maybePlay : 0
+      }
+
+      setBalances({
+        balance_real: balanceReal,
+        balance_play: balancePlay,
+      })
     } catch (err) {
       console.warn('Failed to fetch balance', err)
     }
