@@ -136,6 +136,10 @@ class User(Base):
     first_seen_at = Column(DateTime(timezone=True), server_default=func.now())
     last_seen_at = Column(DateTime(timezone=True), onupdate=func.now())
     stats_blob = Column(JSONB, default=dict)
+    referrer_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    referral_code = Column(String(64), unique=True, nullable=True, index=True)
 
     # Relationships
     seats = relationship("Seat", back_populates="user", cascade="all, delete-orphan")
@@ -151,8 +155,15 @@ class User(Base):
         back_populates="creator",
         foreign_keys="Table.creator_user_id",
     )
+    referrer = relationship("User", remote_side=[id], backref="referrals")
+    referral_stats = relationship(
+        "ReferralStats", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
 
-    __table_args__ = (Index("idx_users_tg_user_id", "tg_user_id"),)
+    __table_args__ = (
+        Index("idx_users_tg_user_id", "tg_user_id"),
+        Index("idx_users_referrer_id", "referrer_id"),
+    )
 
 
 class Group(Base):
@@ -583,6 +594,48 @@ class Transaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (Index("idx_transactions_user_created", "user_id", "created_at"),)
+
+
+class PromoCode(Base):
+    """Promotional code configuration."""
+
+    __tablename__ = "promo_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(64), nullable=False, unique=True, index=True)
+    amount = Column(BigInteger, nullable=False)
+    currency_type = Column(
+        Enum(
+            CurrencyType,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="currencytype",
+        ),
+        nullable=False,
+        default=CurrencyType.REAL,
+        server_default=CurrencyType.REAL.value,
+    )
+    max_uses = Column(Integer, nullable=False, default=1, server_default="1")
+    current_uses = Column(Integer, nullable=False, default=0, server_default="0")
+    expiry_date = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class ReferralStats(Base):
+    """Aggregated referral stats per user."""
+
+    __tablename__ = "referral_stats"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    invited_count = Column(Integer, nullable=False, default=0, server_default="0")
+    total_earnings = Column(BigInteger, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User", back_populates="referral_stats")
 
 
 class UserPokerStats(Base):
