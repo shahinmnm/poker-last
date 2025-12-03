@@ -9,8 +9,8 @@ setup(
         'An open-source Python library for poker game simulations, hand'
         ' evaluations, and statistical analysis'
     ),
-    long_description=open('README.rst').read(),
-    long_description_content_type='text/x-rst',
+    long_description=open('README.md', encoding='utf-8').read(),
+    long_description_content_type='text/markdown',
     url='https://github.com/uoftcprg/pokerkit',
     author=(
         'Universal, Open, Free, and Transparent Computer Poker Research Group'
