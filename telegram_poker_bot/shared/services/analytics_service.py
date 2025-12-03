@@ -42,7 +42,7 @@ class AnalyticsService:
             .where(Table.id == table_id)
             .options(joinedload(Table.seats))
         )
-        table = result.scalar_one_or_none()
+        table = result.unique().scalar_one_or_none()
         
         if not table:
             logger.warning("Table not found for snapshot", table_id=table_id)
