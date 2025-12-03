@@ -44,7 +44,7 @@ def upgrade() -> None:
         sa.Column("amount", sa.BigInteger(), nullable=False),
         sa.Column(
             "currency_type",
-            sa.Enum(
+            sa.dialects.postgresql.ENUM(
                 "REAL",
                 "PLAY",
                 name="currencytype",
