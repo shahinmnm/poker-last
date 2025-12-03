@@ -303,8 +303,8 @@ export default function TablePage() {
               ? previous?.current_actor_user_id ?? mergedCurrentActor
               : mergedCurrentActor
 
-        let mergedAllowedActions = incoming.allowed_actions
-        let mergedAllowedActionsLegacy = (incoming as any)?.allowed_actions_legacy
+        const mergedAllowedActions = incoming.allowed_actions
+        const mergedAllowedActionsLegacy = (incoming as any)?.allowed_actions_legacy
 
         // If REST payload would clear actor actions while WS already provided them, ignore it.
         if (

@@ -21,7 +21,6 @@ class WalletErrorBoundary extends Component<{ children: React.ReactNode }, { has
 
   componentDidCatch(error: any, info: any) {
     // Surface errors instead of a black screen
-    // eslint-disable-next-line no-console
     console.error('Wallet page crashed', error, info)
   }
 

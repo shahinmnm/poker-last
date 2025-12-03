@@ -43,25 +43,31 @@ export function extractRuleSummary(
   fallback?: { max_players?: number; currency_type?: CurrencyType | string; table_name?: string | null },
 ): RuleSummary {
   const config = normalizeConfig(template)
-  const blindsConfig = config.blinds ?? config.stakes ?? null
+  
+  // Primary: Read from template config (small_blind, big_blind)
+  // Fallback: Legacy blinds/stakes structures for backward compatibility
+  let smallStake: number | undefined = toNumber(config.small_blind)
+  let bigStake: number | undefined = toNumber(config.big_blind)
 
-  let smallStake: number | undefined
-  let bigStake: number | undefined
-
-  if (Array.isArray(blindsConfig)) {
-    smallStake = toNumber(blindsConfig[0])
-    bigStake = toNumber(blindsConfig[1] ?? blindsConfig[0])
-  } else if (blindsConfig && typeof blindsConfig === 'object') {
-    smallStake = toNumber(
-      (blindsConfig as Record<string, unknown>).small ??
-        (blindsConfig as Record<string, unknown>).low ??
-        (blindsConfig as Record<string, unknown>).min,
-    )
-    bigStake = toNumber(
-      (blindsConfig as Record<string, unknown>).big ??
-        (blindsConfig as Record<string, unknown>).high ??
-        (blindsConfig as Record<string, unknown>).max,
-    )
+  // Fallback to legacy structure if primary fields not found
+  if (smallStake === undefined || bigStake === undefined) {
+    const blindsConfig = config.blinds ?? config.stakes ?? null
+    
+    if (Array.isArray(blindsConfig)) {
+      smallStake = smallStake ?? toNumber(blindsConfig[0])
+      bigStake = bigStake ?? toNumber(blindsConfig[1] ?? blindsConfig[0])
+    } else if (blindsConfig && typeof blindsConfig === 'object') {
+      smallStake = smallStake ?? toNumber(
+        (blindsConfig as Record<string, unknown>).small ??
+          (blindsConfig as Record<string, unknown>).low ??
+          (blindsConfig as Record<string, unknown>).min,
+      )
+      bigStake = bigStake ?? toNumber(
+        (blindsConfig as Record<string, unknown>).big ??
+          (blindsConfig as Record<string, unknown>).high ??
+          (blindsConfig as Record<string, unknown>).max,
+      )
+    }
   }
 
   const stakesLabel =
