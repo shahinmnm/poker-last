@@ -1389,10 +1389,11 @@ def build_admin_handler() -> ConversationHandler:
         },
         fallbacks=[CommandHandler("cancel", start_admin)],
         per_chat=False,
+        allow_reentry=True,
     )
 
 
 def register_admin_handlers(application: Application) -> None:
     """Register admin handlers on the provided application."""
     # Register in a higher-priority group to avoid user menu handlers swallowing /admin
-    application.add_handler(build_admin_handler(), group=-1)
+    application.add_handler(build_admin_handler(), group=-2)
