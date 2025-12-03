@@ -1394,4 +1394,5 @@ def build_admin_handler() -> ConversationHandler:
 
 def register_admin_handlers(application: Application) -> None:
     """Register admin handlers on the provided application."""
-    application.add_handler(build_admin_handler())
+    # Register in a higher-priority group to avoid user menu handlers swallowing /admin
+    application.add_handler(build_admin_handler(), group=-1)
