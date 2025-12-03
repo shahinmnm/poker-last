@@ -7,6 +7,8 @@ import { faChartLine, faArrowTrendUp, faArrowTrendDown, faHandFist, faTableCells
 import { useTelegram } from '../hooks/useTelegram'
 import { useUserData } from '../providers/UserDataProvider'
 import { apiFetch } from '../utils/apiClient'
+import { extractRuleSummary } from '../utils/tableRules'
+import type { TableTemplateInfo } from '../components/lobby/types'
 
 interface GameHistory {
   table_id: number
@@ -16,8 +18,10 @@ interface GameHistory {
   starting_chips: number
   ending_chips: number
   profit: number
-  small_blind: number
-  big_blind: number
+  table_name?: string | null
+  template?: TableTemplateInfo | null
+  currency_type?: string
+  max_players?: number
 }
 
 interface HandHistoryWinner {
@@ -247,7 +251,16 @@ export default function StatsPage() {
             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-800">
               <h2 className="text-lg font-semibold">Recent Games</h2>
               <div className="mt-4 space-y-3">
-                {history.map((game, index) => (
+                {history.map((game, index) => {
+                  const rules = extractRuleSummary(game.template, {
+                    table_name: game.table_name ?? null,
+                    max_players: game.max_players,
+                    currency_type: game.currency_type,
+                  })
+                  const tableLabel = rules.tableName || `Table #${game.table_id}`
+                  const stakesLabel = rules.stakesLabel || '—'
+
+                  return (
                   <div
                     key={`${game.table_id}-${index}`}
                     className="rounded-xl border border-slate-200 p-4 dark:border-gray-700"
@@ -255,10 +268,10 @@ export default function StatsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-semibold">
-                          Table #{game.table_id} • {game.mode}
+                          {tableLabel} • {game.mode}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {game.small_blind}/{game.big_blind} blinds
+                          {stakesLabel}
                         </p>
                       </div>
                       <div className="text-right">
@@ -277,7 +290,8 @@ export default function StatsPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </section>
           )}

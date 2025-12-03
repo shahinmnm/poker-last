@@ -42,12 +42,7 @@ export default function GroupInvitePage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const canUseNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
-  // Table configuration
-  const [tableName, setTableName] = useState('')
-  const [smallBlind, setSmallBlind] = useState(25)
-  const [bigBlind, setBigBlind] = useState(50)
-  const [startingStack, setStartingStack] = useState(10000)
-  const [maxPlayers, setMaxPlayers] = useState(8)
+  const [templateId, setTemplateId] = useState<number | ''>('')
 
   useEffect(() => {
     if (!ready) {
@@ -68,12 +63,12 @@ export default function GroupInvitePage() {
     return user.first_name || user.username || ''
   }, [user])
 
-  const createInvite = async (authData: string) => {
+  const createInvite = async (authData: string, targetTemplateId: number) => {
     setState('loading')
     setErrorKey(null)
     try {
       const response = await apiFetch<InviteResponse>(
-        `/group-games/invites?small_blind=${smallBlind}&big_blind=${bigBlind}&starting_stack=${startingStack}&max_players=${maxPlayers}&table_name=${encodeURIComponent(tableName || `${creatorName}'s Table`)}`,
+        `/group-games/invites?template_id=${targetTemplateId}`,
         {
           method: 'POST',
           initData: authData,
@@ -130,7 +125,13 @@ export default function GroupInvitePage() {
       setState('error')
       return
     }
-    createInvite(initData)
+    const numericTemplateId = typeof templateId === 'number' ? templateId : Number(templateId)
+    if (!Number.isFinite(numericTemplateId) || numericTemplateId <= 0) {
+      setErrorKey('groupInvite.errors.missingTemplate')
+      setState('error')
+      return
+    }
+    createInvite(initData, numericTemplateId)
   }
 
   const handleRegenerate = () => {
@@ -171,70 +172,21 @@ export default function GroupInvitePage() {
           <div className="space-y-4">
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Table Name (optional)
+                {t('groupInvite.fields.templateId', { defaultValue: 'Template ID' })}
               </label>
               <input
-                type="text"
-                value={tableName}
-                onChange={(e) => setTableName(e.target.value)}
-                placeholder={`${creatorName}'s Table`}
+                type="number"
+                min={1}
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : '')}
+                placeholder={t('groupInvite.fields.templatePlaceholder', { defaultValue: 'Enter template ID' }) ?? ''}
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Small Blind
-                </label>
-                <input
-                  type="number"
-                  value={smallBlind}
-                  onChange={(e) => setSmallBlind(Number(e.target.value))}
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Big Blind
-                </label>
-                <input
-                  type="number"
-                  value={bigBlind}
-                  onChange={(e) => setBigBlind(Number(e.target.value))}
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Starting Stack
-                </label>
-                <input
-                  type="number"
-                  value={startingStack}
-                  onChange={(e) => setStartingStack(Number(e.target.value))}
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Max Players
-                </label>
-                <select
-                  value={maxPlayers}
-                  onChange={(e) => setMaxPlayers(Number(e.target.value))}
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
-                >
-                  {[2, 4, 6, 8, 9].map((n) => (
-                    <option key={n} value={n}>
-                      {n} players
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {t('groupInvite.meta.templateNotice', {
+                  defaultValue: 'Table rules will be loaded from the selected template.',
+                })}
+              </p>
             </div>
 
             <button
@@ -277,7 +229,8 @@ export default function GroupInvitePage() {
                     ✅ Table Created
                   </h3>
                   <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                    {tableName || `${creatorName}'s Table`} • {smallBlind}/{bigBlind} blinds • {maxPlayers} max players
+                    {t('groupInvite.meta.templateUsed', { defaultValue: 'Using template' })}{' '}
+                    {templateId || '—'}
                   </p>
                 </div>
 

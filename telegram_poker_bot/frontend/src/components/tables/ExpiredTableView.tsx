@@ -3,21 +3,20 @@ import { useNavigate } from 'react-router-dom'
 
 import Card from '../ui/Card'
 import Button from '../ui/Button'
+import { extractRuleSummary } from '../../utils/tableRules'
 
 export interface ExpiredTableViewProps {
   tableName?: string | null
-  smallBlind?: number
-  bigBlind?: number
-  startingStack?: number
+  templateId?: number | string | null
+  templateConfig?: Record<string, any> | null
   maxPlayers?: number
   isPrivate?: boolean
 }
 
 export default function ExpiredTableView({
   tableName,
-  smallBlind,
-  bigBlind,
-  startingStack,
+  templateId,
+  templateConfig,
   maxPlayers,
   isPrivate,
 }: ExpiredTableViewProps) {
@@ -29,16 +28,20 @@ export default function ExpiredTableView({
   }
 
   const handleCreateSimilar = () => {
-    // Navigate to create page with pre-filled params if we have them
     const params = new URLSearchParams()
-    if (smallBlind) params.set('small_blind', smallBlind.toString())
-    if (bigBlind) params.set('big_blind', bigBlind.toString())
-    if (startingStack) params.set('starting_stack', startingStack.toString())
+    if (templateId) params.set('template_id', String(templateId))
     if (maxPlayers) params.set('max_players', maxPlayers.toString())
     if (isPrivate !== undefined) params.set('visibility', isPrivate ? 'private' : 'public')
     
     navigate(`/games/create?${params.toString()}`)
   }
+
+  const rules = extractRuleSummary(
+    templateConfig
+      ? { id: templateId ?? undefined, table_type: '', config: templateConfig }
+      : null,
+    { max_players: maxPlayers, table_name: tableName ?? null },
+  )
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
@@ -56,13 +59,18 @@ export default function ExpiredTableView({
               {tableName}
             </p>
           )}
+          {rules.stakesLabel && (
+            <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+              {t('table.meta.stakes', { defaultValue: 'Stakes' })}: {rules.stakesLabel}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button variant="secondary" onClick={handleBackToLobby}>
             {t('table.expiration.expiredBackToLobby')}
           </Button>
-          {(smallBlind || bigBlind || startingStack) && (
+          {templateId && (
             <Button variant="primary" onClick={handleCreateSimilar}>
               {t('table.expiration.expiredCreateNew')}
             </Button>
