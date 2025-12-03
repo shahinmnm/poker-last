@@ -47,6 +47,29 @@ MESSAGES = {
         "deposit_button": "📥 Deposit",
         "promo_button": "🎟️ Redeem Code",
         "main_menu": "Main Menu",
+        "games_lobby": "Games Lobby",
+        "stats": "Statistics",
+        "language": "Language",
+        "no_tables": "No active tables",
+        "deposit_history": "Deposit History",
+        "withdraw_history": "Withdrawal History",
+        "invite_link_text": "Invite Link",
+        "stats_hands_played": "Hands played: {count}",
+        "stats_total_won": "Total won: {amount}",
+        "stats_win_rate": "Win rate: {rate}%",
+        "table_info": "Table: {name}\nPlayers: {players}/{max_players}\nStatus: {status}",
+        "joining_table": "Joining table...",
+        "table_joined": "✅ Joined table successfully!",
+        "action_required": "Your turn! Choose an action:",
+        "hand_cards": "Your cards: {cards}",
+        "board_cards": "Board: {cards}",
+        "pot_amount": "Pot: {amount}",
+        "your_stack": "Your stack: {amount}",
+        "waiting_for_players": "Waiting for more players...",
+        "game_started": "🎴 Game started!",
+        "hand_finished": "Hand finished. Winner: {winner}",
+        "connection_error": "Connection error. Retrying...",
+        "menu_title": "📋 Main Menu",
     },
     "fa": {
         "welcome_new": "👋 خوش آمدید! زبان خود را انتخاب کنید.",
@@ -89,15 +112,38 @@ MESSAGES = {
         "deposit_button": "📥 واریز",
         "promo_button": "🎟️ ثبت کد",
         "main_menu": "منوی اصلی",
+        "games_lobby": "لابی بازی‌ها",
+        "stats": "آمار",
+        "language": "زبان",
+        "no_tables": "میزی موجود نیست",
+        "deposit_history": "تاریخچه واریز",
+        "withdraw_history": "تاریخچه برداشت",
+        "invite_link_text": "لینک دعوت",
+        "stats_hands_played": "تعداد دست‌ها: {count}",
+        "stats_total_won": "کل برد: {amount}",
+        "stats_win_rate": "نرخ برد: {rate}٪",
+        "table_info": "میز: {name}\nبازیکنان: {players}/{max_players}\nوضعیت: {status}",
+        "joining_table": "در حال پیوستن به میز...",
+        "table_joined": "✅ با موفقیت به میز پیوستید!",
+        "action_required": "نوبت شماست! یک اقدام انتخاب کنید:",
+        "hand_cards": "کارت‌های شما: {cards}",
+        "board_cards": "کارت‌های میز: {cards}",
+        "pot_amount": "پات: {amount}",
+        "your_stack": "چیپ‌های شما: {amount}",
+        "waiting_for_players": "در انتظار بازیکنان بیشتر...",
+        "game_started": "🎴 بازی شروع شد!",
+        "hand_finished": "دست تمام شد. برنده: {winner}",
+        "connection_error": "خطا در اتصال. تلاش مجدد...",
+        "menu_title": "📋 منوی اصلی",
     },
 }
 
 
-def get_text(key: str, lang: str | None = "en", **kwargs: Any) -> str:
+def get_text(key: str, lang: str | None = "en", default: str | None = None, **kwargs: Any) -> str:
     """Fetch a localized string with formatting fallback."""
     normalized_lang = (lang or "en").split("-")[0].lower()
     catalog = MESSAGES.get(normalized_lang) or MESSAGES["en"]
-    template = catalog.get(key) or MESSAGES["en"].get(key, key)
+    template = catalog.get(key) or MESSAGES["en"].get(key, default or key)
     try:
         return template.format(**kwargs)
     except Exception:

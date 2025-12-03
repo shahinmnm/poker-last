@@ -13,6 +13,8 @@ from telegram_poker_bot.shared.logging import configure_logging, get_logger
 from telegram_poker_bot.bot.handlers import start_group_handler
 from telegram_poker_bot.bot.handlers.admin import register_admin_handlers
 from telegram_poker_bot.bot.handlers.user_menu import register_user_handlers
+from telegram_poker_bot.bot.handlers.registry import register_new_handlers
+from telegram_poker_bot.bot.middlewares.error import error_handler
 from telegram_poker_bot.bot.webhook import verify_webhook_secret
 
 settings = get_settings()
@@ -26,7 +28,11 @@ bot_client = bot_application.bot
 # Register command/callback handlers once during module import
 register_user_handlers(bot_application)
 register_admin_handlers(bot_application)
+register_new_handlers(bot_application)  # New Phase 1.4 handlers
 bot_application.add_handler(CommandHandler("startgroup", start_group_handler))
+
+# Register error handler
+bot_application.add_error_handler(error_handler)
 
 # Create FastAPI app for webhook
 @asynccontextmanager
@@ -75,7 +81,14 @@ bot_ready = asyncio.Event()
 async def configure_bot_commands():
     """Register bot command list."""
     commands = [
-        BotCommand("start", "Restart / Main Menu"),
+        BotCommand("start", "Main Menu"),
+        BotCommand("menu", "Show Main Menu"),
+        BotCommand("lobby", "Browse Active Tables"),
+        BotCommand("profile", "View Profile"),
+        BotCommand("stats", "View Statistics"),
+        BotCommand("language", "Change Language"),
+        BotCommand("invite", "Get Invite Link"),
+        BotCommand("help", "Help & Commands"),
         BotCommand("wallet", "Open wallet"),
         BotCommand("support", "Contact support"),
     ]
