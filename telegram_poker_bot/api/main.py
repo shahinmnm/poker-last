@@ -1844,7 +1844,32 @@ async def sit_at_table(
             "chips": seat.chips,
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # Check if error is due to table being full and waitlist is enabled
+        error_message = str(e)
+        if "full" in error_message.lower() or "capacity" in error_message.lower():
+            # Check if table has waitlist enabled
+            result = await db.execute(
+                select(Table)
+                .options(joinedload(Table.template))
+                .where(Table.id == table_id)
+            )
+            table = result.scalar_one_or_none()
+            if table and table.template and table.template.has_waitlist:
+                # Return waitlist status instead of error
+                from telegram_poker_bot.shared.services import waitlist_service
+
+                waitlist_count = await waitlist_service.get_waitlist_count(
+                    db, table_id
+                )
+                return {
+                    "success": False,
+                    "status": "WAITLISTED",
+                    "table_id": table_id,
+                    "waitlist_count": waitlist_count,
+                    "message": "Table is full. You can join the waitlist.",
+                }
+
+        raise HTTPException(status_code=400, detail=error_message)
 
 
 @api_app.post("/tables/{table_id}/leave")
@@ -1871,12 +1896,56 @@ async def leave_table(
         if table:
             table.last_action_at = datetime.now(timezone.utc)
 
+        # Try to seat next player from waitlist if enabled
+        waitlist_seat = await table_service.try_seat_from_waitlist(db, table_id)
+
         await db.commit()
+
+        # Broadcast seat_vacated event
+        await manager.broadcast(
+            table_id,
+            {
+                "type": "table_seat_vacated",
+                "user_id": user.id,
+            },
+        )
+
+        # If someone was seated from waitlist, broadcast promotion
+        if waitlist_seat:
+            from telegram_poker_bot.shared.services import waitlist_service
+
+            await manager.broadcast(
+                table_id,
+                {
+                    "type": "waitlist_promoted",
+                    "user_id": waitlist_seat.user_id,
+                    "position": waitlist_seat.position,
+                    "waitlist_count": await waitlist_service.get_waitlist_count(
+                        db, table_id
+                    ),
+                },
+            )
+
+            # Broadcast full state to show the new player
+            try:
+                runtime_mgr = get_pokerkit_runtime_manager()
+                full_state = await runtime_mgr.get_state(
+                    db, table_id, viewer_user_id=None
+                )
+                full_state = await _attach_template_to_payload(db, table_id, full_state)
+                await manager.broadcast(table_id, full_state)
+            except Exception as broadcast_err:
+                logger.error(
+                    "Failed to broadcast state after waitlist promotion",
+                    table_id=table_id,
+                    error=str(broadcast_err),
+                )
 
         # Broadcast full state after player leaves
         try:
             runtime_mgr = get_pokerkit_runtime_manager()
             full_state = await runtime_mgr.get_state(db, table_id, viewer_user_id=None)
+            full_state = await _attach_template_to_payload(db, table_id, full_state)
             await manager.broadcast(table_id, full_state)
         except Exception as broadcast_err:
             logger.error(
@@ -1896,6 +1965,173 @@ async def leave_table(
         return {"success": True, "table_id": table_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_app.post("/tables/{table_id}/waitlist/join")
+async def join_table_waitlist(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Join the waitlist for a table."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, auth)
+
+    from telegram_poker_bot.shared.services import waitlist_service
+
+    try:
+        # Check if table has waitlist enabled
+        result = await db.execute(
+            select(Table)
+            .options(joinedload(Table.template))
+            .where(Table.id == table_id)
+        )
+        table = result.scalar_one_or_none()
+        if not table:
+            raise HTTPException(status_code=404, detail="Table not found")
+
+        if not table.template or not table.template.has_waitlist:
+            raise HTTPException(
+                status_code=400, detail="Waitlist not enabled for this table"
+            )
+
+        entry = await waitlist_service.join_waitlist(db, table_id, user.id)
+
+        table.last_action_at = datetime.now(timezone.utc)
+        await db.commit()
+
+        # Get waitlist position
+        position = await waitlist_service.get_user_waitlist_position(
+            db, table_id, user.id
+        )
+
+        # Broadcast waitlist_joined event
+        await manager.broadcast(
+            table_id,
+            {
+                "type": "waitlist_joined",
+                "user_id": user.id,
+                "position": position,
+                "waitlist_count": await waitlist_service.get_waitlist_count(
+                    db, table_id
+                ),
+            },
+        )
+
+        return {
+            "success": True,
+            "entry_id": entry.id,
+            "position": position,
+            "table_id": table_id,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_app.post("/tables/{table_id}/waitlist/leave")
+async def leave_table_waitlist(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Leave the waitlist for a table."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, auth)
+
+    from telegram_poker_bot.shared.services import waitlist_service
+
+    try:
+        entry = await waitlist_service.leave_waitlist(db, table_id, user.id)
+
+        result = await db.execute(select(Table).where(Table.id == table_id))
+        table = result.scalar_one_or_none()
+        if table:
+            table.last_action_at = datetime.now(timezone.utc)
+
+        await db.commit()
+
+        # Broadcast waitlist_left event
+        await manager.broadcast(
+            table_id,
+            {
+                "type": "waitlist_left",
+                "user_id": user.id,
+                "waitlist_count": await waitlist_service.get_waitlist_count(
+                    db, table_id
+                ),
+            },
+        )
+
+        return {"success": True, "table_id": table_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_app.get("/tables/{table_id}/waitlist")
+async def get_table_waitlist(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the waitlist for a table."""
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+
+    user = await ensure_user(db, auth)
+
+    from telegram_poker_bot.shared.services import waitlist_service
+    from telegram_poker_bot.shared.models import WaitlistStatus
+
+    # Get waitlist entries
+    entries = await waitlist_service.get_waitlist(
+        db, table_id, status=WaitlistStatus.WAITING
+    )
+
+    # Get user information for each entry
+    user_ids = [entry.user_id for entry in entries]
+    result = await db.execute(select(User).where(User.id.in_(user_ids)))
+    users_by_id = {u.id: u for u in result.scalars().all()}
+
+    # Build response
+    waitlist_data = []
+    for position, entry in enumerate(entries, start=1):
+        user_info = users_by_id.get(entry.user_id)
+        waitlist_data.append(
+            {
+                "position": position,
+                "user_id": entry.user_id,
+                "username": user_info.username if user_info else None,
+                "created_at": entry.created_at.isoformat(),
+            }
+        )
+
+    # Get current user's position if they're on the waitlist
+    user_position = await waitlist_service.get_user_waitlist_position(
+        db, table_id, user.id
+    )
+
+    return {
+        "table_id": table_id,
+        "waitlist": waitlist_data,
+        "count": len(waitlist_data),
+        "user_position": user_position,
+    }
 
 
 @api_app.post("/tables/{table_id}/sitout")

@@ -671,6 +671,50 @@ class ReferralStats(Base):
     user = relationship("User", back_populates="referral_stats")
 
 
+class WaitlistStatus(str, PyEnum):
+    """Waitlist entry status enumeration."""
+
+    WAITING = "waiting"
+    ENTERED = "entered"
+    CANCELLED = "cancelled"
+
+
+class WaitlistEntry(Base):
+    """Waitlist entry model for table queuing system."""
+
+    __tablename__ = "waitlist_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(
+        Enum(
+            WaitlistStatus,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="waitliststatus",
+        ),
+        nullable=False,
+        default=WaitlistStatus.WAITING,
+        server_default=WaitlistStatus.WAITING.value,
+        index=True,
+    )
+
+    # Relationships
+    table = relationship("Table", backref="waitlist_entries")
+    user = relationship("User", backref="waitlist_entries")
+
+    __table_args__ = (
+        Index("idx_waitlist_table_status", "table_id", "status"),
+        Index("idx_waitlist_user_status", "user_id", "status"),
+        Index("idx_waitlist_table_created", "table_id", "created_at"),
+    )
+
+
 class UserPokerStats(Base):
     """User poker statistics model for aggregated stats."""
 
