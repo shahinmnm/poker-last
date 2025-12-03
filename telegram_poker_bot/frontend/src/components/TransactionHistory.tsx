@@ -36,21 +36,22 @@ export default function TransactionHistory({ limit = 20 }: TransactionHistoryPro
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const response = await apiFetch<{ transactions: Transaction[] }>(
-          '/users/me/transactions',
-          {
-            query: { limit, offset: 0 },
-          },
-        )
-        setTransactions(response.transactions || [])
-      } catch (err) {
-        console.error('Failed to fetch transactions:', err)
-        setError('Failed to load transaction history')
-      } finally {
-        setLoading(false)
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await apiFetch<{ transactions: Transaction[] }>(
+        '/users/me/transactions',
+        {
+          query: { limit, offset: 0 },
+        },
+      )
+      const normalized = Array.isArray(response.transactions) ? response.transactions : []
+      setTransactions(normalized)
+    } catch (err) {
+      console.error('Failed to fetch transactions:', err)
+      setError('Failed to load transaction history')
+    } finally {
+      setLoading(false)
       }
     }
 
