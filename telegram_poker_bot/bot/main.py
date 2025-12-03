@@ -22,6 +22,7 @@ from telegram_poker_bot.bot.handlers import (
     tables_handler,
     wallet_handler,
 )
+from telegram_poker_bot.bot.handlers.admin import register_admin_handlers
 from telegram_poker_bot.bot.webhook import verify_webhook_secret
 
 settings = get_settings()
@@ -33,6 +34,7 @@ bot_application = Application.builder().token(settings.telegram_bot_token).build
 bot_client = bot_application.bot
 
 # Register command/callback handlers once during module import
+register_admin_handlers(bot_application)
 bot_application.add_handler(CommandHandler("start", start_handler))
 bot_application.add_handler(CommandHandler("startgroup", start_group_handler))
 bot_application.add_handler(CommandHandler("profile", profile_handler))

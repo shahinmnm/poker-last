@@ -81,6 +81,57 @@ async def get_wallet_balance(
     return await get_balance(db, user_id, currency_type)
 
 
+async def adjust_balance(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    amount: int,
+    currency_type: CurrencyType,
+    transaction_type: TransactionType = TransactionType.ADMIN_ADJUSTMENT,
+    reference_id: Optional[str] = None,
+    metadata: Optional[dict] = None,
+) -> int:
+    """
+    Adjust a user's wallet balance atomically.
+
+    Positive amounts credit the wallet; negative amounts debit it.
+    Returns the updated balance for the selected currency.
+    """
+    if amount == 0:
+        raise ValueError("Amount must be non-zero")
+
+    user = await ensure_wallet(db, user_id)
+    balance_field = _get_balance_field(currency_type)
+    current_balance = getattr(user, balance_field)
+    new_balance = current_balance + amount
+
+    if new_balance < 0:
+        raise ValueError("Insufficient funds for withdrawal")
+
+    setattr(user, balance_field, new_balance)
+
+    transaction = Transaction(
+        user_id=user_id,
+        amount=amount,
+        balance_after=new_balance,
+        type=transaction_type,
+        reference_id=reference_id,
+        metadata_json=metadata or {},
+        currency_type=currency_type,
+    )
+    db.add(transaction)
+
+    logger.info(
+        "Adjusted wallet balance",
+        user_id=user_id,
+        amount=amount,
+        currency_type=currency_type.value,
+        balance_after=new_balance,
+        transaction_type=transaction_type.value,
+    )
+    return new_balance
+
+
 def _get_balance_field(currency_type: CurrencyType) -> str:
     return "balance_play" if currency_type == CurrencyType.PLAY else "balance_real"
 
