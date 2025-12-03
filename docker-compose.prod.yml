@@ -1,0 +1,202 @@
+# Production Docker Compose configuration
+# Deploy with: docker compose -f docker-compose.prod.yml up -d --build
+
+x-backend-env: &backend-env
+  - ./.env
+
+x-restart-policy: &restart-policy
+  restart: always
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pokerbot_postgres_prod
+    env_file: *backend-env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pokerbot}
+      POSTGRES_USER: ${POSTGRES_USER:-pokerbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pokerbot} -d ${POSTGRES_DB:-pokerbot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    <<: *restart-policy
+    networks:
+      - pokerbot_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: pokerbot_redis_prod
+    env_file: *backend-env
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    <<: *restart-policy
+    networks:
+      - pokerbot_network
+
+  # Database Migrations
+  migrations:
+    build:
+      context: .
+      dockerfile: docker/backend.prod.Dockerfile
+    image: pokerbot/backend:latest
+    container_name: pokerbot_migrations_prod
+    command: ["bash", "telegram_poker_bot/scripts/run_migrations.sh"]
+    env_file: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - pokerbot_network
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.prod.Dockerfile
+    image: pokerbot/backend:latest
+    container_name: pokerbot_backend_prod
+    command:
+      - "uvicorn"
+      - "telegram_poker_bot.api.main:app"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--workers"
+      - "2"
+    env_file: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    <<: *restart-policy
+    networks:
+      - pokerbot_network
+
+  # Telegram Bot
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: docker/backend.prod.Dockerfile
+    image: pokerbot/backend:latest
+    container_name: pokerbot_telegram_prod
+    command:
+      - "python"
+      - "-m"
+      - "telegram_poker_bot.bot.main"
+    env_file: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'telegram_poker_bot.bot.main' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    <<: *restart-policy
+    networks:
+      - pokerbot_network
+
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.prod.Dockerfile
+    image: pokerbot/frontend:latest
+    container_name: pokerbot_frontend_prod
+    env_file: *backend-env
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-/api}
+      - VITE_BOT_USERNAME=${VITE_BOT_USERNAME:-@pokerbot}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    <<: *restart-policy
+    networks:
+      - pokerbot_network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: pokerbot_nginx_prod
+    depends_on:
+      backend:
+        condition: service_healthy
+      telegram-bot:
+        condition: service_started
+      frontend:
+        condition: service_healthy
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${NGINX_SSL_CERT_PATH:-./deploy/nginx/ssl}:/etc/nginx/ssl:ro
+      - certbot_webroot:/var/www/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    <<: *restart-policy
+    networks:
+      - pokerbot_network
+
+  # Certbot for SSL certificates (optional - can be run manually)
+  certbot:
+    image: certbot/certbot:latest
+    container_name: pokerbot_certbot
+    volumes:
+      - ${NGINX_SSL_CERT_PATH:-./deploy/nginx/ssl}:/etc/letsencrypt
+      - certbot_webroot:/var/www/html
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew; done;'"
+    restart: unless-stopped
+    networks:
+      - pokerbot_network
+    profiles:
+      - certbot
+
+# Persistent volumes
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  certbot_webroot:
+    driver: local
+
+# Network configuration
+networks:
+  pokerbot_network:
+    driver: bridge
