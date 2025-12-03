@@ -5,24 +5,14 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, Request, Response, Header, HTTPException, status
-from telegram import Update
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler
+from telegram import BotCommand, Update
+from telegram.ext import Application, CommandHandler
 
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.logging import configure_logging, get_logger
-from telegram_poker_bot.bot.handlers import (
-    start_handler,
-    start_group_handler,
-    language_handler,
-    help_handler,
-    stats_handler,
-    settings_handler,
-    callback_query_handler,
-    profile_handler,
-    tables_handler,
-    wallet_handler,
-)
+from telegram_poker_bot.bot.handlers import start_group_handler
 from telegram_poker_bot.bot.handlers.admin import register_admin_handlers
+from telegram_poker_bot.bot.handlers.user_menu import register_user_handlers
 from telegram_poker_bot.bot.webhook import verify_webhook_secret
 
 settings = get_settings()
@@ -34,17 +24,9 @@ bot_application = Application.builder().token(settings.telegram_bot_token).build
 bot_client = bot_application.bot
 
 # Register command/callback handlers once during module import
+register_user_handlers(bot_application)
 register_admin_handlers(bot_application)
-bot_application.add_handler(CommandHandler("start", start_handler))
 bot_application.add_handler(CommandHandler("startgroup", start_group_handler))
-bot_application.add_handler(CommandHandler("profile", profile_handler))
-bot_application.add_handler(CommandHandler("tables", tables_handler))
-bot_application.add_handler(CommandHandler("wallet", wallet_handler))
-bot_application.add_handler(CommandHandler("language", language_handler))
-bot_application.add_handler(CommandHandler("help", help_handler))
-bot_application.add_handler(CommandHandler("stats", stats_handler))
-bot_application.add_handler(CommandHandler("settings", settings_handler))
-bot_application.add_handler(CallbackQueryHandler(callback_query_handler))
 
 # Create FastAPI app for webhook
 @asynccontextmanager
@@ -55,6 +37,7 @@ async def lifespan(app: FastAPI):  # pragma: no cover - exercised in integration
         await bot_application.initialize()
         await bot_application.start()
         bot_ready.set()
+        await configure_bot_commands()
     except Exception as exc:
         logger.error("Failed to start Telegram bot application", error=str(exc))
         bot_ready.clear()
@@ -87,6 +70,19 @@ async def lifespan(app: FastAPI):  # pragma: no cover - exercised in integration
 app = FastAPI(title="Telegram Poker Bot Webhook", lifespan=lifespan)
 
 bot_ready = asyncio.Event()
+
+
+async def configure_bot_commands():
+    """Register bot command list."""
+    commands = [
+        BotCommand("start", "Restart / Main Menu"),
+        BotCommand("wallet", "Open wallet"),
+        BotCommand("support", "Contact support"),
+    ]
+    try:
+        await bot_client.set_my_commands(commands)
+    except Exception as exc:  # pragma: no cover - best effort
+        logger.warning("Failed to set bot commands", error=str(exc))
 
 
 @app.post("/telegram/webhook")
