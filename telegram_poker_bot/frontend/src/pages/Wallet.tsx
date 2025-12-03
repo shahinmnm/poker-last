@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Component, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBolt, faShield, faShuffle } from '@fortawesome/free-solid-svg-icons'
@@ -9,7 +9,37 @@ import TransactionHistory from '@/components/wallet/TransactionHistory'
 
 type WalletCurrency = CurrencyType
 
-export default function WalletPage() {
+class WalletErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: any, info: any) {
+    // Surface errors instead of a black screen
+    // eslint-disable-next-line no-console
+    console.error('Wallet page crashed', error, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-[40vh] items-center justify-center rounded-2xl" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Something went wrong loading Wallet. Please refresh.
+          </p>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+function WalletPageInner() {
   const { t } = useTranslation()
   const { balances, loading } = useUserData()
   const [activeCurrency, setActiveCurrency] = useState<WalletCurrency>('REAL')
@@ -263,5 +293,13 @@ export default function WalletPage() {
         <TransactionHistory />
       </div>
     </div>
+  )
+}
+
+export default function WalletPage() {
+  return (
+    <WalletErrorBoundary>
+      <WalletPageInner />
+    </WalletErrorBoundary>
   )
 }
