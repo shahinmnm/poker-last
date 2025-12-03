@@ -1,19 +1,84 @@
 """Tests for admin analytics API endpoints."""
 
 import pytest
+import pytest_asyncio
 from datetime import datetime, timezone, timedelta
-from httpx import AsyncClient
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from telegram_poker_bot.shared.models import (
+    Base,
     TableSnapshot,
     HourlyTableStats,
     Table,
+    TableTemplate,
+    TableTemplateType,
     TableStatus,
+    GameMode,
 )
+
+pytest.importorskip("aiosqlite")
+
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncSession:
+    """Create an in-memory SQLite database for testing."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+        await session.rollback()
+
+    await engine.dispose()
+
+
+@pytest.fixture
+def test_client(db_session: AsyncSession):
+    """Create a test client with database dependency override."""
+    from telegram_poker_bot.api.main import api_app
+    from telegram_poker_bot.shared.database import get_db
+
+    async def override_get_db():
+        yield db_session
+
+    api_app.dependency_overrides[get_db] = override_get_db
+
+    yield TestClient(api_app)
+
+    api_app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def sample_table(db_session: AsyncSession) -> Table:
+    """Create a sample table for testing."""
+    template = TableTemplate(
+        name="Test Template",
+        table_type=TableTemplateType.PERSISTENT,
+        has_waitlist=False,
+        config_json={"max_players": 6},
+    )
+    db_session.add(template)
+    await db_session.flush()
+
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.ACTIVE,
+        template_id=template.id,
+        is_public=True,
+    )
+    db_session.add(table)
+    await db_session.flush()
+
+    return table
 
 
 @pytest.mark.asyncio
-async def test_get_realtime_analytics(client: AsyncClient, db_session, sample_table):
+async def test_get_realtime_analytics(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test fetching realtime analytics."""
     # Create some snapshots
     snapshot1 = TableSnapshot(
@@ -34,7 +99,7 @@ async def test_get_realtime_analytics(client: AsyncClient, db_session, sample_ta
     await db_session.commit()
     
     # Fetch realtime analytics
-    response = await client.get("/admin/analytics/realtime")
+    response = test_client.get("/admin/analytics/realtime")
     assert response.status_code == 200
     
     data = response.json()
@@ -50,7 +115,9 @@ async def test_get_realtime_analytics(client: AsyncClient, db_session, sample_ta
 
 
 @pytest.mark.asyncio
-async def test_get_hourly_aggregates(client: AsyncClient, db_session, sample_table):
+async def test_get_hourly_aggregates(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test fetching hourly aggregates."""
     # Create hourly stats
     now = datetime.now(timezone.utc)
@@ -70,7 +137,7 @@ async def test_get_hourly_aggregates(client: AsyncClient, db_session, sample_tab
     await db_session.commit()
     
     # Fetch hourly aggregates
-    response = await client.get("/admin/analytics/hourly?hours=24")
+    response = test_client.get("/admin/analytics/hourly?hours=24")
     assert response.status_code == 200
     
     data = response.json()
@@ -90,7 +157,9 @@ async def test_get_hourly_aggregates(client: AsyncClient, db_session, sample_tab
 
 
 @pytest.mark.asyncio
-async def test_get_hourly_aggregates_filtered(client: AsyncClient, db_session, sample_table):
+async def test_get_hourly_aggregates_filtered(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test fetching hourly aggregates filtered by table."""
     # Create hourly stats
     now = datetime.now(timezone.utc)
@@ -110,7 +179,7 @@ async def test_get_hourly_aggregates_filtered(client: AsyncClient, db_session, s
     await db_session.commit()
     
     # Fetch hourly aggregates for specific table
-    response = await client.get(f"/admin/analytics/hourly?hours=24&table_id={sample_table.id}")
+    response = test_client.get(f"/admin/analytics/hourly?hours=24&table_id={sample_table.id}")
     assert response.status_code == 200
     
     data = response.json()
@@ -122,7 +191,9 @@ async def test_get_hourly_aggregates_filtered(client: AsyncClient, db_session, s
 
 
 @pytest.mark.asyncio
-async def test_get_historical_range_hourly(client: AsyncClient, db_session, sample_table):
+async def test_get_historical_range_hourly(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test fetching historical range for hourly metrics."""
     # Create hourly stats
     now = datetime.now(timezone.utc)
@@ -145,7 +216,7 @@ async def test_get_historical_range_hourly(client: AsyncClient, db_session, samp
     start_date = (now - timedelta(days=3)).isoformat()
     end_date = now.isoformat()
     
-    response = await client.get(
+    response = test_client.get(
         f"/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
     )
     assert response.status_code == 200
@@ -158,7 +229,9 @@ async def test_get_historical_range_hourly(client: AsyncClient, db_session, samp
 
 
 @pytest.mark.asyncio
-async def test_get_historical_range_snapshot(client: AsyncClient, db_session, sample_table):
+async def test_get_historical_range_snapshot(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test fetching historical range for snapshot metrics."""
     # Create snapshots
     now = datetime.now(timezone.utc)
@@ -179,7 +252,7 @@ async def test_get_historical_range_snapshot(client: AsyncClient, db_session, sa
     start_date = (now - timedelta(days=1)).isoformat()
     end_date = now.isoformat()
     
-    response = await client.get(
+    response = test_client.get(
         f"/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=snapshot"
     )
     assert response.status_code == 200
@@ -190,7 +263,7 @@ async def test_get_historical_range_snapshot(client: AsyncClient, db_session, sa
 
 
 @pytest.mark.asyncio
-async def test_get_historical_range_invalid_dates(client: AsyncClient):
+async def test_get_historical_range_invalid_dates(test_client: TestClient) -> None:
     """Test historical range with invalid date parameters."""
     now = datetime.now(timezone.utc)
     
@@ -198,7 +271,7 @@ async def test_get_historical_range_invalid_dates(client: AsyncClient):
     start_date = now.isoformat()
     end_date = (now - timedelta(days=1)).isoformat()
     
-    response = await client.get(
+    response = test_client.get(
         f"/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
     )
     assert response.status_code == 400
@@ -206,13 +279,13 @@ async def test_get_historical_range_invalid_dates(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_historical_range_exceeds_limit(client: AsyncClient):
+async def test_get_historical_range_exceeds_limit(test_client: TestClient) -> None:
     """Test historical range exceeding 90-day limit."""
     now = datetime.now(timezone.utc)
     start_date = (now - timedelta(days=100)).isoformat()
     end_date = now.isoformat()
     
-    response = await client.get(
+    response = test_client.get(
         f"/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
     )
     assert response.status_code == 400
@@ -220,7 +293,9 @@ async def test_get_historical_range_exceeds_limit(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_analytics_summary(client: AsyncClient, db_session, sample_table):
+async def test_get_analytics_summary(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test fetching analytics summary."""
     # Create some data
     snapshot = TableSnapshot(
@@ -245,7 +320,7 @@ async def test_get_analytics_summary(client: AsyncClient, db_session, sample_tab
     await db_session.commit()
     
     # Fetch summary
-    response = await client.get("/admin/analytics/summary")
+    response = test_client.get("/admin/analytics/summary")
     assert response.status_code == 200
     
     data = response.json()

@@ -1,18 +1,83 @@
 """Tests for admin insights API endpoints."""
 
 import pytest
+import pytest_asyncio
 from datetime import datetime, timezone, timedelta
-from httpx import AsyncClient
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from telegram_poker_bot.shared.models import (
+    Base,
     TableSnapshot,
     Table,
+    TableTemplate,
+    TableTemplateType,
     TableStatus,
+    GameMode,
 )
+
+pytest.importorskip("aiosqlite")
+
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncSession:
+    """Create an in-memory SQLite database for testing."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+        await session.rollback()
+
+    await engine.dispose()
+
+
+@pytest.fixture
+def test_client(db_session: AsyncSession):
+    """Create a test client with database dependency override."""
+    from telegram_poker_bot.api.main import api_app
+    from telegram_poker_bot.shared.database import get_db
+
+    async def override_get_db():
+        yield db_session
+
+    api_app.dependency_overrides[get_db] = override_get_db
+
+    yield TestClient(api_app)
+
+    api_app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def sample_table(db_session: AsyncSession) -> Table:
+    """Create a sample table for testing."""
+    template = TableTemplate(
+        name="Test Template",
+        table_type=TableTemplateType.PERSISTENT,
+        has_waitlist=False,
+        config_json={"max_players": 6},
+    )
+    db_session.add(template)
+    await db_session.flush()
+
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.ACTIVE,
+        template_id=template.id,
+        is_public=True,
+    )
+    db_session.add(table)
+    await db_session.flush()
+
+    return table
 
 
 @pytest.mark.asyncio
-async def test_generate_insights_endpoint(client: AsyncClient, db_session, sample_table):
+async def test_generate_insights_endpoint(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test the insights generation endpoint."""
     # Create data that will generate insights
     now = datetime.now(timezone.utc)
@@ -31,7 +96,7 @@ async def test_generate_insights_endpoint(client: AsyncClient, db_session, sampl
     await db_session.commit()
     
     # Generate insights
-    response = await client.get("/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -50,7 +115,9 @@ async def test_generate_insights_endpoint(client: AsyncClient, db_session, sampl
 
 
 @pytest.mark.asyncio
-async def test_generate_insights_custom_hours(client: AsyncClient, db_session, sample_table):
+async def test_generate_insights_custom_hours(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test insights generation with custom hour parameter."""
     now = datetime.now(timezone.utc)
     
@@ -66,7 +133,7 @@ async def test_generate_insights_custom_hours(client: AsyncClient, db_session, s
     await db_session.commit()
     
     # Generate insights for last 2 hours
-    response = await client.get("/admin/insights/generate?hours=2")
+    response = test_client.get("/admin/insights/generate?hours=2")
     assert response.status_code == 200
     
     data = response.json()
@@ -74,9 +141,9 @@ async def test_generate_insights_custom_hours(client: AsyncClient, db_session, s
 
 
 @pytest.mark.asyncio
-async def test_generate_insights_no_data(client: AsyncClient, db_session):
+async def test_generate_insights_no_data(db_session: AsyncSession, test_client: TestClient) -> None:
     """Test insights generation with no analytics data."""
-    response = await client.get("/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -85,7 +152,9 @@ async def test_generate_insights_no_data(client: AsyncClient, db_session):
 
 
 @pytest.mark.asyncio
-async def test_deliver_insights_endpoint(client: AsyncClient, db_session, sample_table):
+async def test_deliver_insights_endpoint(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test the insights delivery endpoint."""
     # Create data
     now = datetime.now(timezone.utc)
@@ -101,7 +170,7 @@ async def test_deliver_insights_endpoint(client: AsyncClient, db_session, sample
     await db_session.commit()
     
     # Deliver insights
-    response = await client.post("/admin/insights/deliver?hours=1")
+    response = test_client.post("/admin/insights/deliver?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -116,7 +185,9 @@ async def test_deliver_insights_endpoint(client: AsyncClient, db_session, sample
 
 
 @pytest.mark.asyncio
-async def test_insights_structure(client: AsyncClient, db_session, sample_table):
+async def test_insights_structure(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test that insights have correct structure."""
     # Create data for multiple insight types
     now = datetime.now(timezone.utc)
@@ -135,7 +206,7 @@ async def test_insights_structure(client: AsyncClient, db_session, sample_table)
     await db_session.commit()
     
     # Generate insights
-    response = await client.get("/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -165,7 +236,9 @@ async def test_insights_structure(client: AsyncClient, db_session, sample_table)
 
 
 @pytest.mark.asyncio
-async def test_insights_by_type_counts(client: AsyncClient, db_session, sample_table):
+async def test_insights_by_type_counts(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test that by_type counts match actual insights."""
     now = datetime.now(timezone.utc)
     
@@ -182,7 +255,7 @@ async def test_insights_by_type_counts(client: AsyncClient, db_session, sample_t
     
     await db_session.commit()
     
-    response = await client.get("/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -197,7 +270,9 @@ async def test_insights_by_type_counts(client: AsyncClient, db_session, sample_t
 
 
 @pytest.mark.asyncio
-async def test_insights_by_severity_counts(client: AsyncClient, db_session, sample_table):
+async def test_insights_by_severity_counts(
+    db_session: AsyncSession, test_client: TestClient, sample_table: Table
+) -> None:
     """Test that by_severity counts match actual insights."""
     now = datetime.now(timezone.utc)
     
@@ -214,7 +289,7 @@ async def test_insights_by_severity_counts(client: AsyncClient, db_session, samp
     
     await db_session.commit()
     
-    response = await client.get("/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()

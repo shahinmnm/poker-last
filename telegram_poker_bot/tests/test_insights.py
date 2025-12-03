@@ -1,13 +1,19 @@
 """Tests for insights engine and delivery."""
 
 import pytest
+import pytest_asyncio
 from datetime import datetime, timezone, timedelta
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from telegram_poker_bot.shared.models import (
+    Base,
     TableSnapshot,
     HourlyTableStats,
     Table,
+    TableTemplate,
+    TableTemplateType,
     TableStatus,
+    GameMode,
 )
 from telegram_poker_bot.shared.services.insights_engine import (
     InsightsEngine,
@@ -20,9 +26,50 @@ from telegram_poker_bot.shared.services.insights_delivery import (
     Insight,
 )
 
+pytest.importorskip("aiosqlite")
+
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncSession:
+    """Create an in-memory SQLite database for testing."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+        await session.rollback()
+
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def sample_table(db_session: AsyncSession) -> Table:
+    """Create a sample table for testing."""
+    template = TableTemplate(
+        name="Test Template",
+        table_type=TableTemplateType.PERSISTENT,
+        has_waitlist=False,
+        config_json={"max_players": 6},
+    )
+    db_session.add(template)
+    await db_session.flush()
+
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.ACTIVE,
+        template_id=template.id,
+        is_public=True,
+    )
+    db_session.add(table)
+    await db_session.flush()
+
+    return table
+
 
 @pytest.mark.asyncio
-async def test_analyze_high_traffic(db_session, sample_table):
+async def test_analyze_high_traffic(db_session: AsyncSession, sample_table: Table) -> None:
     """Test detection of high traffic patterns."""
     # Create snapshots showing high traffic
     now = datetime.now(timezone.utc)
@@ -51,7 +98,7 @@ async def test_analyze_high_traffic(db_session, sample_table):
 
 
 @pytest.mark.asyncio
-async def test_analyze_low_traffic(db_session, sample_table):
+async def test_analyze_low_traffic(db_session: AsyncSession, sample_table: Table) -> None:
     """Test detection of low traffic patterns."""
     # Create snapshots showing low traffic
     now = datetime.now(timezone.utc)
@@ -80,7 +127,7 @@ async def test_analyze_low_traffic(db_session, sample_table):
 
 
 @pytest.mark.asyncio
-async def test_analyze_rapid_player_change(db_session, sample_table):
+async def test_analyze_rapid_player_change(db_session: AsyncSession, sample_table: Table) -> None:
     """Test detection of rapid player changes."""
     # Create snapshots with rapid changes
     now = datetime.now(timezone.utc)
@@ -109,7 +156,7 @@ async def test_analyze_rapid_player_change(db_session, sample_table):
 
 
 @pytest.mark.asyncio
-async def test_detect_inactivity_patterns(db_session, sample_table):
+async def test_detect_inactivity_patterns(db_session: AsyncSession, sample_table: Table) -> None:
     """Test detection of inactivity patterns."""
     # Make table active but create old snapshot
     sample_table.status = TableStatus.ACTIVE
@@ -137,7 +184,7 @@ async def test_detect_inactivity_patterns(db_session, sample_table):
 
 
 @pytest.mark.asyncio
-async def test_analyze_waitlist_trends(db_session, sample_table):
+async def test_analyze_waitlist_trends(db_session: AsyncSession, sample_table: Table) -> None:
     """Test analysis of waitlist trends."""
     # Create snapshots with waitlist metadata
     now = datetime.now(timezone.utc)
@@ -166,7 +213,7 @@ async def test_analyze_waitlist_trends(db_session, sample_table):
 
 
 @pytest.mark.asyncio
-async def test_generate_all_insights(db_session, sample_table):
+async def test_generate_all_insights(db_session: AsyncSession, sample_table: Table) -> None:
     """Test generating all insight types together."""
     # Create varied data
     now = datetime.now(timezone.utc)
@@ -290,8 +337,8 @@ async def test_delivery_service_add_remove_channels():
     service.add_channel(new_channel)
     assert len(service.channels) == 2
     
-    # Remove channel
+    # Remove channel (removes ALL channels with name "logging")
     removed = service.remove_channel("logging")
     assert removed is True
-    # Should have removed one instance (still one left)
-    assert len(service.channels) >= 1
+    # All logging channels should be removed
+    assert len(service.channels) == 0
