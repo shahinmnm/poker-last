@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Dict, Any, List
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload
 
 from telegram_poker_bot.shared.models import (
     User,
@@ -15,6 +15,11 @@ from telegram_poker_bot.shared.models import (
     Action,
     TableStatus,
     UserPokerStats,
+    TableTemplateType,
+)
+from telegram_poker_bot.shared.services.table_service import (
+    get_template_config,
+    get_table_currency_type,
 )
 
 
@@ -24,28 +29,8 @@ def _resolve_is_public(table: Table) -> bool:
     if table.is_public is not None:
         return bool(table.is_public)
 
-    config = table.config_json or {}
-    raw_private = config.get("is_private")
-    if isinstance(raw_private, bool):
-        return not raw_private
-    if isinstance(raw_private, (int, float)):
-        return not bool(raw_private)
-    if isinstance(raw_private, str):
-        normalized = raw_private.strip().lower()
-        if normalized in {"true", "1", "yes", "y", "private"}:
-            return False
-        if normalized in {"false", "0", "no", "n", "public"}:
-            return True
-
-    visibility = config.get("visibility")
-    if isinstance(visibility, str):
-        normalized_visibility = visibility.strip().lower()
-        if normalized_visibility == "private":
-            return False
-        if normalized_visibility == "public":
-            return True
-
-    return True
+    template_type = getattr(getattr(table, "template", None), "table_type", None)
+    return template_type != TableTemplateType.PRIVATE
 
 
 async def get_user_stats_from_aggregated(
@@ -199,6 +184,7 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
 
     result = await db.execute(
         select(Table, ActiveSeat)
+        .options(joinedload(Table.template))
         .join(ActiveSeat, Table.id == ActiveSeat.table_id)
         .where(
             ActiveSeat.user_id == user_id,
@@ -226,10 +212,8 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
 
     creator_ids = set()
     for table, _ in rows:
-        config = table.config_json or {}
-        creator_user_id = table.creator_user_id or config.get("creator_user_id")
-        if creator_user_id:
-            creator_ids.add(creator_user_id)
+        if table.creator_user_id:
+            creator_ids.add(table.creator_user_id)
 
     creator_map = {}
     if creator_ids:
@@ -238,8 +222,8 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
 
     tables_data = []
     for table, seat in rows:
-        config = table.config_json or {}
-        creator_user_id = table.creator_user_id or config.get("creator_user_id")
+        config = get_template_config(table)
+        creator_user_id = table.creator_user_id
         host_user = creator_map.get(creator_user_id) if creator_user_id else None
         host_info = None
         if host_user:
@@ -301,6 +285,7 @@ async def get_recent_games(
     """
     result = await db.execute(
         select(Table, Seat)
+        .options(joinedload(Table.template))
         .join(Seat, Table.id == Seat.table_id)
         .where(
             Seat.user_id == user_id,
@@ -315,7 +300,7 @@ async def get_recent_games(
 
     games = []
     for table, seat in result.all():
-        config = table.config_json or {}
+        config = get_template_config(table)
         starting_chips = config.get("starting_stack", 10000)
         profit = seat.chips - starting_chips
 
@@ -376,18 +361,8 @@ async def apply_hand_result_to_wallets_and_stats(
         hand_result: Hand result dict with winners info (post-rake amounts)
     """
     from telegram_poker_bot.shared.services.wallet_service import record_game_win
-    from telegram_poker_bot.shared.models import CurrencyType
 
-    currency_type = (
-        table.currency_type
-        if hasattr(table, "currency_type")
-        else CurrencyType.REAL
-    )
-    if isinstance(currency_type, str):
-        try:
-            currency_type = CurrencyType(currency_type)
-        except ValueError:
-            currency_type = CurrencyType.REAL
+    currency_type = get_table_currency_type(table)
 
     # Get all winners from hand_result
     winners = hand_result.get("winners", [])

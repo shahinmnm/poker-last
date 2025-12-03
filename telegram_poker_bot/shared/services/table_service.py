@@ -1,4 +1,4 @@
-"""Table management service for creating and managing poker tables."""
+"""Table management service for creating and managing poker tables using templates."""
 
 from __future__ import annotations
 
@@ -7,8 +7,10 @@ import secrets
 import string
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, TYPE_CHECKING, Tuple
+
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from telegram_poker_bot.game_core import pokerkit_runtime as game_runtime
 from telegram_poker_bot.shared.models import (
@@ -22,6 +24,8 @@ from telegram_poker_bot.shared.models import (
     GroupGameInvite,
     GroupGameInviteStatus,
     CurrencyType,
+    TableTemplate,
+    TableTemplateType,
 )
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.services import table_lifecycle
@@ -35,9 +39,68 @@ if TYPE_CHECKING:  # pragma: no cover - import for typing only
 
 PUBLIC_TABLE_CACHE_PREFIX = "lobby:public_tables"
 PUBLIC_TABLE_CACHE_KEYS = f"{PUBLIC_TABLE_CACHE_PREFIX}:keys"
-TABLE_EXPIRATION_MINUTES = 10
 INVITE_CODE_LENGTH = 6
 INVITE_CODE_FALLBACK_LENGTH = 8
+
+
+def get_template_config(table: Table) -> Dict[str, Any]:
+    """Return the configuration dict from a table's template."""
+
+    template = getattr(table, "template", None)
+    if template and template.config_json:
+        return template.config_json
+    return {}
+
+
+def _coerce_currency_type(raw: Any) -> CurrencyType:
+    """Normalize currency type values coming from template config."""
+
+    if isinstance(raw, CurrencyType):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return CurrencyType(raw)
+        except ValueError:
+            return CurrencyType.REAL
+    return CurrencyType.REAL
+
+
+def _coerce_game_variant(raw: Any) -> str:
+    """Normalize game variant to a string value."""
+
+    if isinstance(raw, GameVariant):
+        return raw.value
+    if isinstance(raw, str):
+        return raw
+    return GameVariant.NO_LIMIT_TEXAS_HOLDEM.value
+
+
+def get_table_currency_type(table: Table) -> CurrencyType:
+    """Return the table currency type from its template configuration."""
+
+    config = get_template_config(table)
+    return _coerce_currency_type(config.get("currency_type"))
+
+
+def get_table_game_variant(table: Table) -> str:
+    """Return the game variant string from template configuration."""
+
+    config = get_template_config(table)
+    return _coerce_game_variant(config.get("game_variant"))
+
+
+async def _load_table_with_template(db: AsyncSession, table_id: int) -> Table:
+    """Helper to load a table with its template eager-loaded."""
+
+    result = await db.execute(
+        select(Table).options(joinedload(Table.template)).where(Table.id == table_id)
+    )
+    table = result.scalar_one_or_none()
+    if not table:
+        raise ValueError(f"Table {table_id} not found")
+    if not table.template:
+        raise ValueError(f"Table {table_id} is missing a template")
+    return table
 
 
 async def check_and_mark_expired_table(db: AsyncSession, table: Table) -> bool:
@@ -55,9 +118,7 @@ async def check_and_mark_expired_table(db: AsyncSession, table: Table) -> bool:
 
 def _generate_invite_code(length: int = INVITE_CODE_LENGTH) -> str:
     """Generate a random invite code for private tables."""
-    # Use uppercase letters and digits for readability
     alphabet = string.ascii_uppercase + string.digits
-    # Exclude similar-looking characters: O, 0, I, 1
     alphabet = (
         alphabet.replace("O", "").replace("I", "").replace("0", "").replace("1", "")
     )
@@ -70,42 +131,13 @@ def normalize_invite_code(raw: str) -> str:
     return raw.strip().upper()
 
 
-def _is_table_private(config: Dict[str, Any]) -> bool:
-    """Resolve whether a table configuration represents a private table."""
-
-    raw_private = config.get("is_private")
-    if isinstance(raw_private, bool):
-        return raw_private
-
-    if isinstance(raw_private, (int, float)):
-        return bool(raw_private)
-
-    if isinstance(raw_private, str):
-        normalized = raw_private.strip().lower()
-        if normalized in {"true", "1", "yes", "y", "private"}:
-            return True
-        if normalized in {"false", "0", "no", "n", "public"}:
-            return False
-
-    visibility = config.get("visibility")
-    if isinstance(visibility, str):
-        normalized_visibility = visibility.strip().lower()
-        if normalized_visibility == "private":
-            return True
-        if normalized_visibility == "public":
-            return False
-
-    return bool(raw_private)
-
-
 def _resolve_visibility_flags(table: Table) -> Tuple[bool, bool, str]:
     """Return (is_public, is_private, visibility_label) for a table."""
 
-    config = table.config_json or {}
     is_public = (
         table.is_public
         if table.is_public is not None
-        else not _is_table_private(config)
+        else getattr(table.template, "table_type", None) != TableTemplateType.PRIVATE
     )
     visibility = "public" if is_public else "private"
     return is_public, not is_public, visibility
@@ -118,31 +150,106 @@ def _public_cache_key(mode: Optional[GameMode], limit: int) -> str:
     return f"{PUBLIC_TABLE_CACHE_PREFIX}:{mode_value}:{limit}"
 
 
-async def create_table_with_config(
+async def create_table_template(
+    db: AsyncSession,
+    *,
+    name: str,
+    table_type: TableTemplateType,
+    has_waitlist: bool = False,
+    config: Optional[Dict[str, Any]] = None,
+) -> TableTemplate:
+    """Create and persist a TableTemplate."""
+
+    template = TableTemplate(
+        name=name,
+        table_type=table_type,
+        has_waitlist=has_waitlist,
+        config_json=config or {},
+    )
+    db.add(template)
+    await db.flush()
+    return template
+
+
+async def create_default_template(
+    db: AsyncSession,
+    *,
+    name: str = "Default Table",
+    table_type: TableTemplateType = TableTemplateType.EXPIRING,
+    has_waitlist: bool = False,
+    config_overrides: Optional[Dict[str, Any]] = None,
+) -> TableTemplate:
+    """Create a template with sensible defaults for tests and callers."""
+
+    base_config: Dict[str, Any] = {
+        "small_blind": 25,
+        "big_blind": 50,
+        "starting_stack": 10000,
+        "max_players": 8,
+        "table_name": name,
+        "expiration_minutes": 10,
+        "currency_type": CurrencyType.REAL.value,
+        "game_variant": GameVariant.NO_LIMIT_TEXAS_HOLDEM.value,
+    }
+    if config_overrides:
+        base_config.update(config_overrides)
+
+    return await create_table_template(
+        db,
+        name=name,
+        table_type=table_type,
+        has_waitlist=has_waitlist,
+        config=base_config,
+    )
+
+
+async def create_table(
     db: AsyncSession,
     *,
     creator_user_id: int,
-    small_blind: int = 25,
-    big_blind: int = 50,
-    starting_stack: int = 10000,
-    max_players: int = 8,
-    table_name: Optional[str] = None,
+    template_id: int,
     mode: GameMode = GameMode.ANONYMOUS,
     group_id: Optional[int] = None,
-    is_private: bool = False,
     auto_seat_creator: bool = False,
-    game_variant: GameVariant = GameVariant.NO_LIMIT_TEXAS_HOLDEM,
-    is_persistent: bool = False,
-    currency_type: CurrencyType = CurrencyType.REAL,
 ) -> Table:
-    """Create a table with explicit configuration options."""
+    """Create a table from a TableTemplate."""
 
-    is_public = not is_private
+    template = await db.scalar(
+        select(TableTemplate).where(TableTemplate.id == template_id)
+    )
+    if not template:
+        raise ValueError(f"TableTemplate {template_id} not found")
 
-    # Generate invite code for private tables
+    config = template.config_json or {}
+
+    if template.table_type == TableTemplateType.PERSISTENT and not template.has_waitlist:
+        raise ValueError("Persistent tables must enable waitlists in their template")
+
+    expiration_minutes = config.get("expiration_minutes")
+    if template.table_type == TableTemplateType.EXPIRING:
+        if expiration_minutes is None:
+            raise ValueError("Expiring table templates must define expiration_minutes")
+        try:
+            expiration_minutes = int(expiration_minutes)
+        except (TypeError, ValueError):
+            raise ValueError("expiration_minutes must be an integer for expiring tables")
+        if expiration_minutes <= 0:
+            raise ValueError("expiration_minutes must be positive for expiring tables")
+
+    allow_invite_code = config.get("allow_invite_code", True)
+    if template.table_type == TableTemplateType.PRIVATE and allow_invite_code is False:
+        raise ValueError("Private table templates must allow invite codes")
+
+    max_players = int(config.get("max_players", 8))
+    starting_stack = int(config.get("starting_stack", 10000))
+    table_name = config.get("table_name") or f"Table #{datetime.now().strftime('%H%M%S')}"
+    currency_type = _coerce_currency_type(config.get("currency_type"))
+    game_variant = _coerce_game_variant(config.get("game_variant"))
+
+    is_public = template.table_type != TableTemplateType.PRIVATE
+
     invite_code = None
-    if is_private:
-        # Keep trying until we get a unique code (very unlikely to collide)
+    if not is_public:
         for _ in range(10):
             candidate_code = _generate_invite_code()
             result = await db.execute(
@@ -152,15 +259,11 @@ async def create_table_with_config(
                 invite_code = candidate_code
                 break
         if invite_code is None:
-            # Fallback to longer code
             invite_code = _generate_invite_code(length=INVITE_CODE_FALLBACK_LENGTH)
 
-    # Set expiration time (10 minutes from now) unless table is persistent
-    expires_at = (
-        None
-        if is_persistent
-        else datetime.now(timezone.utc) + timedelta(minutes=TABLE_EXPIRATION_MINUTES)
-    )
+    expires_at = None
+    if template.table_type == TableTemplateType.EXPIRING:
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
 
     table = Table(
         mode=mode,
@@ -170,37 +273,25 @@ async def create_table_with_config(
         is_public=is_public,
         invite_code=invite_code,
         expires_at=expires_at,
-        is_persistent=is_persistent,
-        game_variant=game_variant,
-        currency_type=currency_type,
-        config_json={
-            "small_blind": small_blind,
-            "big_blind": big_blind,
-            "starting_stack": starting_stack,
-            "max_players": max_players,
-            "table_name": table_name or f"Table #{datetime.now().strftime('%H%M%S')}",
-            "creator_user_id": creator_user_id,
-            "is_private": not is_public,
-            "visibility": "public" if is_public else "private",
-            "game_variant": game_variant.value,
-            "is_persistent": is_persistent,
-            "currency_type": currency_type.value,
-        },
+        template_id=template.id,
     )
+    table.template = template
     db.add(table)
     await db.flush()
 
     logger.info(
-        "Table created",
+        "Table created from template",
         table_id=table.id,
+        template_id=template.id,
         creator_user_id=creator_user_id,
         max_players=max_players,
         is_private=not is_public,
         is_public=is_public,
         mode=mode.value,
         invite_code=invite_code,
-        expires_at=expires_at.isoformat(),
+        expires_at=expires_at.isoformat() if expires_at else None,
         currency_type=currency_type.value,
+        game_variant=game_variant,
     )
 
     await game_runtime.refresh_table_runtime(db, table.id)
@@ -217,6 +308,81 @@ async def create_table_with_config(
             )
 
     return table
+
+
+async def create_table_with_config(
+    db: AsyncSession,
+    *,
+    creator_user_id: int,
+    template_id: Optional[int] = None,
+    mode: GameMode = GameMode.ANONYMOUS,
+    group_id: Optional[int] = None,
+    auto_seat_creator: bool = False,
+    **legacy_config: Any,
+) -> Table:
+    """
+    Deprecated legacy entrypoint.
+
+    Builds a one-off template from provided config (if template_id is None) and creates the table.
+    """
+
+    if template_id is None:
+        name = legacy_config.get("table_name") or "Legacy Template"
+        has_waitlist = bool(legacy_config.get("has_waitlist", False))
+        table_type = TableTemplateType.EXPIRING
+        if legacy_config.get("is_private"):
+            table_type = TableTemplateType.PRIVATE
+        elif legacy_config.get("is_persistent"):
+            table_type = TableTemplateType.PERSISTENT
+        template = await create_default_template(
+            db,
+            name=name,
+            table_type=table_type,
+            has_waitlist=has_waitlist,
+            config_overrides=legacy_config,
+        )
+        template_id = template.id
+    return await create_table(
+        db,
+        creator_user_id=creator_user_id,
+        template_id=template_id,
+        mode=mode,
+        group_id=group_id,
+        auto_seat_creator=auto_seat_creator,
+    )
+
+
+async def create_private_table(
+    db: AsyncSession,
+    creator_user_id: int,
+    template_id: int,
+) -> Table:
+    """Create a private table (template must be PRIVATE)."""
+
+    return await create_table(
+        db,
+        creator_user_id=creator_user_id,
+        template_id=template_id,
+        auto_seat_creator=False,
+    )
+
+
+async def create_group_table(
+    db: AsyncSession,
+    creator_user_id: int,
+    group_id: int,
+    template_id: int,
+) -> Table:
+    """Create a group-linked table from a template."""
+
+    return await create_table(
+        db,
+        creator_user_id=creator_user_id,
+        template_id=template_id,
+        mode=GameMode.GROUP,
+        group_id=group_id,
+        auto_seat_creator=False,
+    )
 
 
 async def invalidate_public_table_cache(redis_client: Optional["Redis"]) -> None:
@@ -239,101 +405,19 @@ async def invalidate_public_table_cache(redis_client: Optional["Redis"]) -> None
         logger.warning("Failed to invalidate public table cache", error=str(exc))
 
 
-async def create_private_table(
-    db: AsyncSession,
-    creator_user_id: int,
-    small_blind: int = 25,
-    big_blind: int = 50,
-    starting_stack: int = 10000,
-    max_players: int = 8,
-    table_name: Optional[str] = None,
-    currency_type: CurrencyType = CurrencyType.REAL,
-) -> Table:
-    """Create a private table (used for invite-based games)."""
-
-    return await create_table_with_config(
-        db,
-        creator_user_id=creator_user_id,
-        small_blind=small_blind,
-        big_blind=big_blind,
-        starting_stack=starting_stack,
-        max_players=max_players,
-        table_name=table_name,
-        is_private=True,
-        auto_seat_creator=False,
-        currency_type=currency_type,
-    )
-
-
-async def create_group_table(
-    db: AsyncSession,
-    creator_user_id: int,
-    group_id: int,
-    small_blind: int = 25,
-    big_blind: int = 50,
-    starting_stack: int = 10000,
-    max_players: int = 8,
-    currency_type: CurrencyType = CurrencyType.REAL,
-) -> Table:
-    """
-    Create a table linked to a Telegram group.
-
-    Args:
-        db: Database session
-        creator_user_id: User ID of table creator
-        group_id: Database ID of the Group
-        small_blind: Small blind amount
-        big_blind: Big blind amount
-        starting_stack: Starting chip stack
-        max_players: Maximum players allowed
-
-    Returns:
-        Created Table instance
-    """
-    return await create_table_with_config(
-        db,
-        creator_user_id=creator_user_id,
-        small_blind=small_blind,
-        big_blind=big_blind,
-        starting_stack=starting_stack,
-        max_players=max_players,
-        mode=GameMode.GROUP,
-        group_id=group_id,
-        is_private=False,
-        auto_seat_creator=False,
-        currency_type=currency_type,
-    )
-
-
 async def seat_user_at_table(
     db: AsyncSession,
     table_id: int,
     user_id: int,
 ) -> Seat:
     """
-    Seat a user at a table.
-
-    Args:
-        db: Database session
-        table_id: Table to join
-        user_id: User to seat
-
-    Returns:
-        Created Seat instance
-
-    Raises:
-        ValueError: If table is full or user already seated
+    Seat a user at a table using template rules.
     """
-    # Check if table exists and get config
-    result = await db.execute(select(Table).where(Table.id == table_id))
-    table = result.scalar_one_or_none()
-    if not table:
-        raise ValueError(f"Table {table_id} not found")
 
-    config = table.config_json or {}
-    max_players = config.get("max_players", 8)
+    table = await _load_table_with_template(db, table_id)
+    config = get_template_config(table)
+    max_players = int(config.get("max_players", 8))
 
-    # Check if user already seated (tolerate accidental duplicate rows by collapsing to one)
     result = await db.execute(
         select(Seat)
         .where(Seat.table_id == table_id, Seat.user_id == user_id, Seat.left_at.is_(None))
@@ -341,7 +425,6 @@ async def seat_user_at_table(
     )
     existing_seats = result.scalars().all()
     if existing_seats:
-        # If multiple active seats exist, mark all but the most recent as left to self-heal.
         if len(existing_seats) > 1:
             now = datetime.now(timezone.utc)
             for duplicate in existing_seats[1:]:
@@ -349,7 +432,6 @@ async def seat_user_at_table(
             await db.flush()
         raise ValueError(f"User {user_id} already seated at table {table_id}")
 
-    # Count current players
     result = await db.execute(
         select(func.count(Seat.id)).where(
             Seat.table_id == table_id, Seat.left_at.is_(None)
@@ -360,7 +442,6 @@ async def seat_user_at_table(
     if current_players >= max_players:
         raise ValueError(f"Table {table_id} is full ({current_players}/{max_players})")
 
-    # Find next available position
     result = await db.execute(
         select(Seat.position).where(Seat.table_id == table_id, Seat.left_at.is_(None))
     )
@@ -372,21 +453,31 @@ async def seat_user_at_table(
             break
         position += 1
 
-    # Get starting stack from table config
-    starting_stack = config.get("starting_stack", 10000)
-    currency_type = getattr(table, "currency_type", CurrencyType.REAL)
+    starting_stack = int(config.get("starting_stack", 10000))
+    buy_in_min = config.get("buy_in_min")
+    buy_in_max = config.get("buy_in_max")
+    buy_in_amount = starting_stack
 
-    # Gatekeeper: ensure correct wallet/currency has funds
+    if buy_in_min is not None and buy_in_amount < int(buy_in_min):
+        raise ValueError("Buy-in below minimum for this table")
+    if buy_in_max is not None and buy_in_amount > int(buy_in_max):
+        raise ValueError("Buy-in above maximum for this table")
+
+    currency_type = _coerce_currency_type(config.get("currency_type"))
+
     await TableBuyInService.reserve_buy_in(
-        db, table=table, user_id=user_id, buy_in_amount=starting_stack
+        db,
+        table=table,
+        user_id=user_id,
+        buy_in_amount=buy_in_amount,
+        currency_type=currency_type,
     )
 
-    # Create seat
     seat = Seat(
         table_id=table_id,
         user_id=user_id,
         position=position,
-        chips=starting_stack,
+        chips=buy_in_amount,
         joined_at=datetime.now(timezone.utc),
     )
     db.add(seat)
@@ -398,7 +489,7 @@ async def seat_user_at_table(
         table_id=table_id,
         user_id=user_id,
         position=position,
-        chips=starting_stack,
+        chips=buy_in_amount,
     )
 
     await game_runtime.refresh_table_runtime(db, table_id)
@@ -413,7 +504,11 @@ async def get_table_by_invite_code(db: AsyncSession, invite_code: str) -> Table:
     if not normalized:
         raise ValueError("Invalid invite code")
 
-    result = await db.execute(select(Table).where(Table.invite_code == normalized))
+    result = await db.execute(
+        select(Table)
+        .options(joinedload(Table.template))
+        .where(Table.invite_code == normalized)
+    )
     table = result.scalar_one_or_none()
 
     if not table:
@@ -421,7 +516,6 @@ async def get_table_by_invite_code(db: AsyncSession, invite_code: str) -> Table:
 
     now = datetime.now(timezone.utc)
     if table.expires_at and table.expires_at <= now:
-        # Mark as expired if not already
         if table.status not in {TableStatus.ENDED, TableStatus.EXPIRED}:
             table.status = TableStatus.EXPIRED
             table.updated_at = now
@@ -446,7 +540,6 @@ async def seat_user_by_invite_code(
     try:
         seat = await seat_user_at_table(db, table.id, user_id)
     except ValueError as exc:
-        # Allow caller to handle cases where the user is already seated or table is full
         logger.info(
             "Join by invite failed to seat user",
             table_id=table.id,
@@ -464,9 +557,7 @@ async def leave_table(
     user_id: int,
 ) -> Seat:
     """
-    Mark a user's seat as vacated for the given table.
-
-    Also reconciles wallet balance based on session profit/loss.
+    Mark a user's seat as vacated for the given table and reconcile wallet.
     """
 
     result = await db.execute(
@@ -478,35 +569,21 @@ async def leave_table(
     if not seat:
         raise ValueError(f"User {user_id} is not seated at table {table_id}")
 
-    # Get table config to determine starting stack
-    result = await db.execute(select(Table).where(Table.id == table_id))
-    table = result.scalar_one_or_none()
-    if table:
-        config = table.config_json or {}
-        starting_stack = config.get("starting_stack", 10000)
+    table = await _load_table_with_template(db, table_id)
+    config = get_template_config(table)
+    starting_stack = int(config.get("starting_stack", 10000))
+    session_profit = seat.chips - starting_stack
 
-        # Calculate session profit/loss
-        # Note: This is cumulative across all hands at this table
-        # Wallet updates from individual hands are already applied
-        # We don't need to double-apply here
-        session_profit = seat.chips - starting_stack
+    logger.info(
+        "User leaving table",
+        table_id=table_id,
+        user_id=user_id,
+        starting_stack=starting_stack,
+        final_chips=seat.chips,
+        session_profit=session_profit,
+    )
 
-        logger.info(
-            "User leaving table",
-            table_id=table_id,
-            user_id=user_id,
-            starting_stack=starting_stack,
-            final_chips=seat.chips,
-            session_profit=session_profit,
-        )
-
-    # Cash out remaining chips back to the correct wallet
-    currency_type = getattr(table, "currency_type", CurrencyType.REAL)
-    if isinstance(currency_type, str):
-        try:
-            currency_type = CurrencyType(currency_type)
-        except ValueError:
-            currency_type = CurrencyType.REAL
+    currency_type = _coerce_currency_type(config.get("currency_type"))
 
     from telegram_poker_bot.shared.services.wallet_service import process_cash_out
 
@@ -544,34 +621,25 @@ async def get_table_info(
 ) -> Dict[str, Any]:
     """
     Get comprehensive table information.
-
-    Returns dict with table details, player count, and configuration.
     """
-    result = await db.execute(select(Table).where(Table.id == table_id))
-    table = result.scalar_one_or_none()
+    table = await _load_table_with_template(db, table_id)
 
-    if not table:
-        raise ValueError(f"Table {table_id} not found")
-
-    # Check if table should be marked as expired
     is_expired = await check_and_mark_expired_table(db, table)
 
-    config = table.config_json or {}
-    creator_user_id = table.creator_user_id or config.get("creator_user_id")
+    config = get_template_config(table)
+    creator_user_id = table.creator_user_id
     is_public = (
         table.is_public
         if table.is_public is not None
-        else not _is_table_private(config)
+        else getattr(table.template, "table_type", None) != TableTemplateType.PRIVATE
     )
     is_private = not is_public
 
-    # Fetch host user if available
     host_user = None
     if creator_user_id:
         host_result = await db.execute(select(User).where(User.id == creator_user_id))
         host_user = host_result.scalar_one_or_none()
 
-    # Load seated players with user information
     seats_result = await db.execute(
         select(Seat, User)
         .join(User, Seat.user_id == User.id)
@@ -602,7 +670,6 @@ async def get_table_info(
 
     player_count = len(players)
 
-    # Get group info if it's a group table
     group_title = None
     if table.group_id:
         result = await db.execute(select(Group).where(Group.id == table.group_id))
@@ -610,7 +677,6 @@ async def get_table_info(
         if group:
             group_title = group.title
 
-    # Determine invite metadata for the table
     invite_info = None
     if creator_user_id:
         invite_result = await db.execute(
@@ -652,7 +718,6 @@ async def get_table_info(
     max_players = config.get("max_players", 8)
     viewer_is_creator = viewer_user_id is not None and viewer_user_id == creator_user_id
 
-    # Check if there's an active hand to determine if "Next Hand" can be started
     from telegram_poker_bot.shared.models import Hand, HandStatus
 
     has_active_hand = False
@@ -669,10 +734,8 @@ async def get_table_info(
             viewer_is_creator
             and player_count >= 2
             and (
-                table.status == TableStatus.WAITING  # First hand
-                or (
-                    table.status == TableStatus.ACTIVE and not has_active_hand
-                )  # Next hand
+                table.status == TableStatus.WAITING
+                or (table.status == TableStatus.ACTIVE and not has_active_hand)
             )
         ),
         "can_join": (
@@ -708,17 +771,9 @@ async def get_table_info(
         "creator_user_id": creator_user_id,
         "group_id": table.group_id,
         "group_title": group_title,
-        "is_persistent": table.is_persistent,
-        "game_variant": (
-            table.game_variant.value
-            if hasattr(table.game_variant, "value")
-            else str(table.game_variant)
-        ),
-        "currency_type": (
-            table.currency_type.value
-            if hasattr(table.currency_type, "value")
-            else str(table.currency_type or CurrencyType.REAL.value)
-        ),
+        "is_persistent": table.template.table_type == TableTemplateType.PERSISTENT,
+        "game_variant": _coerce_game_variant(config.get("game_variant")),
+        "currency_type": _coerce_currency_type(config.get("currency_type")).value,
         "created_at": table.created_at.isoformat() if table.created_at else None,
         "updated_at": table.updated_at.isoformat() if table.updated_at else None,
         "expires_at": table.expires_at.isoformat() if table.expires_at else None,
@@ -733,6 +788,12 @@ async def get_table_info(
         "viewer": viewer_info,
         "permissions": permissions,
         "invite": invite_info,
+        "template": {
+            "id": table.template.id,
+            "table_type": table.template.table_type.value,
+            "config": config,
+            "has_waitlist": table.template.has_waitlist,
+        },
     }
 
 
@@ -778,13 +839,12 @@ async def list_available_tables(
 
     if cached_payload is None:
         now = datetime.now(timezone.utc)
-        query = select(Table).where(
-            Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE])
+        query = (
+            select(Table)
+            .options(joinedload(Table.template))
+            .where(Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE]))
         )
 
-        # Filter out expired and ended tables using lifecycle rules
-        # Exclude EXPIRED and ENDED statuses (they're not in the status filter above)
-        # For WAITING tables, also check expires_at
         query = query.where(or_(Table.expires_at.is_(None), Table.expires_at > now))
 
         if mode:
@@ -807,13 +867,12 @@ async def list_available_tables(
             else:
                 query = query.where(Table.is_public.is_(True))
 
-        # Order by expiration (soonest first), then by created_at
         query = query.order_by(
             Table.expires_at.asc().nullslast(), Table.created_at.desc(), Table.id.desc()
         ).limit(limit)
 
         result = await db.execute(query)
-        tables = result.scalars().all()
+        tables = result.scalars().unique().all()
 
         if not tables:
             if use_cache and cache_key:
@@ -836,9 +895,7 @@ async def list_available_tables(
         seat_counts = {table_id: count for table_id, count in seat_counts_result.all()}
 
         creator_ids = {
-            table.creator_user_id or (table.config_json or {}).get("creator_user_id")
-            for table in tables
-            if table.creator_user_id or (table.config_json or {}).get("creator_user_id")
+            table.creator_user_id for table in tables if table.creator_user_id
         }
         creator_map: Dict[int, User] = {}
         if creator_ids:
@@ -849,8 +906,8 @@ async def list_available_tables(
 
         payload: List[Dict[str, Any]] = []
         for table in tables:
-            config = table.config_json or {}
-            creator_user_id = table.creator_user_id or config.get("creator_user_id")
+            config = get_template_config(table)
+            creator_user_id = table.creator_user_id
             host_user = creator_map.get(creator_user_id) if creator_user_id else None
             host_info = None
             if host_user:
@@ -869,17 +926,6 @@ async def list_available_tables(
                     "table_id": table.id,
                     "mode": table.mode.value,
                     "status": table.status.value,
-                    "is_persistent": table.is_persistent,
-                    "game_variant": (
-                        table.game_variant.value
-                        if hasattr(table.game_variant, "value")
-                        else str(table.game_variant)
-                    ),
-                    "currency_type": (
-                        table.currency_type.value
-                        if hasattr(table.currency_type, "value")
-                        else str(table.currency_type or CurrencyType.REAL.value)
-                    ),
                     "player_count": player_count,
                     "max_players": max_players,
                     "small_blind": config.get("small_blind", 25),
@@ -902,6 +948,18 @@ async def list_available_tables(
                     "visibility": visibility,
                     "creator_user_id": creator_user_id,
                     "viewer": None,
+                    "is_persistent": table.template.table_type
+                    == TableTemplateType.PERSISTENT,
+                    "game_variant": _coerce_game_variant(config.get("game_variant")),
+                    "currency_type": _coerce_currency_type(
+                        config.get("currency_type")
+                    ).value,
+                    "template": {
+                        "id": table.template.id,
+                        "table_type": table.template.table_type.value,
+                        "config": config,
+                        "has_waitlist": table.template.has_waitlist,
+                    },
                 }
             )
 
@@ -956,11 +1014,6 @@ async def list_available_tables(
                 "is_creator": entry.get("creator_user_id") == viewer_user_id,
             }
         entry["viewer"] = viewer_details
-        entry.setdefault("is_persistent", False)
-        entry.setdefault(
-            "game_variant", GameVariant.NO_LIMIT_TEXAS_HOLDEM.value
-        )
-        entry.setdefault("currency_type", CurrencyType.REAL.value)
 
     return tables_data
 
@@ -973,25 +1026,13 @@ async def start_table(
 ) -> Table:
     """
     Transition a table into the active state or start a new hand if already active.
-
-    This allows:
-    - Starting the first hand when table is WAITING
-    - Starting subsequent hands when table is ACTIVE (multi-hand support)
-
-    Requires the caller to be the table creator (host).
     """
 
-    result = await db.execute(select(Table).where(Table.id == table_id))
-    table = result.scalar_one_or_none()
-    if not table:
-        raise ValueError(f"Table {table_id} not found")
-
-    config = table.config_json or {}
-    creator_user_id = table.creator_user_id or config.get("creator_user_id")
+    table = await _load_table_with_template(db, table_id)
+    creator_user_id = table.creator_user_id
     if creator_user_id is None or creator_user_id != user_id:
         raise PermissionError("Only the table creator can start the game")
 
-    # Allow starting from WAITING or ACTIVE status
     if table.status not in (TableStatus.WAITING, TableStatus.ACTIVE):
         raise ValueError(f"Table cannot be started from {table.status.value} state")
 
@@ -1005,7 +1046,6 @@ async def start_table(
     if player_count < required_players:
         raise ValueError("At least two seated players are required to start the game")
 
-    # Check if there's an active hand already running
     from telegram_poker_bot.shared.models import Hand, HandStatus
 
     hand_result = await db.execute(
@@ -1018,10 +1058,8 @@ async def start_table(
     if active_hand:
         raise ValueError("Cannot start a new hand while another hand is in progress")
 
-    # Transition table to ACTIVE if it was WAITING
     if table.status == TableStatus.WAITING:
         table.status = TableStatus.ACTIVE
-        # Clear expires_at when game starts (Rule B: no post-start wall-clock expiry)
         table.expires_at = None
 
     table.updated_at = datetime.now(timezone.utc)
@@ -1046,35 +1084,12 @@ async def end_table(
 ) -> Table:
     """
     End a table session (host only).
-
-    This will:
-    1. Mark all active seats as left
-    2. Reconcile wallet balances for all seated players (already done per-hand)
-    3. Mark table as ENDED
-
-    Args:
-        db: Database session
-        table_id: Table to end
-        user_id: User requesting to end the table (must be creator)
-
-    Returns:
-        Updated Table instance
-
-    Raises:
-        ValueError: If table not found
-        PermissionError: If user is not the creator
     """
-    result = await db.execute(select(Table).where(Table.id == table_id))
-    table = result.scalar_one_or_none()
-    if not table:
-        raise ValueError(f"Table {table_id} not found")
-
-    config = table.config_json or {}
-    creator_user_id = table.creator_user_id or config.get("creator_user_id")
+    table = await _load_table_with_template(db, table_id)
+    creator_user_id = table.creator_user_id
     if creator_user_id is None or creator_user_id != user_id:
         raise PermissionError("Only the table creator can end the table")
 
-    # Mark all active seats as left
     result = await db.execute(
         select(Seat).where(Seat.table_id == table_id, Seat.left_at.is_(None))
     )
@@ -1090,7 +1105,6 @@ async def end_table(
             seat_id=seat.id,
         )
 
-    # Mark table as ended
     table.status = TableStatus.ENDED
     table.updated_at = now
     await db.flush()

@@ -15,7 +15,12 @@ class TableBuyInService:
 
     @staticmethod
     async def reserve_buy_in(
-        db: AsyncSession, *, table: Table, user_id: int, buy_in_amount: int
+        db: AsyncSession,
+        *,
+        table: Table,
+        user_id: int,
+        buy_in_amount: int,
+        currency_type: CurrencyType | None = None,
     ) -> CurrencyType:
         """
         Check the correct wallet and deduct the buy-in atomically.
@@ -25,12 +30,7 @@ class TableBuyInService:
         if buy_in_amount <= 0:
             raise ValueError("Buy-in amount must be positive")
 
-        currency_type = getattr(table, "currency_type", CurrencyType.REAL)
-        if isinstance(currency_type, str):
-            try:
-                currency_type = CurrencyType(currency_type)
-            except ValueError:
-                currency_type = CurrencyType.REAL
+        currency_type = currency_type or CurrencyType.REAL
         success = await wallet_service.process_buy_in(
             db,
             user_id=user_id,

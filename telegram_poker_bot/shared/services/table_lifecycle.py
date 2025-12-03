@@ -20,7 +20,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram_poker_bot.shared.logging import get_logger
-from telegram_poker_bot.shared.models import Table, TableStatus, Seat
+from telegram_poker_bot.shared.models import (
+    Table,
+    TableStatus,
+    Seat,
+    TableTemplateType,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     pass
@@ -106,8 +111,6 @@ async def compute_prestart_expiry(
     Returns:
         (should_expire, reason) tuple
     """
-    from telegram_poker_bot.shared.config import get_settings
-
     # Only applies to WAITING tables
     if table.status != TableStatus.WAITING:
         return False, None
@@ -124,16 +127,15 @@ async def compute_prestart_expiry(
     if table.expires_at:
         now = datetime.now(timezone.utc)
         if table.expires_at <= now:
-            settings = get_settings()
-            # Rule 7: Check if table has invite_code (private table)
-            # Private tables get 60 minutes, public tables get 10 minutes
-            if table.invite_code:
-                ttl_minutes = settings.private_table_prestart_ttl_minutes
-            else:
-                ttl_minutes = settings.public_table_prestart_ttl_minutes
+            expiration_minutes = None
+            template = getattr(table, "template", None)
+            if template and template.config_json:
+                expiration_minutes = template.config_json.get("expiration_minutes")
             return (
                 True,
-                f"pre-game timeout ({ttl_minutes} minute join window expired)",
+                "pre-game timeout"
+                if expiration_minutes is None
+                else f"pre-game timeout ({expiration_minutes} minute join window expired)",
             )
 
     return False, None
@@ -302,7 +304,8 @@ async def check_and_enforce_lifecycle(
         (was_expired, reason) tuple
     """
     # Persistent tables never expire via lifecycle rules
-    if getattr(table, "is_persistent", False):
+    template_type = getattr(getattr(table, "template", None), "table_type", None)
+    if template_type == TableTemplateType.PERSISTENT:
         return False, None
 
     # Check pre-start expiry

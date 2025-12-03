@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from fastapi import HTTPException
 from sqlalchemy import select, inspect
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from pokerkit import Mode
 from pokerkit.games import NoLimitTexasHoldem, NoLimitShortDeckHoldem
@@ -31,6 +31,11 @@ from telegram_poker_bot.shared.models import (
 )
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.services import table_lifecycle
+from telegram_poker_bot.shared.services.table_service import (
+    get_table_currency_type,
+    get_table_game_variant,
+    get_template_config,
+)
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 
 
@@ -86,12 +91,11 @@ class PokerKitTableRuntime:
     def _resolve_game_class(self):
         """Return the GameVariant and PokerKit game class for this table."""
 
-        variant = getattr(self.table, "game_variant", GameVariant.NO_LIMIT_TEXAS_HOLDEM)
-        if isinstance(variant, str):
-            try:
-                variant = GameVariant(variant)
-            except ValueError:
-                variant = GameVariant.NO_LIMIT_TEXAS_HOLDEM
+        variant_value = get_table_game_variant(self.table)
+        try:
+            variant = GameVariant(variant_value)
+        except Exception:
+            variant = GameVariant.NO_LIMIT_TEXAS_HOLDEM
 
         if variant == GameVariant.NO_LIMIT_TEXAS_HOLDEM:
             return variant, NoLimitTexasHoldem
@@ -310,12 +314,7 @@ class PokerKitTableRuntime:
             raise ValueError("Cannot apply hand result without active hand/engine")
 
         hand_ended_event: Dict[str, Any] = {}
-        currency_type = getattr(self.table, "currency_type", CurrencyType.REAL)
-        if isinstance(currency_type, str):
-            try:
-                currency_type = CurrencyType(currency_type)
-            except ValueError:
-                currency_type = CurrencyType.REAL
+        currency_type = get_table_currency_type(self.table)
 
         try:
             async with db.begin_nested():
@@ -1123,12 +1122,7 @@ class PokerKitTableRuntime:
         Returns:
             State dictionary matching frontend expectations
         """
-        currency_type = getattr(self.table, "currency_type", CurrencyType.REAL)
-        if isinstance(currency_type, str):
-            try:
-                currency_type = CurrencyType(currency_type)
-            except ValueError:
-                currency_type = CurrencyType.REAL
+        currency_type = get_table_currency_type(self.table)
 
         if not self.engine:
             # No active hand
@@ -1516,9 +1510,12 @@ class PokerKitTableRuntimeManager:
         # Always fetch fresh table and seat data from database
         # Use with_for_update() to lock the table row during updates
         result = await db.execute(
-            select(Table).where(Table.id == table_id).with_for_update()
+            select(Table)
+            .options(joinedload(Table.template))
+            .where(Table.id == table_id)
+            .with_for_update()
         )
-        table = result.scalar_one_or_none()
+        table = result.scalars().unique().one_or_none()
         if not table:
             raise ValueError("Table not found")
         seats_result = await db.execute(
@@ -1650,7 +1647,7 @@ class PokerKitTableRuntimeManager:
             if not seat:
                 raise ValueError("User not seated at this table")
 
-            config = runtime.table.config_json or {}
+            config = get_template_config(runtime.table)
             small_blind = config.get("small_blind", settings.small_blind)
             big_blind = config.get("big_blind", settings.big_blind)
             ante = config.get("ante", 0)
@@ -1723,7 +1720,7 @@ class PokerKitTableRuntimeManager:
 
                 return {"table_ended": True, "reason": "Not enough players"}
 
-            config = runtime.table.config_json or {}
+            config = get_template_config(runtime.table)
             small_blind = config.get("small_blind", settings.small_blind)
             big_blind = config.get("big_blind", settings.big_blind)
 
@@ -1739,7 +1736,7 @@ class PokerKitTableRuntimeManager:
         lock = self._get_lock_for_table(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
-            config = runtime.table.config_json or {}
+            config = get_template_config(runtime.table)
             small_blind = config.get("small_blind", 25)
             big_blind = config.get("big_blind", 50)
 
@@ -1799,7 +1796,7 @@ class PokerKitTableRuntimeManager:
                 if user_seat is None:
                     raise ValueError("User not seated at this table")
 
-                config = runtime.table.config_json or {}
+                config = get_template_config(runtime.table)
                 small_blind = config.get("small_blind", settings.small_blind)
                 big_blind = config.get("big_blind", settings.big_blind)
                 ante = config.get("ante", 0)

@@ -25,6 +25,7 @@ from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,7 +50,6 @@ from telegram_poker_bot.shared.models import (
 from telegram_poker_bot.shared.types import (
     GameMode,
     TableCreateRequest,
-    TableVisibility,
 )
 from telegram_poker_bot.shared.services.group_invites import (
     create_invite,
@@ -1266,11 +1266,7 @@ async def register_current_user(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_group_game_invite(
-    small_blind: int = 25,
-    big_blind: int = 50,
-    starting_stack: int = 10000,
-    max_players: int = 8,
-    table_name: Optional[str] = None,
+    template_id: int = Query(..., description="Table template id"),
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1303,13 +1299,7 @@ async def create_group_game_invite(
 
     # Create a table for this invite
     table = await table_service.create_private_table(
-        db,
-        creator_user_id=user.id,
-        small_blind=small_blind,
-        big_blind=big_blind,
-        starting_stack=starting_stack,
-        max_players=max_players,
-        table_name=table_name or f"{auth.first_name or auth.username}'s Table",
+        db, creator_user_id=user.id, template_id=template_id
     )
 
     metadata = {
@@ -1532,7 +1522,9 @@ async def get_table_status(
     This endpoint does not require authentication and is used by the frontend
     to validate whether tables are still active before displaying them.
     """
-    result = await db.execute(select(Table).where(Table.id == table_id))
+    result = await db.execute(
+        select(Table).options(joinedload(Table.template)).where(Table.id == table_id)
+    )
     table = result.scalar_one_or_none()
 
     if not table:
@@ -1677,20 +1669,6 @@ async def join_table_by_invite(
 @api_app.post("/tables", status_code=status.HTTP_201_CREATED)
 async def create_table(
     payload: Optional[TableCreateRequest] = Body(None),
-    small_blind: Optional[int] = Query(default=None, ge=1),
-    big_blind: Optional[int] = Query(default=None, ge=1),
-    starting_stack: Optional[int] = Query(default=None, ge=1),
-    max_players: Optional[int] = Query(default=None, ge=2, le=9),
-    table_name: Optional[str] = Query(default=None),
-    visibility: Optional[str] = Query(
-        default=None, description="Table visibility: public or private"
-    ),
-    is_private: Optional[bool] = Query(
-        default=None, description="Legacy flag for privacy"
-    ),
-    auto_seat_host: Optional[bool] = Query(
-        default=None, description="Whether to seat the creator immediately"
-    ),
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1705,69 +1683,20 @@ async def create_table(
 
     user = await ensure_user(db, auth)
 
-    request_data = payload or TableCreateRequest()
+    if not payload or payload.template_id is None:
+        raise HTTPException(status_code=400, detail="template_id is required")
 
-    updates: Dict[str, Any] = {}
-    numeric_overrides = {
-        "small_blind": small_blind,
-        "big_blind": big_blind,
-        "starting_stack": starting_stack,
-        "max_players": max_players,
-    }
-    for field_name, value in numeric_overrides.items():
-        if value is not None:
-            updates[field_name] = value
+    auto_seat = payload.auto_seat_host if payload.auto_seat_host is not None else True
 
-    if table_name is not None:
-        updates["table_name"] = table_name
-
-    visibility_override = None
-    if visibility is not None:
-        visibility_override = visibility.strip().lower()
-    elif is_private is not None:
-        visibility_override = "private" if is_private else "public"
-
-    if visibility_override:
-        if visibility_override not in {"public", "private"}:
-            raise HTTPException(
-                status_code=400, detail=f"Invalid visibility: {visibility_override}"
-            )
-        updates["visibility"] = (
-            TableVisibility.PUBLIC
-            if visibility_override == "public"
-            else TableVisibility.PRIVATE
+    try:
+        table = await table_service.create_table(
+            db,
+            creator_user_id=user.id,
+            template_id=payload.template_id,
+            auto_seat_creator=auto_seat,
         )
-
-    if auto_seat_host is not None:
-        updates["auto_seat_host"] = auto_seat_host
-
-    if updates:
-        if hasattr(request_data, "model_copy"):
-            request_data = request_data.model_copy(update=updates)  # type: ignore[attr-defined]
-        else:  # pragma: no cover - Pydantic v1 fallback
-            request_data = request_data.copy(update=updates)
-
-    private_flag = request_data.visibility is TableVisibility.PRIVATE
-    auto_seat = (
-        request_data.auto_seat_host
-        if request_data.auto_seat_host is not None
-        else not private_flag
-    )
-
-    table = await table_service.create_table_with_config(
-        db,
-        creator_user_id=user.id,
-        small_blind=request_data.small_blind,
-        big_blind=request_data.big_blind,
-        starting_stack=request_data.starting_stack,
-        max_players=request_data.max_players,
-        table_name=request_data.table_name,
-        is_private=private_flag,
-        auto_seat_creator=auto_seat,
-        game_variant=request_data.game_variant,
-        is_persistent=False,
-        currency_type=request_data.currency_type,
-    )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     await db.commit()
 
@@ -2156,8 +2085,8 @@ async def delete_table(
         )
 
     # Check permissions: only the creator (host) can delete
-    config = table.config_json or {}
-    creator_user_id = table.creator_user_id or config.get("creator_user_id")
+    config = table_service.get_template_config(table)
+    creator_user_id = table.creator_user_id
 
     if creator_user_id is None or creator_user_id != user.id:
         raise HTTPException(

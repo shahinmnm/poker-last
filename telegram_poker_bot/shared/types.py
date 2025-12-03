@@ -57,15 +57,8 @@ class TableVisibility(str, Enum):
 class TableCreateRequest(BaseModel):
     """Validated payload for creating poker tables."""
 
-    table_name: Optional[str] = None
-    small_blind: int = Field(default=25, ge=1)
-    big_blind: int = Field(default=50, ge=1)
-    starting_stack: int = Field(default=10000, ge=1)
-    max_players: int = Field(default=8, ge=2, le=9)
-    visibility: TableVisibility = TableVisibility.PUBLIC
+    template_id: int = Field(gt=0)
     auto_seat_host: Optional[bool] = None
-    game_variant: GameVariant = GameVariant.NO_LIMIT_TEXAS_HOLDEM
-    currency_type: CurrencyType = CurrencyType.REAL
 
 
 class GroupGameInviteStatus(str, Enum):
@@ -97,12 +90,12 @@ class Table(BaseModel):
     status: TableStatus
     created_at: str
     updated_at: str
-    config_json: dict
+    template_id: int
     creator_user_id: Optional[int] = None
     is_public: bool = True
-    is_persistent: bool = False
-    game_variant: Optional[GameVariant] = GameVariant.NO_LIMIT_TEXAS_HOLDEM
-    currency_type: CurrencyType = CurrencyType.REAL
+    expires_at: Optional[str] = None
+    invite_code: Optional[str] = None
+    last_action_at: Optional[str] = None
 
 
 class Seat(BaseModel):
