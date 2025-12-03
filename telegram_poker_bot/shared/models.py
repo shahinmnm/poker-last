@@ -78,6 +78,7 @@ class TransactionType(str, PyEnum):
     Types:
     - DEPOSIT: External deposit to wallet
     - WITHDRAWAL: External withdrawal from wallet
+    - ADMIN_ADJUSTMENT: Manual adjustments performed by administrators
     - BUY_IN: Transfer from wallet to table
     - CASH_OUT: Transfer from table back to wallet
     - GAME_WIN: Game winnings (new transactions)
@@ -87,6 +88,7 @@ class TransactionType(str, PyEnum):
 
     DEPOSIT = "deposit"
     WITHDRAWAL = "withdrawal"
+    ADMIN_ADJUSTMENT = "admin_adjustment"
     BUY_IN = "buy_in"  # Wallet -> Table
     CASH_OUT = "cash_out"  # Table -> Wallet
     GAME_WIN = "game_win"
