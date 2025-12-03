@@ -20,7 +20,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PokerKit (local library)
-COPY setup.py README.rst /opt/pokerkit/
+COPY setup.py README.md /opt/pokerkit/
 COPY pokerkit/ /opt/pokerkit/pokerkit/
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir /opt/pokerkit
