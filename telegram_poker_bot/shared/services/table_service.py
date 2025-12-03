@@ -1231,3 +1231,65 @@ async def end_table(
     )
 
     return table
+
+
+async def try_seat_from_waitlist(
+    db: AsyncSession,
+    table_id: int,
+) -> Optional[Seat]:
+    """
+    Try to seat the next player from the waitlist.
+
+    This should be called when a seat becomes available (e.g., after a player leaves).
+    Only works for tables with has_waitlist=True.
+
+    Args:
+        db: Database session
+        table_id: ID of the table
+
+    Returns:
+        The newly created Seat if successful, None otherwise
+    """
+    from telegram_poker_bot.shared.services import waitlist_service
+
+    # Load table with template
+    table = await _load_table_with_template(db, table_id)
+
+    # Only process if table has waitlist enabled
+    if not table.template or not table.template.has_waitlist:
+        return None
+
+    # Get next waiting player
+    next_entry = await waitlist_service.get_next_waiting_player(db, table_id)
+    if not next_entry:
+        # No one waiting
+        return None
+
+    # Try to seat the player
+    try:
+        seat = await seat_user_at_table(db, table_id, next_entry.user_id)
+
+        # Mark waitlist entry as entered
+        await waitlist_service.mark_entry_entered(db, next_entry.id)
+
+        logger.info(
+            "Player seated from waitlist",
+            table_id=table_id,
+            user_id=next_entry.user_id,
+            seat_id=seat.id,
+            waitlist_entry_id=next_entry.id,
+        )
+
+        return seat
+
+    except ValueError as exc:
+        # Failed to seat (e.g., table full, user already seated)
+        logger.warning(
+            "Failed to seat player from waitlist",
+            table_id=table_id,
+            user_id=next_entry.user_id,
+            error=str(exc),
+        )
+        # Cancel this entry and try the next one
+        await waitlist_service.leave_waitlist(db, table_id, next_entry.user_id)
+        return None
