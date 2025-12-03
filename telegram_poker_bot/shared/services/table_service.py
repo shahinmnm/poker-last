@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import secrets
 import string
+from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, TYPE_CHECKING, Tuple
 
@@ -43,6 +44,117 @@ INVITE_CODE_LENGTH = 6
 INVITE_CODE_FALLBACK_LENGTH = 8
 
 
+@dataclass
+class TableRuleConfig:
+    """Normalized rule configuration pulled from a template."""
+
+    small_blind: int
+    big_blind: int
+    starting_stack: int
+    max_players: int
+    ante: int
+    raw_antes: int
+    raw_blinds_or_straddles: Tuple[int, int]
+    min_bet: int
+    bring_in: Optional[int]
+    rake_percentage: float
+    rake_cap: int
+    turn_timeout_seconds: Optional[int]
+    poker_mode: Optional[str]
+
+
+def _require_int(config: Dict[str, Any], key: str) -> int:
+    """Fetch and coerce an integer rule from template config."""
+
+    if key not in config:
+        raise ValueError(f"{key} is required in table template config")
+    try:
+        return int(config[key])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{key} must be an integer in template config") from exc
+
+
+def parse_template_rules(config: Dict[str, Any]) -> TableRuleConfig:
+    """Normalize required rule values from a template config."""
+
+    small_blind = _require_int(config, "small_blind")
+    big_blind = _require_int(config, "big_blind")
+    starting_stack = _require_int(config, "starting_stack")
+    max_players = _require_int(config, "max_players")
+
+    ante_value_raw = config.get("ante", config.get("raw_antes", 0))
+    try:
+        ante_value = int(ante_value_raw or 0)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("ante must be an integer in template config") from exc
+
+    raw_antes = ante_value
+
+    raw_blinds = config.get("raw_blinds_or_straddles") or (small_blind, big_blind)
+    if not isinstance(raw_blinds, (list, tuple)) or len(raw_blinds) != 2:
+        raise ValueError("raw_blinds_or_straddles must be a two-element sequence")
+    try:
+        raw_blinds_tuple = (int(raw_blinds[0]), int(raw_blinds[1]))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("raw_blinds_or_straddles values must be integers") from exc
+
+    min_bet_raw = config.get("min_bet", big_blind)
+    try:
+        min_bet = int(min_bet_raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("min_bet must be an integer in template config") from exc
+
+    bring_in_raw = config.get("bring_in")
+    bring_in = None
+    if bring_in_raw is not None:
+        try:
+            bring_in = int(bring_in_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("bring_in must be an integer in template config") from exc
+
+    rake_percentage_raw = config.get("rake_percentage", 0)
+    try:
+        rake_percentage = float(rake_percentage_raw or 0)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("rake_percentage must be numeric in template config") from exc
+
+    rake_cap_raw = config.get("rake_cap", 0)
+    try:
+        rake_cap = int(rake_cap_raw or 0)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("rake_cap must be an integer in template config") from exc
+
+    timeout_raw = config.get("turn_timeout_seconds")
+    turn_timeout_seconds = None
+    if timeout_raw is not None:
+        try:
+            turn_timeout_seconds = int(timeout_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("turn_timeout_seconds must be an integer in template config") from exc
+
+    poker_mode = None
+    if "poker_mode" in config:
+        poker_mode = str(config.get("poker_mode") or "").strip() or None
+    elif "mode" in config:
+        poker_mode = str(config.get("mode") or "").strip() or None
+
+    return TableRuleConfig(
+        small_blind=small_blind,
+        big_blind=big_blind,
+        starting_stack=starting_stack,
+        max_players=max_players,
+        ante=ante_value,
+        raw_antes=raw_antes,
+        raw_blinds_or_straddles=raw_blinds_tuple,
+        min_bet=min_bet,
+        bring_in=bring_in,
+        rake_percentage=rake_percentage,
+        rake_cap=rake_cap,
+        turn_timeout_seconds=turn_timeout_seconds,
+        poker_mode=poker_mode,
+    )
+
+
 def get_template_config(table: Table) -> Dict[str, Any]:
     """Return the configuration dict from a table's template."""
 
@@ -79,6 +191,7 @@ def get_table_currency_type(table: Table) -> CurrencyType:
     """Return the table currency type from its template configuration."""
 
     config = get_template_config(table)
+    rules = parse_template_rules(config)
     return _coerce_currency_type(config.get("currency_type"))
 
 
@@ -190,6 +303,7 @@ async def create_default_template(
         "expiration_minutes": 10,
         "currency_type": CurrencyType.REAL.value,
         "game_variant": GameVariant.NO_LIMIT_TEXAS_HOLDEM.value,
+        "turn_timeout_seconds": 25,
     }
     if config_overrides:
         base_config.update(config_overrides)
@@ -221,6 +335,7 @@ async def create_table(
         raise ValueError(f"TableTemplate {template_id} not found")
 
     config = template.config_json or {}
+    rules = parse_template_rules(config)
 
     if template.table_type == TableTemplateType.PERSISTENT and not template.has_waitlist:
         raise ValueError("Persistent tables must enable waitlists in their template")
@@ -240,8 +355,8 @@ async def create_table(
     if template.table_type == TableTemplateType.PRIVATE and allow_invite_code is False:
         raise ValueError("Private table templates must allow invite codes")
 
-    max_players = int(config.get("max_players", 8))
-    starting_stack = int(config.get("starting_stack", 10000))
+    max_players = rules.max_players
+    starting_stack = rules.starting_stack
     table_name = config.get("table_name") or f"Table #{datetime.now().strftime('%H%M%S')}"
     currency_type = _coerce_currency_type(config.get("currency_type"))
     game_variant = _coerce_game_variant(config.get("game_variant"))
@@ -416,7 +531,8 @@ async def seat_user_at_table(
 
     table = await _load_table_with_template(db, table_id)
     config = get_template_config(table)
-    max_players = int(config.get("max_players", 8))
+    rules = parse_template_rules(config)
+    max_players = rules.max_players
 
     result = await db.execute(
         select(Seat)
@@ -453,7 +569,7 @@ async def seat_user_at_table(
             break
         position += 1
 
-    starting_stack = int(config.get("starting_stack", 10000))
+    starting_stack = rules.starting_stack
     buy_in_min = config.get("buy_in_min")
     buy_in_max = config.get("buy_in_max")
     buy_in_amount = starting_stack
@@ -571,7 +687,8 @@ async def leave_table(
 
     table = await _load_table_with_template(db, table_id)
     config = get_template_config(table)
-    starting_stack = int(config.get("starting_stack", 10000))
+    rules = parse_template_rules(config)
+    starting_stack = rules.starting_stack
     session_profit = seat.chips - starting_stack
 
     logger.info(
@@ -715,7 +832,7 @@ async def get_table_info(
             "display_name": host_user.username or f"Player #{host_user.id}",
         }
 
-    max_players = config.get("max_players", 8)
+    max_players = rules.max_players
     viewer_is_creator = viewer_user_id is not None and viewer_user_id == creator_user_id
 
     from telegram_poker_bot.shared.models import Hand, HandStatus
@@ -761,9 +878,6 @@ async def get_table_info(
         "status": table.status.value,
         "player_count": player_count,
         "max_players": max_players,
-        "small_blind": config.get("small_blind", 25),
-        "big_blind": config.get("big_blind", 50),
-        "starting_stack": config.get("starting_stack", 10000),
         "table_name": config.get("table_name"),
         "is_private": is_private,
         "is_public": is_public,
@@ -771,9 +885,6 @@ async def get_table_info(
         "creator_user_id": creator_user_id,
         "group_id": table.group_id,
         "group_title": group_title,
-        "is_persistent": table.template.table_type == TableTemplateType.PERSISTENT,
-        "game_variant": _coerce_game_variant(config.get("game_variant")),
-        "currency_type": _coerce_currency_type(config.get("currency_type")).value,
         "created_at": table.created_at.isoformat() if table.created_at else None,
         "updated_at": table.updated_at.isoformat() if table.updated_at else None,
         "expires_at": table.expires_at.isoformat() if table.expires_at else None,
@@ -907,6 +1018,7 @@ async def list_available_tables(
         payload: List[Dict[str, Any]] = []
         for table in tables:
             config = get_template_config(table)
+            rules = parse_template_rules(config)
             creator_user_id = table.creator_user_id
             host_user = creator_map.get(creator_user_id) if creator_user_id else None
             host_info = None
@@ -919,7 +1031,7 @@ async def list_available_tables(
 
             is_public, is_private, visibility = _resolve_visibility_flags(table)
             player_count = seat_counts.get(table.id, 0)
-            max_players = config.get("max_players", 8)
+            max_players = rules.max_players
 
             payload.append(
                 {
@@ -928,9 +1040,6 @@ async def list_available_tables(
                     "status": table.status.value,
                     "player_count": player_count,
                     "max_players": max_players,
-                    "small_blind": config.get("small_blind", 25),
-                    "big_blind": config.get("big_blind", 50),
-                    "starting_stack": config.get("starting_stack", 10000),
                     "table_name": config.get("table_name", f"Table #{table.id}"),
                     "host": host_info,
                     "created_at": (
@@ -948,12 +1057,6 @@ async def list_available_tables(
                     "visibility": visibility,
                     "creator_user_id": creator_user_id,
                     "viewer": None,
-                    "is_persistent": table.template.table_type
-                    == TableTemplateType.PERSISTENT,
-                    "game_variant": _coerce_game_variant(config.get("game_variant")),
-                    "currency_type": _coerce_currency_type(
-                        config.get("currency_type")
-                    ).value,
                     "template": {
                         "id": table.template.id,
                         "table_type": table.template.table_type.value,
@@ -976,6 +1079,18 @@ async def list_available_tables(
         return []
 
     tables_data = [dict(entry) for entry in cached_payload]
+
+    legacy_keys = {
+        "small_blind",
+        "big_blind",
+        "starting_stack",
+        "game_variant",
+        "currency_type",
+        "is_persistent",
+    }
+    for entry in tables_data:
+        for key in legacy_keys:
+            entry.pop(key, None)
 
     if viewer_user_id is not None and tables_data:
         table_ids = [entry["table_id"] for entry in tables_data]

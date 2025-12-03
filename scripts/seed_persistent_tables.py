@@ -1,24 +1,25 @@
-"""Seed predefined persistent poker tables.
-
-Run this script to insert permanent lobby tables that never expire.
-"""
+"""Seed predefined persistent poker tables using table templates."""
 
 import asyncio
-from typing import List
+from typing import Any, Dict, List
 
 from sqlalchemy import select
 
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.database import get_db_session
 from telegram_poker_bot.shared.models import (
+    CurrencyType,
     GameMode,
     GameVariant,
     Table,
     TableStatus,
+    TableTemplate,
+    TableTemplateType,
 )
+from telegram_poker_bot.shared.services import table_service
 
 
-PERSISTENT_TABLES: List[dict] = [
+PERSISTENT_TABLES: List[Dict[str, Any]] = [
     {
         "table_name": "NLHE - Micro Stakes (1/2)",
         "small_blind": 1,
@@ -46,43 +47,75 @@ PERSISTENT_TABLES: List[dict] = [
 ]
 
 
+def _build_template_config(entry: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize a table entry into a template config payload."""
+
+    currency = entry.get("currency_type", CurrencyType.REAL)
+    currency_value = currency.value if isinstance(currency, CurrencyType) else str(currency)
+
+    variant = entry.get("game_variant", GameVariant.NO_LIMIT_TEXAS_HOLDEM)
+    variant_value = variant.value if isinstance(variant, GameVariant) else str(variant)
+
+    return {
+        "table_name": entry["table_name"],
+        "small_blind": int(entry["small_blind"]),
+        "big_blind": int(entry["big_blind"]),
+        "starting_stack": int(entry["starting_stack"]),
+        "max_players": int(entry.get("max_players", 8)),
+        "game_variant": variant_value,
+        "currency_type": currency_value,
+        "allow_invite_code": False,
+    }
+
+
 async def seed_persistent_tables() -> None:
     _ = get_settings()
     async with get_db_session() as session:
         for entry in PERSISTENT_TABLES:
             name = entry["table_name"]
-            # Avoid duplicates on reruns
-            existing = await session.execute(
-                select(Table).where(
-                    Table.is_persistent.is_(True),
-                    Table.config_json["table_name"].astext == name,
-                )
+            config = _build_template_config(entry)
+
+            template = await session.scalar(
+                select(TableTemplate).where(TableTemplate.name == name)
             )
-            if existing.scalar_one_or_none():
-                print(f"Skipping existing persistent table: {name}")
+            if template:
+                template.table_type = TableTemplateType.PERSISTENT
+                template.has_waitlist = True
+                template.config_json = config
+                action = "Updated"
+            else:
+                template = await table_service.create_table_template(
+                    session,
+                    name=name,
+                    table_type=TableTemplateType.PERSISTENT,
+                    has_waitlist=True,
+                    config=config,
+                )
+                action = "Created"
+
+            await session.flush()
+            print(f"{action} template '{name}' (id={template.id})")
+
+            existing_table = await session.scalar(
+                select(Table).where(Table.template_id == template.id)
+            )
+            if existing_table:
+                existing_table.status = TableStatus.WAITING
+                existing_table.expires_at = None
+                existing_table.is_public = True
+                print(
+                    f"Persistent table already exists for '{name}' (table_id={existing_table.id})"
+                )
                 continue
 
-            table = Table(
+            table = await table_service.create_table(
+                session,
+                creator_user_id=None,
+                template_id=template.id,
                 mode=GameMode.ANONYMOUS,
-                status=TableStatus.WAITING,
-                is_public=True,
-                is_persistent=True,
-                invite_code=None,
-                expires_at=None,
-                game_variant=entry["game_variant"],
-                config_json={
-                    "table_name": name,
-                    "small_blind": entry["small_blind"],
-                    "big_blind": entry["big_blind"],
-                    "starting_stack": entry["starting_stack"],
-                    "max_players": entry["max_players"],
-                    "visibility": "public",
-                    "is_private": False,
-                    "creator_user_id": None,
-                },
+                auto_seat_creator=False,
             )
-            session.add(table)
-            print(f"Created persistent table: {name}")
+            print(f"Created persistent table '{name}' (table_id={table.id})")
 
         await session.commit()
         print("Persistent table seeding complete.")
