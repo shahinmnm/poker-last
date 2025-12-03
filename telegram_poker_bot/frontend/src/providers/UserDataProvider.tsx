@@ -73,11 +73,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     if (!initData) return
     
     setLoading(true)
-    await Promise.all([
-      refetchBalance(),
-      refetchStats(),
-    ])
-    setLoading(false)
+    try {
+      await Promise.all([refetchBalance(), refetchStats()])
+    } catch (err) {
+      console.warn('Failed to refresh user data', err)
+    } finally {
+      setLoading(false)
+    }
   }, [initData, refetchBalance, refetchStats])
 
   useEffect(() => {
