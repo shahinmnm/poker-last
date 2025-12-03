@@ -1,6 +1,6 @@
 """Add admin_adjustment to transactiontype enum.
 
-Revision ID: 019_admin_adjustment_transaction_type
+Revision ID: 019_admin_adjust_tx_type
 Revises: 018_dual_currency_support
 Create Date: 2025-03-07 00:00:00.000000
 """
@@ -9,7 +9,7 @@ from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = "019_admin_adjustment_transaction_type"
+revision = "019_admin_adjust_tx_type"
 down_revision = "018_dual_currency_support"
 branch_labels = None
 depends_on = None
