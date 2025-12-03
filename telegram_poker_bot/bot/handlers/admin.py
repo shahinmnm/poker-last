@@ -32,7 +32,7 @@ from telegram_poker_bot.shared.models import (
     TransactionType,
     User,
 )
-from telegram_poker_bot.shared.services import wallet_service
+from telegram_poker_bot.shared.services import user_service, wallet_service
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -60,9 +60,38 @@ def _is_admin(update: Update) -> bool:
 def _admin_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🏦 Treasury", callback_data="admin_treasury")],
-            [InlineKeyboardButton("👀 Active Tables", callback_data="admin_live_ops")],
+            [
+                InlineKeyboardButton("🏦 Treasury", callback_data="admin_treasury"),
+                InlineKeyboardButton("🛠 User Desk", callback_data="admin_intel"),
+            ],
+            [
+                InlineKeyboardButton("👀 Active Tables", callback_data="admin_live_ops"),
+                InlineKeyboardButton("📊 Snapshot", callback_data="admin_intel_stats"),
+            ],
             [InlineKeyboardButton("❌ Close", callback_data="admin_close")],
+        ]
+    )
+
+
+def _intel_menu_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🪪 Lookup ID ↔ Username", callback_data="admin_intel_lookup"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "💰 Check Balances", callback_data="admin_intel_balance"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📈 User Snapshot", callback_data="admin_intel_stats"
+                )
+            ],
+            [InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")],
         ]
     )
 
@@ -114,6 +143,31 @@ def _confirmation_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def _live_ops_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🔄 Refresh", callback_data="admin_live_ops")],
+            [InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")],
+        ]
+    )
+
+
+def _intel_result_keyboard(
+    *, repeat_action: str, include_stats: bool = True
+) -> InlineKeyboardMarkup:
+    buttons = [
+        [InlineKeyboardButton("🔁 Again", callback_data=repeat_action)],
+        [InlineKeyboardButton("🛠 User Desk", callback_data="admin_intel_menu")],
+    ]
+    if include_stats:
+        buttons.insert(
+            0,
+            [InlineKeyboardButton("📈 Snapshot", callback_data="admin_intel_stats")],
+        )
+    buttons.append([InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")])
+    return InlineKeyboardMarkup(buttons)
+
+
 def _reset_admin_context(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Clear admin session data."""
     context.user_data.pop("admin_context", None)
@@ -125,6 +179,24 @@ def _get_admin_context(context: ContextTypes.DEFAULT_TYPE) -> Dict[str, Any]:
         ctx = {}
         context.user_data["admin_context"] = ctx
     return ctx
+
+
+async def go_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Return to the main admin menu."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+    _reset_admin_context(context)
+    query = update.callback_query
+    if query:
+        await query.answer()
+        target = query.message
+    else:
+        target = update.effective_message
+    if target:
+        await target.reply_text(
+            "♠️ Poker Admin Control Room", reply_markup=_admin_menu_keyboard()
+        )
+    return AdminState.MENU
 
 
 async def _handle_unauthorized(update: Update) -> int:
@@ -141,6 +213,108 @@ async def _handle_unauthorized(update: Update) -> int:
     return ConversationHandler.END
 
 
+async def show_intel_menu(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    """Show user intelligence tools menu."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+    query = update.callback_query
+    if query:
+        await query.answer()
+        target = query.message
+    else:
+        target = update.effective_message
+    if target:
+        await target.reply_text("🛠 User Intelligence Desk", reply_markup=_intel_menu_keyboard())
+    return AdminState.INTEL_MENU
+
+
+async def _resolve_user(session, identifier: str) -> Optional[User]:
+    """Find user by id, tg_user_id, or username."""
+    raw = (identifier or "").strip()
+    if not raw:
+        return None
+
+    numeric_value: Optional[int] = None
+    try:
+        numeric_value = int(raw)
+    except ValueError:
+        numeric_value = None
+
+    if numeric_value is not None:
+        result = await session.execute(
+            select(User).where(
+                or_(User.id == numeric_value, User.tg_user_id == numeric_value)
+            )
+        )
+        user = result.scalar_one_or_none()
+        if user:
+            return user
+
+    username = raw.lstrip("@")
+    if not username:
+        return None
+
+    result = await session.execute(
+        select(User).where(func.lower(User.username) == username.lower())
+    )
+    return result.scalar_one_or_none()
+
+
+async def _ensure_balances(session, user_id: int) -> Dict[str, int]:
+    """Ensure wallet exists and return balances."""
+    await wallet_service.ensure_wallet(session, user_id)
+    balances = await wallet_service.get_balances(session, user_id)
+    await session.commit()
+    return balances
+
+
+def _format_user_card(user: User, balances: Optional[Dict[str, int]] = None) -> str:
+    """Pretty print user snapshot."""
+    lines = [
+        "🪪 **User Card**",
+        f"ID: {user.id}",
+        f"TG: {user.tg_user_id or '-'}",
+        (
+            f"Username: {_escape_md('@' + user.username)}"
+            if user.username
+            else "Username: -"
+        ),
+    ]
+    if balances:
+        lines.extend(
+            [
+                f"Real: {balances.get('balance_real', 0):,} chips",
+                f"Play: {balances.get('balance_play', 0):,} play",
+            ]
+        )
+    if getattr(user, "last_seen_at", None):
+        lines.append(f"Last seen: {user.last_seen_at}")
+    if getattr(user, "first_seen_at", None):
+        lines.append(f"Joined: {user.first_seen_at}")
+    return "\n".join(lines)
+
+
+def _format_stats(stats: Dict[str, Any]) -> str:
+    """Format compact stats for admins."""
+    parts = [
+        "📈 **User Snapshot**",
+        f"Hands: {stats.get('hands_played', 0):,}",
+        f"Tables: {stats.get('tables_played', 0):,}",
+        f"Win Rate: {stats.get('win_rate', 0)}%",
+        f"Total Profit: {stats.get('total_profit', 0):,}",
+        f"Biggest Pot: {stats.get('biggest_pot', 0):,}",
+    ]
+    vpip = stats.get("vpip")
+    pfr = stats.get("pfr")
+    if vpip is not None:
+        parts.append(f"VPIP: {vpip}%")
+    if pfr is not None:
+        parts.append(f"PFR: {pfr}%")
+    return "\n".join(parts)
+
+
 async def start_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Entry point for /admin."""
     if not _is_admin(update):
@@ -152,7 +326,8 @@ async def start_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return ConversationHandler.END
 
     await message.reply_text(
-        "♠️ Poker Admin Control Room", reply_markup=_admin_menu_keyboard()
+        "♠️ Poker Admin Control Room\nPick a console below.",
+        reply_markup=_admin_menu_keyboard(),
     )
     return AdminState.MENU
 
@@ -168,6 +343,9 @@ async def handle_menu_selection(
         return await _handle_unauthorized(update)
 
     data = query.data if query else ""
+    if data == "admin_home":
+        return await go_home(update, context)
+
     if data == "admin_treasury":
         _reset_admin_context(context)
         await query.edit_message_text(
@@ -178,6 +356,9 @@ async def handle_menu_selection(
     if data == "admin_live_ops":
         await show_live_ops(update, context)
         return AdminState.MENU
+
+    if data in {"admin_intel", "admin_intel_menu", "admin_intel_stats"}:
+        return await show_intel_menu(update, context)
 
     if data == "admin_close":
         _reset_admin_context(context)
@@ -435,7 +616,9 @@ async def show_live_ops(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     if not tables_info:
-        await target.reply_text("No active games running.")
+        await target.reply_text(
+            "No active games running.", reply_markup=_live_ops_keyboard()
+        )
         return
 
     lines = ["🃏 **Active Tables**", "------------------"]
@@ -448,7 +631,9 @@ async def show_live_ops(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     lines.append("------------------")
     lines.append(f"Total Active Games: {len(tables_info)}")
 
-    await target.reply_text("\n".join(lines), parse_mode="Markdown")
+    await target.reply_text(
+        "\n".join(lines), parse_mode="Markdown", reply_markup=_live_ops_keyboard()
+    )
 
 
 async def _fetch_active_tables(session) -> List[Dict[str, Any]]:
@@ -523,6 +708,179 @@ def _variant_label(variant_value: str) -> str:
     return "NLH Texas Hold'em"
 
 
+async def handle_intel_menu_selection(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    """Dispatch actions inside the user intel desk."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+
+    query = update.callback_query
+    if query:
+        await query.answer()
+        target = query.message
+    else:
+        target = update.effective_message
+
+    data = query.data if query else ""
+    if data == "admin_home":
+        return await go_home(update, context)
+
+    if data == "admin_intel_menu":
+        return await show_intel_menu(update, context)
+
+    prompt = "Send @username or numeric User ID:"
+    if data == "admin_intel_lookup":
+        if target:
+            await target.reply_text(prompt, reply_markup=_intel_menu_keyboard())
+        return AdminState.USER_LOOKUP
+
+    if data in {"admin_intel_balance", "admin_balance_again"}:
+        if target:
+            await target.reply_text(
+                "Balance check\nSend @username or user id.",
+                reply_markup=_intel_menu_keyboard(),
+            )
+        return AdminState.USER_BALANCE
+
+    if data in {"admin_intel_stats", "admin_stats_again"}:
+        if target:
+            await target.reply_text(
+                "User snapshot\nSend @username or user id.",
+                reply_markup=_intel_menu_keyboard(),
+            )
+        return AdminState.USER_STATS
+
+    if data == "admin_lookup_again":
+        if target:
+            await target.reply_text(prompt, reply_markup=_intel_menu_keyboard())
+        return AdminState.USER_LOOKUP
+
+    return AdminState.INTEL_MENU
+
+
+def _escape_md(value: str) -> str:
+    """Escape minimal Markdown characters."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace("_", "\\_")
+        .replace("*", "\\*")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+    )
+
+
+async def handle_lookup_input(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    """Resolve user by id/username and show card."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+    message = update.effective_message
+    if not message or not message.text:
+        return AdminState.USER_LOOKUP
+
+    async with AsyncSessionLocal() as session:
+        user = await _resolve_user(session, message.text)
+        if not user:
+            await message.reply_text(
+                "No user found. Try again or jump back.",
+                reply_markup=_intel_result_keyboard(
+                    repeat_action="admin_lookup_again", include_stats=False
+                ),
+            )
+            return AdminState.USER_LOOKUP
+
+        balances = await _ensure_balances(session, user.id)
+
+    card = _format_user_card(user, balances)
+    await message.reply_text(
+        card,
+        reply_markup=_intel_result_keyboard(
+            repeat_action="admin_lookup_again", include_stats=True
+        ),
+        parse_mode="Markdown",
+    )
+    return AdminState.USER_LOOKUP
+
+
+async def handle_balance_input(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    """Show balances for a user."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+    message = update.effective_message
+    if not message or not message.text:
+        return AdminState.USER_BALANCE
+
+    async with AsyncSessionLocal() as session:
+        user = await _resolve_user(session, message.text)
+        if not user:
+            await message.reply_text(
+                "No user found for that handle/id.",
+                reply_markup=_intel_result_keyboard(
+                    repeat_action="admin_balance_again", include_stats=False
+                ),
+            )
+            return AdminState.USER_BALANCE
+
+        balances = await _ensure_balances(session, user.id)
+
+    body = [
+        "💰 **Balances**",
+        f"User: {_escape_md('@' + user.username) if user.username else str(user.id)}",
+        f"Real: {balances.get('balance_real', 0):,} chips",
+        f"Play: {balances.get('balance_play', 0):,} play",
+    ]
+    await message.reply_text(
+        "\n".join(body),
+        parse_mode="Markdown",
+        reply_markup=_intel_result_keyboard(
+            repeat_action="admin_balance_again", include_stats=True
+        ),
+    )
+    return AdminState.USER_BALANCE
+
+
+async def handle_stats_input(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    """Show stats + balances for a user."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+    message = update.effective_message
+    if not message or not message.text:
+        return AdminState.USER_STATS
+
+    async with AsyncSessionLocal() as session:
+        user = await _resolve_user(session, message.text)
+        if not user:
+            await message.reply_text(
+                "No user found. Try another.",
+                reply_markup=_intel_result_keyboard(
+                    repeat_action="admin_stats_again", include_stats=False
+                ),
+            )
+            return AdminState.USER_STATS
+
+        balances = await _ensure_balances(session, user.id)
+        stats = await user_service.get_user_stats_from_aggregated(session, user.id)
+
+    card = _format_user_card(user, balances)
+    stats_block = _format_stats(stats)
+    await message.reply_text(
+        f"{card}\n\n{stats_block}",
+        parse_mode="Markdown",
+        reply_markup=_intel_result_keyboard(
+            repeat_action="admin_stats_again", include_stats=False
+        ),
+    )
+    return AdminState.USER_STATS
+
+
 def build_admin_handler() -> ConversationHandler:
     """Create the admin conversation handler for registration in the bot."""
     return ConversationHandler(
@@ -530,33 +888,69 @@ def build_admin_handler() -> ConversationHandler:
         states={
             AdminState.MENU: [
                 CallbackQueryHandler(
-                    handle_menu_selection, pattern="^admin_(treasury|live_ops|close)$"
-                )
+                    handle_menu_selection,
+                    pattern="^admin_(treasury|live_ops|close|intel|intel_stats|home|intel_menu)$",
+                ),
+            ],
+            AdminState.INTEL_MENU: [
+                CallbackQueryHandler(
+                    go_home, pattern="^admin_home$",
+                ),
+                CallbackQueryHandler(
+                    handle_intel_menu_selection,
+                    pattern="^admin_(intel_lookup|intel_balance|intel_stats|lookup_again|balance_again|stats_again|intel_menu)$",
+                ),
             ],
             AdminState.TREASURY_OPERATION: [
+                CallbackQueryHandler(go_home, pattern="^admin_home$"),
                 CallbackQueryHandler(
                     handle_operation_selection,
                     pattern="^admin_operation_(deposit|withdraw|back)$",
                 )
             ],
             AdminState.TREASURY_CURRENCY: [
+                CallbackQueryHandler(go_home, pattern="^admin_home$"),
                 CallbackQueryHandler(
                     handle_currency_selection, pattern="^admin_currency_(real|play|back)$"
                 )
             ],
             AdminState.WAITING_FOR_USER_ID: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_id),
+                CallbackQueryHandler(go_home, pattern="^admin_home$"),
                 CallbackQueryHandler(
                     handle_currency_selection, pattern="^admin_currency_back$"
                 ),
             ],
             AdminState.WAITING_FOR_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount),
+                CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.CONFIRMATION: [
                 CallbackQueryHandler(
                     handle_confirmation, pattern="^admin_confirm_(yes|no)$"
-                )
+                ),
+                CallbackQueryHandler(go_home, pattern="^admin_home$"),
+            ],
+            AdminState.USER_LOOKUP: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_lookup_input),
+                CallbackQueryHandler(
+                    handle_intel_menu_selection,
+                    pattern="^admin_(lookup_again|intel_menu|home|intel_stats)$",
+                ),
+            ],
+            AdminState.USER_BALANCE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_balance_input),
+                CallbackQueryHandler(
+                    handle_intel_menu_selection,
+                    pattern="^admin_(balance_again|intel_menu|home|intel_stats)$",
+                ),
+            ],
+            AdminState.USER_STATS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_stats_input),
+                CallbackQueryHandler(
+                    handle_intel_menu_selection,
+                    pattern="^admin_(stats_again|intel_menu|home|intel_stats)$",
+                ),
             ],
         },
         fallbacks=[CommandHandler("cancel", start_admin)],
