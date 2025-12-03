@@ -371,6 +371,79 @@ manager = ConnectionManager()
 lobby_manager = LobbyConnectionManager()
 
 
+LEGACY_RULE_KEYS = {
+    "small_blind",
+    "big_blind",
+    "rake",
+    "rake_percentage",
+    "rake_cap",
+    "buyin",
+    "buy_in",
+    "buy_in_min",
+    "buy_in_max",
+    "turn_timeout",
+    "turn_timeout_seconds",
+    "expiration_minutes",
+    "expiration",
+    "starting_stack",
+}
+
+
+def _prune_legacy_rule_fields(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Strip legacy rule fields from payload dictionaries."""
+
+    if not isinstance(payload, dict):
+        return payload
+
+    sanitized = dict(payload)
+    for key in LEGACY_RULE_KEYS:
+        sanitized.pop(key, None)
+    return sanitized
+
+
+async def _attach_template_to_payload(
+    db: AsyncSession, table_id: int, payload: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Embed template metadata and drop legacy rule fields."""
+
+    if not isinstance(payload, dict):
+        return payload
+
+    sanitized = _prune_legacy_rule_fields(payload)
+
+    result = await db.execute(
+        select(Table).options(joinedload(Table.template)).where(Table.id == table_id)
+    )
+    table = result.scalar_one_or_none()
+
+    if not table or not table.template:
+        return sanitized
+
+    config = table.template.config_json or {}
+    template_block = {
+        "id": table.template.id,
+        "table_type": table.template.table_type.value,
+        "config": config,
+        "has_waitlist": table.template.has_waitlist,
+    }
+
+    sanitized["template"] = template_block
+    sanitized.setdefault("table_id", table.id)
+    if sanitized.get("table_name") is None:
+        sanitized["table_name"] = config.get("table_name")
+
+    nested_state = sanitized.get("state")
+    if isinstance(nested_state, dict):
+        nested_state_clean = _prune_legacy_rule_fields(nested_state)
+        nested_state_clean["template"] = template_block
+        nested_state_clean.setdefault("table_id", table.id)
+        if nested_state_clean.get("table_name") is None:
+            nested_state_clean["table_name"] = config.get("table_name")
+        sanitized["state"] = nested_state_clean
+
+    return sanitized
+
+
 async def _broadcast_lobby_table_update(
     table_id: int, status: TableStatus, reason: str
 ) -> None:
@@ -420,7 +493,11 @@ async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> No
         return
 
     if result.get("state"):
-        await manager.broadcast(table_id, result["state"])
+        async with get_db_session() as session:
+            state = await _attach_template_to_payload(
+                session, table_id, result["state"]
+            )
+            await manager.broadcast(table_id, state)
 
 
 async def _auto_complete_inter_hand(table_id: int, hand_no: int) -> None:
@@ -1308,11 +1385,6 @@ async def create_group_game_invite(
         "creator_last_name": auth.last_name,
         "language": language,
         "table_id": table.id,
-        "small_blind": small_blind,
-        "big_blind": big_blind,
-        "starting_stack": starting_stack,
-        "max_players": max_players,
-        "table_name": table_name,
     }
 
     invite = await create_invite(
@@ -1747,6 +1819,7 @@ async def sit_at_table(
         try:
             runtime_mgr = get_pokerkit_runtime_manager()
             full_state = await runtime_mgr.get_state(db, table_id, viewer_user_id=None)
+            full_state = await _attach_template_to_payload(db, table_id, full_state)
             await manager.broadcast(table_id, full_state)
         except Exception as broadcast_err:
             logger.error(
@@ -1949,6 +2022,7 @@ async def start_table(
         state = await get_pokerkit_runtime_manager().start_game(db, table_id)
         await db.commit()
 
+        state = await _attach_template_to_payload(db, table_id, state)
         await manager.broadcast(table_id, state)
 
         logger.info(
@@ -1974,7 +2048,7 @@ async def start_table(
     if state.get("hand_result"):
         viewer_state["hand_result"] = state["hand_result"]
 
-    return viewer_state
+    return await _attach_template_to_payload(db, table_id, viewer_state)
 
 
 @api_app.post("/tables/{table_id}/next-hand")
@@ -2016,7 +2090,7 @@ async def start_next_hand(
         return {"table_ended": True, "reason": result.get("reason")}
 
     viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
-    return viewer_state
+    return await _attach_template_to_payload(db, table_id, viewer_state)
 
 
 @api_app.get("/tables/{table_id}/state")
@@ -2033,7 +2107,7 @@ async def get_table_state(
             viewer_id = user.id
     try:
         state = await get_pokerkit_runtime_manager().get_state(db, table_id, viewer_id)
-        return state
+        return await _attach_template_to_payload(db, table_id, state)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -2373,9 +2447,10 @@ async def submit_action(
                 if next_state.get("hand_result"):
                     viewer_state["hand_result"] = next_state["hand_result"]
 
-                return viewer_state
+                return await _attach_template_to_payload(db, table_id, viewer_state)
 
-            return await runtime_mgr.get_state(db, table_id, user.id)
+            state = await runtime_mgr.get_state(db, table_id, user.id)
+            return await _attach_template_to_payload(db, table_id, state)
 
         public_state = await runtime_mgr.handle_action(
             db,
@@ -2385,6 +2460,7 @@ async def submit_action(
             amount=action.amount,
         )
 
+        public_state = await _attach_template_to_payload(db, table_id, public_state)
         await manager.broadcast(table_id, public_state)
 
         if public_state.get("inter_hand_wait"):
@@ -2402,7 +2478,7 @@ async def submit_action(
         if public_state.get("hand_result"):
             viewer_state["hand_result"] = public_state["hand_result"]
 
-        return viewer_state
+        return await _attach_template_to_payload(db, table_id, viewer_state)
     except HandCompleteError:
         raise HTTPException(
             status_code=400,

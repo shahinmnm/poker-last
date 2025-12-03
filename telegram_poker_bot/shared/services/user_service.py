@@ -20,6 +20,7 @@ from telegram_poker_bot.shared.models import (
 from telegram_poker_bot.shared.services.table_service import (
     get_template_config,
     get_table_currency_type,
+    parse_template_rules,
 )
 
 
@@ -223,6 +224,7 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
     tables_data = []
     for table, seat in rows:
         config = get_template_config(table)
+        rules = parse_template_rules(config)
         creator_user_id = table.creator_user_id
         host_user = creator_map.get(creator_user_id) if creator_user_id else None
         host_info = None
@@ -235,8 +237,8 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
 
         is_public = _resolve_is_public(table)
         player_count = seat_counts.get(table.id, 0)
-        max_players = config.get("max_players", 8)
-        starting_stack = config.get("starting_stack", 10000)
+        max_players = rules.max_players
+        starting_stack = rules.starting_stack
 
         tables_data.append(
             {
@@ -245,9 +247,6 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
                 "status": table.status.value,
                 "player_count": player_count,
                 "max_players": max_players,
-                "small_blind": config.get("small_blind", 25),
-                "big_blind": config.get("big_blind", 50),
-                "starting_stack": starting_stack,
                 "table_name": config.get("table_name", f"Table #{table.id}"),
                 "host": host_info,
                 "created_at": (
@@ -258,6 +257,12 @@ async def get_active_tables(db: AsyncSession, user_id: int) -> List[Dict[str, An
                 ),
                 "is_public": is_public,
                 "visibility": "public" if is_public else "private",
+                "template": {
+                    "id": table.template.id,
+                    "table_type": table.template.table_type.value,
+                    "config": config,
+                    "has_waitlist": table.template.has_waitlist,
+                },
                 "viewer": {
                     "is_seated": True,
                     "seat_position": seat.position,
@@ -301,7 +306,8 @@ async def get_recent_games(
     games = []
     for table, seat in result.all():
         config = get_template_config(table)
-        starting_chips = config.get("starting_stack", 10000)
+        rules = parse_template_rules(config)
+        starting_chips = rules.starting_stack
         profit = seat.chips - starting_chips
 
         games.append(
@@ -314,8 +320,6 @@ async def get_recent_games(
                 "starting_chips": starting_chips,
                 "ending_chips": seat.chips,
                 "profit": profit,
-                "small_blind": config.get("small_blind", 25),
-                "big_blind": config.get("big_blind", 50),
                 "table_name": config.get("table_name", f"Table #{table.id}"),
             }
         )

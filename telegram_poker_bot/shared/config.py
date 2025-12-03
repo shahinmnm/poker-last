@@ -63,19 +63,11 @@ class Settings(BaseSettings):
     # Game Configuration
     matchmaking_pool_ttl: int = 120
     private_game_ttl: int = 3600
-    default_starting_stack: int = 10000
-    small_blind: int = 25
-    big_blind: int = 50
-    turn_timeout_seconds: int = 25
     table_inactivity_timeout_minutes: int = 10
     table_all_sitout_timeout_minutes: int = 5
 
     # Currency Configuration (Cent-based System)
     currency_smallest_unit_factor: int = 100  # 100 = cents (USD), 1 = whole units
-    max_rake_cap: int = (
-        500  # Maximum rake per hand (in smallest units, e.g., $5.00 = 500 cents)
-    )
-    rake_percentage: float = 0.05  # 5% rake
     initial_balance_usd: float = 100.00  # Initial balance for new users in USD
 
     # Table Lifecycle Configuration

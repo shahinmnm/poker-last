@@ -35,6 +35,7 @@ from telegram_poker_bot.shared.services.table_service import (
     get_table_currency_type,
     get_table_game_variant,
     get_template_config,
+    parse_template_rules,
 )
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 
@@ -76,6 +77,7 @@ class PokerKitTableRuntime:
     def __init__(self, table: Table, seats: List[Seat]):
         self.table = table
         self.seats = sorted(seats, key=lambda s: s.position)
+        self.rules = parse_template_rules(get_template_config(table))
         self.hand_no = 0
         self.engine: Optional[PokerEngineAdapter] = None
         self.user_id_to_player_index: Dict[int, int] = {}
@@ -149,13 +151,9 @@ class PokerKitTableRuntime:
         pots_snapshot = list(self.engine.state.pots)
         total_pot = sum(pot.amount for pot in pots_snapshot)
 
-        # Calculate rake: 5% of pot, capped at MAX_RAKE_CAP
-        # Use integer arithmetic to avoid floating-point precision errors
-        # Convert percentage to basis points: 5% = 500 basis points
-        rake_basis_points = int(settings.rake_percentage * 10000)
-        rake_amount = min(
-            (total_pot * rake_basis_points) // 10000, settings.max_rake_cap
-        )
+        rules = self.rules
+        rake_basis_points = int(rules.rake_percentage * 10000)
+        rake_amount = min((total_pot * rake_basis_points) // 10000, rules.rake_cap)
 
         if rake_amount <= 0:
             # No rake to apply
@@ -194,7 +192,7 @@ class PokerKitTableRuntime:
             hand_no=self.hand_no,
             total_pot=total_pot,
             rake_amount=rake_amount,
-            rake_percentage=settings.rake_percentage,
+            rake_percentage=rules.rake_percentage,
         )
 
         return hand_result
@@ -612,7 +610,10 @@ class PokerKitTableRuntime:
         return hand
 
     async def start_new_hand(
-        self, db: AsyncSession, small_blind: int, big_blind: int
+        self,
+        db: AsyncSession,
+        small_blind: Optional[int] = None,
+        big_blind: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Start a new hand using PokerKit engine and persist state to DB.
@@ -627,6 +628,13 @@ class PokerKitTableRuntime:
         Returns:
             Initial game state dictionary
         """
+        rules = self.rules
+
+        if small_blind is not None and small_blind != rules.small_blind:
+            raise ValueError("Provided small_blind does not match template config")
+        if big_blind is not None and big_blind != rules.big_blind:
+            raise ValueError("Provided big_blind does not match template config")
+
         # Refresh seats from DB to ensure we have the latest chip stacks/sitout flags
         seats_result = await db.execute(
             select(Seat)
@@ -696,15 +704,25 @@ class PokerKitTableRuntime:
 
         game_variant, game_class = self._resolve_game_class()
 
+        mode_value = rules.poker_mode or Mode.CASH_GAME.value
+        try:
+            poker_mode = Mode(mode_value)
+        except Exception:
+            poker_mode = Mode.CASH_GAME
+
         # Create PokerKit engine with explicit button index
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
             starting_stacks=starting_stacks,
-            small_blind=small_blind,
-            big_blind=big_blind,
-            mode=Mode.TOURNAMENT,
+            small_blind=rules.small_blind,
+            big_blind=rules.big_blind,
+            mode=poker_mode,
             button_index=button_index,
             game_class=game_class,
+            raw_antes=rules.raw_antes,
+            raw_blinds_or_straddles=rules.raw_blinds_or_straddles,
+            min_bet=rules.min_bet,
+            bring_in=rules.bring_in,
         )
 
         # Deal hole cards
@@ -744,7 +762,9 @@ class PokerKitTableRuntime:
         # Return initial state
         return self.to_payload()
 
-    def start_hand(self, small_blind: int, big_blind: int) -> Dict[str, Any]:
+    def start_hand(
+        self, small_blind: Optional[int] = None, big_blind: Optional[int] = None
+    ) -> Dict[str, Any]:
         """
         Start a new hand using PokerKit engine (deprecated - use start_new_hand).
 
@@ -771,20 +791,36 @@ class PokerKitTableRuntime:
         # Get starting stacks
         starting_stacks = [seat.chips for seat in active_seats]
 
+        rules = self.rules
+        if small_blind is not None and small_blind != rules.small_blind:
+            raise ValueError("Provided small_blind does not match template config")
+        if big_blind is not None and big_blind != rules.big_blind:
+            raise ValueError("Provided big_blind does not match template config")
+
         # Use button_index=0 for first hand (this is deprecated sync method)
         button_index = 0
 
         game_variant, game_class = self._resolve_game_class()
 
+        mode_value = rules.poker_mode or Mode.CASH_GAME.value
+        try:
+            poker_mode = Mode(mode_value)
+        except Exception:
+            poker_mode = Mode.CASH_GAME
+
         # Create PokerKit engine with explicit button index
         self.engine = PokerEngineAdapter(
             player_count=len(active_seats),
             starting_stacks=starting_stacks,
-            small_blind=small_blind,
-            big_blind=big_blind,
-            mode=Mode.TOURNAMENT,
+            small_blind=rules.small_blind,
+            big_blind=rules.big_blind,
+            mode=poker_mode,
             button_index=button_index,
             game_class=game_class,
+            raw_antes=rules.raw_antes,
+            raw_blinds_or_straddles=rules.raw_blinds_or_straddles,
+            min_bet=rules.min_bet,
+            bring_in=rules.bring_in,
         )
 
         # Deal hole cards
@@ -1303,6 +1339,8 @@ class PokerKitTableRuntime:
         hand_status_value = poker_state.get("status")
 
         # Build payload
+        timeout_seconds = self.rules.turn_timeout_seconds
+
         payload = {
             "type": "table_state",
             "table_id": self.table.id,
@@ -1319,12 +1357,12 @@ class PokerKitTableRuntime:
             "action_deadline": (
                 (
                     datetime.now(timezone.utc)
-                    + timedelta(seconds=settings.turn_timeout_seconds)
+                    + timedelta(seconds=timeout_seconds)
                 ).isoformat()
-                if current_actor_user_id
+                if current_actor_user_id and timeout_seconds
                 else None
             ),
-            "turn_timeout_seconds": settings.turn_timeout_seconds,
+            "turn_timeout_seconds": timeout_seconds,
             "players": players,
             "hero": (
                 {
@@ -1532,6 +1570,7 @@ class PokerKitTableRuntimeManager:
             # Update existing runtime with fresh data
             runtime.table = table
             runtime.seats = sorted(seats, key=lambda s: s.position)
+            runtime.rules = parse_template_rules(get_template_config(table))
         else:
             # Create new runtime
             runtime = PokerKitTableRuntime(table, seats)
@@ -1647,10 +1686,10 @@ class PokerKitTableRuntimeManager:
             if not seat:
                 raise ValueError("User not seated at this table")
 
-            config = get_template_config(runtime.table)
-            small_blind = config.get("small_blind", settings.small_blind)
-            big_blind = config.get("big_blind", settings.big_blind)
-            ante = config.get("ante", 0)
+            rules = runtime.rules
+            small_blind = rules.small_blind
+            big_blind = rules.big_blind
+            ante = rules.ante
 
             has_sufficient, required = (
                 await table_lifecycle.check_player_balance_requirements(
@@ -1720,13 +1759,9 @@ class PokerKitTableRuntimeManager:
 
                 return {"table_ended": True, "reason": "Not enough players"}
 
-            config = get_template_config(runtime.table)
-            small_blind = config.get("small_blind", settings.small_blind)
-            big_blind = config.get("big_blind", settings.big_blind)
-
             runtime.table.last_action_at = datetime.now(timezone.utc)
 
-            state = await runtime.start_new_hand(db, small_blind, big_blind)
+            state = await runtime.start_new_hand(db)
 
             runtime.ready_players = set()
 
@@ -1736,16 +1771,14 @@ class PokerKitTableRuntimeManager:
         lock = self._get_lock_for_table(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
-            config = get_template_config(runtime.table)
-            small_blind = config.get("small_blind", 25)
-            big_blind = config.get("big_blind", 50)
+            rules = runtime.rules
 
             # Update last_action_at and clear expires_at since game is starting
             runtime.table.last_action_at = datetime.now(timezone.utc)
             runtime.table.expires_at = None  # No fixed expiry after game starts
             await db.flush()
 
-            return await runtime.start_new_hand(db, small_blind, big_blind)
+            return await runtime.start_new_hand(db)
 
     async def handle_action(
         self,
@@ -1796,10 +1829,10 @@ class PokerKitTableRuntimeManager:
                 if user_seat is None:
                     raise ValueError("User not seated at this table")
 
-                config = get_template_config(runtime.table)
-                small_blind = config.get("small_blind", settings.small_blind)
-                big_blind = config.get("big_blind", settings.big_blind)
-                ante = config.get("ante", 0)
+                rules = runtime.rules
+                small_blind = rules.small_blind
+                big_blind = rules.big_blind
+                ante = rules.ante
 
                 has_sufficient, required = (
                     await table_lifecycle.check_player_balance_requirements(

@@ -2,7 +2,7 @@
 
 import random
 from collections import deque
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pokerkit import Automation, Mode, NoLimitTexasHoldem, State
 from pokerkit.state import Folding, Operation
@@ -27,6 +27,12 @@ class PokerEngineAdapter:
         mode: Mode = Mode.TOURNAMENT,
         button_index: Optional[int] = None,
         game_class: type = NoLimitTexasHoldem,
+        *,
+        automations: Optional[tuple] = None,
+        raw_antes: int = 0,
+        raw_blinds_or_straddles: Optional[Tuple[int, int]] = None,
+        min_bet: Optional[int] = None,
+        bring_in: Optional[int] = None,
     ):
         if player_count < 2 or player_count > 8:
             raise ValueError("Player count must be between 2 and 8")
@@ -42,6 +48,14 @@ class PokerEngineAdapter:
         self._deck: List[str] = []
         self._pre_showdown_stacks: Optional[List[int]] = None
         self.game_class = game_class
+        self.raw_antes = raw_antes
+        self.raw_blinds_or_straddles = (
+            tuple(raw_blinds_or_straddles)
+            if raw_blinds_or_straddles is not None
+            else (small_blind, big_blind)
+        )
+        self.min_bet = min_bet if min_bet is not None else big_blind
+        self.bring_in = bring_in
 
         if button_index is None or not (0 <= button_index < player_count):
             if button_index is not None and not (0 <= button_index < player_count):
@@ -54,25 +68,32 @@ class PokerEngineAdapter:
 
         self.button_index = button_index
 
-        self.state: State = self.game_class.create_state(
-            automations=(
-                Automation.ANTE_POSTING,
-                Automation.BET_COLLECTION,
-                Automation.BLIND_OR_STRADDLE_POSTING,
-                Automation.CARD_BURNING,
-                Automation.HOLE_CARDS_SHOWING_OR_MUCKING,
-                Automation.HAND_KILLING,
-                Automation.CHIPS_PUSHING,
-                Automation.CHIPS_PULLING,
-            ),
-            ante_trimming_status=True,
-            raw_antes=0,
-            raw_blinds_or_straddles=(small_blind, big_blind),
-            min_bet=big_blind,
-            raw_starting_stacks=starting_stacks,
-            player_count=player_count,
-            mode=mode,
+        automations_tuple = automations or (
+            Automation.ANTE_POSTING,
+            Automation.BET_COLLECTION,
+            Automation.BLIND_OR_STRADDLE_POSTING,
+            Automation.CARD_BURNING,
+            Automation.HOLE_CARDS_SHOWING_OR_MUCKING,
+            Automation.HAND_KILLING,
+            Automation.CHIPS_PUSHING,
+            Automation.CHIPS_PULLING,
         )
+
+        state_kwargs = {
+            "automations": automations_tuple,
+            "ante_trimming_status": True,
+            "raw_antes": self.raw_antes,
+            "raw_blinds_or_straddles": self.raw_blinds_or_straddles,
+            "min_bet": self.min_bet,
+            "raw_starting_stacks": starting_stacks,
+            "player_count": player_count,
+            "mode": mode,
+        }
+
+        if self.bring_in is not None:
+            state_kwargs["bring_in"] = self.bring_in
+
+        self.state: State = self.game_class.create_state(**state_kwargs)
 
         logger.info(
             "Poker engine initialized",
@@ -595,6 +616,10 @@ class PokerEngineAdapter:
             "small_blind": self.small_blind,
             "big_blind": self.big_blind,
             "mode": self.mode.value,
+            "raw_antes": self.raw_antes,
+            "raw_blinds_or_straddles": list(self.raw_blinds_or_straddles),
+            "min_bet": self.min_bet,
+            "bring_in": self.bring_in,
             # Current game state from PokerKit
             "stacks": list(self.state.stacks),
             "bets": list(self.state.bets),
@@ -635,6 +660,15 @@ class PokerEngineAdapter:
         mode = Mode(data["mode"]) if isinstance(data["mode"], str) else data["mode"]
         button_index = data.get("button_index", 0)
 
+        raw_blinds = data.get("raw_blinds_or_straddles")
+        if raw_blinds is not None:
+            if isinstance(raw_blinds, list):
+                raw_blinds = tuple(raw_blinds)
+            try:
+                raw_blinds = (int(raw_blinds[0]), int(raw_blinds[1]))
+            except Exception:
+                raw_blinds = None
+
         adapter = cls(
             player_count=data["player_count"],
             starting_stacks=data["starting_stacks"],
@@ -642,6 +676,10 @@ class PokerEngineAdapter:
             big_blind=data["big_blind"],
             mode=mode,
             button_index=button_index,
+            raw_antes=data.get("raw_antes", data.get("ante", 0)),
+            raw_blinds_or_straddles=raw_blinds,
+            min_bet=data.get("min_bet"),
+            bring_in=data.get("bring_in"),
         )
 
         # Restore deck state
