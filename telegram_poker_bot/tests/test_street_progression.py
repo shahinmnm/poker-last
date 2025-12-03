@@ -3,14 +3,45 @@
 from unittest.mock import MagicMock
 
 from telegram_poker_bot.game_core.pokerkit_runtime import PokerKitTableRuntime
-from telegram_poker_bot.shared.models import ActionType, Seat, Table, User
+from telegram_poker_bot.shared.models import ActionType, Seat, Table, User, TableTemplate, TableTemplateType
+
+
+def create_test_table_with_template(small_blind=10, big_blind=20, starting_stack=1000):
+    """Create a mock table with a template configuration."""
+    table = MagicMock(spec=Table)
+    table.id = 1
+    
+    # Create a mock template with proper config
+    template = MagicMock(spec=TableTemplate)
+    template.id = 1
+    template.name = "Test Template"
+    template.table_type = TableTemplateType.EXPIRING
+    template.config_json = {
+        "small_blind": small_blind,
+        "big_blind": big_blind,
+        "starting_stack": starting_stack,
+        "max_players": 6,
+        "ante": 0,
+        "raw_antes": 0,
+        "raw_blinds_or_straddles": [small_blind, big_blind],
+        "min_bet": big_blind,
+        "rake_percentage": 0.05,
+        "rake_cap": 100,
+        "turn_timeout_seconds": 30,
+        "game_variant": "no_limit_texas_holdem",
+        "currency_type": "PLAY",
+    }
+    
+    table.template = template
+    table.template_id = 1
+    
+    return table
 
 
 def test_preflop_to_flop_progression():
     """Test that game progresses from preflop to flop after betting round ends."""
-    # Create mock objects
-    table = MagicMock(spec=Table)
-    table.id = 1
+    # Create mock table with template
+    table = create_test_table_with_template()
 
     user1 = MagicMock(spec=User)
     user1.id = 1
@@ -36,9 +67,9 @@ def test_preflop_to_flop_progression():
     seat2.is_sitting_out_next_hand = False
     seat2.user = user2
 
-    # Create runtime and start hand
+    # Create runtime and start hand (no parameters needed - uses template)
     runtime = PokerKitTableRuntime(table, [seat1, seat2])
-    state = runtime.start_hand(small_blind=10, big_blind=20)
+    state = runtime.start_hand()
 
     assert state["street"] == "preflop"
     assert len(state["board"]) == 0
@@ -59,8 +90,7 @@ def test_preflop_to_flop_progression():
 
 def test_flop_to_turn_progression():
     """Test that game progresses from flop to turn after betting round ends."""
-    table = MagicMock(spec=Table)
-    table.id = 1
+    table = create_test_table_with_template()
 
     user1 = MagicMock(spec=User)
     user1.id = 1
@@ -87,7 +117,7 @@ def test_flop_to_turn_progression():
     seat2.user = user2
 
     runtime = PokerKitTableRuntime(table, [seat1, seat2])
-    state = runtime.start_hand(small_blind=10, big_blind=20)
+    state = runtime.start_hand()
 
     # Get to flop
     actor_user_id = state["current_actor"]
@@ -117,8 +147,7 @@ def test_flop_to_turn_progression():
 
 def test_turn_to_river_progression():
     """Test that game progresses from turn to river after betting round ends."""
-    table = MagicMock(spec=Table)
-    table.id = 1
+    table = create_test_table_with_template()
 
     user1 = MagicMock(spec=User)
     user1.id = 1
@@ -145,7 +174,7 @@ def test_turn_to_river_progression():
     seat2.user = user2
 
     runtime = PokerKitTableRuntime(table, [seat1, seat2])
-    state = runtime.start_hand(small_blind=10, big_blind=20)
+    state = runtime.start_hand()
 
     # Get to turn
     for _ in range(2):  # Preflop actions
@@ -179,8 +208,7 @@ def test_turn_to_river_progression():
 
 def test_all_in_preflop_deals_all_streets():
     """Test that all-in preflop automatically deals flop, turn, and river."""
-    table = MagicMock(spec=Table)
-    table.id = 1
+    table = create_test_table_with_template()
 
     user1 = MagicMock(spec=User)
     user1.id = 1
@@ -207,7 +235,7 @@ def test_all_in_preflop_deals_all_streets():
     seat2.user = user2
 
     runtime = PokerKitTableRuntime(table, [seat1, seat2])
-    state = runtime.start_hand(small_blind=10, big_blind=20)
+    state = runtime.start_hand()
 
     # Player goes all-in
     actor_user_id = state["current_actor"]
@@ -226,8 +254,7 @@ def test_all_in_preflop_deals_all_streets():
 
 def test_fold_before_flop_does_not_deal_cards():
     """Test that folding before flop doesn't deal any community cards."""
-    table = MagicMock(spec=Table)
-    table.id = 1
+    table = create_test_table_with_template()
 
     user1 = MagicMock(spec=User)
     user1.id = 1
@@ -254,7 +281,7 @@ def test_fold_before_flop_does_not_deal_cards():
     seat2.user = user2
 
     runtime = PokerKitTableRuntime(table, [seat1, seat2])
-    state = runtime.start_hand(small_blind=10, big_blind=20)
+    state = runtime.start_hand()
 
     # Player folds preflop
     actor_user_id = state["current_actor"]
@@ -264,3 +291,4 @@ def test_fold_before_flop_does_not_deal_cards():
     # No cards should be dealt and hand should be complete
     assert len(state["board"]) == 0
     assert "hand_result" in result
+

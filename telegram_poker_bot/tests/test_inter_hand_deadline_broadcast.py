@@ -7,6 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from telegram_poker_bot.shared.models import (
     Table,
     TableStatus,
+    TableTemplate,
+    TableTemplateType,
     Seat,
     Hand,
     HandStatus,
@@ -32,13 +34,26 @@ async def test_hand_ended_event_contains_deadline():
 
     settings = get_settings()
 
+    # Create test template
+    template = MagicMock(spec=TableTemplate)
+    template.id = 1
+    template.name = "Test Template"
+    template.table_type = TableTemplateType.EXPIRING
+    template.config_json = {
+        "small_blind": 25,
+        "big_blind": 50,
+        "starting_stack": 1000,
+        "max_players": 6,
+    }
+
     # Create test table and seats
     table = Table(
         id=1,
         status=TableStatus.ACTIVE,
         is_public=True,
-        config_json={"small_blind": 25, "big_blind": 50},
+        template_id=1,
     )
+    table.template = template
 
     user1 = User(id=100, tg_user_id=1000, username="player1")
     user2 = User(id=101, tg_user_id=1001, username="player2")
@@ -171,13 +186,26 @@ async def test_hand_ended_event_contains_allowed_actions_with_ready():
     """
     from telegram_poker_bot.game_core.pokerkit_runtime import PokerKitTableRuntime
 
+    # Create test template
+    template = MagicMock(spec=TableTemplate)
+    template.id = 1
+    template.name = "Test Template"
+    template.table_type = TableTemplateType.EXPIRING
+    template.config_json = {
+        "small_blind": 25,
+        "big_blind": 50,
+        "starting_stack": 1000,
+        "max_players": 6,
+    }
+
     # Create test table and seats (2 players)
     table = Table(
         id=1,
         status=TableStatus.ACTIVE,
         is_public=True,
-        config_json={"small_blind": 25, "big_blind": 50},
+        template_id=1,
     )
+    table.template = template
 
     user1 = User(id=100, tg_user_id=1000, username="player1")
     user2 = User(id=101, tg_user_id=1001, username="player2")

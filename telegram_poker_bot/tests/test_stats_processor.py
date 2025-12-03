@@ -13,6 +13,9 @@ from telegram_poker_bot.shared.models import (
     Seat,
     Table,
     TableStatus,
+    TableTemplate,
+    TableTemplateType,
+    GameMode,
     Action,
     ActionType,
 )
@@ -32,6 +35,25 @@ async def db_session():
         await session.rollback()
 
     await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def test_template(db_session):
+    """Create a test template for table tests."""
+    template = TableTemplate(
+        id=1,
+        name="Test Template",
+        table_type=TableTemplateType.EXPIRING,
+        config_json={
+            "small_blind": 25,
+            "big_blind": 50,
+            "starting_stack": 1000,
+            "max_players": 6,
+        }
+    )
+    db_session.add(template)
+    await db_session.flush()
+    return template
 
 
 @pytest.mark.asyncio
@@ -86,14 +108,18 @@ async def test_ensure_user_stats_returns_existing(db_session):
 
 
 @pytest.mark.asyncio
-async def test_calculate_vpip_true(db_session):
+async def test_calculate_vpip_true(db_session, test_template):
     """Test VPIP calculation returns True when user made voluntary action."""
     # Create test data
     user = User(tg_user_id=12345, language="en")
     db_session.add(user)
     await db_session.flush()
 
-    table = Table(mode="anonymous", status=TableStatus.ACTIVE)
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.ACTIVE,
+        template_id=test_template.id
+    )
     db_session.add(table)
     await db_session.flush()
 
@@ -123,14 +149,18 @@ async def test_calculate_vpip_true(db_session):
 
 
 @pytest.mark.asyncio
-async def test_calculate_vpip_false(db_session):
+async def test_calculate_vpip_false(db_session, test_template):
     """Test VPIP calculation returns False when user only folded."""
     # Create test data
     user = User(tg_user_id=12345, language="en")
     db_session.add(user)
     await db_session.flush()
 
-    table = Table(mode="anonymous", status=TableStatus.ACTIVE)
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.ACTIVE,
+        template_id=test_template.id
+    )
     db_session.add(table)
     await db_session.flush()
 
@@ -160,14 +190,18 @@ async def test_calculate_vpip_false(db_session):
 
 
 @pytest.mark.asyncio
-async def test_calculate_pfr_true(db_session):
+async def test_calculate_pfr_true(db_session, test_template):
     """Test PFR calculation returns True when user raised."""
     # Create test data
     user = User(tg_user_id=12345, language="en")
     db_session.add(user)
     await db_session.flush()
 
-    table = Table(mode="anonymous", status=TableStatus.ACTIVE)
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.ACTIVE,
+        template_id=test_template.id
+    )
     db_session.add(table)
     await db_session.flush()
 
@@ -197,7 +231,7 @@ async def test_calculate_pfr_true(db_session):
 
 
 @pytest.mark.asyncio
-async def test_update_stats_increments_hands(db_session):
+async def test_update_stats_increments_hands(db_session, test_template):
     """Test that update_stats increments total_hands for all participants."""
     # Create test data
     user1 = User(tg_user_id=12345, language="en")
@@ -205,7 +239,11 @@ async def test_update_stats_increments_hands(db_session):
     db_session.add_all([user1, user2])
     await db_session.flush()
 
-    table = Table(mode="anonymous", status=TableStatus.ACTIVE)
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.ACTIVE,
+        template_id=test_template.id
+    )
     db_session.add(table)
     await db_session.flush()
 
@@ -276,7 +314,7 @@ async def test_is_better_hand_comparison(db_session):
 
 
 @pytest.mark.asyncio
-async def test_update_stats_updates_best_hand(db_session):
+async def test_update_stats_updates_best_hand(db_session, test_template):
     """Test that update_stats updates best_hand_rank when a better hand is achieved."""
     # Create test data
     user = User(tg_user_id=12345, language="en")
@@ -293,7 +331,11 @@ async def test_update_stats_updates_best_hand(db_session):
     db_session.add(stats)
     await db_session.flush()
 
-    table = Table(mode="anonymous", status=TableStatus.ACTIVE)
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.ACTIVE,
+        template_id=test_template.id
+    )
     db_session.add(table)
     await db_session.flush()
 
@@ -334,3 +376,4 @@ async def test_update_stats_updates_best_hand(db_session):
     assert updated_stats.wins == 2
     assert updated_stats.best_hand_rank == "Full House"  # Updated to better hand
     assert updated_stats.total_winnings == 1000
+
