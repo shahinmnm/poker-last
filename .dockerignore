@@ -28,6 +28,7 @@ docs/_build/
 node_modules/
 telegram_poker_bot/frontend/node_modules/
 telegram_poker_bot/frontend/dist/
+pgdata/
 
 npm-debug.log*
 yarn-debug.log*
