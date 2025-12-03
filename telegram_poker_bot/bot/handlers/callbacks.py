@@ -94,6 +94,17 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         elif data == "table_leave":
             await leave_table_handler(update, context)
             
+        # Waitlist actions
+        elif data.startswith("waitlist_join_"):
+            from telegram_poker_bot.bot.handlers.waitlist import join_waitlist_handler
+            await join_waitlist_handler(update, context)
+        elif data.startswith("waitlist_leave_"):
+            from telegram_poker_bot.bot.handlers.waitlist import leave_waitlist_handler
+            await leave_waitlist_handler(update, context)
+        elif data.startswith("waitlist_position_"):
+            from telegram_poker_bot.bot.handlers.waitlist import check_waitlist_position_handler
+            await check_waitlist_position_handler(update, context)
+            
         # Game actions
         elif data == "action_fold":
             await submit_action_handler(update, context, "fold")

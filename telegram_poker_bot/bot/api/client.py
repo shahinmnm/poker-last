@@ -144,6 +144,30 @@ class APIClient:
         response = await self._request("GET", f"/api/users/me/tables")
         return response.get("tables", []) if response else None
 
+    async def join_waitlist(self, table_id: int, tg_user_id: int) -> Optional[Dict[str, Any]]:
+        """Join a table's waitlist."""
+        return await self._request(
+            "POST",
+            f"/tables/{table_id}/waitlist/join",
+            headers={"X-Telegram-User-ID": str(tg_user_id)}
+        )
+
+    async def leave_waitlist(self, table_id: int, tg_user_id: int) -> Optional[Dict[str, Any]]:
+        """Leave a table's waitlist."""
+        return await self._request(
+            "POST",
+            f"/tables/{table_id}/waitlist/leave",
+            headers={"X-Telegram-User-ID": str(tg_user_id)}
+        )
+
+    async def get_waitlist(self, table_id: int, tg_user_id: int) -> Optional[Dict[str, Any]]:
+        """Get waitlist information for a table."""
+        return await self._request(
+            "GET",
+            f"/tables/{table_id}/waitlist",
+            headers={"X-Telegram-User-ID": str(tg_user_id)}
+        )
+
 
 # Global API client instance
 api_client = APIClient()

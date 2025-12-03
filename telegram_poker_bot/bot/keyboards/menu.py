@@ -222,3 +222,37 @@ def get_profile_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
         ],
         [InlineKeyboardButton("🔙 " + get_text("back", lang), callback_data="menu_main")],
     ])
+
+
+
+def get_waitlist_keyboard(table_id: int, lang: str = "en", joined: bool = False) -> InlineKeyboardMarkup:
+    """Build waitlist action keyboard."""
+    if joined:
+        # Show leave option if already on waitlist
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(
+                "❌ " + get_text("leave_waitlist", lang, default="Leave Waitlist"),
+                callback_data=f"waitlist_leave_{table_id}"
+            )],
+            [InlineKeyboardButton(
+                "🔄 " + get_text("check_position", lang, default="Check Position"),
+                callback_data=f"waitlist_position_{table_id}"
+            )],
+            [InlineKeyboardButton(
+                "🔙 " + get_text("back", lang),
+                callback_data="menu_main"
+            )],
+        ])
+    else:
+        # Show join option if not on waitlist
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(
+                "➕ " + get_text("join_waitlist", lang, default="Join Waitlist"),
+                callback_data=f"waitlist_join_{table_id}"
+            )],
+            [InlineKeyboardButton(
+                "🔙 " + get_text("back", lang),
+                callback_data="menu_main"
+            )],
+        ])
+
