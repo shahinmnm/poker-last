@@ -18,6 +18,9 @@ from telegram_poker_bot.shared.models import (
 
 logger = get_logger(__name__)
 
+# Configuration constants
+SNAPSHOT_INTERVAL_MINUTES = 5  # How often snapshots are collected
+
 
 class AnalyticsService:
     """Service for collecting and aggregating table analytics."""
@@ -161,9 +164,9 @@ class AnalyticsService:
         
         # Calculate aggregated metrics
         total_players = sum(s.player_count for s in snapshots)
-        avg_players = total_players // len(snapshots) if snapshots else 0
+        avg_players = round(total_players / len(snapshots)) if snapshots else 0
         max_players = max((s.player_count for s in snapshots), default=0)
-        activity_minutes = sum(1 for s in snapshots if s.is_active) * 5  # Assuming 5-min intervals
+        activity_minutes = sum(1 for s in snapshots if s.is_active) * SNAPSHOT_INTERVAL_MINUTES
         
         # Count hands completed in this hour
         hands_result = await db.execute(
