@@ -49,18 +49,36 @@ async def db_session():
 @pytest_asyncio.fixture
 async def test_table_with_seats(db_session: AsyncSession):
     """Create a test table with 2 players."""
+    # Import model
+    from telegram_poker_bot.shared.models import TableTemplate, TableTemplateType
+    
     # Create users
     user1 = User(tg_user_id=1001, username="player1")
     user2 = User(tg_user_id=1002, username="player2")
     db_session.add_all([user1, user2])
     await db_session.flush()
 
+    # Create template
+    template = TableTemplate(
+        name="Test Template",
+        table_type=TableTemplateType.EXPIRING,
+        config_json={
+            "small_blind": 25,
+            "big_blind": 50,
+            "starting_stack": 1000,
+            "max_players": 6,
+        }
+    )
+    db_session.add(template)
+    await db_session.flush()
+
     # Create table
     table = Table(
         mode=GameMode.ANONYMOUS,
         status=TableStatus.ACTIVE,
-        config_json={"small_blind": 25, "big_blind": 50},
+        template_id=template.id,
     )
+    table.template = template
     db_session.add(table)
     await db_session.flush()
 
