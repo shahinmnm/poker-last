@@ -1,17 +1,12 @@
 import { apiFetch, type ApiFetchOptions } from '../utils/apiClient'
-import type { GameVariant } from '@/types'
+import type { GameVariant, TableTemplateInfo } from '@/types'
 
 export type TableVisibility = 'public' | 'private'
 
 export interface CreateTableOptions {
-  tableName?: string
-  smallBlind: number
-  bigBlind: number
-  startingStack: number
-  maxPlayers: number
-  visibility: TableVisibility
+  templateId: number
+  visibility?: TableVisibility
   autoSeatHost?: boolean
-  gameVariant?: GameVariant
 }
 
 export interface TableViewerState {
@@ -42,9 +37,6 @@ export interface TableSummary {
   status?: string
   player_count?: number
   max_players?: number
-  small_blind?: number
-  big_blind?: number
-  starting_stack?: number
   visibility?: TableVisibility | string
   is_public?: boolean
   is_private?: boolean
@@ -56,6 +48,7 @@ export interface TableSummary {
   invite?: TableInviteInfo | null
   created_at?: string | null
   updated_at?: string | null
+  template?: TableTemplateInfo | null
 }
 
 export async function createTable(
@@ -63,14 +56,8 @@ export async function createTable(
   initData?: string | null,
 ): Promise<TableSummary> {
   const body = {
-    table_name: options.tableName,
-    small_blind: options.smallBlind,
-    big_blind: options.bigBlind,
-    starting_stack: options.startingStack,
-    max_players: options.maxPlayers,
-    visibility: options.visibility,
+    template_id: options.templateId,
     auto_seat_host: options.autoSeatHost,
-    game_variant: options.gameVariant,
   }
 
   const requestOptions: ApiFetchOptions = {

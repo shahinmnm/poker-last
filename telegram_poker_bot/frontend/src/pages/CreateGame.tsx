@@ -5,22 +5,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import PageHeader from '../components/ui/PageHeader'
-import Toggle from '../components/ui/Toggle'
 import { useTelegram } from '../hooks/useTelegram'
-import { createTable, type TableSummary, type TableVisibility } from '../services/tables'
-import type { GameVariant } from '@/types'
+import { createTable, type TableSummary } from '../services/tables'
 
 interface CreateTableFormState {
-  tableName: string
-  smallBlind: number
-  bigBlind: number
-  startingStack: number
-  maxPlayers: number
-  visibility: TableVisibility
+  templateId: number | ''
   autoSeatHost: boolean
-  autoStart: boolean
-  tableMode: 'casual' | 'turbo' | 'ranked'
-  gameVariant: GameVariant
 }
 
 type ViewState = 'idle' | 'loading' | 'success' | 'error'
@@ -32,21 +22,12 @@ export default function CreateGamePage() {
   const [searchParams] = useSearchParams()
   const tips = t('createGame.tips', { returnObjects: true }) as string[]
 
-  // Get initial mode from URL parameter
-  const initialMode = searchParams.get('mode') as TableVisibility | null
-  const defaultVisibility: TableVisibility = initialMode === 'public' ? 'public' : initialMode === 'private' ? 'private' : 'public'
+  const initialTemplateParam = searchParams.get('template_id') || searchParams.get('templateId')
+  const parsedTemplateId = initialTemplateParam ? Number(initialTemplateParam) : Number.NaN
 
   const [formState, setFormState] = useState<CreateTableFormState>({
-    tableName: '',
-    smallBlind: 25,
-    bigBlind: 50,
-    startingStack: 10000,
-    maxPlayers: 6,
-    visibility: defaultVisibility,
-    autoSeatHost: defaultVisibility === 'public',
-    autoStart: false,
-    tableMode: 'casual',
-    gameVariant: 'no_limit_texas_holdem',
+    templateId: Number.isFinite(parsedTemplateId) ? parsedTemplateId : '',
+    autoSeatHost: true,
   })
   const [status, setStatus] = useState<ViewState>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -54,26 +35,22 @@ export default function CreateGamePage() {
 
   const handleFieldChange = useCallback(
     (field: keyof CreateTableFormState, value: string | number | boolean) => {
-      setFormState((prev) => {
-        if (field === 'visibility') {
-          const nextVisibility = value as TableVisibility
-          const autoSeatHost = nextVisibility === 'public' ? prev.autoSeatHost || true : false
-          return {
-            ...prev,
-            visibility: nextVisibility,
-            autoSeatHost,
-          }
-        }
-        return {
-          ...prev,
-          [field]: value,
-        }
-      })
+      setFormState((prev) => ({
+        ...prev,
+        [field]:
+          field === 'templateId'
+            ? typeof value === 'number'
+              ? value
+              : value === ''
+                ? ''
+                : Number(value)
+            : value,
+      }))
     },
     [],
   )
 
-  const submitDisabled = status === 'loading' || !ready
+  const submitDisabled = status === 'loading' || !ready || formState.templateId === ''
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -88,16 +65,21 @@ export default function CreateGamePage() {
       setErrorMessage(null)
 
       try {
+        const templateId =
+          typeof formState.templateId === 'number'
+            ? formState.templateId
+            : Number(formState.templateId)
+
+        if (!Number.isFinite(templateId) || templateId <= 0) {
+          setStatus('error')
+          setErrorMessage(t('createGame.errors.templateRequired', { defaultValue: 'Template ID is required' }))
+          return
+        }
+
         const response = await createTable(
           {
-            tableName: formState.tableName.trim() || undefined,
-            smallBlind: formState.smallBlind,
-            bigBlind: Math.max(formState.bigBlind, formState.smallBlind * 2),
-            startingStack: formState.startingStack,
-            maxPlayers: formState.maxPlayers,
-            visibility: formState.visibility,
+            templateId,
             autoSeatHost: formState.autoSeatHost,
-            gameVariant: formState.gameVariant,
           },
           initData,
         )
@@ -115,10 +97,10 @@ export default function CreateGamePage() {
 
   const resolvedVisibility = useMemo(() => {
     if (!tableResult) {
-      return formState.visibility
+      return null
     }
     if (typeof tableResult.visibility === 'string') {
-      return tableResult.visibility as TableVisibility
+      return tableResult.visibility
     }
     if (tableResult.is_public != null) {
       return tableResult.is_public ? 'public' : 'private'
@@ -126,12 +108,11 @@ export default function CreateGamePage() {
     if (tableResult.is_private != null) {
       return tableResult.is_private ? 'private' : 'public'
     }
-    return formState.visibility
-  }, [formState.visibility, tableResult])
+    return null
+  }, [tableResult])
 
-  const visibilitySummary = resolvedVisibility === 'public'
-    ? t('createGame.summary.public')
-    : t('createGame.summary.private')
+  const visibilitySummary =
+    resolvedVisibility === 'private' ? t('createGame.summary.private') : t('createGame.summary.public')
 
   return (
     <div className="space-y-6">
@@ -143,121 +124,22 @@ export default function CreateGamePage() {
       <Card>
         <form className="space-y-[var(--space-lg)]" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="table-name">
-              {t('createGame.form.name')}
+            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="template-id">
+              {t('createGame.form.templateId', { defaultValue: 'Template ID' })}
             </label>
             <input
-              id="table-name"
-              type="text"
-              value={formState.tableName}
-              onChange={(event) => handleFieldChange('tableName', event.target.value)}
-              placeholder={t('createGame.form.namePlaceholder') ?? ''}
+              id="template-id"
+              type="number"
+              min={1}
+              value={formState.templateId}
+              onChange={(event) => handleFieldChange('templateId', event.target.value ? Number(event.target.value) : '')}
+              placeholder={t('createGame.form.templatePlaceholder', { defaultValue: 'Enter template ID' }) ?? ''}
               className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
               style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
             />
-          </div>
-
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col">
-              <span className="text-[color:var(--text-main)] font-medium" style={{ fontSize: 'var(--fs-label)' }}>
-                {t('createGame.form.visibility')}
-              </span>
-              <span className="text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-caption)' }}>
-                {formState.visibility === 'public'
-                  ? t('createGame.form.visibilityOptions.public.description', 'Anyone can join')
-                  : t('createGame.form.visibilityOptions.private.description', 'Invite code only')}
-              </span>
-            </div>
-            <Toggle
-              checked={formState.visibility === 'public'}
-              onChange={(checked) => handleFieldChange('visibility', checked ? 'public' : 'private')}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="small-blind">
-                {t('createGame.form.smallBlind')}
-              </label>
-              <input
-                id="small-blind"
-                type="number"
-                min={5}
-                value={formState.smallBlind}
-                onChange={(event) => handleFieldChange('smallBlind', Number(event.target.value))}
-                className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
-                style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="big-blind">
-                {t('createGame.form.bigBlind')}
-              </label>
-              <input
-                id="big-blind"
-                type="number"
-                min={formState.smallBlind * 2}
-                value={formState.bigBlind}
-                onChange={(event) => handleFieldChange('bigBlind', Number(event.target.value))}
-                className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
-                style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="starting-stack">
-                {t('createGame.form.startingStack')}
-              </label>
-              <input
-                id="starting-stack"
-                type="number"
-                min={1000}
-                step={500}
-                value={formState.startingStack}
-                onChange={(event) => handleFieldChange('startingStack', Number(event.target.value))}
-                className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
-                style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="max-players">
-                {t('createGame.form.maxPlayers')}
-              </label>
-              <input
-                id="max-players"
-                type="number"
-                min={2}
-                max={9}
-                value={formState.maxPlayers}
-                onChange={(event) => handleFieldChange('maxPlayers', Number(event.target.value))}
-                className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
-                style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="game-variant">
-              {t('createGame.form.gameVariant', 'Game variant')}
-            </label>
-            <select
-              id="game-variant"
-              value={formState.gameVariant}
-              onChange={(event) =>
-                handleFieldChange(
-                  'gameVariant',
-                  event.target.value as CreateTableFormState['gameVariant'],
-                )
-              }
-              className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
-              style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
-            >
-              <option value="no_limit_texas_holdem">{t('createGame.form.variantTexas', "Texas Hold'em")}</option>
-              <option value="no_limit_short_deck_holdem">{t('createGame.form.variantShortDeck', "Short-Deck Hold'em")}</option>
-              <option value="pot_limit_omaha_holdem">{t('createGame.form.variantOmaha', 'Pot-Limit Omaha')}</option>
-            </select>
+            <p className="text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-caption)' }}>
+              {t('createGame.form.templateHint', { defaultValue: 'Select an existing table template to use its rules.' })}
+            </p>
           </div>
 
           <label className="flex items-center justify-between border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)]" style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}>
@@ -270,33 +152,10 @@ export default function CreateGamePage() {
             />
           </label>
 
-          <label className="flex items-center justify-between border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)]" style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)', opacity: 0.6 }}>
-            <span>{t('createGame.form.autoStart')}</span>
-            <input
-              type="checkbox"
-              disabled
-              checked={formState.autoStart}
-              onChange={(event) => handleFieldChange('autoStart', event.target.checked)}
-              className="h-4 w-4 rounded border-[color:var(--surface-border)] text-[color:var(--accent-start)] focus:ring-[color:var(--accent-start)]"
-            />
-          </label>
-
-          <div className="space-y-2">
-            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="table-mode">
-              {t('createGame.form.tableMode')} ({t('common.comingSoon')})
-            </label>
-            <select
-              id="table-mode"
-              disabled
-              value={formState.tableMode}
-              onChange={(event) => handleFieldChange('tableMode', event.target.value)}
-              className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
-              style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)', opacity: 0.6 }}
-            >
-              <option value="casual">{t('createGame.form.modeOptions.casual')}</option>
-              <option value="turbo">{t('createGame.form.modeOptions.turbo')}</option>
-              <option value="ranked">{t('createGame.form.modeOptions.ranked')}</option>
-            </select>
+          <div className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-overlay)] px-4 py-3 text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-caption)' }}>
+            {t('createGame.form.templateNotice', {
+              defaultValue: 'Blinds, stacks, and other rules now come from the selected template configuration.',
+            })}
           </div>
 
           {status === 'error' && errorMessage && (

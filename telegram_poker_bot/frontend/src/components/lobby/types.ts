@@ -1,3 +1,5 @@
+import type { GameVariant } from '@/types'
+
 export type TableStatusTone = 'running' | 'waiting' | 'finished'
 
 export interface TableHostInfo {
@@ -14,14 +16,19 @@ export interface TableViewerState {
   is_creator?: boolean
 }
 
+export interface TableTemplateInfo {
+  id: number | string
+  table_type: string
+  has_waitlist?: boolean
+  config: Record<string, any>
+}
+
 export interface TableInfo {
   table_id: number
   mode: string
   status: string
   player_count: number
   max_players: number
-  small_blind: number
-  big_blind: number
   table_name: string | null
   host?: TableHostInfo | null
   created_at?: string | null
@@ -34,9 +41,13 @@ export interface TableInfo {
   visibility?: 'public' | 'private'
   viewer?: TableViewerState | null
   creator_user_id?: number | null
+  template?: TableTemplateInfo | null
+  currency_type?: string
+  is_persistent?: boolean
+  game_variant?: GameVariant
 }
 
 export interface ActiveTable extends TableInfo {
-  starting_stack: number
+  starting_stack?: number
   viewer?: TableViewerState | null
 }

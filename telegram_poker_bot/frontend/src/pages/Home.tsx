@@ -17,28 +17,30 @@ import { useTelegram } from '../hooks/useTelegram'
 import { useUserData } from '../providers/UserDataProvider'
 import { apiFetch } from '../utils/apiClient'
 import Card from '../components/ui/Card'
+import { extractRuleSummary } from '../utils/tableRules'
+import type { TableTemplateInfo } from '../components/lobby/types'
 
 interface ActiveTable {
   table_id: number
   table_name?: string | null
-  small_blind: number
-  big_blind: number
   player_count: number
   max_players: number
   status: string
   updated_at?: string
   expires_at?: string
+  template?: TableTemplateInfo | null
+  currency_type?: string
 }
 
 interface TableInfo {
   table_id: number
   table_name?: string | null
-  small_blind: number
-  big_blind: number
   player_count: number
   max_players: number
   status: string
   visibility?: string
+  template?: TableTemplateInfo | null
+  currency_type?: string
 }
 
 export default function HomePage() {
@@ -132,12 +134,27 @@ export default function HomePage() {
           </div>
           <div className="mb-4 space-y-2">
             <p className="font-medium" style={{ color: 'var(--color-text)' }}>
-              {activeTable.table_name || `Table #${activeTable.table_id}`}
+              {extractRuleSummary(activeTable.template, {
+                max_players: activeTable.max_players,
+                table_name: activeTable.table_name ?? null,
+              }).tableName || activeTable.table_name || `Table #${activeTable.table_id}`}
             </p>
             <div className="flex gap-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-              <span>{activeTable.small_blind}/{activeTable.big_blind}</span>
+              <span>
+                {t('table.meta.stakes', { defaultValue: 'Stakes' })}{' '}
+                {extractRuleSummary(activeTable.template, {
+                  max_players: activeTable.max_players,
+                  currency_type: activeTable.currency_type,
+                }).stakesLabel || '—'}
+              </span>
               <span>•</span>
-              <span>{activeTable.player_count}/{activeTable.max_players} {t('home.continueGame.players', 'players')}</span>
+              <span>
+                {activeTable.player_count}/
+                {extractRuleSummary(activeTable.template, {
+                  max_players: activeTable.max_players,
+                }).maxPlayers ?? activeTable.max_players}{' '}
+                {t('home.continueGame.players', 'players')}
+              </span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -267,10 +284,17 @@ export default function HomePage() {
               >
                 <div className="flex-1">
                   <p className="font-medium" style={{ color: 'var(--color-text)' }}>
-                    {table.table_name || `Table #${table.table_id}`}
+                    {extractRuleSummary(table.template, {
+                      max_players: table.max_players,
+                      table_name: table.table_name ?? null,
+                    }).tableName || table.table_name || `Table #${table.table_id}`}
                   </p>
                   <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                    {table.small_blind}/{table.big_blind} • {table.player_count}/{table.max_players}
+                    {extractRuleSummary(table.template, {
+                      max_players: table.max_players,
+                      currency_type: table.currency_type,
+                    }).stakesLabel || '—'} • {table.player_count}/
+                    {extractRuleSummary(table.template, { max_players: table.max_players }).maxPlayers ?? table.max_players}
                   </p>
                 </div>
                 <span className="rounded-lg px-3 py-1 text-xs font-semibold" style={{ background: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}>

@@ -27,6 +27,7 @@ import PlayerSeat from '@/components/table/PlayerSeat'
 import { getSeatLayout } from '@/config/tableLayout'
 import { useGameVariant } from '@/utils/gameVariant'
 import { CurrencyType, formatByCurrency } from '@/utils/currency'
+import { extractRuleSummary, getTemplateConfig } from '@/utils/tableRules'
 import '../styles/table-layout.css'
 import type {
   AllowedAction,
@@ -77,11 +78,9 @@ interface TableDetails {
   table_name?: string | null
   mode?: string
   status: string
-  small_blind: number
-  big_blind: number
-  starting_stack: number
   player_count: number
   max_players: number
+  starting_stack?: number
   created_at?: string | null
   updated_at?: string | null
   expires_at?: string | null
@@ -99,6 +98,12 @@ interface TableDetails {
   game_variant?: GameVariant
   is_persistent?: boolean
   currency_type?: CurrencyType
+  template?: {
+    id: number | string
+    table_type: string
+    config: Record<string, any>
+    has_waitlist?: boolean
+  } | null
 }
 
 type LastAction = NonNullable<TableState['last_action']>
@@ -1041,10 +1046,35 @@ export default function TablePage() {
   const canLeave = tableDetails?.permissions?.can_leave ?? false
   const missingPlayers = Math.max(0, 2 - livePlayerCount)
   const players = (tableDetails?.players || []).slice().sort((a, b) => a.position - b.position)
+  const templateRules = useMemo(
+    () =>
+      extractRuleSummary(tableDetails?.template ?? null, {
+        max_players: tableDetails?.max_players,
+        currency_type: tableDetails?.currency_type as CurrencyType | string | undefined,
+        table_name: tableDetails?.table_name ?? null,
+      }),
+    [tableDetails?.currency_type, tableDetails?.max_players, tableDetails?.table_name, tableDetails?.template],
+  )
+  const tableMaxPlayers = templateRules.maxPlayers ?? tableDetails?.max_players ?? 0
+  const tableStartingStack = templateRules.startingStack ?? tableDetails?.starting_stack ?? 0
+  const stakesLabel = templateRules.stakesLabel ?? null
   const currencyType: CurrencyType =
     (liveState?.currency_type as CurrencyType | undefined) ||
+    (templateRules.currencyType as CurrencyType | undefined) ||
     (tableDetails?.currency_type as CurrencyType | undefined) ||
     'REAL'
+  const stakesDisplay = useMemo(() => {
+    const small = templateRules.stakes?.small
+    const big = templateRules.stakes?.big
+    if (small !== undefined && big !== undefined) {
+      return `${formatByCurrency(small, currencyType, { withDecimals: currencyType === 'REAL' })} / ${formatByCurrency(big, currencyType, { withDecimals: currencyType === 'REAL' })}`
+    }
+    return stakesLabel ?? '—'
+  }, [currencyType, stakesLabel, templateRules.stakes?.big, templateRules.stakes?.small])
+  const startingStackDisplay =
+    tableStartingStack > 0
+      ? formatByCurrency(tableStartingStack, currencyType, { withDecimals: currencyType === 'REAL' })
+      : null
   const potDisplayAmount = useMemo(() => {
     if (typeof liveState?.pot === 'number') return liveState.pot
     if (liveState?.pots?.length) {
@@ -1110,13 +1140,13 @@ export default function TablePage() {
   const suggestedSeatNumber = useMemo(() => {
     if (viewerIsSeated || !canJoin) return null
 
-    const capacity = Math.min(tableDetails?.max_players ?? occupiedSeatNumbers.length + 1, 8)
+    const capacity = Math.min(tableMaxPlayers || occupiedSeatNumbers.length + 1, 8)
     for (let i = 0; i < capacity; i += 1) {
       if (!occupiedSeatNumbers.includes(i)) return i
     }
 
     return null
-  }, [canJoin, occupiedSeatNumbers, tableDetails?.max_players, viewerIsSeated])
+  }, [canJoin, occupiedSeatNumbers, tableMaxPlayers, viewerIsSeated])
 
   const visibleSeatNumbers = useMemo(() => {
     const seats = [...occupiedSeatNumbers]
@@ -1348,11 +1378,10 @@ export default function TablePage() {
   if (tableDetails.is_expired || tableDetails.status?.toLowerCase() === 'expired') {
     return (
       <ExpiredTableView
-        tableName={tableDetails.table_name}
-        smallBlind={tableDetails.small_blind}
-        bigBlind={tableDetails.big_blind}
-        startingStack={tableDetails.starting_stack}
-        maxPlayers={tableDetails.max_players}
+        tableName={templateRules.tableName ?? tableDetails.table_name}
+        templateId={tableDetails.template?.id ?? null}
+        templateConfig={getTemplateConfig(tableDetails.template ?? null)}
+        maxPlayers={tableMaxPlayers}
         isPrivate={tableDetails.visibility === 'private' || tableDetails.is_private}
       />
     )
@@ -1535,7 +1564,7 @@ export default function TablePage() {
                           <div className="mb-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-[1fr_auto] sm:items-center sm:text-left">
                             <div className="space-y-1">
                               <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
-                              <p className="text-base font-semibold leading-tight">{tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
+                              <p className="text-base font-semibold leading-tight">{templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
                             </div>
                             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                               <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
@@ -1547,19 +1576,17 @@ export default function TablePage() {
 
                           <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
                             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.blinds', { defaultValue: 'Blinds' })}</p>
-                              <p className="text-sm font-semibold leading-snug">
-                                {formatByCurrency(tableDetails.small_blind, currencyType, { withDecimals: currencyType === 'REAL' })} / {formatByCurrency(tableDetails.big_blind, currencyType, { withDecimals: currencyType === 'REAL' })}
-                              </p>
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stakes', { defaultValue: 'Stakes' })}</p>
+                              <p className="text-sm font-semibold leading-snug">{stakesDisplay}</p>
                             </div>
                             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
-                              <p className="text-sm font-semibold leading-snug">{tableDetails.player_count} / {tableDetails.max_players}</p>
+                              <p className="text-sm font-semibold leading-snug">{tableDetails.player_count} / {tableMaxPlayers}</p>
                             </div>
                             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
                               <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
                               <p className="text-sm font-semibold leading-snug">
-                                {formatByCurrency(tableDetails.starting_stack, currencyType, { withDecimals: currencyType === 'REAL' })}
+                                {startingStackDisplay ?? '—'}
                               </p>
                             </div>
                             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
@@ -1753,7 +1780,7 @@ export default function TablePage() {
 
               <div className="mb-8">
                 <p className="mb-4 text-sm text-white/70">
-                  {t('table.meta.players')}: {tableDetails.player_count} / {tableDetails.max_players}
+                  {t('table.meta.players')}: {tableDetails.player_count} / {tableMaxPlayers}
                 </p>
                 <div className="space-y-2.5">
                   {players.map((player) => (

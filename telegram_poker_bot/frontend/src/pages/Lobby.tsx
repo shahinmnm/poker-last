@@ -7,22 +7,8 @@ import { faRefresh, faQrcode, faUserGroup, faClock } from '@fortawesome/free-sol
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, type ApiFetchOptions, resolveWebSocketUrl } from '../utils/apiClient'
 import GameVariantBadge from '../components/ui/GameVariantBadge'
-import type { GameVariant } from '@/types'
-
-interface TableInfo {
-  table_id: number
-  table_name?: string | null
-  small_blind: number
-  big_blind: number
-  player_count: number
-  max_players: number
-  status: string
-  visibility?: string
-  expires_at?: string
-  created_at?: string
-  is_persistent?: boolean
-  game_variant?: GameVariant
-}
+import { extractRuleSummary } from '../utils/tableRules'
+import type { TableInfo } from '../components/lobby/types'
 
 type TabKey = 'public' | 'private' | 'my'
 
@@ -222,52 +208,67 @@ export default function LobbyPage() {
       }}
     >
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
-            {table.table_name || `Table #${table.table_id}`}
-          </p>
-          <span
-            className="rounded-lg px-2 py-0.5 text-xs font-semibold"
-            style={{
-              background: 'var(--color-success-bg)',
-              color: 'var(--color-success-text)',
-            }}
-          >
-            {table.status || 'Active'}
-          </span>
-          <GameVariantBadge variant={table.game_variant} size="sm" />
-          {table.is_persistent && (
-            <span
-              className="rounded-lg px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
-              style={{
-                background: 'var(--glass-bg-elevated)',
-                color: 'var(--color-text-muted)',
-                border: '1px solid var(--glass-border)',
-              }}
-            >
-              {t('lobby.persistent.label', 'Persistent')}
-            </span>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          <span className="flex items-center gap-1">
-            <span>Blinds {table.small_blind}/{table.big_blind}</span>
-          </span>
-          <span>•</span>
-          <span className="flex items-center gap-1">
-            <FontAwesomeIcon icon={faUserGroup} className="text-xs" />
-            <span>{table.player_count}/{table.max_players}</span>
-          </span>
-          {table.expires_at && !table.is_persistent && (
+        {(() => {
+          const rules = extractRuleSummary(table.template, {
+            max_players: table.max_players,
+            currency_type: table.currency_type,
+            table_name: table.table_name ?? null,
+          })
+          const maxPlayers = rules.maxPlayers ?? table.max_players
+          const stakes = rules.stakesLabel ?? '—'
+          const name = rules.tableName ?? table.table_name ?? `Table #${table.table_id}`
+
+          return (
             <>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <FontAwesomeIcon icon={faClock} className="text-xs" />
-                <span>{new Date(table.expires_at).toLocaleTimeString()}</span>
-              </span>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
+                  {name}
+                </p>
+                <span
+                  className="rounded-lg px-2 py-0.5 text-xs font-semibold"
+                  style={{
+                    background: 'var(--color-success-bg)',
+                    color: 'var(--color-success-text)',
+                  }}
+                >
+                  {table.status || 'Active'}
+                </span>
+                <GameVariantBadge variant={table.game_variant} size="sm" />
+                {table.is_persistent && (
+                  <span
+                    className="rounded-lg px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
+                    style={{
+                      background: 'var(--glass-bg-elevated)',
+                      color: 'var(--color-text-muted)',
+                      border: '1px solid var(--glass-border)',
+                    }}
+                  >
+                    {t('lobby.persistent.label', 'Persistent')}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                <span className="flex items-center gap-1">
+                  <span>{t('table.meta.stakes', { defaultValue: 'Stakes' })} {stakes}</span>
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <FontAwesomeIcon icon={faUserGroup} className="text-xs" />
+                  <span>{table.player_count}/{maxPlayers}</span>
+                </span>
+                {table.expires_at && !table.is_persistent && (
+                  <>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <FontAwesomeIcon icon={faClock} className="text-xs" />
+                      <span>{new Date(table.expires_at).toLocaleTimeString()}</span>
+                    </span>
+                  </>
+                )}
+              </div>
             </>
-          )}
-        </div>
+          )
+        })()}
       </div>
       <span
         className="rounded-lg px-4 py-2 text-sm font-semibold"

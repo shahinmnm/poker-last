@@ -12,6 +12,7 @@ import Toast from '../components/Toast'
 import type { TableStatusTone } from '../components/lobby/types'
 import { useTelegram } from '../hooks/useTelegram'
 import { apiFetch, ApiError } from '../utils/apiClient'
+import { extractRuleSummary } from '../utils/tableRules'
 import {
   clearRecentInvites,
   loadRecentInvites,
@@ -25,6 +26,7 @@ import {
   extractInviteCodeFromPayload,
   normalizeInviteCode,
 } from '../utils/invite'
+import type { TableTemplateInfo } from '../components/lobby/types'
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
   pending: 'joinGame.recent.status.pending',
@@ -36,9 +38,6 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
 interface JoinResponseTable {
   table_id: number
   table_name?: string | null
-  small_blind: number
-  big_blind: number
-  starting_stack: number
   player_count: number
   max_players: number
   status: string
@@ -48,6 +47,8 @@ interface JoinResponseTable {
   host?: { display_name?: string | null } | null
   invite_code?: string | null
   expires_at?: string | null
+  template?: TableTemplateInfo | null
+  currency_type?: string
 }
 
 interface JoinByInviteResponse {
@@ -197,6 +198,13 @@ export default function JoinGamePage() {
   )
 
   const activeTable = joinResult?.table
+  const activeRules = activeTable
+    ? extractRuleSummary(activeTable.template, {
+        max_players: activeTable.max_players,
+        currency_type: activeTable.currency_type,
+        table_name: activeTable.table_name ?? null,
+      })
+    : null
   const statusBadge = activeTable ? resolveStatus(activeTable.status) : null
 
   return (
@@ -259,19 +267,25 @@ export default function JoinGamePage() {
 
           {activeTable && statusBadge && (
             <TableSummary
-              tableName={activeTable.table_name || t('table.meta.unnamed', { defaultValue: 'Private Table' })}
-              chipLabel={`${activeTable.small_blind}/${activeTable.big_blind}`}
+              tableName={
+                activeRules?.tableName ||
+                activeTable.table_name ||
+                t('table.meta.unnamed', { defaultValue: 'Private Table' })
+              }
+              chipLabel={activeRules?.stakesLabel || '—'}
               statusBadge={statusBadge}
               meta={[
                 {
                   icon: '👥',
                   label: t('table.meta.players'),
-                  value: `${activeTable.player_count} / ${activeTable.max_players}`,
+                  value: `${activeTable.player_count} / ${
+                    activeRules?.maxPlayers ?? activeTable.max_players
+                  }`,
                 },
                 {
                   icon: '🎯',
                   label: t('table.meta.stakes'),
-                  value: `${activeTable.small_blind}/${activeTable.big_blind}`,
+                  value: activeRules?.stakesLabel || '—',
                 },
                 {
                   icon: '⏳',
