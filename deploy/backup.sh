@@ -39,7 +39,8 @@ Options:
   -h, --help      Show this help message
 
 Environment Variables:
-  BACKUP_DIR      Directory to store backups (default: ./backups)
+  BACKUP_DIR        Directory to store backups (default: ./backups)
+  BACKUP_RETENTION  Number of backups to keep (default: 10)
 
 Examples:
   backup.sh              # Full backup (database + volumes)
@@ -161,10 +162,11 @@ log_success "Backup completed successfully"
 log_info "Backup location: ${BACKUP_PATH}"
 log_info "Manifest: ${BACKUP_PATH}/manifest.txt"
 
-# Cleanup old backups (keep last 10)
+# Cleanup old backups (keep last N backups, configurable via BACKUP_RETENTION)
+BACKUP_RETENTION="${BACKUP_RETENTION:-10}"
 BACKUP_COUNT=$(find "${BACKUP_DIR}" -maxdepth 1 -type d -name "backup_*" | wc -l)
-if (( BACKUP_COUNT > 10 )); then
-  log_info "Cleaning up old backups (keeping last 10)..."
-  find "${BACKUP_DIR}" -maxdepth 1 -type d -name "backup_*" | sort | head -n -10 | xargs rm -rf
-  log_info "Cleaned up $((BACKUP_COUNT - 10)) old backup(s)"
+if (( BACKUP_COUNT > BACKUP_RETENTION )); then
+  log_info "Cleaning up old backups (keeping last ${BACKUP_RETENTION})..."
+  find "${BACKUP_DIR}" -maxdepth 1 -type d -name "backup_*" | sort | head -n -"${BACKUP_RETENTION}" | xargs rm -rf
+  log_info "Cleaned up $((BACKUP_COUNT - BACKUP_RETENTION)) old backup(s)"
 fi

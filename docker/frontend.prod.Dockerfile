@@ -9,8 +9,8 @@ WORKDIR /app
 # Copy package files
 COPY telegram_poker_bot/frontend/package.json telegram_poker_bot/frontend/package-lock.json* ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (including devDependencies needed for build)
+RUN npm ci
 
 # Copy source code
 COPY telegram_poker_bot/frontend/ .
