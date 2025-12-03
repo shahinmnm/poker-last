@@ -740,3 +740,58 @@ class UserPokerStats(Base):
     )
 
     __table_args__ = (Index("idx_user_poker_stats_user_id", "user_id"),)
+
+
+class TableSnapshot(Base):
+    """Periodic table snapshots for real-time analytics.
+    
+    Captures lightweight, non-intrusive metrics from active tables
+    at regular intervals (e.g., every few minutes).
+    """
+
+    __tablename__ = "table_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    snapshot_time = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    player_count = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=False)
+    metadata_json = Column(JSONB, default=dict)
+
+    __table_args__ = (
+        Index("idx_table_snapshots_table_time", "table_id", "snapshot_time"),
+        Index("idx_table_snapshots_time", "snapshot_time"),
+    )
+
+
+class HourlyTableStats(Base):
+    """Hourly aggregated statistics for tables.
+    
+    Stores aggregated analytics computed from tables and snapshots
+    on an hourly basis for historical tracking.
+    """
+
+    __tablename__ = "hourly_table_stats"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    hour_start = Column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    avg_players = Column(Integer, nullable=False, default=0)
+    max_players = Column(Integer, nullable=False, default=0)
+    total_hands = Column(Integer, nullable=False, default=0)
+    activity_minutes = Column(Integer, nullable=False, default=0)
+    metadata_json = Column(JSONB, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_hourly_stats_table_hour", "table_id", "hour_start", unique=True),
+        Index("idx_hourly_stats_hour", "hour_start"),
+    )
