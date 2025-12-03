@@ -37,18 +37,22 @@ def upgrade() -> None:
         op.f("ix_users_referral_code"), "users", ["referral_code"], unique=True
     )
 
-    currency_enum = sa.Enum(
-        "REAL",
-        "PLAY",
-        name="currencytype",
-    )
-
     op.create_table(
         "promo_codes",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("code", sa.String(length=64), nullable=False, unique=True),
         sa.Column("amount", sa.BigInteger(), nullable=False),
-        sa.Column("currency_type", currency_enum, nullable=False, server_default="REAL"),
+        sa.Column(
+            "currency_type",
+            sa.Enum(
+                "REAL",
+                "PLAY",
+                name="currencytype",
+                create_type=False,
+            ),
+            nullable=False,
+            server_default="REAL",
+        ),
         sa.Column("max_uses", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("current_uses", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("expiry_date", sa.DateTime(timezone=True), nullable=True),
