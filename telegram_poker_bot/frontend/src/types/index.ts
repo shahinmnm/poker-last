@@ -72,4 +72,107 @@ export interface RecentHourlyStatsResponse {
   count: number
 }
 
+// Admin Analytics types
+
+export type InsightType =
+  | 'unusual_activity'
+  | 'high_traffic'
+  | 'low_traffic'
+  | 'waitlist_surge'
+  | 'inactivity_pattern'
+  | 'rapid_player_change'
+
+export type InsightSeverity = 'info' | 'warning' | 'critical'
+
+export interface Insight {
+  type: InsightType
+  severity: InsightSeverity
+  title: string
+  message: string
+  table_id?: number
+  metadata?: Record<string, any>
+  timestamp: string
+}
+
+export interface RealtimeAnalyticsResponse {
+  timestamp: string
+  snapshots: Array<{
+    table_id: number
+    snapshot_time: string
+    player_count: number
+    is_active: boolean
+    metadata: Record<string, any>
+  }>
+  count: number
+}
+
+export interface HourlyAggregatesResponse {
+  period: {
+    start: string
+    end: string
+    hours: number
+  }
+  hourly_stats: Array<{
+    table_id: number
+    hour_start: string
+    avg_players: number
+    max_players: number
+    total_hands: number
+    activity_minutes: number
+    metadata: Record<string, any>
+  }>
+  count: number
+}
+
+export interface HistoricalRangeResponse {
+  metric_type: 'hourly' | 'snapshot'
+  period: {
+    start: string
+    end: string
+  }
+  data: Array<Record<string, any>>
+  count: number
+}
+
+export interface AnalyticsSummaryResponse {
+  timestamp: string
+  tables: {
+    by_status: Record<string, number>
+    total: number
+  }
+  analytics: {
+    total_snapshots: number
+    total_hourly_stats: number
+    latest_snapshot_time?: string
+    latest_hourly_time?: string
+  }
+}
+
+export interface InsightsResponse {
+  timestamp: string
+  analysis_period_hours: number
+  insights: Insight[]
+  count: number
+  by_type: {
+    unusual_activity: number
+    high_traffic: number
+    low_traffic: number
+    waitlist_surge: number
+    inactivity_pattern: number
+    rapid_player_change: number
+  }
+  by_severity: {
+    info: number
+    warning: number
+    critical: number
+  }
+}
+
+export interface InsightsDeliveryResponse {
+  timestamp: string
+  insights_generated: number
+  delivery_results: Record<string, boolean>
+  insights: Insight[]
+}
+
 export type { TableState, TablePlayerState, HandResultPayload } from './game'
