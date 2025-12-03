@@ -1,0 +1,128 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    PHASE 1.4 TELEGRAM BOT ARCHITECTURE                         ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              TELEGRAM USER                                      │
+│                           (Commands & Buttons)                                  │
+└────────────────────────────────┬────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         TELEGRAM BOT (Webhook)                                  │
+│                                                                                 │
+│  ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐    │
+│  │  Commands        │      │  Callbacks       │      │  Error Handler   │    │
+│  │  /start          │      │  menu_lobby      │      │  Global errors   │    │
+│  │  /menu           │◄─────┤  table_join_*    │◄─────┤  User messages   │    │
+│  │  /lobby          │      │  action_fold     │      │  Logging         │    │
+│  │  /profile        │      │  lang_en/fa      │      └──────────────────┘    │
+│  │  /stats          │      │  ...             │                               │
+│  │  /invite         │      └──────────────────┘                               │
+│  │  /language       │                                                          │
+│  └────────┬─────────┘                                                          │
+│           │                                                                     │
+│           └──────────────────────┬─────────────────────────────────────────┐  │
+│                                  ▼                                         ▼  │
+│  ┌────────────────────────────────────────┐      ┌──────────────────────────┐│
+│  │         KEYBOARDS                      │      │      MIDDLEWARES         ││
+│  │  • Main Menu (multi-layer)             │      │  • Error Handler         ││
+│  │  • Language Selector                   │      │  • Anti-Flood            ││
+│  │  • Profile Menu                        │      │    (20 req/60s)          ││
+│  │  • Wallet Menu                         │      └──────────────────────────┘│
+│  │  • Lobby (dynamic tables)              │                                   │
+│  │  • In-Game Actions                     │                                   │
+│  └────────────────────────────────────────┘                                   │
+│                                                                                 │
+└────────────────────┬───────────────────────────┬────────────────────────────────┘
+                     │                           │
+                     ▼                           ▼
+        ┌────────────────────────┐   ┌──────────────────────────┐
+        │    API CLIENT          │   │  WEBSOCKET CLIENT        │
+        │  (HTTP/REST)           │   │  (Real-time)             │
+        │                        │   │                          │
+        │  • get_user_profile    │   │  • TableWebSocketClient  │
+        │  • get_user_stats      │   │  • Auto-reconnect        │
+        │  • get_user_balance    │   │  • Exponential backoff   │
+        │  • get_tables_list     │   │  • PollingClient         │
+        │  • join_table          │   │    (fallback)            │
+        │  • submit_action       │   │                          │
+        └────────┬───────────────┘   └──────────┬───────────────┘
+                 │                              │
+                 │                              │
+        ┌────────┴──────────────────────────────┴────────────┐
+        │          SESSION MANAGER                           │
+        │  • Track active table sessions                     │
+        │  • One session per user                            │
+        │  • Cleanup on disconnect                           │
+        │  • Resource management                             │
+        └────────┬───────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            BACKEND API                                          │
+│                                                                                 │
+│  REST Endpoints:                        WebSocket Endpoints:                   │
+│  ┌────────────────────────────┐        ┌────────────────────────────┐         │
+│  │ GET  /api/users/me         │        │ WS   /api/ws/{table_id}    │         │
+│  │ GET  /api/users/me/stats   │        │ WS   /api/ws/lobby         │         │
+│  │ GET  /api/users/me/balance │        └────────────────────────────┘         │
+│  │ GET  /api/tables           │                                                │
+│  │ POST /api/tables/{id}/sit  │        Events:                                 │
+│  │ POST /api/tables/{id}/leave│        • state_snapshot                        │
+│  │ POST /api/tables/{id}/actions      │ • action_required                      │
+│  └────────────────────────────┘        • action_performed                      │
+│                                         • hand_finished                         │
+│                                         • game_started                          │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         LOCALIZATION (i18n)                                     │
+│                                                                                 │
+│  ┌─────────────┐                        ┌─────────────┐                        │
+│  │  English    │                        │   Farsi     │                        │
+│  │  (en)       │                        │   (fa)      │                        │
+│  └─────────────┘                        └─────────────┘                        │
+│                                                                                 │
+│  • User preference stored in DB                                                │
+│  • Dynamic parameter substitution                                              │
+│  • Fallback to English                                                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+DATA FLOW EXAMPLES:
+═══════════════════
+
+1. USER STARTS BOT:
+   User → /start → Command Handler → Get/Create User → Localize → Main Menu Keyboard → User
+
+2. BROWSING LOBBY:
+   User → Click "Lobby" → Callback Handler → API Client.get_tables_list() → 
+   Build Lobby Keyboard → Edit Message → User
+
+3. JOINING TABLE:
+   User → Click "Join Table" → Callback Handler → API Client.join_table() → 
+   Session Manager.create_session() → WebSocket Client.connect() → 
+   Listen for events → Display game state → User
+
+4. PLAYING HAND:
+   WS Event: action_required → Table Handler.send_action_prompt() → 
+   Build Action Keyboard → Send to User → User clicks "Call" → 
+   Callback Handler → API Client.submit_action() → Backend processes → 
+   WS Event: action_performed → Update all players
+
+5. LANGUAGE CHANGE:
+   User → /language → Command Handler → Language Keyboard → User clicks "FA" → 
+   Callback Handler → Update DB → Confirmation → Back to Menu (in Farsi)
+
+KEY FEATURES:
+═════════════
+✅ Async/await throughout
+✅ WebSocket with polling fallback
+✅ Session management per user
+✅ Rate limiting (anti-flood)
+✅ Auto-reconnection (exponential backoff)
+✅ Error handling middleware
+✅ Bilingual support (EN/FA)
+✅ Inline keyboard navigation
+✅ Real-time gameplay
+✅ Clean separation of concerns
