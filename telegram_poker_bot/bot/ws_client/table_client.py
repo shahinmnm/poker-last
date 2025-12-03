@@ -25,9 +25,11 @@ class TableWebSocketClient:
         
     def _build_ws_url(self) -> str:
         """Build WebSocket URL for table."""
-        base_url = settings.api_url or "http://localhost:8000"
+        base_url = settings.vite_api_url or "http://localhost:8000/api"
         # Convert http to ws
         ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://")
+        # Remove /api suffix if present, we'll add it back with the path
+        ws_url = ws_url.rstrip("/api").rstrip("/")
         return f"{ws_url}/api/ws/{self.table_id}"
     
     async def connect(self):

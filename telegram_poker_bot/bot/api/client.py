@@ -13,7 +13,7 @@ class APIClient:
     """Client for backend API communication."""
     
     def __init__(self):
-        self.base_url = settings.api_url.rstrip("/") if settings.api_url else "http://localhost:8000"
+        self.base_url = settings.vite_api_url.rstrip("/") if settings.vite_api_url else "http://localhost:8000/api"
         self.timeout = 10.0
         
     async def _request(
