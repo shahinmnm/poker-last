@@ -10,9 +10,13 @@ logger = get_logger(__name__)
 class AntiFloodMiddleware:
     """Simple anti-flood protection using rate limiting."""
     
-    def __init__(self, max_requests: int = 10, window_seconds: int = 60):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
+    # Configuration constants - can be overridden in __init__
+    DEFAULT_MAX_REQUESTS = 20
+    DEFAULT_WINDOW_SECONDS = 60
+    
+    def __init__(self, max_requests: int = None, window_seconds: int = None):
+        self.max_requests = max_requests or self.DEFAULT_MAX_REQUESTS
+        self.window_seconds = window_seconds or self.DEFAULT_WINDOW_SECONDS
         # Map of user_id -> list of timestamps
         self._requests: Dict[int, list] = {}
         
@@ -54,8 +58,8 @@ class AntiFloodMiddleware:
             del self._requests[user_id]
 
 
-# Global anti-flood instance
-anti_flood = AntiFloodMiddleware(max_requests=20, window_seconds=60)
+# Global anti-flood instance with defaults
+anti_flood = AntiFloodMiddleware()
 
 
 def format_chips(amount: int) -> str:

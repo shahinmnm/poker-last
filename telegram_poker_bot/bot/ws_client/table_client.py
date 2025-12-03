@@ -14,6 +14,10 @@ settings = get_settings()
 class TableWebSocketClient:
     """WebSocket client for table real-time updates."""
     
+    # Configuration constants
+    MAX_RECONNECT_ATTEMPTS = 5
+    MAX_RECONNECT_WAIT_SECONDS = 30
+    
     def __init__(self, table_id: int, on_message: Callable):
         self.table_id = table_id
         self.on_message = on_message
@@ -21,7 +25,7 @@ class TableWebSocketClient:
         self.websocket = None
         self.running = False
         self.reconnect_attempts = 0
-        self.max_reconnect_attempts = 5
+        self.max_reconnect_attempts = self.MAX_RECONNECT_ATTEMPTS
         
     def _build_ws_url(self) -> str:
         """Build WebSocket URL for table."""
@@ -64,7 +68,7 @@ class TableWebSocketClient:
                 
                 if self.running and self.reconnect_attempts < self.max_reconnect_attempts:
                     self.reconnect_attempts += 1
-                    wait_time = min(2 ** self.reconnect_attempts, 30)
+                    wait_time = min(2 ** self.reconnect_attempts, self.MAX_RECONNECT_WAIT_SECONDS)
                     logger.info(
                         "Reconnecting WebSocket",
                         table_id=self.table_id,
@@ -105,12 +109,15 @@ class TableWebSocketClient:
 class PollingClient:
     """Fallback polling client for when WebSocket is not available."""
     
+    # Configuration constant
+    DEFAULT_POLL_INTERVAL_SECONDS = 2
+    
     def __init__(self, table_id: int, on_update: Callable, api_client):
         self.table_id = table_id
         self.on_update = on_update
         self.api_client = api_client
         self.running = False
-        self.poll_interval = 2  # seconds
+        self.poll_interval = self.DEFAULT_POLL_INTERVAL_SECONDS  # seconds
         
     async def start(self):
         """Start polling for updates."""

@@ -12,9 +12,13 @@ settings = get_settings()
 class APIClient:
     """Client for backend API communication."""
     
+    # Configuration constants
+    DEFAULT_BASE_URL = "http://localhost:8000/api"
+    DEFAULT_TIMEOUT_SECONDS = 10.0
+    
     def __init__(self):
-        self.base_url = settings.vite_api_url.rstrip("/") if settings.vite_api_url else "http://localhost:8000/api"
-        self.timeout = 10.0
+        self.base_url = settings.vite_api_url.rstrip("/") if settings.vite_api_url else self.DEFAULT_BASE_URL
+        self.timeout = self.DEFAULT_TIMEOUT_SECONDS
         
     async def _request(
         self,

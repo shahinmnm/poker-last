@@ -2,7 +2,7 @@
 -r requirements.runtime.txt
 
 # Poker Engine (local)
--e /home/runner/work/poker-last/poker-last/pokerkit
+-e ../pokerkit
 
 # Testing
 pytest==7.4.4

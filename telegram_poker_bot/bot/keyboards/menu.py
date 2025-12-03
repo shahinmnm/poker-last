@@ -116,9 +116,12 @@ def get_wallet_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 
 def get_lobby_keyboard(tables: list, lang: str = "en") -> InlineKeyboardMarkup:
     """Build lobby keyboard with table list."""
+    # Configuration constant
+    MAX_TABLES_DISPLAYED = 10
+    
     buttons = []
     
-    for table in tables[:10]:  # Show max 10 tables
+    for table in tables[:MAX_TABLES_DISPLAYED]:  # Show max tables
         table_id = table.get("id")
         table_name = table.get("name", f"Table #{table_id}")
         players = table.get("player_count", 0)
