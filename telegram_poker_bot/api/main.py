@@ -119,15 +119,19 @@ api_app.add_middleware(
 # Include admin router
 api_app.include_router(admin_router)
 
+# Import and mount auth routes (Phase 4)
+from telegram_poker_bot.api.auth_routes import auth_router
+api_app.include_router(auth_router)
+
 # Import and mount global waitlist routes
 from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
-api_app.include_router(global_waitlist_router, prefix=api_prefix)
+api_app.include_router(global_waitlist_router, prefix=DEFAULT_API_PREFIX)
 
-# Import and mount analytics routes (Phase 3)
+# Import and mount analytics routes (Phase 3 + Phase 4)
 from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
 from telegram_poker_bot.api.analytics_user_routes import analytics_user_router
-api_app.include_router(analytics_admin_router, prefix=api_prefix)
-api_app.include_router(analytics_user_router, prefix=api_prefix)
+api_app.include_router(analytics_admin_router)
+api_app.include_router(analytics_user_router, prefix=DEFAULT_API_PREFIX)
 
 
 # Pydantic models
@@ -2518,7 +2522,7 @@ async def start_next_hand(
     return await _attach_template_to_payload(db, table_id, viewer_state)
 
 
-@api_app.post(f"{api_prefix}/tables/{{table_id}}/sng/force-start")
+@api_app.post(f"{DEFAULT_API_PREFIX}/tables/{{table_id}}/sng/force-start")
 async def force_start_sng_endpoint(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -3429,17 +3433,23 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
         logger.info("WebSocket connection closed", table_id=table_id)
 
 
-@api_app.websocket("/ws/admin-analytics")
+@api_app.websocket("/api/ws/admin")
 async def admin_analytics_websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for admin analytics feed.
     
-    Path: /ws/admin-analytics
+    Path: /api/ws/admin
     - Admin-only real-time analytics updates
     - Live table metrics, anomaly alerts, player indicators
     - Supports table/user subscriptions
+    - Requires JWT authentication (access or ws_session token)
+    
+    Authentication:
+    - Send token in first message: {"type": "auth", "token": "..."}
+    - Or send as query param: /api/ws/admin?token=...
     
     Message types (client -> server):
+    - auth: Authenticate with JWT token
     - subscribe_table: Subscribe to table metrics
     - unsubscribe_table: Unsubscribe from table
     - subscribe_user: Subscribe to user activity
@@ -3448,6 +3458,8 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
     
     Message types (server -> client):
     - connected: Connection established
+    - authenticated: Auth successful
+    - auth_error: Auth failed
     - subscribed/unsubscribed: Subscription confirmation
     - table_metrics_update: Live table metrics
     - anomaly_alert: Anomaly detected
@@ -3457,8 +3469,55 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
     - pong: Heartbeat response
     """
     from telegram_poker_bot.shared.services.admin_analytics_ws import get_admin_analytics_ws_manager
+    from telegram_poker_bot.shared.services.rbac_middleware import get_admin_ws_auth
+    from urllib.parse import parse_qs, urlparse
     
     ws_manager = get_admin_analytics_ws_manager()
+    ws_auth = get_admin_ws_auth()
+    
+    # Accept connection first
+    await websocket.accept()
+    
+    # Check for token in query params
+    token = None
+    if hasattr(websocket, "query_params"):
+        token = websocket.query_params.get("token")
+    elif hasattr(websocket, "scope") and "query_string" in websocket.scope:
+        query_string = websocket.scope["query_string"].decode()
+        params = parse_qs(query_string)
+        if "token" in params:
+            token = params["token"][0]
+    
+    authenticated_user = None
+    
+    # If token in query params, authenticate immediately
+    if token:
+        authenticated_user = await ws_auth.require_admin_ws(token)
+        if authenticated_user:
+            await websocket.send_json({
+                "type": "authenticated",
+                "user_id": authenticated_user.user_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            logger.info(
+                "Admin WS authenticated via query param",
+                user_id=authenticated_user.user_id,
+            )
+        else:
+            await websocket.send_json({
+                "type": "auth_error",
+                "message": "Invalid or expired token",
+            })
+            await websocket.close(code=1008)  # Policy violation
+            return
+    else:
+        # Wait for auth message
+        await websocket.send_json({
+            "type": "auth_required",
+            "message": "Send auth message with token",
+        })
+    
+    # Connect to manager
     await ws_manager.connect(websocket)
     
     # Task for sending periodic pings
@@ -3488,6 +3547,45 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
                 
                 try:
                     message = json.loads(data) if data else {}
+                    msg_type = message.get("type")
+                    
+                    # Handle auth message
+                    if msg_type == "auth" and not authenticated_user:
+                        auth_token = message.get("token")
+                        if not auth_token:
+                            await websocket.send_json({
+                                "type": "auth_error",
+                                "message": "Missing token",
+                            })
+                            continue
+                        
+                        authenticated_user = await ws_auth.require_admin_ws(auth_token)
+                        if authenticated_user:
+                            await websocket.send_json({
+                                "type": "authenticated",
+                                "user_id": authenticated_user.user_id,
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                            })
+                            logger.info(
+                                "Admin WS authenticated via message",
+                                user_id=authenticated_user.user_id,
+                            )
+                        else:
+                            await websocket.send_json({
+                                "type": "auth_error",
+                                "message": "Invalid or expired token",
+                            })
+                            await websocket.close(code=1008)  # Policy violation
+                            break
+                        continue
+                    
+                    # Require authentication for all other messages
+                    if not authenticated_user:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Not authenticated",
+                        })
+                        continue
                     
                     # Handle message via manager
                     await ws_manager.handle_message(websocket, message)

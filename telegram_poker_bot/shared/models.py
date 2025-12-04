@@ -1107,7 +1107,8 @@ class AnomalyAlert(Base):
     
     # Alert details
     message = Column(String(500), nullable=False)
-    metadata = Column(JSONB, nullable=True)
+    # Use "metadata" as column name but map to "alert_metadata" attribute to avoid SQLAlchemy reserved name
+    alert_metadata = Column("metadata", JSONB, nullable=True)
     
     # Status tracking
     status = Column(String(20), nullable=False, default="open", index=True)  # open, reviewed, dismissed
