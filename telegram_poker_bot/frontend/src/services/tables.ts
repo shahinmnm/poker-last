@@ -71,6 +71,7 @@ export interface TableTemplatePayload {
   table_type: string
   has_waitlist?: boolean
   config?: Record<string, any>
+  [key: string]: any
 }
 
 export interface TableTemplateUpdatePayload {
@@ -78,6 +79,7 @@ export interface TableTemplateUpdatePayload {
   table_type?: string
   has_waitlist?: boolean
   config?: Record<string, any>
+  [key: string]: any
 }
 
 export async function createTable(
@@ -126,7 +128,7 @@ export async function createTableTemplate(
 ): Promise<TableTemplateInfo> {
   const options: ApiFetchOptions = {
     method: 'POST',
-    body: data,
+    body: data as Record<string, unknown>,
   }
   if (initData) {
     options.initData = initData
@@ -141,7 +143,7 @@ export async function updateTableTemplate(
 ): Promise<TableTemplateInfo> {
   const options: ApiFetchOptions = {
     method: 'PUT',
-    body: data,
+    body: data as Record<string, unknown>,
   }
   if (initData) {
     options.initData = initData
