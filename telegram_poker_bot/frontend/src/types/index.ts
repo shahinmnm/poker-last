@@ -9,6 +9,7 @@ export type GameVariant =
 
 export interface TableTemplateInfo {
   id: number | string
+  name?: string
   table_type: string
   config: Record<string, any>
   has_waitlist?: boolean
