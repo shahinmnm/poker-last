@@ -5,6 +5,7 @@ It can be run as a standalone script or imported and used in migrations.
 """
 
 import asyncio
+import os
 from typing import Any, Dict, List
 
 from sqlalchemy import select
@@ -18,6 +19,10 @@ from telegram_poker_bot.shared.models import (
     TableTemplateType,
 )
 from telegram_poker_bot.shared.services import table_service
+from telegram_poker_bot.shared.types import (
+    TableTemplateCreateRequest,
+    TableTemplateUpdateRequest,
+)
 
 
 DEFAULT_TEMPLATES: List[Dict[str, Any]] = [
@@ -172,31 +177,38 @@ async def seed_default_templates() -> None:
             table_type = entry["table_type"]
             has_waitlist = entry["has_waitlist"]
             config = entry["config"]
-            
+
             # Check if template already exists
             template = await session.scalar(
                 select(TableTemplate).where(TableTemplate.name == name)
             )
-            
+
+            payload = TableTemplateCreateRequest(
+                name=name,
+                table_type=table_type,
+                has_waitlist=has_waitlist,
+                config=config,
+            )
+
             if template:
-                # Update existing template
-                template.table_type = table_type
-                template.has_waitlist = has_waitlist
-                template.config_json = config
-                action = "Updated"
-                updated_count += 1
-            else:
-                # Create new template
-                template = await table_service.create_table_template(
-                    session,
+                update_payload = TableTemplateUpdateRequest(
                     name=name,
                     table_type=table_type,
                     has_waitlist=has_waitlist,
                     config=config,
                 )
+                template = await table_service.update_table_template(
+                    session, template.id, update_payload
+                )
+                action = "Updated"
+                updated_count += 1
+            else:
+                template = await table_service.create_table_template(
+                    session, payload=payload
+                )
                 action = "Created"
                 created_count += 1
-            
+
             await session.flush()
             print(f"{action} template '{name}' (id={template.id})")
         
@@ -208,4 +220,7 @@ async def seed_default_templates() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_default_templates())
+    if os.getenv("AUTO_SEED_TEMPLATES") == "1":
+        asyncio.run(seed_default_templates())
+    else:
+        print("AUTO_SEED_TEMPLATES not set to 1; skipping seeding.")

@@ -1,11 +1,11 @@
 """Shared type definitions."""
 
 from enum import Enum
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from pydantic import BaseModel, Field
 
-from telegram_poker_bot.shared.models import GameVariant, CurrencyType
+from telegram_poker_bot.shared.models import GameVariant, CurrencyType, TableTemplateType
 
 
 class GameMode(str, Enum):
@@ -59,6 +59,39 @@ class TableCreateRequest(BaseModel):
 
     template_id: int = Field(gt=0)
     auto_seat_host: Optional[bool] = None
+
+
+class TableTemplateCreateRequest(BaseModel):
+    """Validated payload for creating table templates."""
+
+    name: str
+    table_type: TableTemplateType
+    has_waitlist: bool = False
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
+class TableTemplateUpdateRequest(BaseModel):
+    """Validated payload for updating table templates (all fields optional)."""
+
+    name: Optional[str] = None
+    table_type: Optional[TableTemplateType] = None
+    has_waitlist: Optional[bool] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+class TableTemplateResponse(BaseModel):
+    """Response schema for table templates."""
+
+    id: int
+    name: str
+    table_type: TableTemplateType
+    has_waitlist: bool
+    config: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        orm_mode = True
 
 
 class GroupGameInviteStatus(str, Enum):

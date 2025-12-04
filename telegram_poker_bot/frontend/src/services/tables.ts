@@ -51,6 +51,35 @@ export interface TableSummary {
   template?: TableTemplateInfo | null
 }
 
+export interface TableTemplateQueryParams {
+  table_type?: string
+  variant?: string
+  has_waitlist?: boolean
+  page?: number
+  per_page?: number
+}
+
+export interface TableTemplateListResponse {
+  templates: TableTemplateInfo[]
+  page?: number
+  per_page?: number
+  total?: number
+}
+
+export interface TableTemplatePayload {
+  name: string
+  table_type: string
+  has_waitlist?: boolean
+  config?: Record<string, any>
+}
+
+export interface TableTemplateUpdatePayload {
+  name?: string
+  table_type?: string
+  has_waitlist?: boolean
+  config?: Record<string, any>
+}
+
 export async function createTable(
   options: CreateTableOptions,
   initData?: string | null,
@@ -71,4 +100,51 @@ export async function createTable(
 
   const response = await apiFetch<TableSummary>('/tables', requestOptions)
   return response
+}
+
+export async function getTableTemplates(
+  params: TableTemplateQueryParams = {},
+): Promise<TableTemplateListResponse> {
+  const searchParams = new URLSearchParams()
+  if (params.table_type) searchParams.set('table_type', params.table_type)
+  if (params.variant) searchParams.set('variant', params.variant)
+  if (params.has_waitlist !== undefined) {
+    searchParams.set('has_waitlist', String(params.has_waitlist))
+  }
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.per_page) searchParams.set('per_page', String(params.per_page))
+
+  const query = searchParams.toString()
+  const path = query ? `/table-templates?${query}` : '/table-templates'
+
+  return apiFetch<TableTemplateListResponse>(path, { method: 'GET' })
+}
+
+export async function createTableTemplate(
+  data: TableTemplatePayload,
+  initData?: string | null,
+): Promise<TableTemplateInfo> {
+  const options: ApiFetchOptions = {
+    method: 'POST',
+    body: data,
+  }
+  if (initData) {
+    options.initData = initData
+  }
+  return apiFetch<TableTemplateInfo>('/table-templates', options)
+}
+
+export async function updateTableTemplate(
+  templateId: number | string,
+  data: TableTemplateUpdatePayload,
+  initData?: string | null,
+): Promise<TableTemplateInfo> {
+  const options: ApiFetchOptions = {
+    method: 'PUT',
+    body: data,
+  }
+  if (initData) {
+    options.initData = initData
+  }
+  return apiFetch<TableTemplateInfo>(`/table-templates/${templateId}`, options)
 }

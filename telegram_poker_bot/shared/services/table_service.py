@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import secrets
 import string
 from dataclasses import dataclass
@@ -29,6 +28,10 @@ from telegram_poker_bot.shared.models import (
     SNGState,
 )
 from telegram_poker_bot.shared.logging import get_logger
+from telegram_poker_bot.shared.types import (
+    TableTemplateCreateRequest,
+    TableTemplateUpdateRequest,
+)
 from telegram_poker_bot.shared.services import table_lifecycle
 from telegram_poker_bot.shared.services.table_buyin_service import TableBuyInService
 
@@ -378,17 +381,20 @@ def _public_cache_key(mode: Optional[GameMode], limit: int) -> str:
 
 async def create_table_template(
     db: AsyncSession,
+    payload: Optional[TableTemplateCreateRequest] = None,
     *,
-    name: str,
-    table_type: TableTemplateType,
+    name: Optional[str] = None,
+    table_type: Optional[TableTemplateType] = None,
     has_waitlist: bool = False,
     config: Optional[Dict[str, Any]] = None,
+    **legacy_kwargs: Any,
 ) -> TableTemplate:
     """Create and persist a TableTemplate with validated configuration.
     
     Args:
         db: Database session
-        name: Human-readable template name
+        payload: Pydantic payload for template creation (preferred)
+        name: Human-readable template name (legacy compatibility)
         table_type: Type of table (PERSISTENT, EXPIRING, PRIVATE)
         has_waitlist: Whether tables using this template should have waitlists
         config: Template configuration (validated before creation)
@@ -399,15 +405,25 @@ async def create_table_template(
     Raises:
         ValueError: If config is invalid or missing required fields
     """
-    config_dict = config or {}
-    
+    if payload is None:
+        if name is None or table_type is None:
+            raise ValueError("name and table_type are required for template creation")
+        payload = TableTemplateCreateRequest(
+            name=name,
+            table_type=table_type,
+            has_waitlist=has_waitlist,
+            config=config or {},
+        )
+
+    config_dict = payload.config or {}
+
     # Validate configuration before creating template
     validate_template_config(config_dict)
 
     template = TableTemplate(
-        name=name,
-        table_type=table_type,
-        has_waitlist=has_waitlist,
+        name=payload.name,
+        table_type=payload.table_type,
+        has_waitlist=payload.has_waitlist,
         config_json=config_dict,
     )
     db.add(template)
@@ -421,7 +437,7 @@ async def create_default_template(
     name: str = "Default Table",
     table_type: TableTemplateType = TableTemplateType.EXPIRING,
     has_waitlist: bool = False,
-    config_overrides: Optional[Dict[str, Any]] = None,
+        config_overrides: Optional[Dict[str, Any]] = None,
 ) -> TableTemplate:
     """Create a template with sensible defaults (primarily for testing).
     
@@ -456,11 +472,98 @@ async def create_default_template(
 
     return await create_table_template(
         db,
-        name=name,
-        table_type=table_type,
-        has_waitlist=has_waitlist,
-        config=base_config,
+        payload=TableTemplateCreateRequest(
+            name=name,
+            table_type=table_type,
+            has_waitlist=has_waitlist,
+            config=base_config,
+        ),
     )
+
+
+async def update_table_template(
+    db: AsyncSession,
+    template_id: int,
+    payload: TableTemplateUpdateRequest,
+) -> TableTemplate:
+    """Update an existing table template with optional fields."""
+
+    template = await db.scalar(
+        select(TableTemplate).where(TableTemplate.id == template_id)
+    )
+    if not template:
+        raise ValueError(f"TableTemplate {template_id} not found")
+
+    if payload.config is not None:
+        merged_config = dict(template.config_json or {})
+        merged_config.update(payload.config or {})
+        validate_template_config(merged_config)
+        template.config_json = merged_config
+
+    if payload.name is not None:
+        template.name = payload.name
+    if payload.table_type is not None:
+        template.table_type = payload.table_type
+    if payload.has_waitlist is not None:
+        template.has_waitlist = payload.has_waitlist
+
+    await db.flush()
+    return template
+
+
+async def delete_table_template(db: AsyncSession, template_id: int) -> None:
+    """Delete a template if no tables depend on it."""
+
+    template = await db.scalar(
+        select(TableTemplate).where(TableTemplate.id == template_id)
+    )
+    if not template:
+        raise ValueError(f"TableTemplate {template_id} not found")
+
+    table_count = await db.scalar(
+        select(func.count(Table.id)).where(Table.template_id == template_id)
+    )
+    if table_count and table_count > 0:
+        raise ValueError("Cannot delete template with existing tables")
+
+    await db.delete(template)
+    await db.flush()
+
+
+async def list_table_templates(
+    db: AsyncSession,
+    *,
+    table_type: Optional[TableTemplateType] = None,
+    variant: Optional[str] = None,
+    has_waitlist: Optional[bool] = None,
+    page: int = 1,
+    per_page: int = 50,
+) -> Tuple[List[TableTemplate], int]:
+    """List templates with optional filtering and pagination."""
+
+    base_query = select(TableTemplate)
+
+    if table_type:
+        base_query = base_query.where(TableTemplate.table_type == table_type)
+    if variant:
+        base_query = base_query.where(
+            TableTemplate.config_json["game_variant"].astext == variant
+        )
+    if has_waitlist is not None:
+        base_query = base_query.where(TableTemplate.has_waitlist == has_waitlist)
+
+    total = await db.scalar(select(func.count()).select_from(base_query.subquery()))
+
+    offset = max(page - 1, 0) * per_page
+    query = (
+        base_query.order_by(TableTemplate.id.asc())
+        .offset(offset)
+        .limit(per_page)
+    )
+
+    result = await db.execute(query)
+    templates = result.scalars().all()
+    return templates, int(total or 0)
 
 
 async def create_table(
