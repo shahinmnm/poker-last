@@ -26,7 +26,14 @@ depends_on = None
 
 def upgrade():
     """Add Phase 3 analytics tables."""
-    
+    # Reuse existing currency enum introduced in earlier migrations
+    currency_enum = postgresql.ENUM(
+        'REAL',
+        'PLAY',
+        name='currencytype',
+        create_type=False,
+    )
+
     # HandAnalytics table
     op.create_table(
         'hand_analytics',
@@ -37,7 +44,7 @@ def upgrade():
         sa.Column('hand_no', sa.Integer(), nullable=False),
         sa.Column('variant', sa.String(50), nullable=False),
         sa.Column('stakes', sa.String(50), nullable=True),
-        sa.Column('currency', sa.Enum('REAL', 'PLAY', name='currencytype'), nullable=False, server_default='PLAY'),
+        sa.Column('currency', currency_enum, nullable=False, server_default='PLAY'),
         sa.Column('players_in_hand', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('positions', postgresql.JSONB(), nullable=True),
         sa.Column('button_seat', sa.Integer(), nullable=True),
