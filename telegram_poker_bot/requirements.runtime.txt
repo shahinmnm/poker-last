@@ -30,6 +30,9 @@ pydantic-settings==2.1.0
 python-dateutil==2.8.2
 pytz==2024.1
 
+# Authentication
+PyJWT==2.8.0
+
 # Logging
 structlog==24.1.0
 
