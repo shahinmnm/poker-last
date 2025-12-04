@@ -4,11 +4,15 @@ This section covers deployment and operations for production environments.
 
 ## Contents
 
+- [Deployment Strategy](./strategy.md) - Comprehensive deployment strategy
 - [Deployment Overview](./overview.md) - Deployment architecture
+- [Operational Excellence](./operations.md) - Best practices and guidelines
 - [Docker Setup](./docker.md) - Container orchestration
 - [Database Migrations](./migrations.md) - Schema management
+- [Secrets Management](./secrets.md) - Environment and credentials
 - [SSL Configuration](./ssl.md) - Security setup
 - [Monitoring](./monitoring.md) - Operations and monitoring
+- [Release Process](./releases.md) - Versioning and release workflow
 
 ## Deployment Stack
 

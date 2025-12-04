@@ -83,7 +83,8 @@ poker-last/
 
 ### For Users
 - [Quick Deploy Guide](./QUICK_DEPLOY.md) - Fast production deployment
-- [Deployment Documentation](./DEPLOYMENT.md) - Comprehensive deployment guide
+- [Deployment Guide](./DEPLOYMENT.md) - Comprehensive deployment guide
+- [Deployment Documentation](./docs/deployment/README.md) - Full deployment strategy and operations
 
 ### For Developers
 - [Getting Started](./docs/developer/getting-started.md) - Environment setup
@@ -102,6 +103,12 @@ poker-last/
 - [Frontend Documentation](./docs/frontend/README.md) - React mini app
 - [Runtime Documentation](./docs/runtime/README.md) - Game engine
 - [Analytics Documentation](./docs/analytics/README.md) - Analytics system
+
+### Deployment & Operations
+- [Deployment Strategy](./docs/deployment/strategy.md) - Comprehensive deployment approach
+- [Monitoring & Operations](./docs/deployment/monitoring.md) - Production operations
+- [Release Process](./docs/deployment/releases.md) - Versioning and releases
+- [Secrets Management](./docs/deployment/secrets.md) - Environment and credentials
 
 ## Prerequisites
 
@@ -234,13 +241,15 @@ See [API Documentation](./docs/backend/api-overview.md) for complete API referen
 
 ## Project Phases
 
-This project was developed across six phases:
+This project was developed across multiple phases:
 
 - **Phases 1-2**: Template-driven tables, persistent SNG, waitlist system
 - **Phase 3**: Analytics engine with periodic snapshots and hourly aggregation
 - **Phase 4**: Admin insights with pattern detection and delivery channels
 - **Phase 5**: Variant-aware frontend and admin dashboard
 - **Phase 6**: Test suite reorganization and alignment
+- **Phase 7**: Documentation system rebuild and alignment
+- **Phase 8**: Deployment optimization, monitoring strategy, and release pipeline
 
 ## PokerKit Integration
 
