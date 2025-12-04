@@ -20,17 +20,32 @@ depends_on = None
 def upgrade():
     """Apply Phase 4 JWT auth and RBAC changes."""
     
-    # Create UserRole enum
-    op.execute("""
-        CREATE TYPE userrole AS ENUM ('admin', 'player', 'system');
-    """)
+    # Create UserRole enum if missing and reuse without re-creating
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
+                CREATE TYPE userrole AS ENUM ('admin', 'player', 'system');
+            END IF;
+        END
+        $$;
+        """
+    )
+    userrole_enum = postgresql.ENUM(
+        "admin",
+        "player",
+        "system",
+        name="userrole",
+        create_type=False,
+    )
     
     # Create user_roles table
     op.create_table(
         "user_roles",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("role", postgresql.ENUM('admin', 'player', 'system', name='userrole'), nullable=False),
+        sa.Column("role", userrole_enum, nullable=False),
         sa.Column("granted_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=True),
         sa.Column("granted_by", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
@@ -97,4 +112,4 @@ def downgrade():
     op.drop_table("user_roles")
     
     # Drop enum
-    op.execute("DROP TYPE userrole;")
+    op.execute("DROP TYPE IF EXISTS userrole;")
