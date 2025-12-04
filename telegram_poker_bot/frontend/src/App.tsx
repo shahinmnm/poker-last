@@ -7,7 +7,7 @@ import { UserDataProvider } from './providers/UserDataProvider'
 import { LayoutProvider } from './providers/LayoutProvider'
 import MainLayout from './components/MainLayout'
 import HomePage from './pages/Home'
-import LobbyPage from './pages/Lobby'
+import LobbyNewPage from './pages/LobbyNew'
 import CreateGamePage from './pages/CreateGame'
 import JoinGamePage from './pages/JoinGame'
 import ProfilePage from './pages/Profile'
@@ -53,7 +53,7 @@ function App() {
                 <Routes>
                   <Route element={<MainLayout />}>
                     <Route index element={<HomePage />} />
-                    <Route path="lobby" element={<LobbyPage />} />
+                    <Route path="lobby" element={<LobbyNewPage />} />
                     <Route path="games">
                       <Route path="create" element={<CreateGamePage />} />
                       <Route path="join" element={<JoinGamePage />} />
