@@ -16,7 +16,7 @@ import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { TableState } from '@/types/game'
-import { apiFetch, ApiError } from '../utils/apiClient'
+import { apiFetch, ApiError } from '../../utils/apiClient'
 
 interface UseTableActionsProps {
   /** Table ID */
@@ -182,7 +182,7 @@ export function useTableActions({
         })
 
         onActionSuccess?.(state)
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error sending action', err)
         const message =
           err instanceof ApiError &&

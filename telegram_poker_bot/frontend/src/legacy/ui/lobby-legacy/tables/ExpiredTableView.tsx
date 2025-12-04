@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
-import Card from '../ui/Card'
-import Button from '../ui/Button'
-import { extractRuleSummary } from '../../utils/tableRules'
+import Card from '../../../../components/ui/Card'
+import Button from '../../../../components/ui/Button'
+import { extractRuleSummary } from '../../../../utils/tableRules'
 
 export interface ExpiredTableViewProps {
   tableName?: string | null

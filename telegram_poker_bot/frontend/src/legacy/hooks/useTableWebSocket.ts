@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { resolveWebSocketUrl } from '../utils/apiClient'
+import { resolveWebSocketUrl } from '../../utils/apiClient'
 
 export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 

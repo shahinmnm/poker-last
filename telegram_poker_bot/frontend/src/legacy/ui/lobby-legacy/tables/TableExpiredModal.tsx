@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-import Modal from '../ui/Modal'
+import Modal from '../../../../components/ui/Modal'
 
 interface TableExpiredModalProps {
   isOpen: boolean

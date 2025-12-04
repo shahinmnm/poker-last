@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { useTelegram } from '../hooks/useTelegram'
-import { useTableWebSocket } from '../hooks/useTableWebSocket'
+import { useTableWebSocket } from '../legacy/hooks/useTableWebSocket'
 import { useUserData } from '../providers/UserDataProvider'
 import { useLayout } from '../providers/LayoutProvider'
 import { apiFetch, ApiError } from '../utils/apiClient'
@@ -12,18 +12,18 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
-import ExpiredTableView from '../components/tables/ExpiredTableView'
-import HandResultPanel from '../components/tables/HandResultPanel'
-import RecentHandsModal from '../components/tables/RecentHandsModal'
-import TableExpiredModal from '../components/tables/TableExpiredModal'
-import { ChipFlyManager, type ChipAnimation } from '../components/tables/ChipFly'
-import InterHandVoting from '../components/tables/InterHandVoting'
-import WinnerShowcase from '../components/tables/WinnerShowcase'
+import ExpiredTableView from '../legacy/ui/lobby-legacy/tables/ExpiredTableView'
+import HandResultPanel from '../legacy/ui/lobby-legacy/tables/HandResultPanel'
+import RecentHandsModal from '../legacy/ui/lobby-legacy/tables/RecentHandsModal'
+import TableExpiredModal from '../legacy/ui/lobby-legacy/tables/TableExpiredModal'
+import { ChipFlyManager, type ChipAnimation } from '../legacy/ui/lobby-legacy/tables/ChipFly'
+import InterHandVoting from '../legacy/ui/lobby-legacy/tables/InterHandVoting'
+import WinnerShowcase from '../legacy/ui/lobby-legacy/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import GameVariantBadge from '../components/ui/GameVariantBadge'
-import CommunityBoard from '@/components/table/CommunityBoard'
-import ActionBar from '@/components/table/ActionBar'
-import PlayerSeat from '@/components/table/PlayerSeat'
+import CommunityBoard from '@/legacy/ui/table-legacy/table/CommunityBoard'
+import ActionBar from '@/legacy/ui/table-legacy/table/ActionBar'
+import PlayerSeat from '@/legacy/ui/table-legacy/table/PlayerSeat'
 import { getSeatLayout } from '@/config/tableLayout'
 import { useGameVariant } from '@/utils/gameVariant'
 import { CurrencyType, formatByCurrency } from '@/utils/currency'
@@ -1726,7 +1726,7 @@ export default function TablePage() {
                             onClick={!player && canJoin && !viewerIsSeated ? handleSeat : undefined}
                           >
                             <PlayerSeat
-                              ref={playerKey ? (el) => {
+                              ref={playerKey ? (el: HTMLElement | null) => {
                                 if (el) {
                                   playerTileRefs.current.set(playerKey, el)
                                 } else {
