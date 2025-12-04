@@ -19,6 +19,7 @@ from telegram.ext import (
     filters,
 )
 
+from telegram_poker_bot.bot.utils.helpers import safe_answer_callback_query
 from telegram_poker_bot.bot.states.admin_states import AdminState
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.database import AsyncSessionLocal
@@ -232,7 +233,7 @@ async def go_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _reset_admin_context(context)
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
         target = query.message
     else:
         target = update.effective_message
@@ -247,7 +248,7 @@ async def _handle_unauthorized(update: Update) -> int:
     """Reply with Unauthorized for non-admin users."""
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
         target = query.message
     else:
         target = update.effective_message
@@ -265,7 +266,7 @@ async def show_intel_menu(
         return await _handle_unauthorized(update)
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
         target = query.message
     else:
         target = update.effective_message
@@ -382,7 +383,7 @@ async def handle_menu_selection(
     """Handle top-level admin menu buttons."""
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     if not _is_admin(update):
         return await _handle_unauthorized(update)
 
@@ -425,7 +426,7 @@ async def handle_operation_selection(
     """Handle selecting deposit or withdraw."""
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     if not _is_admin(update):
         return await _handle_unauthorized(update)
 
@@ -457,7 +458,7 @@ async def handle_currency_selection(
     """Handle choosing currency for treasury action."""
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     if not _is_admin(update):
         return await _handle_unauthorized(update)
 
@@ -573,7 +574,7 @@ async def handle_confirmation(
     """Execute the treasury operation upon confirmation."""
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     if not _is_admin(update):
         return await _handle_unauthorized(update)
 
@@ -764,7 +765,7 @@ async def handle_crm_entry(
         return await _handle_unauthorized(update)
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     target = query.message if query else update.effective_message
     if target:
         await target.reply_text("Enter User ID or @username:", reply_markup=_intel_menu_keyboard())
@@ -829,7 +830,7 @@ async def handle_crm_action(
         return await _handle_unauthorized(update)
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     data = query.data if query else ""
     if data == "admin_home":
         return await go_home(update, context)
@@ -900,7 +901,7 @@ async def handle_crm_balance_currency(
         return await _handle_unauthorized(update)
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     data = query.data if query else ""
     if ":" in data:
         _, currency_code = data.split(":", 1)
@@ -950,7 +951,7 @@ async def handle_marketing_menu(
         return await _handle_unauthorized(update)
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     target = query.message if query else update.effective_message
     if target:
         await target.reply_text("Marketing console:", reply_markup=_marketing_keyboard())
@@ -964,7 +965,7 @@ async def handle_marketing_selection(
         return await _handle_unauthorized(update)
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     data = query.data if query else ""
     if data == "admin_marketing_promo":
         await query.message.reply_text("Enter promo code string (e.g., WELCOME100):")
@@ -1014,7 +1015,7 @@ async def handle_promo_currency(
 ) -> int:
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     data = query.data if query else ""
     if ":" in data:
         _, code = data.split(":", 1)
@@ -1106,7 +1107,7 @@ async def handle_intel_menu_selection(
 
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
         target = query.message
     else:
         target = update.effective_message

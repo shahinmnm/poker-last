@@ -2,6 +2,9 @@
 
 import time
 from typing import Dict
+
+from telegram.error import BadRequest
+
 from telegram_poker_bot.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -88,3 +91,24 @@ def format_card(card: str) -> str:
 def format_cards(cards: list) -> str:
     """Format a list of cards for display."""
     return " ".join(format_card(card) for card in cards)
+
+
+async def safe_answer_callback_query(query, log=None, **kwargs):
+    """
+    Answer a callback query while ignoring stale/invalid query errors.
+
+    Telegram returns BadRequest when a query is too old or already answered.
+    Those errors are non-fatal, so we swallow them to keep handlers running.
+    """
+    if query is None:
+        return
+
+    try:
+        await query.answer(**kwargs)
+    except BadRequest as exc:
+        message = str(exc)
+        lowered = message.lower()
+        if "query is too old" in lowered or "query id is invalid" in lowered:
+            (log or logger).debug("Ignoring stale callback query", error=message)
+            return
+        raise

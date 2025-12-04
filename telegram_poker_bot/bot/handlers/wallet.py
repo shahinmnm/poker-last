@@ -9,6 +9,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from telegram_poker_bot.bot.locales import get_text
+from telegram_poker_bot.bot.utils.helpers import safe_answer_callback_query
 from telegram_poker_bot.bot.states.user_states import UserState
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.database import AsyncSessionLocal
@@ -68,7 +69,7 @@ async def handle_wallet_selection(
 ) -> int:
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     data = query.data if query else ""
 
     async with AsyncSessionLocal() as session:

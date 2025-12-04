@@ -24,6 +24,7 @@ from telegram_poker_bot.bot.handlers.table import (
     submit_action_handler,
 )
 from telegram_poker_bot.bot.api.client import api_client
+from telegram_poker_bot.bot.utils.helpers import safe_answer_callback_query
 
 logger = get_logger(__name__)
 
@@ -31,7 +32,7 @@ logger = get_logger(__name__)
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle all callback queries from inline keyboards."""
     query = update.callback_query
-    await query.answer()
+    await safe_answer_callback_query(query)
     
     data = query.data
     
@@ -117,19 +118,21 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             if amount_str.isdigit():
                 await submit_action_handler(update, context, "bet", int(amount_str))
             else:
-                await query.answer("Custom bet not yet implemented")
+                await safe_answer_callback_query(
+                    query, text="Custom bet not yet implemented"
+                )
                 
         # No-op
         elif data == "noop":
-            await query.answer()
+            await safe_answer_callback_query(query)
             
         else:
             logger.warning("Unhandled callback data", data=data)
-            await query.answer("Not implemented yet")
+            await safe_answer_callback_query(query, text="Not implemented yet")
             
     except Exception as e:
         logger.error("Error handling callback query", data=data, error=str(e), exc_info=e)
-        await query.answer("An error occurred")
+        await safe_answer_callback_query(query, text="An error occurred")
 
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, query, lang: str):

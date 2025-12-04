@@ -8,6 +8,7 @@ from telegram_poker_bot.bot.locales import get_text
 from telegram_poker_bot.bot.keyboards.menu import get_waitlist_keyboard, get_back_to_menu_keyboard
 from telegram_poker_bot.bot.api.client import api_client
 from telegram_poker_bot.bot.handlers.commands import _get_or_create_user
+from telegram_poker_bot.bot.utils.helpers import safe_answer_callback_query
 
 logger = get_logger(__name__)
 
@@ -15,7 +16,7 @@ logger = get_logger(__name__)
 async def join_waitlist_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle joining a table waitlist."""
     query = update.callback_query
-    await query.answer()
+    await safe_answer_callback_query(query)
     
     # Extract table_id from callback_data (format: waitlist_join_<table_id>)
     callback_data = query.data
@@ -73,7 +74,7 @@ async def join_waitlist_handler(update: Update, context: ContextTypes.DEFAULT_TY
 async def leave_waitlist_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle leaving a table waitlist."""
     query = update.callback_query
-    await query.answer()
+    await safe_answer_callback_query(query)
     
     # Extract table_id from callback_data (format: waitlist_leave_<table_id>)
     callback_data = query.data
@@ -125,7 +126,7 @@ async def leave_waitlist_handler(update: Update, context: ContextTypes.DEFAULT_T
 async def check_waitlist_position_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle checking waitlist position."""
     query = update.callback_query
-    await query.answer()
+    await safe_answer_callback_query(query)
     
     # Extract table_id from callback_data (format: waitlist_position_<table_id>)
     callback_data = query.data

@@ -15,6 +15,7 @@ from telegram_poker_bot.shared.services.group_invites import (
     attach_group_to_invite,
 )
 from telegram_poker_bot.bot.i18n import get_translation
+from telegram_poker_bot.bot.utils.helpers import safe_answer_callback_query
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -477,7 +478,7 @@ async def settings_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle callback queries from inline buttons."""
     query = update.callback_query
-    await query.answer()
+    await safe_answer_callback_query(query)
 
     data = query.data
     user = update.effective_user
