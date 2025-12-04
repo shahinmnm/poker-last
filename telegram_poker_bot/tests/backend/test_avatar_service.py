@@ -3,13 +3,7 @@
 These are standalone unit tests that don't require database setup.
 """
 
-import sys
-from pathlib import Path
-
-# Add parent directory to path to allow importing the module
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from shared.services.avatar_service import generate_avatar
+from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 
 
 def test_avatar_generation_basic():
