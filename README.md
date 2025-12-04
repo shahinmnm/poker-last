@@ -234,13 +234,15 @@ See [API Documentation](./docs/backend/api-overview.md) for complete API referen
 
 ## Project Phases
 
-This project was developed across six phases:
+This project was developed across multiple phases:
 
 - **Phases 1-2**: Template-driven tables, persistent SNG, waitlist system
 - **Phase 3**: Analytics engine with periodic snapshots and hourly aggregation
 - **Phase 4**: Admin insights with pattern detection and delivery channels
 - **Phase 5**: Variant-aware frontend and admin dashboard
 - **Phase 6**: Test suite reorganization and alignment
+- **Phase 7**: Documentation system rebuild and alignment
+- **Phase 8**: Deployment optimization, monitoring strategy, and release pipeline
 
 ## PokerKit Integration
 

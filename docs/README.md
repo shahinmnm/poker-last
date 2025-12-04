@@ -88,7 +88,7 @@ All documentation follows these principles:
 - **Clear Structure**: Use consistent headings, sections, and formatting
 - **Conceptual Explanations**: Explain the "what" and "why", not the "how"
 - **No Code Samples**: Keep documentation abstract and maintainable
-- **Version Alignment**: All docs reflect the current architecture (Phases 1-6)
+- **Version Alignment**: All docs reflect the current architecture (Phases 1-8)
 - **Modular Organization**: Each document covers a specific domain
 
 ## Contributing to Documentation
