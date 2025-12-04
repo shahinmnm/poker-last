@@ -317,6 +317,9 @@ export class WebSocketManager {
   private startHeartbeat(): void {
     this.clearHeartbeat()
 
+    // Note: We send pong proactively as a keepalive. The server sends ping messages,
+    // and we also respond to those in handleMessage. This dual approach ensures
+    // connection stays alive even if server pings are delayed.
     this.heartbeatTimer = setInterval(() => {
       if (this.socket?.readyState === WebSocket.OPEN) {
         this.send({ type: 'pong' })

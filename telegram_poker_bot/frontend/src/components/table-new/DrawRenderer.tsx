@@ -50,7 +50,11 @@ export function DrawRenderer({
     const cardCodes: CardCode[] = Array.from(selectedCards).map((index) => {
       const card = holeCards[index]
       if (typeof card === 'string') return card
-      return `${card.rank}${card.suit}`
+      
+      // Cards should have rank and suit, but if not, use placeholder
+      const rank = card.rank || '?'
+      const suit = card.suit || '?'
+      return `${rank}${suit}`
     })
     
     onDiscard(cardCodes)

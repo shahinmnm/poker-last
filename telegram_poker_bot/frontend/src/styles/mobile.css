@@ -190,7 +190,18 @@ textarea {
   touch-action: manipulation;
 }
 
-/* Safe area support for notched devices */
+/* Safe area support for notched devices (iOS) */
+@supports (padding: constant(safe-area-inset-bottom)) {
+  .action-panel-container,
+  .draw-phase-container {
+    padding-bottom: calc(0.5rem + constant(safe-area-inset-bottom));
+  }
+
+  .table-view {
+    padding-bottom: constant(safe-area-inset-bottom);
+  }
+}
+
 @supports (padding: env(safe-area-inset-bottom)) {
   .action-panel-container,
   .draw-phase-container {

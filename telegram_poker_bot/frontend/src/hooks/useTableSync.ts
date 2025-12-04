@@ -57,6 +57,10 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
         console.log('[useTableSync] Delta received:', delta.type)
         setState((prev) => {
           if (!prev) return prev
+          
+          // Merge delta payload with previous state
+          // For nested objects, the backend should send complete nested objects
+          // not partial updates. This is a shallow merge.
           return {
             ...prev,
             ...delta.payload,

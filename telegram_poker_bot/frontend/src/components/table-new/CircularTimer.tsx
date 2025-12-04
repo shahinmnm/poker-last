@@ -17,17 +17,25 @@ interface CircularTimerProps {
 
 export function CircularTimer({
   deadline,
-  totalDuration = 30,
+  totalDuration = 30, // Fallback reference only
   size = 60,
   strokeWidth = 4,
   className = '',
 }: CircularTimerProps) {
   const [remainingMs, setRemainingMs] = useState<number | null>(null)
+  const [actualDuration, setActualDuration] = useState<number>(totalDuration * 1000)
 
   useEffect(() => {
     if (!deadline) {
       setRemainingMs(null)
       return
+    }
+
+    // Calculate actual duration on first render
+    const now = Date.now()
+    const total = deadline - now
+    if (total > 0) {
+      setActualDuration(total)
     }
 
     const updateTimer = () => {
@@ -47,9 +55,8 @@ export function CircularTimer({
 
   const progress = useMemo(() => {
     if (remainingMs === null) return 0
-    const totalMs = totalDuration * 1000
-    return Math.min(1, Math.max(0, remainingMs / totalMs))
-  }, [remainingMs, totalDuration])
+    return Math.min(1, Math.max(0, remainingMs / actualDuration))
+  }, [remainingMs, actualDuration])
 
   const seconds = useMemo(() => {
     if (remainingMs === null) return 0
