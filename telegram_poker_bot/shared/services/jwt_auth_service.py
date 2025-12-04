@@ -28,7 +28,23 @@ settings = get_settings()
 logger = get_logger(__name__)
 
 # JWT Configuration
-JWT_SECRET_KEY = getattr(settings, "jwt_secret_key", "CHANGE_ME_IN_PRODUCTION")
+if hasattr(settings, "jwt_secret_key") and settings.jwt_secret_key and settings.jwt_secret_key != "CHANGE_ME_IN_PRODUCTION":
+    JWT_SECRET_KEY = settings.jwt_secret_key
+else:
+    # For development/testing only - use a consistent but insecure key
+    # In production, this must be set via environment variable
+    import os
+    if os.getenv("TESTING") or os.getenv("DEVELOPMENT"):
+        JWT_SECRET_KEY = "INSECURE_DEV_KEY_DO_NOT_USE_IN_PRODUCTION"
+        logger.warning(
+            "Using insecure JWT secret key for development/testing. "
+            "Set JWT_SECRET_KEY environment variable for production."
+        )
+    else:
+        raise RuntimeError(
+            "JWT_SECRET_KEY is not configured or uses insecure default. "
+            "Please set JWT_SECRET_KEY environment variable to a secure random value."
+        )
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15  # Short-lived
 REFRESH_TOKEN_EXPIRE_DAYS = 30  # Long-lived
@@ -287,7 +303,7 @@ class JWTAuthService:
                 and_(
                     RefreshToken.token_hash == token_hash,
                     RefreshToken.user_id == payload.sub,
-                    RefreshToken.is_revoked == False,
+                    RefreshToken.is_revoked is not True,
                     RefreshToken.expires_at > datetime.now(timezone.utc),
                 )
             )
@@ -341,7 +357,7 @@ class JWTAuthService:
             select(RefreshToken).where(
                 and_(
                     RefreshToken.user_id == user_id,
-                    RefreshToken.is_revoked == False,
+                    RefreshToken.is_revoked is not True,
                 )
             )
         )

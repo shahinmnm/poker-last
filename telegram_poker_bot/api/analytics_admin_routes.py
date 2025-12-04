@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, and_, func, desc, or_
+from sqlalchemy import select, and_, func, desc, or_, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -393,8 +393,8 @@ async def get_table_analytics_summary(
             func.avg(HandAnalytics.total_pot).label("avg_pot"),
             func.max(HandAnalytics.total_pot).label("max_pot"),
             func.sum(HandAnalytics.rake).label("total_rake"),
-            func.avg(func.cast(HandAnalytics.multiway, type_=type(1))).label("multiway_freq"),
-            func.avg(func.cast(HandAnalytics.went_to_showdown, type_=type(1))).label("showdown_freq"),
+            func.avg(func.cast(HandAnalytics.multiway, Integer)).label("multiway_freq"),
+            func.avg(func.cast(HandAnalytics.went_to_showdown, Integer)).label("showdown_freq"),
         )
         .where(
             and_(
@@ -532,39 +532,6 @@ async def list_tables_analytics(
 
 
 
-@analytics_admin_router.get("/tables/live")
-async def get_all_tables_live_metrics(
-    current_user: CurrentUser = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get real-time metrics for all active tables.
-    
-    Returns aggregated view of all active tables with their current metrics.
-    """
-    redis_client = await get_redis_client()
-    redis_analytics = await get_redis_analytics(redis_client)
-    
-    # Get all active tables
-    tables_result = await db.execute(
-        select(Table.id, Table.status)
-        .where(Table.status.in_(["waiting", "active"]))
-    )
-    tables = tables_result.all()
-    
-    tables_metrics = []
-    for table_id, status in tables:
-        metrics = await redis_analytics.get_all_table_metrics(table_id)
-        tables_metrics.append({
-            "table_id": table_id,
-            "status": status,
-            "metrics": metrics,
-        })
-    
-    return {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "count": len(tables_metrics),
-        "tables": tables_metrics,
-    }
 
 
 # ==================== Table Analytics Endpoints ====================
@@ -603,8 +570,8 @@ async def get_table_stats(
             func.avg(HandAnalytics.total_pot).label("avg_pot"),
             func.max(HandAnalytics.total_pot).label("max_pot"),
             func.sum(HandAnalytics.rake).label("total_rake"),
-            func.avg(func.cast(HandAnalytics.multiway, type_=type(1))).label("multiway_freq"),
-            func.avg(func.cast(HandAnalytics.went_to_showdown, type_=type(1))).label("showdown_freq"),
+            func.avg(func.cast(HandAnalytics.multiway, Integer)).label("multiway_freq"),
+            func.avg(func.cast(HandAnalytics.went_to_showdown, Integer)).label("showdown_freq"),
         )
         .where(
             and_(
