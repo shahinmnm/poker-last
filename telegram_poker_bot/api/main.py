@@ -1623,6 +1623,34 @@ async def get_table_status(
     return {"active": is_active}
 
 
+@api_app.get("/table-templates")
+async def list_table_templates(
+    db: AsyncSession = Depends(get_db),
+):
+    """List all available table templates for creating tables."""
+    from telegram_poker_bot.shared.models import TableTemplate
+    
+    result = await db.execute(
+        select(TableTemplate).order_by(TableTemplate.id.asc())
+    )
+    templates = result.scalars().all()
+    
+    return {
+        "templates": [
+            {
+                "id": t.id,
+                "name": t.name,
+                "table_type": t.table_type.value,
+                "has_waitlist": t.has_waitlist,
+                "config": t.config_json or {},
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            }
+            for t in templates
+        ]
+    }
+
+
 @api_app.get("/tables")
 async def list_tables(
     mode: Optional[str] = None,

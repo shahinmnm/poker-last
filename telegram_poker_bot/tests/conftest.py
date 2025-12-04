@@ -88,3 +88,35 @@ def create_test_template_config(
 def test_template_config():
     """Provide a factory function for creating test template configurations."""
     return create_test_template_config
+
+
+async def create_test_template(db, **kwargs):
+    """Create a table template for testing.
+    
+    This is a helper function that creates a properly validated template
+    with test-friendly defaults. Use this instead of calling table_service
+    functions directly.
+    
+    Args:
+        db: Database session
+        **kwargs: Override any config parameters
+        
+    Returns:
+        Created TableTemplate instance
+    """
+    from telegram_poker_bot.shared.models import TableTemplateType
+    from telegram_poker_bot.shared.services import table_service
+    
+    name = kwargs.pop("name", "Test Template")
+    table_type = kwargs.pop("table_type", TableTemplateType.EXPIRING)
+    has_waitlist = kwargs.pop("has_waitlist", False)
+    
+    config = create_test_template_config(**kwargs)
+    
+    return await table_service.create_table_template(
+        db,
+        name=name,
+        table_type=table_type,
+        has_waitlist=has_waitlist,
+        config=config,
+    )

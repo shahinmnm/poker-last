@@ -47,11 +47,19 @@ async def test_worker_loads_hand_state_on_first_access(
     db_session.add_all([creator, player2])
     await db_session.flush()
 
+    # Create template for test
+    from telegram_poker_bot.tests.conftest import create_test_template
+    template = await create_test_template(
+        db_session,
+        name="Test Template",
+        table_name="Test Table",
+    )
+
     # Create a table and seat players
-    table = await table_service.create_table_with_config(
+    table = await table_service.create_table(
         db_session,
         creator_user_id=creator.id,
-        is_private=False,
+        template_id=template.id,
         auto_seat_creator=False,
     )
     await table_service.seat_user_at_table(db_session, table.id, creator.id)
@@ -98,11 +106,18 @@ async def test_same_worker_handles_sequential_actions(
     db_session.add_all([creator, player2])
     await db_session.flush()
 
+    # Create template for test
+    from telegram_poker_bot.tests.conftest import create_test_template
+    template = await create_test_template(
+        db_session,
+        name="Test Template",
+    )
+
     # Create a table and seat players
-    table = await table_service.create_table_with_config(
+    table = await table_service.create_table(
         db_session,
         creator_user_id=creator.id,
-        is_private=False,
+        template_id=template.id,
         auto_seat_creator=False,
     )
     await table_service.seat_user_at_table(db_session, table.id, creator.id)
@@ -152,11 +167,18 @@ async def test_table_and_seat_data_always_fresh_from_db(
     db_session.add_all([creator, player2, player3])
     await db_session.flush()
 
+    # Create template for test
+    from telegram_poker_bot.tests.conftest import create_test_template
+    template = await create_test_template(
+        db_session,
+        name="Test Template",
+    )
+
     # Create a table with initial players
-    table = await table_service.create_table_with_config(
+    table = await table_service.create_table(
         db_session,
         creator_user_id=creator.id,
-        is_private=False,
+        template_id=template.id,
         auto_seat_creator=False,
     )
     await table_service.seat_user_at_table(db_session, table.id, creator.id)

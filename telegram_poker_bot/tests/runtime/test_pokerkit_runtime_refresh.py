@@ -48,11 +48,20 @@ async def test_runtime_refreshes_seats_when_players_join(
     await db_session.flush()
 
     # Create a table (no players seated yet)
-    table = await table_service.create_table_with_config(
+    # Create template for test
+    from telegram_poker_bot.tests.conftest import create_test_template
+    template = await create_test_template(
+        db_session,
+        name="Test Template",
+    )
+
+    # Create table from template
+    table = await table_service.create_table(
         db_session,
         creator_user_id=creator.id,
-        is_private=False,
+        template_id=template.id,
         auto_seat_creator=False,
+
     )
 
     # Get the runtime manager
@@ -97,11 +106,20 @@ async def test_runtime_refreshes_when_player_leaves(db_session: AsyncSession) ->
     await db_session.flush()
 
     # Create a table and seat all players
-    table = await table_service.create_table_with_config(
+    # Create template for test
+    from telegram_poker_bot.tests.conftest import create_test_template
+    template = await create_test_template(
+        db_session,
+        name="Test Template",
+    )
+
+    # Create table from template
+    table = await table_service.create_table(
         db_session,
         creator_user_id=creator.id,
-        is_private=False,
+        template_id=template.id,
         auto_seat_creator=False,
+
     )
     await table_service.seat_user_at_table(db_session, table.id, creator.id)
     await table_service.seat_user_at_table(db_session, table.id, player2.id)

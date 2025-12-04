@@ -38,29 +38,45 @@ async def test_get_active_tables_with_creator_and_visibility(db_session: AsyncSe
     db_session.add_all([user_a, user_b])
     await db_session.flush()
 
-    # User A creates a public table and sits at it
-    public_table = await table_service.create_table_with_config(
+    # Create templates for test
+    from telegram_poker_bot.tests.conftest import create_test_template
+    from telegram_poker_bot.shared.models import TableTemplateType
+    
+    public_template = await create_test_template(
         db_session,
-        creator_user_id=user_a.id,
+        name="Public Template",
+        table_type=TableTemplateType.EXPIRING,
+        table_name="Alice's Public Game",
         small_blind=25,
         big_blind=50,
         starting_stack=10000,
         max_players=8,
-        table_name="Alice's Public Game",
-        is_private=False,
-        auto_seat_creator=True,
     )
-
-    # User A creates a private table and sits at it
-    private_table = await table_service.create_table_with_config(
+    
+    private_template = await create_test_template(
         db_session,
-        creator_user_id=user_a.id,
+        name="Private Template",
+        table_type=TableTemplateType.PRIVATE,
+        table_name="Alice's Private Game",
         small_blind=10,
         big_blind=20,
         starting_stack=5000,
         max_players=6,
-        table_name="Alice's Private Game",
-        is_private=True,
+    )
+
+    # User A creates a public table and sits at it
+    public_table = await table_service.create_table(
+        db_session,
+        creator_user_id=user_a.id,
+        template_id=public_template.id,
+        auto_seat_creator=True,
+    )
+
+    # User A creates a private table and sits at it
+    private_table = await table_service.create_table(
+        db_session,
+        creator_user_id=user_a.id,
+        template_id=private_template.id,
         auto_seat_creator=True,
     )
 

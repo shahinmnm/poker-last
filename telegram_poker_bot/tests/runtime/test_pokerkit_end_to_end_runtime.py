@@ -49,6 +49,9 @@ async def _create_table_with_players(
     starting_stack: int = 2000,
     user_id_start: int = 1000,
 ):
+    """Create a test table with players using proper template architecture."""
+    from telegram_poker_bot.tests.conftest import create_test_template
+    
     users = [
         User(tg_user_id=user_id_start + i, language="en", username=f"Player{i}")
         for i in range(player_count)
@@ -56,13 +59,21 @@ async def _create_table_with_players(
     db.add_all(users)
     await db.flush()
 
-    table = await table_service.create_table_with_config(
+    # Create template with test configuration
+    template = await create_test_template(
         db,
-        creator_user_id=users[0].id,
+        name="Runtime Test Template",
         table_name="Runtime Test Table",
         small_blind=25,
         big_blind=50,
         starting_stack=starting_stack,
+    )
+
+    # Create table from template
+    table = await table_service.create_table(
+        db,
+        creator_user_id=users[0].id,
+        template_id=template.id,
         auto_seat_creator=False,
     )
 
