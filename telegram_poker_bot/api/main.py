@@ -123,6 +123,12 @@ api_app.include_router(admin_router)
 from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
 api_app.include_router(global_waitlist_router, prefix=api_prefix)
 
+# Import and mount analytics routes (Phase 3)
+from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
+from telegram_poker_bot.api.analytics_user_routes import analytics_user_router
+api_app.include_router(analytics_admin_router, prefix=api_prefix)
+api_app.include_router(analytics_user_router, prefix=api_prefix)
+
 
 # Pydantic models
 
@@ -3421,6 +3427,106 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
         # Disconnect from manager
         manager.disconnect(websocket, table_id)
         logger.info("WebSocket connection closed", table_id=table_id)
+
+
+@api_app.websocket("/ws/admin-analytics")
+async def admin_analytics_websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for admin analytics feed.
+    
+    Path: /ws/admin-analytics
+    - Admin-only real-time analytics updates
+    - Live table metrics, anomaly alerts, player indicators
+    - Supports table/user subscriptions
+    
+    Message types (client -> server):
+    - subscribe_table: Subscribe to table metrics
+    - unsubscribe_table: Unsubscribe from table
+    - subscribe_user: Subscribe to user activity
+    - unsubscribe_user: Unsubscribe from user
+    - ping: Heartbeat
+    
+    Message types (server -> client):
+    - connected: Connection established
+    - subscribed/unsubscribed: Subscription confirmation
+    - table_metrics_update: Live table metrics
+    - anomaly_alert: Anomaly detected
+    - pot_spike_alert: Big pot detected
+    - timeout_surge_alert: Timeout surge detected
+    - player_activity: Player activity indicator
+    - pong: Heartbeat response
+    """
+    from telegram_poker_bot.shared.services.admin_analytics_ws import get_admin_analytics_ws_manager
+    
+    ws_manager = get_admin_analytics_ws_manager()
+    await ws_manager.connect(websocket)
+    
+    # Task for sending periodic pings
+    ping_task = None
+    
+    async def send_pings():
+        """Send ping messages every 30 seconds to keep connection alive."""
+        try:
+            while True:
+                await asyncio.sleep(30)
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except Exception as e:
+                    logger.debug("Analytics WS ping send failed", error=str(e))
+                    break
+        except asyncio.CancelledError:
+            pass
+    
+    try:
+        # Start ping task
+        ping_task = asyncio.create_task(send_pings())
+        
+        while True:
+            try:
+                # Receive and handle messages
+                data = await websocket.receive_text()
+                
+                try:
+                    message = json.loads(data) if data else {}
+                    
+                    # Handle message via manager
+                    await ws_manager.handle_message(websocket, message)
+                    
+                except json.JSONDecodeError:
+                    logger.warning("Invalid JSON in analytics WebSocket message")
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid JSON",
+                    })
+            
+            except WebSocketDisconnect:
+                logger.info("Admin analytics WebSocket disconnected normally")
+                break
+            except Exception as e:
+                logger.warning(
+                    "Admin analytics WebSocket receive error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                # Only break on critical errors
+                if isinstance(e, (ConnectionError, RuntimeError)):
+                    break
+                await asyncio.sleep(0.1)
+    
+    except Exception as e:
+        logger.error("Admin analytics WebSocket fatal error", error=str(e))
+    finally:
+        # Cancel ping task
+        if ping_task:
+            ping_task.cancel()
+            try:
+                await ping_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Disconnect from manager
+        ws_manager.disconnect(websocket)
+        logger.info("Admin analytics WebSocket connection closed")
 
 
 _api_path_prefix = _derive_api_path_prefix(settings.vite_api_url)
