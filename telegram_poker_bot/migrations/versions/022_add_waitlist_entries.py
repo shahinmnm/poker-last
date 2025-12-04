@@ -20,11 +20,12 @@ def upgrade() -> None:
     bind = op.get_bind()
 
     # Create WaitlistStatus enum
-    waitlist_status_enum = sa.Enum(
+    waitlist_status_enum = postgresql.ENUM(
         "waiting",
         "entered",
         "cancelled",
         name="waitliststatus",
+        create_type=False,
     )
     waitlist_status_enum.create(bind, checkfirst=True)
 

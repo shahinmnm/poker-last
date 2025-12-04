@@ -20,11 +20,12 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
 
-    table_type_enum = sa.Enum(
+    table_type_enum = postgresql.ENUM(
         "PERSISTENT",
         "EXPIRING",
         "PRIVATE",
         name="tabletemplatetype",
+        create_type=False,
     )
     table_type_enum.create(bind, checkfirst=True)
 
@@ -250,4 +251,4 @@ def downgrade() -> None:
     op.drop_column("tables", "template_id")
 
     op.drop_table("table_templates")
-    sa.Enum(name="tabletemplatetype").drop(bind, checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS tabletemplatetype")
