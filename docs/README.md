@@ -55,13 +55,17 @@ Analytics and insights system documentation.
 - [Admin Dashboard](./analytics/admin-dashboard.md)
 
 ### [Deployment](./deployment/README.md)
-Deployment and operations documentation.
+Deployment and operations documentation covering production deployment strategies, container orchestration, migration management, secrets handling, SSL configuration, monitoring, and release processes.
 
-- [Deployment Overview](./deployment/overview.md)
-- [Docker Setup](./deployment/docker.md)
-- [Database Migrations](./deployment/migrations.md)
-- [SSL Configuration](./deployment/ssl.md)
-- [Monitoring](./deployment/monitoring.md)
+- [Deployment Strategy](./deployment/strategy.md) - Comprehensive deployment strategy
+- [Deployment Overview](./deployment/overview.md) - Architecture and processes
+- [Operational Excellence](./deployment/operations.md) - Best practices and guidelines
+- [Docker Setup](./deployment/docker.md) - Container orchestration details
+- [Database Migrations](./deployment/migrations.md) - Schema management
+- [Secrets Management](./deployment/secrets.md) - Environment and credentials
+- [SSL Configuration](./deployment/ssl.md) - Certificate and security setup
+- [Monitoring](./deployment/monitoring.md) - Operations and observability
+- [Release Process](./deployment/releases.md) - Versioning and workflow
 
 ### [Developer Guide](./developer/README.md)
 Developer onboarding and contribution guidelines.
@@ -88,7 +92,7 @@ All documentation follows these principles:
 - **Clear Structure**: Use consistent headings, sections, and formatting
 - **Conceptual Explanations**: Explain the "what" and "why", not the "how"
 - **No Code Samples**: Keep documentation abstract and maintainable
-- **Version Alignment**: All docs reflect the current architecture (Phases 1-6)
+- **Version Alignment**: All docs reflect the current architecture (Phases 1-8)
 - **Modular Organization**: Each document covers a specific domain
 
 ## Contributing to Documentation
