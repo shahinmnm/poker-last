@@ -55,11 +55,13 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       [playerName],
     )
 
-    const showFaces = holeCards.length >= 2 && !showCardBacks
+    // Support variable number of hole cards for different variants
+    // Hold'em: 2, Omaha: 4, Draw games: 5
+    const showFaces = holeCards.length > 0 && !showCardBacks
     const totalTime = typeof turnTotalSeconds === 'number' ? turnTotalSeconds : null
     const showTimer =
       isActive && Boolean(turnDeadline) && totalTime !== null && totalTime > 0
-    const safeCards = showFaces ? holeCards.slice(0, 2) : ['XX', 'XX']
+    const safeCards = showFaces ? holeCards : Array(2).fill('XX')
     const cardsHidden = !showFaces
 
     const mutedState = hasFolded || isSittingOut
@@ -112,16 +114,24 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
           <div className="pointer-events-none relative flex h-18 w-[120px] items-center justify-center z-10 -ml-2">
             {safeCards.map((card, index) => {
-              const isBackCard = index === 0
+              // Calculate rotation and position based on card count
+              const cardCount = safeCards.length
+              const baseRotation = cardCount === 2 ? 8 : cardCount === 4 ? 6 : 5
+              const spreadFactor = cardCount === 2 ? 15 : cardCount === 4 ? 12 : 10
+              
+              // Center the cards and spread them evenly
+              const centerOffset = (cardCount - 1) / 2
+              const rotationAngle = (index - centerOffset) * baseRotation
+              const xOffset = (index - centerOffset) * spreadFactor
+              
               return (
                 <div
-                  key={`${card}-${index}-${isBackCard ? 'back' : 'front'}`}
-                  className={clsx(
-                    'absolute origin-bottom',
-                    isBackCard
-                      ? 'z-10 -rotate-[8deg]'
-                      : 'z-20 rotate-[8deg] translate-x-[15px]',
-                  )}
+                  key={`${card}-${index}`}
+                  className="absolute origin-bottom"
+                  style={{
+                    transform: `translateX(${xOffset}px) rotate(${rotationAngle}deg)`,
+                    zIndex: 10 + index,
+                  }}
                 >
                   <PlayingCard card={cardsHidden ? 'XX' : card} hidden={cardsHidden} size="sm" />
                 </div>
