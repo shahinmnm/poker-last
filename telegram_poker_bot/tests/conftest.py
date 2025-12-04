@@ -18,6 +18,8 @@ def _compile_jsonb_sqlite(_type, _compiler, **_kw):
 
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_suite.db")
+os.environ.setdefault("TESTING", "1")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
 
 @pytest.fixture(scope="session")
 def event_loop():
