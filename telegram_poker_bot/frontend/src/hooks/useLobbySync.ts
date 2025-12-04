@@ -45,7 +45,19 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       const data = await response.json()
       
       // Transform to LobbyEntry format
-      const lobbyTables: LobbyEntry[] = (data.tables || []).map((t: any) => ({
+      const lobbyTables: LobbyEntry[] = (data.tables || []).map((t: {
+        table_id: number
+        template?: { name?: string; config?: { stakes?: string } }
+        table_name?: string
+        game_variant?: string
+        player_count?: number
+        max_players?: number
+        waitlist_count?: number
+        uptime?: number
+        expires_at?: string
+        table_type?: string
+        is_private?: boolean
+      }) => ({
         table_id: t.table_id,
         template_name: t.template?.name || t.table_name || 'Unknown',
         variant: t.game_variant || 'holdem',
@@ -77,7 +89,7 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
 
     const wsManager = createLobbyWebSocket({
       onMessage: (message) => {
-        const lobbyMessage = message as LobbyDeltaMessage
+        const lobbyMessage = message as unknown as LobbyDeltaMessage
 
         if (lobbyMessage.type === 'lobby_update') {
           const entry = lobbyMessage.payload as LobbyEntry

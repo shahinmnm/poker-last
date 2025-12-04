@@ -232,7 +232,7 @@ export interface TableDeltaMessage {
 
 export interface WebSocketMessage {
   type: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface HeartbeatMessage {

@@ -41,7 +41,7 @@ export function TableView() {
     if (!tableId) return
 
     try {
-      const payload: any = { action_type: action }
+      const payload: { action_type: ActionType; amount?: number } = { action_type: action }
       
       if (amount !== undefined && (action === 'bet' || action === 'raise')) {
         payload.amount = amount
@@ -186,7 +186,7 @@ export function TableView() {
                 <Seat
                   seat={seat}
                   actionDeadline={seat.is_acting ? action_deadline : null}
-                  currency={table_metadata.currency as any}
+                  currency={table_metadata.currency as 'REAL' | 'PLAY'}
                 />
               </div>
             )
@@ -199,7 +199,7 @@ export function TableView() {
             <ActionPanel
               legalActions={legal_actions}
               onAction={handleAction}
-              currency={table_metadata.currency as any}
+              currency={table_metadata.currency as 'REAL' | 'PLAY'}
             />
           </div>
         )}

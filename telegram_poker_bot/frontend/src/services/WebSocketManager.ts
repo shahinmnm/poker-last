@@ -176,9 +176,9 @@ export class WebSocketManager {
 
       // Handle specific message types
       if (message.type === 'snapshot') {
-        this.handleSnapshot(message as TableDeltaMessage)
+        this.handleSnapshot(message as unknown as TableDeltaMessage)
       } else if (this.isDeltaMessage(message)) {
-        this.handleDelta(message as TableDeltaMessage)
+        this.handleDelta(message as unknown as TableDeltaMessage)
       }
     } catch (error) {
       console.error('[WS] Failed to parse message:', error)
