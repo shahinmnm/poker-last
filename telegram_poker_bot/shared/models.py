@@ -67,6 +67,16 @@ class TableTemplateType(str, enum.Enum):
     PRIVATE = "PRIVATE"
 
 
+class SNGState(str, enum.Enum):
+    """SNG tournament state enumeration."""
+    
+    WAITING = "waiting"           # Waiting for first player
+    JOIN_WINDOW = "join_window"   # Registration countdown active
+    READY = "ready"               # Min players met, ready to start
+    ACTIVE = "active"             # Game in progress
+    COMPLETED = "completed"       # Game finished
+
+
 class ActionType(PyEnum):
     """Action type enumeration."""
 
@@ -255,6 +265,19 @@ class Table(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
     invite_code = Column(String(16), nullable=True, unique=True, index=True)
     last_action_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    sng_state = Column(
+        Enum(
+            SNGState,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="sngstate",
+        ),
+        nullable=True,  # NULL for non-SNG tables
+        index=True,
+    )
+    sng_join_window_started_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     # Relationships
     group = relationship("Group", back_populates="tables")
@@ -712,6 +735,48 @@ class WaitlistEntry(Base):
         Index("idx_waitlist_table_status", "table_id", "status"),
         Index("idx_waitlist_user_status", "user_id", "status"),
         Index("idx_waitlist_table_created", "table_id", "created_at"),
+    )
+
+
+class GlobalWaitlistEntry(Base):
+    """Global waitlist entry for cross-table player routing."""
+    
+    __tablename__ = "global_waitlist_entries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    game_variant = Column(String(50), nullable=True)  # NULL = any variant
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(
+        Enum(
+            WaitlistStatus,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="waitliststatus",
+        ),
+        nullable=False,
+        default=WaitlistStatus.WAITING,
+        server_default=WaitlistStatus.WAITING.value,
+        index=True,
+    )
+    routed_table_id = Column(
+        Integer,
+        ForeignKey("tables.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    
+    # Relationships
+    user = relationship("User", backref="global_waitlist_entries")
+    routed_table = relationship("Table", backref="global_waitlist_routings")
+    
+    __table_args__ = (
+        Index("idx_global_waitlist_user_status", "user_id", "status"),
+        Index("idx_global_waitlist_variant_status", "game_variant", "status"),
+        Index("idx_global_waitlist_created", "created_at"),
     )
 
 

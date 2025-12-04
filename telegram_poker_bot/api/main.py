@@ -46,6 +46,8 @@ from telegram_poker_bot.shared.models import (
     TableStatus,
     Seat,
     HandStatus,
+    SNGState,
+    TableTemplateType,
 )
 from telegram_poker_bot.shared.types import (
     GameMode,
@@ -116,6 +118,10 @@ api_app.add_middleware(
 
 # Include admin router
 api_app.include_router(admin_router)
+
+# Import and mount global waitlist routes
+from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
+api_app.include_router(global_waitlist_router, prefix=api_prefix)
 
 
 # Pydantic models
@@ -469,6 +475,7 @@ table_lifecycle.register_table_status_listener(_broadcast_lobby_table_update)
 
 _auto_fold_task: Optional[asyncio.Task] = None
 _inactivity_check_task: Optional[asyncio.Task] = None
+_sng_monitor_task: Optional[asyncio.Task] = None
 _inter_hand_tasks: Dict[int, Tuple[asyncio.Task, int]] = {}
 
 
@@ -626,6 +633,14 @@ async def check_table_inactivity():
                             )
 
                             if table.status == TableStatus.WAITING and not active_seats:
+                                # Skip persistent tables
+                                if table.template and table.template.table_type == TableTemplateType.PERSISTENT:
+                                    logger.debug(
+                                        "Skipping cleanup for persistent table with no players",
+                                        table_id=table.id,
+                                    )
+                                    continue
+                                
                                 reason = "no active players remaining"
                                 await table_lifecycle.mark_table_expired(
                                     db, table, reason
@@ -655,6 +670,15 @@ async def check_table_inactivity():
                                 continue
 
                             if table.status == TableStatus.ACTIVE and active_player_count < 2:
+                                # Skip persistent tables
+                                if table.template and table.template.table_type == TableTemplateType.PERSISTENT:
+                                    logger.debug(
+                                        "Skipping min-player cleanup for persistent table",
+                                        table_id=table.id,
+                                        active_player_count=active_player_count,
+                                    )
+                                    continue
+                                
                                 reason = (
                                     f"lack of minimum player ({active_player_count}/2 required)"
                                 )
@@ -1074,24 +1098,134 @@ async def auto_fold_expired_actions():
             logger.error("Error in auto-fold background task", error=str(e))
 
 
+async def monitor_sng_join_windows():
+    """Background task to monitor SNG join windows and trigger auto-starts.
+    
+    Runs every second to:
+    1. Check all tables in JOIN_WINDOW state
+    2. Emit WebSocket tick events
+    3. Trigger auto-start when window expires
+    """
+    from telegram_poker_bot.shared.database import get_db_session
+    from telegram_poker_bot.shared.services import sng_manager
+    from sqlalchemy.orm import joinedload
+    
+    logger.info("SNG join window monitor started")
+    
+    while True:
+        try:
+            await asyncio.sleep(1)  # Check every second
+            
+            async with get_db_session() as db:
+                # Find all tables in JOIN_WINDOW state
+                result = await db.execute(
+                    select(Table)
+                    .options(joinedload(Table.template))
+                    .where(
+                        Table.sng_state == SNGState.JOIN_WINDOW,
+                        Table.status == TableStatus.WAITING,
+                    )
+                )
+                tables = result.scalars().all()
+                
+                for table in tables:
+                    try:
+                        if not table.template or not table.template.config_json:
+                            continue
+                        
+                        config = table.template.config_json
+                        sng_config = sng_manager.get_sng_config(config)
+                        
+                        if not table.sng_join_window_started_at:
+                            continue
+                        
+                        now = datetime.now(timezone.utc)
+                        elapsed = (now - table.sng_join_window_started_at).total_seconds()
+                        remaining = max(0, sng_config["join_window_seconds"] - elapsed)
+                        
+                        # Broadcast tick event
+                        await manager.broadcast(table.id, {
+                            "type": "sng_join_window_tick",
+                            "table_id": table.id,
+                            "remaining_seconds": int(remaining),
+                        })
+                        
+                        # Check if window expired
+                        if remaining <= 0:
+                            should_start, reason = await sng_manager.check_auto_start_conditions(
+                                db, table
+                            )
+                            
+                            if should_start:
+                                # Trigger auto-start
+                                await manager.broadcast(table.id, {
+                                    "type": "sng_auto_start_triggered",
+                                    "table_id": table.id,
+                                    "reason": reason,
+                                })
+                                
+                                # Actually start the table (would integrate with existing start logic)
+                                table.status = TableStatus.ACTIVE
+                                table.sng_state = SNGState.ACTIVE
+                                await db.commit()
+                                
+                                logger.info(
+                                    "SNG auto-started",
+                                    table_id=table.id,
+                                    reason=reason,
+                                )
+                            else:
+                                # Window expired but not enough players
+                                await manager.broadcast(table.id, {
+                                    "type": "sng_join_window_ended",
+                                    "table_id": table.id,
+                                    "auto_starting": False,
+                                })
+                                
+                                # Reset to WAITING state
+                                table.sng_state = SNGState.WAITING
+                                table.sng_join_window_started_at = None
+                                await db.commit()
+                                
+                                logger.info(
+                                    "SNG join window expired without enough players",
+                                    table_id=table.id,
+                                )
+                    
+                    except Exception as exc:
+                        logger.error(
+                            "Error processing SNG join window",
+                            table_id=table.id,
+                            error=str(exc),
+                        )
+        
+        except asyncio.CancelledError:
+            logger.info("SNG join window monitor cancelled")
+            break
+        except Exception as exc:
+            logger.error("Error in SNG join window monitor", error=str(exc))
+            await asyncio.sleep(5)  # Back off on error
+
+
 @api_app.on_event("startup")
 async def startup_event():
     """Start background tasks on application startup."""
-    global _auto_fold_task, _inactivity_check_task
+    global _auto_fold_task, _inactivity_check_task, _sng_monitor_task
     _auto_fold_task = asyncio.create_task(auto_fold_expired_actions())
     _inactivity_check_task = asyncio.create_task(check_table_inactivity())
+    _sng_monitor_task = asyncio.create_task(monitor_sng_join_windows())
     
     # Start analytics scheduler
     scheduler = get_analytics_scheduler()
     await scheduler.start()
     
-    logger.info("Started background tasks: auto-fold, inactivity check, and analytics scheduler")
+    logger.info("Started background tasks: auto-fold, inactivity check, SNG monitor, and analytics scheduler")
 
 
 @api_app.on_event("shutdown")
 async def shutdown_event():
     """Clean up background tasks on application shutdown."""
-    global _auto_fold_task, _inactivity_check_task
+    global _auto_fold_task, _inactivity_check_task, _sng_monitor_task
 
     if _auto_fold_task:
         _auto_fold_task.cancel()
@@ -1104,6 +1238,13 @@ async def shutdown_event():
         _inactivity_check_task.cancel()
         try:
             await _inactivity_check_task
+        except asyncio.CancelledError:
+            pass
+    
+    if _sng_monitor_task:
+        _sng_monitor_task.cancel()
+        try:
+            await _sng_monitor_task
         except asyncio.CancelledError:
             pass
 
@@ -2369,6 +2510,54 @@ async def start_next_hand(
 
     viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
     return await _attach_template_to_payload(db, table_id, viewer_state)
+
+
+@api_app.post(f"{api_prefix}/tables/{{table_id}}/sng/force-start")
+async def force_start_sng_endpoint(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Force-start an SNG table (admin/creator only)."""
+    from telegram_poker_bot.shared.services import sng_manager
+    from sqlalchemy.orm import joinedload
+    
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    user_auth = verify_telegram_init_data(x_telegram_init_data)
+    if not user_auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, user_auth)
+    
+    # Load table to check permissions
+    result = await db.execute(
+        select(Table).options(joinedload(Table.template)).where(Table.id == table_id)
+    )
+    table = result.scalar_one_or_none()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+    
+    # Check if user is creator (simplified - in production, add admin check)
+    if table.creator_user_id != user.id:
+        raise HTTPException(status_code=403, detail="Only table creator can force-start")
+    
+    try:
+        table = await sng_manager.force_start_sng(db, table_id)
+        await db.commit()
+        
+        # Broadcast to all players
+        runtime_mgr = get_pokerkit_runtime_manager()
+        state = await runtime_mgr.get_state(db, table.id, viewer_user_id=None)
+        await manager.broadcast(table.id, {
+            "type": "sng_force_started",
+            "table": state,
+        })
+        
+        return {"success": True, "table_id": table.id}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @api_app.get("/tables/{table_id}/state")
