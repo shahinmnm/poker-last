@@ -2,12 +2,27 @@ export type GameVariant =
   | 'no_limit_texas_holdem'
   | 'no_limit_short_deck_holdem'
   | 'pot_limit_omaha_holdem'
+  | 'pot_limit_omaha'
+  | 'five_card_draw'
+  | 'triple_draw_2_7_lowball'
+  | 'badugi'
 
 export interface TableTemplateInfo {
   id: number | string
   table_type: string
   config: Record<string, any>
   has_waitlist?: boolean
+  variant_config?: VariantConfig
+}
+
+export interface VariantConfig {
+  hole_cards_count?: number // 2 for Hold'em, 4 for Omaha, 5 for Draw
+  community_cards?: boolean // true for Hold'em/Omaha, false for Draw
+  draw_rounds?: number // Number of draw rounds (e.g., 3 for Triple Draw)
+  discard_enabled?: boolean // Whether discarding is allowed
+  max_discards_per_round?: number // Maximum cards to discard per round
+  board_cards_to_use?: number // For Omaha: must use exactly 2 from hand
+  lowball?: boolean // For lowball variants
 }
 
 export interface TableSummary {
@@ -26,6 +41,20 @@ export interface TableSummary {
   updated_at?: string | null
   expires_at?: string | null
   visibility?: string
+  waitlist?: WaitlistInfo
+}
+
+export interface WaitlistInfo {
+  count: number
+  positions: WaitlistPosition[]
+}
+
+export interface WaitlistPosition {
+  user_id: number
+  position: number
+  joined_at: string
+  display_name?: string | null
+  username?: string | null
 }
 
 // Analytics types
@@ -146,6 +175,45 @@ export interface AnalyticsSummaryResponse {
     latest_snapshot_time?: string
     latest_hourly_time?: string
   }
+}
+
+// Admin Table Detail types
+export interface AdminTableDetail {
+  table_id: number
+  table_name?: string | null
+  status: string
+  phase?: string
+  game_variant?: GameVariant
+  player_count: number
+  max_players: number
+  current_hand_id?: number | null
+  hand_number?: number | null
+  is_persistent?: boolean
+  template?: TableTemplateInfo | null
+  waitlist?: WaitlistInfo
+  session_metrics?: SessionMetrics
+  state_summary?: TableStateSummary
+  created_at?: string
+  updated_at?: string
+  last_action_at?: string
+}
+
+export interface SessionMetrics {
+  total_hands_played: number
+  total_pot_amount: number
+  avg_pot_size: number
+  active_duration_minutes: number
+  players_joined_total: number
+  players_left_total: number
+}
+
+export interface TableStateSummary {
+  current_pot: number
+  current_bet: number
+  players_in_hand: number
+  players_all_in: number
+  street?: string | null
+  board_cards?: string[]
 }
 
 export interface InsightsResponse {
