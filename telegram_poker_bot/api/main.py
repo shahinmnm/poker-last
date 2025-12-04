@@ -119,6 +119,10 @@ api_app.add_middleware(
 # Include admin router
 api_app.include_router(admin_router)
 
+# Import and mount global waitlist routes
+from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
+api_app.include_router(global_waitlist_router, prefix=api_prefix)
+
 
 # Pydantic models
 
@@ -2506,6 +2510,54 @@ async def start_next_hand(
 
     viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
     return await _attach_template_to_payload(db, table_id, viewer_state)
+
+
+@api_app.post(f"{api_prefix}/tables/{{table_id}}/sng/force-start")
+async def force_start_sng_endpoint(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Force-start an SNG table (admin/creator only)."""
+    from telegram_poker_bot.shared.services import sng_manager
+    from sqlalchemy.orm import joinedload
+    
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data")
+    
+    user_auth = verify_telegram_init_data(x_telegram_init_data)
+    if not user_auth:
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    
+    user = await ensure_user(db, user_auth)
+    
+    # Load table to check permissions
+    result = await db.execute(
+        select(Table).options(joinedload(Table.template)).where(Table.id == table_id)
+    )
+    table = result.scalar_one_or_none()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+    
+    # Check if user is creator (simplified - in production, add admin check)
+    if table.creator_user_id != user.id:
+        raise HTTPException(status_code=403, detail="Only table creator can force-start")
+    
+    try:
+        table = await sng_manager.force_start_sng(db, table_id)
+        await db.commit()
+        
+        # Broadcast to all players
+        runtime_mgr = get_pokerkit_runtime_manager()
+        state = await runtime_mgr.get_state(db, table.id, viewer_user_id=None)
+        await manager.broadcast(table.id, {
+            "type": "sng_force_started",
+            "table": state,
+        })
+        
+        return {"success": True, "table_id": table.id}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @api_app.get("/tables/{table_id}/state")
