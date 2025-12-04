@@ -234,7 +234,7 @@ class AdminAnalyticsWebSocketManager:
                 "user_id": alert.user_id,
                 "hand_id": alert.hand_id,
                 "message": alert.message,
-                "metadata": alert.metadata or {},
+                "metadata": alert.alert_metadata or {},
                 "created_at": alert.created_at.isoformat() if alert.created_at else None,
             },
             "timestamp": datetime.now(timezone.utc).isoformat(),

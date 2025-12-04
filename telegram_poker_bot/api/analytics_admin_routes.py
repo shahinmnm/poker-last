@@ -1146,11 +1146,11 @@ async def resolve_anomaly(
     alert.reviewed_by = current_user.user_id
     
     # Update metadata with resolution
-    if not alert.metadata:
-        alert.metadata = {}
-    alert.metadata["resolution"] = resolution
-    alert.metadata["resolved_by"] = current_user.user_id
-    alert.metadata["resolved_at"] = datetime.now(timezone.utc).isoformat()
+    if not alert.alert_metadata:
+        alert.alert_metadata = {}
+    alert.alert_metadata["resolution"] = resolution
+    alert.alert_metadata["resolved_by"] = current_user.user_id
+    alert.alert_metadata["resolved_at"] = datetime.now(timezone.utc).isoformat()
     
     # Log admin action
     jwt_service = get_jwt_auth_service()
@@ -1485,11 +1485,11 @@ async def resolve_anomaly(
     alert.reviewed_by = current_user.user_id
     
     # Update metadata with resolution
-    if not alert.metadata:
-        alert.metadata = {}
-    alert.metadata["resolution"] = resolution
-    alert.metadata["resolved_by"] = current_user.user_id
-    alert.metadata["resolved_at"] = datetime.now(timezone.utc).isoformat()
+    if not alert.alert_metadata:
+        alert.alert_metadata = {}
+    alert.alert_metadata["resolution"] = resolution
+    alert.alert_metadata["resolved_by"] = current_user.user_id
+    alert.alert_metadata["resolved_at"] = datetime.now(timezone.utc).isoformat()
     
     # Log admin action
     jwt_service = get_jwt_auth_service()
