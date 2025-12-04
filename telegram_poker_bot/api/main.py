@@ -68,6 +68,7 @@ from telegram_poker_bot.game_core.pokerkit_runtime import (
     NotYourTurnError,
     get_pokerkit_runtime_manager,
 )
+from telegram_poker_bot.api.admin_routes import admin_router
 
 settings = get_settings()
 configure_logging()
@@ -112,6 +113,9 @@ api_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include admin router
+api_app.include_router(admin_router)
 
 
 # Pydantic models
