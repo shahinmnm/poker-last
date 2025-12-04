@@ -6,6 +6,7 @@ This module provides a single canonical path for table lifecycle decisions:
 - Per-turn timeout enforcement
 - Self-destruct conditions
 - History visibility rules
+- Persistent table immunity
 
 CRITICAL: This is the ONLY place where lifecycle logic should be implemented.
 Do NOT create parallel lifecycle mechanisms elsewhere.
@@ -63,6 +64,20 @@ async def _emit_table_status_event(
             )
 
 
+async def is_persistent_table(table: Table) -> bool:
+    """Check if a table is persistent and should be immune from auto-cleanup.
+    
+    Args:
+        table: Table instance
+        
+    Returns:
+        True if table is persistent, False otherwise
+    """
+    if not table.template:
+        return False
+    return table.template.table_type == TableTemplateType.PERSISTENT
+
+
 async def should_table_be_listed_publicly(table: Table) -> bool:
     """
     Determine if a table should appear in public listings.
@@ -97,6 +112,8 @@ async def compute_prestart_expiry(
 ) -> Tuple[bool, Optional[str]]:
     """
     Check if a pre-start table should be expired.
+    
+    PERSISTENT tables are immune from expiry.
 
     Rule 1 & 7: Pre-start join TTL
     - PUBLIC tables (no invite_code): 10 minutes to start
@@ -111,6 +128,10 @@ async def compute_prestart_expiry(
     Returns:
         (should_expire, reason) tuple
     """
+    # PERSISTENT tables never expire
+    if await is_persistent_table(table):
+        return False, None
+    
     # Only applies to WAITING tables
     if table.status != TableStatus.WAITING:
         return False, None

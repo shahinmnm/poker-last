@@ -26,6 +26,7 @@ from telegram_poker_bot.shared.models import (
     CurrencyType,
     TableTemplate,
     TableTemplateType,
+    SNGState,
 )
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.services import table_lifecycle
@@ -104,6 +105,9 @@ def validate_template_config(config: Dict[str, Any]) -> None:
         - rake_cap: int
         - turn_timeout_seconds: int
         - expiration_minutes: int (required for EXPIRING tables)
+        - sng_enabled: bool
+        - sng_min_players: int (if sng_enabled)
+        - sng_join_window_seconds: int (if sng_enabled)
     """
     # Required fields
     _require_int(config, "small_blind")
@@ -147,6 +151,28 @@ def validate_template_config(config: Dict[str, Any]) -> None:
                 raise ValueError("rake_percentage must be between 0 and 1")
         except (TypeError, ValueError) as exc:
             raise ValueError("rake_percentage must be a number between 0 and 1") from exc
+    
+    # Validate SNG config if enabled
+    if config.get("sng_enabled", False):
+        sng_min = config.get("sng_min_players")
+        if sng_min is not None:
+            try:
+                sng_min_int = int(sng_min)
+                if sng_min_int < 2:
+                    raise ValueError("sng_min_players must be at least 2")
+                if sng_min_int > max_players:
+                    raise ValueError(f"sng_min_players ({sng_min_int}) cannot exceed max_players ({max_players})")
+            except (TypeError, ValueError) as exc:
+                raise ValueError("sng_min_players must be an integer >= 2") from exc
+        
+        sng_window = config.get("sng_join_window_seconds")
+        if sng_window is not None:
+            try:
+                sng_window_int = int(sng_window)
+                if sng_window_int <= 0:
+                    raise ValueError("sng_join_window_seconds must be positive")
+            except (TypeError, ValueError) as exc:
+                raise ValueError("sng_join_window_seconds must be a positive integer") from exc
 
 
 def parse_template_rules(config: Dict[str, Any]) -> TableRuleConfig:
@@ -651,10 +677,27 @@ async def seat_user_at_table(
     user_id: int,
 ) -> Seat:
     """
-    Seat a user at a table using template rules.
+    Seat a user at a table using template rules with race condition protection.
+    
+    This is the unified entry point for all seat assignments:
+    - Manual joins
+    - Host auto-seat
+    - Waitlist promotions
+    - Global waitlist routing
     """
-
-    table = await _load_table_with_template(db, table_id)
+    from telegram_poker_bot.shared.services import sng_manager
+    
+    # Use row-level locking to prevent race conditions
+    table_result = await db.execute(
+        select(Table)
+        .options(joinedload(Table.template))
+        .where(Table.id == table_id)
+        .with_for_update()
+    )
+    table = table_result.scalar_one_or_none()
+    if not table:
+        raise ValueError(f"Table {table_id} not found")
+    
     config = get_template_config(table)
     rules = parse_template_rules(config)
     max_players = rules.max_players
@@ -734,6 +777,9 @@ async def seat_user_at_table(
     )
 
     await _refresh_table_runtime(db, table_id)
+    
+    # Trigger SNG logic if applicable
+    await sng_manager.on_player_seated(db, table)
 
     return seat
 
