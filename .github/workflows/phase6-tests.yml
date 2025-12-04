@@ -4,6 +4,9 @@ on:
   push:
     branches: [main, develop]
 
+permissions:
+  contents: read
+
 env:
   TESTING: "1"
   JWT_SECRET_KEY: "test-secret-key-for-ci-testing-only"
@@ -13,6 +16,8 @@ jobs:
   backend-unit-tests:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -40,6 +45,8 @@ jobs:
   backend-integration-tests:
     name: Backend Integration Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:15
@@ -94,6 +101,8 @@ jobs:
   api-contract-tests:
     name: API Contract Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -121,6 +130,8 @@ jobs:
   websocket-contract-tests:
     name: WebSocket Contract Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -148,6 +159,8 @@ jobs:
   analytics-tests:
     name: Analytics Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:15
@@ -202,6 +215,8 @@ jobs:
   lint-and-format:
     name: Lint and Format Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -223,6 +238,8 @@ jobs:
   pokerkit-tests:
     name: PokerKit Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -250,6 +267,8 @@ jobs:
   migration-dry-run:
     name: Database Migration Dry Run
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:15
@@ -290,6 +309,8 @@ jobs:
   coverage-report:
     name: Generate Coverage Report
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: [backend-unit-tests, backend-integration-tests, api-contract-tests, websocket-contract-tests, analytics-tests]
     if: always()
     steps:
