@@ -1,5 +1,7 @@
 # Quick Production Deployment Reference
 
+> **Note**: For comprehensive deployment documentation including strategy, monitoring, secrets management, and release procedures, see the [Deployment Documentation](./docs/deployment/README.md).
+
 ## First-Time Setup
 
 ```bash

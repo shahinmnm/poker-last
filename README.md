@@ -83,7 +83,8 @@ poker-last/
 
 ### For Users
 - [Quick Deploy Guide](./QUICK_DEPLOY.md) - Fast production deployment
-- [Deployment Documentation](./DEPLOYMENT.md) - Comprehensive deployment guide
+- [Deployment Guide](./DEPLOYMENT.md) - Comprehensive deployment guide
+- [Deployment Documentation](./docs/deployment/README.md) - Full deployment strategy and operations
 
 ### For Developers
 - [Getting Started](./docs/developer/getting-started.md) - Environment setup
@@ -102,6 +103,12 @@ poker-last/
 - [Frontend Documentation](./docs/frontend/README.md) - React mini app
 - [Runtime Documentation](./docs/runtime/README.md) - Game engine
 - [Analytics Documentation](./docs/analytics/README.md) - Analytics system
+
+### Deployment & Operations
+- [Deployment Strategy](./docs/deployment/strategy.md) - Comprehensive deployment approach
+- [Monitoring & Operations](./docs/deployment/monitoring.md) - Production operations
+- [Release Process](./docs/deployment/releases.md) - Versioning and releases
+- [Secrets Management](./docs/deployment/secrets.md) - Environment and credentials
 
 ## Prerequisites
 

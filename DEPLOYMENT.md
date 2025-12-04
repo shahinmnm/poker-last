@@ -2,6 +2,8 @@
 
 This guide covers deploying the Poker Bot application in production using Docker Compose.
 
+> **Note**: This is a quick reference guide. For comprehensive deployment strategy, architecture details, and operational procedures, see the [Deployment Documentation](./docs/deployment/README.md).
+
 ## Prerequisites
 
 - Docker Engine 20.10+ and Docker Compose V2
