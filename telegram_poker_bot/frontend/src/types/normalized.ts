@@ -36,6 +36,7 @@ export interface NormalizedTableState {
   seat_map: Seat[]
   
   // Action state
+  acting_seat_id: number | null // Seat index of the currently acting player
   legal_actions: LegalAction[]
   action_deadline: number | null // epoch ms
   
@@ -255,6 +256,12 @@ export interface LobbyEntry {
   expiration?: number | null // epoch ms
   table_type: TableType
   invite_only?: boolean
+  currency?: string
+  buy_in_min?: number
+  buy_in_max?: number
+  rake?: number
+  turn_timer?: number // seconds
+  betting_structure?: BettingStructure
 }
 
 export interface LobbyDeltaMessage {
