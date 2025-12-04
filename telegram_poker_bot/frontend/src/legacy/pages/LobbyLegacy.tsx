@@ -1,14 +1,15 @@
+// DEPRECATED: Old lobby implementation. Replaced by lobby-new (Phase 6.6).
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faRefresh, faQrcode, faUserGroup, faClock } from '@fortawesome/free-solid-svg-icons'
 
-import { useTelegram } from '../hooks/useTelegram'
-import { apiFetch, type ApiFetchOptions, resolveWebSocketUrl } from '../utils/apiClient'
-import GameVariantBadge from '../components/ui/GameVariantBadge'
-import { extractRuleSummary } from '../utils/tableRules'
-import type { TableInfo } from '../components/lobby/types'
+import { useTelegram } from '../../hooks/useTelegram'
+import { apiFetch, type ApiFetchOptions, resolveWebSocketUrl } from '../../utils/apiClient'
+import GameVariantBadge from '../../components/ui/GameVariantBadge'
+import { extractRuleSummary } from '../../utils/tableRules'
+import type { TableInfo } from '../../components/lobby/types'
 
 type TabKey = 'public' | 'private' | 'my'
 
