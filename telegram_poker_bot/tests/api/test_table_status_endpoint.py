@@ -171,7 +171,7 @@ async def test_table_status_expired(
         creator_user_id=user.id,
         template_id=template.id,
         auto_seat_creator=True,
-    
+
     )
 
     # Mark table as expired

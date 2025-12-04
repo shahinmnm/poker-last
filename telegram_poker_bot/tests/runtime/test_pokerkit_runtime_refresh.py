@@ -61,7 +61,7 @@ async def test_runtime_refreshes_seats_when_players_join(
         creator_user_id=creator.id,
         template_id=template.id,
         auto_seat_creator=False,
-    
+
     )
 
     # Get the runtime manager
@@ -119,7 +119,7 @@ async def test_runtime_refreshes_when_player_leaves(db_session: AsyncSession) ->
         creator_user_id=creator.id,
         template_id=template.id,
         auto_seat_creator=False,
-    
+
     )
     await table_service.seat_user_at_table(db_session, table.id, creator.id)
     await table_service.seat_user_at_table(db_session, table.id, player2.id)

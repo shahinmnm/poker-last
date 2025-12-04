@@ -60,7 +60,7 @@ async def test_concurrent_get_state_calls_on_same_table(
         creator_user_id=creator.id,
         template_id=template.id,
         auto_seat_creator=False,
-    
+
     )
     await table_service.seat_user_at_table(db_session, table.id, creator.id)
     await table_service.seat_user_at_table(db_session, table.id, player2.id)
@@ -175,7 +175,7 @@ async def test_ensure_table_can_be_called_without_lock(
         creator_user_id=creator.id,
         template_id=template.id,
         auto_seat_creator=False,
-    
+
     )
     await table_service.seat_user_at_table(db_session, table.id, creator.id)
     await table_service.seat_user_at_table(db_session, table.id, player2.id)
@@ -229,7 +229,7 @@ async def test_concurrent_actions_are_serialized_per_table(
         creator_user_id=creator.id,
         template_id=template.id,
         auto_seat_creator=False,
-    
+
     )
     await table_service.seat_user_at_table(db_session, table.id, creator.id)
     await table_service.seat_user_at_table(db_session, table.id, player2.id)

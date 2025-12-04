@@ -113,7 +113,7 @@ async def test_leave_table_allows_rejoin(db_session: AsyncSession) -> None:
     template = await create_test_template(
         db_session,
         name="Test Template",
-        table_type=TableTemplateType.PRIVATE if False else TableTemplateType.EXPIRING,
+        table_type=TableTemplateType.EXPIRING,
     )
 
     table = await table_service.create_table(
@@ -121,7 +121,7 @@ async def test_leave_table_allows_rejoin(db_session: AsyncSession) -> None:
         creator_user_id=creator.id,
         template_id=template.id,
         auto_seat_creator=True,
-    
+
     )
 
     await table_service.seat_user_at_table(db_session, table.id, guest.id)

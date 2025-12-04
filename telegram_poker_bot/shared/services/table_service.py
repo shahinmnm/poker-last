@@ -109,7 +109,11 @@ def validate_template_config(config: Dict[str, Any]) -> None:
     _require_int(config, "small_blind")
     _require_int(config, "big_blind")
     _require_int(config, "starting_stack")
-    _require_int(config, "max_players")
+    max_players = _require_int(config, "max_players")
+    
+    # Validate max_players range
+    if max_players < 2 or max_players > 8:
+        raise ValueError("max_players must be between 2 and 8")
     
     # Validate game variant
     game_variant = config.get("game_variant")
@@ -136,11 +140,6 @@ def validate_template_config(config: Dict[str, Any]) -> None:
         raise ValueError(f"Invalid currency_type: {currency_type}") from exc
     
     # Validate optional fields if present
-    if "max_players" in config:
-        max_players = _require_int(config, "max_players")
-        if max_players < 2 or max_players > 8:
-            raise ValueError("max_players must be between 2 and 8")
-    
     if "rake_percentage" in config:
         try:
             rake_pct = float(config["rake_percentage"])
