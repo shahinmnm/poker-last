@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { WebSocketStatus } from '../../hooks/useTableWebSocket'
+import type { WebSocketStatus } from '../../legacy/hooks/useTableWebSocket'
 
 interface ConnectionStatusProps {
   status: WebSocketStatus

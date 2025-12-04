@@ -1,3 +1,9 @@
+/**
+ * @deprecated This file contains legacy table rules utilities.
+ * New code should use the normalized table metadata from the backend.
+ * This file is kept for compatibility with existing legacy code only.
+ */
+
 import { type CurrencyType } from './currency'
 
 export interface TemplateDetails {

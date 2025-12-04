@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCoins } from '@fortawesome/free-solid-svg-icons'
 import PlayerCircularTimer from './PlayerCircularTimer'
-import PlayingCard from '../ui/PlayingCard'
+import PlayingCard from '../../../../components/ui/PlayingCard'
 
 type PositionLabel = 'BTN' | 'SB' | 'BB' | null | undefined
 

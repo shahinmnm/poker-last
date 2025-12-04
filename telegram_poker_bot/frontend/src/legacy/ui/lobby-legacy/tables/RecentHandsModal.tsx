@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import Modal from '../ui/Modal'
-import { apiFetch } from '../../utils/apiClient'
+import Modal from '../../../../components/ui/Modal'
+import { apiFetch } from '../../../../utils/apiClient'
 
 interface HandHistoryWinner {
   user_id: number

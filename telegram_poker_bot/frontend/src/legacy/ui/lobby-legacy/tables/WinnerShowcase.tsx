@@ -2,7 +2,7 @@ import type { HandResultPayload } from '@/types/game'
 import type { CurrencyType } from '@/utils/currency'
 import { formatByCurrency } from '@/utils/currency'
 
-import PlayingCard from '../ui/PlayingCard'
+import PlayingCard from '../../../../components/ui/PlayingCard'
 
 interface WinnerShowcaseProps {
   handResult?: HandResultPayload | null

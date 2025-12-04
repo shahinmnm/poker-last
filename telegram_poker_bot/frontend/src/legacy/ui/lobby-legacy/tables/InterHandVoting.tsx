@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import Button from '../ui/Button'
+import Button from '../../../../components/ui/Button'
 
 interface VotingPlayer {
   user_id: number | string

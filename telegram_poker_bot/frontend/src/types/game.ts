@@ -1,3 +1,9 @@
+/**
+ * @deprecated This file contains legacy game state types.
+ * New code should use the normalized types from '../types/normalized.ts'.
+ * This file is kept for compatibility with existing legacy code only.
+ */
+
 import type { CurrencyType } from '../utils/currency'
 
 export type TableStatus =

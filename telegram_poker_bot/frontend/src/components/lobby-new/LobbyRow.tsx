@@ -5,6 +5,9 @@
  */
 
 import { useNavigate } from 'react-router-dom'
+import { useState, useCallback } from 'react'
+import { useTelegram } from '../../hooks/useTelegram'
+import { apiFetch } from '@/utils/apiClient'
 import type { LobbyEntry } from '../../types/normalized'
 import Badge from '../ui/Badge'
 
@@ -15,6 +18,8 @@ interface LobbyRowProps {
 
 export function LobbyRow({ entry, onClick }: LobbyRowProps) {
   const navigate = useNavigate()
+  const { initData } = useTelegram()
+  const [isJoining, setIsJoining] = useState(false)
 
   const handleClick = () => {
     if (onClick) {
@@ -23,6 +28,63 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
       navigate(`/table/${entry.table_id}`)
     }
   }
+
+  const handleJoin = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent row click
+    
+    if (!initData) {
+      console.error('[LobbyRow] No initData available')
+      return
+    }
+
+    // If private and invite-only, show message
+    if (entry.invite_only) {
+      alert('This table is invite only')
+      return
+    }
+
+    try {
+      setIsJoining(true)
+      
+      await apiFetch(`/tables/${entry.table_id}/join`, {
+        method: 'POST',
+        initData,
+      })
+
+      // Navigate to table on success
+      navigate(`/table/${entry.table_id}`)
+    } catch (error) {
+      console.error('[LobbyRow] Failed to join table:', error)
+      alert('Failed to join table')
+    } finally {
+      setIsJoining(false)
+    }
+  }, [entry.table_id, entry.invite_only, initData, navigate])
+
+  const handleJoinWaitlist = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent row click
+    
+    if (!initData) {
+      console.error('[LobbyRow] No initData available')
+      return
+    }
+
+    try {
+      setIsJoining(true)
+      
+      await apiFetch(`/tables/${entry.table_id}/waitlist/join`, {
+        method: 'POST',
+        initData,
+      })
+
+      alert('Joined waitlist!')
+    } catch (error) {
+      console.error('[LobbyRow] Failed to join waitlist:', error)
+      alert('Failed to join waitlist')
+    } finally {
+      setIsJoining(false)
+    }
+  }, [entry.table_id, initData])
 
   const formatUptime = (seconds?: number) => {
     if (!seconds) return 'Just started'
@@ -48,6 +110,10 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
     sng: 'purple',
   }[entry.table_type] || 'gray'
 
+  // Determine button to show
+  const isFull = entry.player_count >= entry.max_players
+  const showWaitlist = isFull && entry.waitlist_count !== undefined
+
   return (
     <div
       className="lobby-row bg-gray-800 hover:bg-gray-700 rounded-lg p-4 cursor-pointer transition-all"
@@ -69,11 +135,41 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
           <div className="flex items-center gap-3 text-sm text-gray-400">
             <span className="font-mono">{entry.variant}</span>
             <span className="font-mono">{entry.stakes}</span>
+            {entry.currency && (
+              <>
+                <span>•</span>
+                <span>{entry.currency}</span>
+              </>
+            )}
+            {entry.buy_in_min !== undefined && entry.buy_in_max !== undefined && (
+              <>
+                <span>•</span>
+                <span>Buy-in: {entry.buy_in_min}-{entry.buy_in_max}</span>
+              </>
+            )}
+            {entry.rake !== undefined && entry.rake > 0 && (
+              <>
+                <span>•</span>
+                <span>Rake: {entry.rake}%</span>
+              </>
+            )}
+            {entry.turn_timer !== undefined && (
+              <>
+                <span>•</span>
+                <span>Timer: {entry.turn_timer}s</span>
+              </>
+            )}
             {entry.uptime !== undefined && (
-              <span>Uptime: {formatUptime(entry.uptime)}</span>
+              <>
+                <span>•</span>
+                <span>Uptime: {formatUptime(entry.uptime)}</span>
+              </>
             )}
             {entry.expiration && (
-              <span>Expires: {formatExpiration(entry.expiration)}</span>
+              <>
+                <span>•</span>
+                <span>Expires: {formatExpiration(entry.expiration)}</span>
+              </>
             )}
           </div>
         </div>
@@ -93,9 +189,27 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
 
         {/* Action button */}
         <div>
-          <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
-            Join
-          </button>
+          {entry.invite_only ? (
+            <div className="px-4 py-2 bg-gray-600 text-gray-300 rounded-lg font-semibold text-sm">
+              Invite Only
+            </div>
+          ) : showWaitlist ? (
+            <button
+              onClick={handleJoinWaitlist}
+              disabled={isJoining}
+              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+            >
+              {isJoining ? 'Joining...' : 'Join Waitlist'}
+            </button>
+          ) : (
+            <button
+              onClick={handleJoin}
+              disabled={isJoining}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+            >
+              {isJoining ? 'Joining...' : 'Join'}
+            </button>
+          )}
         </div>
       </div>
     </div>

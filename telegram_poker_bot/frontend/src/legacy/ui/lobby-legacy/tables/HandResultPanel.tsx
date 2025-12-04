@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { TableState } from '@/types/game'
-import { formatCurrency } from '../../utils/currency'
+import { formatCurrency } from '../../../../utils/currency'
 
 interface HandResultPanelProps {
   liveState: TableState

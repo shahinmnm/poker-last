@@ -21,6 +21,8 @@ interface SeatProps {
   currency?: CurrencyType
   onClick?: () => void
   className?: string
+  isHero?: boolean
+  isActing?: boolean
 }
 
 export function Seat({
@@ -29,6 +31,8 @@ export function Seat({
   currency = 'PLAY',
   onClick,
   className = '',
+  isHero = false,
+  isActing = false,
 }: SeatProps) {
   const {
     seat_index,
@@ -49,13 +53,14 @@ export function Seat({
 
   const seatClasses = useMemo(() => {
     const classes = ['seat-component', 'relative']
-    if (is_acting) classes.push('seat-acting')
+    if (is_acting && isActing) classes.push('seat-acting')
     if (is_winner) classes.push('seat-winner')
     if (is_sitting_out) classes.push('seat-sitting-out')
     if (isEmpty) classes.push('seat-empty')
+    if (isHero) classes.push('seat-hero')
     if (onClick) classes.push('cursor-pointer')
     return classes.join(' ')
-  }, [is_acting, is_winner, is_sitting_out, isEmpty, onClick])
+  }, [is_acting, isActing, is_winner, is_sitting_out, isEmpty, isHero, onClick])
 
   // Empty seat
   if (isEmpty) {
@@ -83,8 +88,15 @@ export function Seat({
       <div className="seat-content flex flex-col items-center gap-2">
         {/* Avatar with ring */}
         <div className="relative">
+          {/* Hero badge */}
+          {isHero && (
+            <div className="absolute -top-2 -left-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold text-white z-10">
+              YOU
+            </div>
+          )}
+          
           {/* Acting ring */}
-          {is_acting && (
+          {is_acting && isActing && (
             <div className="absolute inset-0 rounded-full border-4 border-yellow-400 animate-pulse" />
           )}
           

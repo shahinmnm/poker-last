@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { cn } from '../../utils/cn'
-import { getTimeRemaining } from '../../utils/countdown'
-import type { TableStatusTone } from '../lobby/types'
+import { cn } from '../../../../utils/cn'
+import { getTimeRemaining } from '../../../../utils/countdown'
+import type { TableStatusTone } from '../../../../components/lobby/types'
 
 interface MetaItem {
   icon: string | IconDefinition
