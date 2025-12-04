@@ -73,6 +73,83 @@ def _require_int(config: Dict[str, Any], key: str) -> int:
         raise ValueError(f"{key} must be an integer in template config") from exc
 
 
+def validate_template_config(config: Dict[str, Any]) -> None:
+    """Validate that a template config has all required fields.
+    
+    This function ensures that a template configuration dictionary contains
+    all mandatory fields with valid types and values. It should be called
+    before creating or updating a TableTemplate.
+    
+    Args:
+        config: Template configuration dictionary
+        
+    Raises:
+        ValueError: If any required field is missing or invalid
+        
+    Required fields:
+        - small_blind: int
+        - big_blind: int
+        - starting_stack: int
+        - max_players: int
+        - game_variant: str (valid GameVariant)
+        - currency_type: str (valid CurrencyType)
+        
+    Optional but validated if present:
+        - ante: int
+        - raw_antes: int
+        - raw_blinds_or_straddles: tuple/list of 2 ints
+        - min_bet: int
+        - bring_in: int
+        - rake_percentage: float
+        - rake_cap: int
+        - turn_timeout_seconds: int
+        - expiration_minutes: int (required for EXPIRING tables)
+    """
+    # Required fields
+    _require_int(config, "small_blind")
+    _require_int(config, "big_blind")
+    _require_int(config, "starting_stack")
+    _require_int(config, "max_players")
+    
+    # Validate game variant
+    game_variant = config.get("game_variant")
+    if not game_variant:
+        raise ValueError("game_variant is required in table template config")
+    try:
+        if isinstance(game_variant, str):
+            GameVariant(game_variant)
+        elif not isinstance(game_variant, GameVariant):
+            raise ValueError("game_variant must be a string or GameVariant enum")
+    except ValueError as exc:
+        raise ValueError(f"Invalid game_variant: {game_variant}") from exc
+    
+    # Validate currency type
+    currency_type = config.get("currency_type")
+    if not currency_type:
+        raise ValueError("currency_type is required in table template config")
+    try:
+        if isinstance(currency_type, str):
+            CurrencyType(currency_type)
+        elif not isinstance(currency_type, CurrencyType):
+            raise ValueError("currency_type must be a string or CurrencyType enum")
+    except ValueError as exc:
+        raise ValueError(f"Invalid currency_type: {currency_type}") from exc
+    
+    # Validate optional fields if present
+    if "max_players" in config:
+        max_players = _require_int(config, "max_players")
+        if max_players < 2 or max_players > 8:
+            raise ValueError("max_players must be between 2 and 8")
+    
+    if "rake_percentage" in config:
+        try:
+            rake_pct = float(config["rake_percentage"])
+            if rake_pct < 0 or rake_pct > 1:
+                raise ValueError("rake_percentage must be between 0 and 1")
+        except (TypeError, ValueError) as exc:
+            raise ValueError("rake_percentage must be a number between 0 and 1") from exc
+
+
 def parse_template_rules(config: Dict[str, Any]) -> TableRuleConfig:
     """Normalize required rule values from a template config."""
 
@@ -278,13 +355,31 @@ async def create_table_template(
     has_waitlist: bool = False,
     config: Optional[Dict[str, Any]] = None,
 ) -> TableTemplate:
-    """Create and persist a TableTemplate."""
+    """Create and persist a TableTemplate with validated configuration.
+    
+    Args:
+        db: Database session
+        name: Human-readable template name
+        table_type: Type of table (PERSISTENT, EXPIRING, PRIVATE)
+        has_waitlist: Whether tables using this template should have waitlists
+        config: Template configuration (validated before creation)
+        
+    Returns:
+        Created TableTemplate instance
+        
+    Raises:
+        ValueError: If config is invalid or missing required fields
+    """
+    config_dict = config or {}
+    
+    # Validate configuration before creating template
+    validate_template_config(config_dict)
 
     template = TableTemplate(
         name=name,
         table_type=table_type,
         has_waitlist=has_waitlist,
-        config_json=config or {},
+        config_json=config_dict,
     )
     db.add(template)
     await db.flush()
@@ -299,7 +394,22 @@ async def create_default_template(
     has_waitlist: bool = False,
     config_overrides: Optional[Dict[str, Any]] = None,
 ) -> TableTemplate:
-    """Create a template with sensible defaults for tests and callers."""
+    """Create a template with sensible defaults (primarily for testing).
+    
+    IMPORTANT: In production, use seed_default_templates.py to create templates.
+    This function is mainly for test fixtures and should not be used for
+    runtime table creation unless absolutely necessary.
+    
+    Args:
+        db: Database session
+        name: Template name
+        table_type: Type of table (EXPIRING, PERSISTENT, PRIVATE)
+        has_waitlist: Whether table should have waitlist enabled
+        config_overrides: Optional config to override defaults
+        
+    Returns:
+        Created template instance
+    """
 
     base_config: Dict[str, Any] = {
         "small_blind": 25,
@@ -436,34 +546,43 @@ async def create_table_with_config(
     db: AsyncSession,
     *,
     creator_user_id: int,
-    template_id: Optional[int] = None,
+    template_id: int,
     mode: GameMode = GameMode.ANONYMOUS,
     group_id: Optional[int] = None,
     auto_seat_creator: bool = False,
     **legacy_config: Any,
 ) -> Table:
     """
-    Deprecated legacy entrypoint.
-
-    Builds a one-off template from provided config (if template_id is None) and creates the table.
+    DEPRECATED: Legacy entrypoint for backward compatibility.
+    
+    This function now REQUIRES template_id and ignores all legacy_config parameters.
+    All table configuration must come from TableTemplate.config_json.
+    
+    Args:
+        db: Database session
+        creator_user_id: User creating the table
+        template_id: REQUIRED - ID of the TableTemplate to use
+        mode: Game mode (default: ANONYMOUS)
+        group_id: Optional group ID
+        auto_seat_creator: Whether to auto-seat the creator
+        **legacy_config: IGNORED - kept for backward compatibility only
+        
+    Returns:
+        Created table instance
+        
+    Raises:
+        ValueError: If template_id is not provided
+        
+    Note:
+        Use create_table() directly instead of this function.
     """
-
-    if template_id is None:
-        name = legacy_config.get("table_name") or "Legacy Template"
-        has_waitlist = bool(legacy_config.get("has_waitlist", False))
-        table_type = TableTemplateType.EXPIRING
-        if legacy_config.get("is_private"):
-            table_type = TableTemplateType.PRIVATE
-        elif legacy_config.get("is_persistent"):
-            table_type = TableTemplateType.PERSISTENT
-        template = await create_default_template(
-            db,
-            name=name,
-            table_type=table_type,
-            has_waitlist=has_waitlist,
-            config_overrides=legacy_config,
+    if legacy_config:
+        logger.warning(
+            "create_table_with_config called with legacy_config parameters that are now ignored",
+            template_id=template_id,
+            legacy_config_keys=list(legacy_config.keys()),
         )
-        template_id = template.id
+    
     return await create_table(
         db,
         creator_user_id=creator_user_id,
