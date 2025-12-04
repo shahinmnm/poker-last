@@ -8,6 +8,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 
 @compiles(JSONB, "sqlite")
@@ -18,6 +19,8 @@ def _compile_jsonb_sqlite(_type, _compiler, **_kw):
 
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_suite.db")
+os.environ.setdefault("TESTING", "1")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -41,6 +44,16 @@ async def prepare_test_database():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest_asyncio.fixture
+async def db_session():
+    """Provide a database session for tests."""
+    from telegram_poker_bot.shared.database import AsyncSessionLocal
+    
+    async with AsyncSessionLocal() as session:
+        yield session
+        await session.rollback()
 
 
 def create_test_template_config(
@@ -120,3 +133,4 @@ async def create_test_template(db, **kwargs):
         has_waitlist=has_waitlist,
         config=config,
     )
+

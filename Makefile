@@ -1,4 +1,7 @@
-.PHONY: env compose-up compose-dev compose-down compose-logs deploy update migrate test lint
+.PHONY: env compose-up compose-dev compose-down compose-logs deploy update migrate \
+        test test-backend test-backend-unit test-backend-integration test-frontend \
+        test-e2e test-api test-websocket test-analytics test-integration test-coverage \
+        lint format
 
 env:
 	@test -f .env || (cp .env.example .env && echo "Created .env. Please edit it before running services.")
@@ -40,9 +43,65 @@ deploy: env
 update: env
 	./deploy/update.sh
 
+# Test targets - Phase 6 comprehensive test architecture
 test:
-	pytest pokerkit telegram_poker_bot/tests
+	@echo "Running full test suite..."
+	pytest telegram_poker_bot/tests -v
+
+test-backend:
+	@echo "Running all backend tests..."
+	pytest telegram_poker_bot/tests/backend -v
+
+test-backend-unit:
+	@echo "Running backend unit tests..."
+	pytest telegram_poker_bot/tests/backend/unit -v
+
+test-backend-integration:
+	@echo "Running backend integration tests..."
+	pytest telegram_poker_bot/tests/backend/integration -v
+
+test-integration:
+	@echo "Running integration tests (all variants)..."
+	pytest telegram_poker_bot/tests/integration -v
+
+test-api:
+	@echo "Running API contract tests..."
+	pytest telegram_poker_bot/tests/api -v
+
+test-websocket:
+	@echo "Running WebSocket contract tests..."
+	pytest telegram_poker_bot/tests/websocket -v
+
+test-analytics:
+	@echo "Running analytics tests..."
+	pytest telegram_poker_bot/tests/analytics -v
+
+test-runtime:
+	@echo "Running runtime tests..."
+	pytest telegram_poker_bot/tests/runtime -v
+
+test-frontend:
+	@echo "Running frontend tests..."
+	cd telegram_poker_bot/frontend && npm test
+
+test-e2e:
+	@echo "Running E2E tests with Playwright..."
+	cd telegram_poker_bot/frontend && npm run test:e2e
+
+test-coverage:
+	@echo "Running tests with coverage report..."
+	pytest telegram_poker_bot/tests --cov=telegram_poker_bot --cov-report=html --cov-report=term
+
+test-pokerkit:
+	@echo "Running PokerKit tests..."
+	pytest pokerkit/tests -v
 
 lint:
+	@echo "Running linters..."
 	ruff check pokerkit telegram_poker_bot
 	black --check pokerkit telegram_poker_bot
+
+format:
+	@echo "Formatting code..."
+	black pokerkit telegram_poker_bot
+	ruff check --fix pokerkit telegram_poker_bot
