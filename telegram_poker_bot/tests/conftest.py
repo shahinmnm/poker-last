@@ -8,6 +8,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 
 @compiles(JSONB, "sqlite")
@@ -43,6 +44,16 @@ async def prepare_test_database():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest_asyncio.fixture
+async def db_session():
+    """Provide a database session for tests."""
+    from telegram_poker_bot.shared.database import AsyncSessionLocal
+    
+    async with AsyncSessionLocal() as session:
+        yield session
+        await session.rollback()
 
 
 def create_test_template_config(
@@ -122,3 +133,4 @@ async def create_test_template(db, **kwargs):
         has_waitlist=has_waitlist,
         config=config,
     )
+

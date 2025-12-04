@@ -1,8 +1,34 @@
 """Seeded deck and card utilities for deterministic testing."""
 
 import random
-from typing import List, Optional
-from pokerkit import Card
+from typing import List, Optional, Tuple
+from pokerkit import Card, Rank, Suit
+
+
+# Rank mapping
+RANK_MAP = {
+    '2': Rank.DEUCE,
+    '3': Rank.TREY,
+    '4': Rank.FOUR,
+    '5': Rank.FIVE,
+    '6': Rank.SIX,
+    '7': Rank.SEVEN,
+    '8': Rank.EIGHT,
+    '9': Rank.NINE,
+    'T': Rank.TEN,
+    'J': Rank.JACK,
+    'Q': Rank.QUEEN,
+    'K': Rank.KING,
+    'A': Rank.ACE,
+}
+
+# Suit mapping
+SUIT_MAP = {
+    'c': Suit.CLUB,
+    'd': Suit.DIAMOND,
+    'h': Suit.HEART,
+    's': Suit.SPADE,
+}
 
 
 class SeededDeck:
@@ -32,7 +58,13 @@ class SeededDeck:
         """Create a standard 52-card deck."""
         ranks = "23456789TJQKA"
         suits = "cdhs"  # clubs, diamonds, hearts, spades
-        return [Card(f"{rank}{suit}") for suit in suits for rank in ranks]
+        cards = []
+        for suit_char in suits:
+            for rank_char in ranks:
+                rank = RANK_MAP[rank_char]
+                suit = SUIT_MAP[suit_char]
+                cards.append(Card(rank, suit))
+        return cards
     
     def deal(self, n: int = 1) -> List[Card]:
         """Deal n cards from the deck.
@@ -71,13 +103,14 @@ class SeededDeck:
 
 def create_deterministic_deck(
     seed: int = 42,
-    preset_cards: Optional[List[str]] = None
+    preset_cards: Optional[List[Tuple[str, str]]] = None
 ) -> SeededDeck:
     """Create a deterministic deck for testing.
     
     Args:
         seed: Random seed
-        preset_cards: Optional list of card strings to place on top of deck
+        preset_cards: Optional list of (rank, suit) tuples to place on top of deck.
+                     Example: [('A', 'h'), ('K', 'h')]
         
     Returns:
         SeededDeck instance
@@ -86,7 +119,14 @@ def create_deterministic_deck(
     
     if preset_cards:
         # Remove preset cards from deck
-        preset_card_objs = [Card(c) for c in preset_cards]
+        preset_card_objs = []
+        for rank_char, suit_char in preset_cards:
+            rank = RANK_MAP[rank_char.upper()]
+            suit = SUIT_MAP[suit_char.lower()]
+            card = Card(rank, suit)
+            preset_card_objs.append(card)
+        
+        # Filter out preset cards from deck
         deck.cards = [c for c in deck.cards if c not in preset_card_objs]
         # Place preset cards on top
         deck.cards = preset_card_objs + deck.cards
@@ -94,38 +134,38 @@ def create_deterministic_deck(
     return deck
 
 
-def create_royal_flush_scenario(suit: str = "h") -> List[str]:
+def create_royal_flush_scenario(suit: str = "h") -> List[Tuple[str, str]]:
     """Create a preset for royal flush scenario.
     
     Args:
         suit: Suit for the royal flush (h/d/c/s)
         
     Returns:
-        List of card strings for royal flush
+        List of (rank, suit) tuples for royal flush
     """
-    return [f"A{suit}", f"K{suit}", f"Q{suit}", f"J{suit}", f"T{suit}"]
+    return [("A", suit), ("K", suit), ("Q", suit), ("J", suit), ("T", suit)]
 
 
-def create_nut_hand_scenario(variant: str = "nlhe") -> List[str]:
+def create_nut_hand_scenario(variant: str = "nlhe") -> List[Tuple[str, str]]:
     """Create a preset for nut hand scenario for a variant.
     
     Args:
         variant: Poker variant (nlhe, plo, draw, stud)
         
     Returns:
-        List of card strings for nut hand
+        List of (rank, suit) tuples for nut hand
     """
     if variant == "nlhe":
         # Pocket aces
-        return ["Ah", "As", "Kh", "Kd", "Qh"]
+        return [("A", "h"), ("A", "s"), ("K", "h"), ("K", "d"), ("Q", "h")]
     elif variant == "plo":
         # AAAKK double suited
-        return ["Ah", "As", "Ad", "Kh", "Ks"]
+        return [("A", "h"), ("A", "s"), ("A", "d"), ("K", "h"), ("K", "s")]
     elif variant == "draw":
         # Royal flush
         return create_royal_flush_scenario()
     elif variant == "stud":
         # Rolled up aces
-        return ["Ah", "As", "Ad"]
+        return [("A", "h"), ("A", "s"), ("A", "d")]
     else:
-        return ["Ah", "As"]
+        return [("A", "h"), ("A", "s")]
