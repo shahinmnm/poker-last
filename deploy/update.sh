@@ -210,6 +210,9 @@ fi
 
 log_disk_usage "Disk usage before stopping services"
 
+# Capture the current commit so we can detect whether the repository changes after the fetch/reset.
+PRE_DEPLOY_REV=$(git -C "${REPO_ROOT}" rev-parse --verify HEAD 2>/dev/null || true)
+
 log_info "Stopping running services"
 if ! compose down --remove-orphans; then
   log_warn "docker compose down failed; continuing with deployment"
@@ -251,6 +254,15 @@ git -C "${REPO_ROOT}" reset --hard FETCH_HEAD
 
 log_success "Repository forced to ${REMOTE}/${BRANCH}"
 
+POST_DEPLOY_REV=$(git -C "${REPO_ROOT}" rev-parse HEAD)
+CODE_UPDATED="false"
+if [[ -z "${PRE_DEPLOY_REV}" ]] || [[ "${PRE_DEPLOY_REV}" != "${POST_DEPLOY_REV}" ]]; then
+  CODE_UPDATED="true"
+  log_info "Repository updated: ${PRE_DEPLOY_REV:-<none>} -> ${POST_DEPLOY_REV}"
+else
+  log_info "Repository already up-to-date at ${POST_DEPLOY_REV}"
+fi
+
 ###############################################################################
 # Docker build & restart
 ###############################################################################
@@ -266,14 +278,30 @@ else
 fi
 
 if [[ "${SKIP_BUILD}" == "false" ]]; then
-  log_info "Building images"
-  if [[ "${SKIP_PULL}" == "false" ]]; then
-    compose build --pull
+  if [[ "${CODE_UPDATED}" == "true" ]]; then
+    log_info "Rebuilding backend services (migrations, bot, api) from local source without cache"
+    backend_build_cmd=(compose build)
+    if [[ "${SKIP_PULL}" == "false" ]]; then
+      backend_build_cmd+=(--pull)
+    fi
+    backend_build_cmd+=(--no-cache "migrations" "bot" "api")
+    "${backend_build_cmd[@]}"
   else
-    compose build
+    log_info "No backend code changes detected; skipping forced rebuild of api/bot"
   fi
+
+  log_info "Building frontend image"
+  frontend_build_cmd=(compose build)
+  if [[ "${SKIP_PULL}" == "false" ]]; then
+    frontend_build_cmd+=(--pull)
+  fi
+  frontend_build_cmd+=("frontend")
+  "${frontend_build_cmd[@]}"
 else
   log_info "Skipping docker compose build (--skip-build)"
+  if [[ "${CODE_UPDATED}" == "true" ]]; then
+    log_warn "Code changes were fetched but builds were skipped (--skip-build); containers may still run previous code."
+  fi
 fi
 
 # Run database migrations to ensure schema is up-to-date
