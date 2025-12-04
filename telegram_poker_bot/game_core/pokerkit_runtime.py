@@ -31,17 +31,38 @@ from telegram_poker_bot.shared.models import (
 )
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.services import table_lifecycle
-from telegram_poker_bot.shared.services.table_service import (
-    get_table_currency_type,
-    get_table_game_variant,
-    get_template_config,
-    parse_template_rules,
-)
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 
 
 logger = get_logger(__name__)
 settings = get_settings()
+
+
+def _get_table_service():
+    """Lazy import to avoid circular dependency with table_service."""
+
+    from telegram_poker_bot.shared.services import table_service
+
+    return table_service
+
+
+def _get_table_rules(table: Table):
+    """Convenience wrapper to fetch parsed rules for a table."""
+
+    service = _get_table_service()
+    return service.parse_template_rules(service.get_template_config(table))
+
+
+def _get_table_currency_type(table: Table) -> CurrencyType:
+    """Resolve currency type without importing table_service at module import."""
+
+    return _get_table_service().get_table_currency_type(table)
+
+
+def _get_table_game_variant(table: Table) -> str:
+    """Resolve game variant without importing table_service at module import."""
+
+    return _get_table_service().get_table_game_variant(table)
 
 
 class NoActorToActError(RuntimeError):
@@ -77,7 +98,7 @@ class PokerKitTableRuntime:
     def __init__(self, table: Table, seats: List[Seat]):
         self.table = table
         self.seats = sorted(seats, key=lambda s: s.position)
-        self.rules = parse_template_rules(get_template_config(table))
+        self.rules = _get_table_rules(table)
         self.hand_no = 0
         self.engine: Optional[PokerEngineAdapter] = None
         self.user_id_to_player_index: Dict[int, int] = {}
@@ -93,7 +114,7 @@ class PokerKitTableRuntime:
     def _resolve_game_class(self):
         """Return the GameVariant and PokerKit game class for this table."""
 
-        variant_value = get_table_game_variant(self.table)
+        variant_value = _get_table_game_variant(self.table)
         try:
             variant = GameVariant(variant_value)
         except Exception:
@@ -312,7 +333,7 @@ class PokerKitTableRuntime:
             raise ValueError("Cannot apply hand result without active hand/engine")
 
         hand_ended_event: Dict[str, Any] = {}
-        currency_type = get_table_currency_type(self.table)
+        currency_type = _get_table_currency_type(self.table)
 
         try:
             async with db.begin_nested():
@@ -1158,7 +1179,7 @@ class PokerKitTableRuntime:
         Returns:
             State dictionary matching frontend expectations
         """
-        currency_type = get_table_currency_type(self.table)
+        currency_type = _get_table_currency_type(self.table)
 
         if not self.engine:
             # No active hand
@@ -1570,7 +1591,7 @@ class PokerKitTableRuntimeManager:
             # Update existing runtime with fresh data
             runtime.table = table
             runtime.seats = sorted(seats, key=lambda s: s.position)
-            runtime.rules = parse_template_rules(get_template_config(table))
+            runtime.rules = _get_table_rules(table)
         else:
             # Create new runtime
             runtime = PokerKitTableRuntime(table, seats)

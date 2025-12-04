@@ -13,7 +13,6 @@ from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from telegram_poker_bot.game_core import pokerkit_runtime as game_runtime
 from telegram_poker_bot.shared.models import (
     User,
     Table,
@@ -200,6 +199,14 @@ def get_table_game_variant(table: Table) -> str:
 
     config = get_template_config(table)
     return _coerce_game_variant(config.get("game_variant"))
+
+
+async def _refresh_table_runtime(db: AsyncSession, table_id: int) -> None:
+    """Lazy import to avoid circular dependency with pokerkit_runtime."""
+
+    from telegram_poker_bot.game_core import pokerkit_runtime as game_runtime
+
+    await game_runtime.refresh_table_runtime(db, table_id)
 
 
 async def _load_table_with_template(db: AsyncSession, table_id: int) -> Table:
@@ -409,7 +416,7 @@ async def create_table(
         game_variant=game_variant,
     )
 
-    await game_runtime.refresh_table_runtime(db, table.id)
+    await _refresh_table_runtime(db, table.id)
 
     if auto_seat_creator:
         try:
@@ -608,7 +615,7 @@ async def seat_user_at_table(
         chips=buy_in_amount,
     )
 
-    await game_runtime.refresh_table_runtime(db, table_id)
+    await _refresh_table_runtime(db, table_id)
 
     return seat
 
@@ -725,7 +732,7 @@ async def leave_table(
         seat_id=seat.id,
     )
 
-    await game_runtime.refresh_table_runtime(db, table_id)
+    await _refresh_table_runtime(db, table_id)
 
     return seat
 
