@@ -860,3 +860,264 @@ class HourlyTableStats(Base):
         Index("idx_hourly_stats_table_hour", "table_id", "hour_start", unique=True),
         Index("idx_hourly_stats_hour", "hour_start"),
     )
+
+
+class HandAnalytics(Base):
+    """Hand-level analytics for detailed poker statistics.
+    
+    Stores compact summary of each completed hand with aggregated metrics.
+    Used for player performance analysis and outlier detection.
+    """
+
+    __tablename__ = "hand_analytics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    hand_id = Column(
+        Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    template_id = Column(
+        Integer, ForeignKey("table_templates.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    hand_no = Column(Integer, nullable=False)
+    variant = Column(String(50), nullable=False)
+    stakes = Column(String(50), nullable=True)  # e.g., "25/50"
+    currency = Column(
+        Enum(CurrencyType, values_callable=lambda enum: [member.value for member in enum], name="currencytype"),
+        nullable=False,
+        default=CurrencyType.PLAY,
+    )
+    
+    # Hand composition
+    players_in_hand = Column(Integer, nullable=False, default=0)
+    positions = Column(JSONB, nullable=True)  # {user_id: position}
+    button_seat = Column(Integer, nullable=True)
+    sb_seat = Column(Integer, nullable=True)
+    bb_seat = Column(Integer, nullable=True)
+    
+    # Actions and aggression
+    vpip_mask = Column(JSONB, nullable=True)  # {user_id: bool}
+    pfr_mask = Column(JSONB, nullable=True)  # {user_id: bool}
+    actions_count = Column(Integer, nullable=False, default=0)
+    aggression_factor = Column(Integer, nullable=True)  # (bets+raises)/(calls)
+    
+    # Pot and outcomes
+    total_pot = Column(BigInteger, nullable=False, default=0)
+    rake = Column(BigInteger, nullable=False, default=0)
+    multiway = Column(Boolean, nullable=False, default=False)  # 3+ players to flop
+    went_to_showdown = Column(Boolean, nullable=False, default=False)
+    showdown_count = Column(Integer, nullable=False, default=0)
+    winners = Column(JSONB, nullable=True)  # {user_id: winnings}
+    
+    # Timeout/autofold tracking
+    timeouts = Column(Integer, nullable=False, default=0)
+    autofolds = Column(Integer, nullable=False, default=0)
+    
+    # Player deltas
+    player_deltas = Column(JSONB, nullable=True)  # {user_id: {net_chips, bb100}}
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_hand_analytics_table_hand", "table_id", "hand_no", unique=True),
+        Index("idx_hand_analytics_template", "template_id"),
+        Index("idx_hand_analytics_variant", "variant"),
+        Index("idx_hand_analytics_created", "created_at"),
+    )
+
+
+class PlayerSession(Base):
+    """Player session tracking for buy-in/cash-out analysis.
+    
+    Tracks individual player sessions at tables with performance metrics.
+    """
+
+    __tablename__ = "player_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    template_id = Column(
+        Integer, ForeignKey("table_templates.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    
+    # Session boundaries
+    session_start = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    session_end = Column(DateTime(timezone=True), nullable=True)
+    
+    # Financial tracking
+    buy_in = Column(BigInteger, nullable=False, default=0)
+    cash_out = Column(BigInteger, nullable=True)
+    net = Column(BigInteger, nullable=True)
+    
+    # Session-specific stats
+    hands_played = Column(Integer, nullable=False, default=0)
+    vpip_count = Column(Integer, nullable=False, default=0)
+    pfr_count = Column(Integer, nullable=False, default=0)
+    af_numerator = Column(Integer, nullable=False, default=0)  # bets + raises
+    af_denominator = Column(Integer, nullable=False, default=0)  # calls
+    timeouts = Column(Integer, nullable=False, default=0)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index("idx_player_sessions_user_table", "user_id", "table_id"),
+        Index("idx_player_sessions_template", "template_id"),
+        Index("idx_player_sessions_start", "session_start"),
+    )
+
+
+class HourlyPlayerStats(Base):
+    """Hourly aggregated player statistics.
+    
+    Stores hourly performance metrics for players across all tables.
+    """
+
+    __tablename__ = "hourly_player_stats"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    hour_start = Column(DateTime(timezone=True), nullable=False, index=True)
+    
+    # Volume metrics
+    hands_played = Column(Integer, nullable=False, default=0)
+    tables_played = Column(Integer, nullable=False, default=0)
+    
+    # Core stats
+    vpip_count = Column(Integer, nullable=False, default=0)
+    pfr_count = Column(Integer, nullable=False, default=0)
+    af_numerator = Column(Integer, nullable=False, default=0)
+    af_denominator = Column(Integer, nullable=False, default=0)
+    
+    # Winnings
+    wwsf = Column(Integer, nullable=False, default=0)  # Won when saw flop
+    wsd = Column(Integer, nullable=False, default=0)  # Won at showdown
+    showdown_wins = Column(Integer, nullable=False, default=0)
+    showdown_count = Column(Integer, nullable=False, default=0)
+    
+    # Advanced stats
+    three_bet_count = Column(Integer, nullable=False, default=0)
+    cbet_count = Column(Integer, nullable=False, default=0)
+    fold_to_cbet_count = Column(Integer, nullable=False, default=0)
+    steal_count = Column(Integer, nullable=False, default=0)
+    fold_to_steal_count = Column(Integer, nullable=False, default=0)
+    
+    # Financial
+    net_profit = Column(BigInteger, nullable=False, default=0)
+    rake_paid = Column(BigInteger, nullable=False, default=0)
+    bb100 = Column(Integer, nullable=True)  # Big blinds per 100 hands
+    
+    # Breakdown by variant/stakes
+    variant_breakdown = Column(JSONB, nullable=True)  # {variant: {hands, profit}}
+    stakes_breakdown = Column(JSONB, nullable=True)  # {stakes: {hands, profit}}
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_hourly_player_stats_user_hour", "user_id", "hour_start", unique=True),
+        Index("idx_hourly_player_stats_hour", "hour_start"),
+    )
+
+
+class LeaderboardSnapshot(Base):
+    """Leaderboard snapshots for historical tracking.
+    
+    Captures top players at specific time intervals.
+    """
+
+    __tablename__ = "leaderboard_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    snapshot_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    leaderboard_type = Column(String(50), nullable=False, index=True)  # daily, weekly, monthly, alltime
+    variant = Column(String(50), nullable=True, index=True)
+    stakes = Column(String(50), nullable=True)
+    
+    # Top players data
+    rankings = Column(JSONB, nullable=False)  # [{user_id, rank, score, ...}]
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_leaderboard_type_time", "leaderboard_type", "snapshot_time"),
+        Index("idx_leaderboard_variant", "variant"),
+    )
+
+
+class AnalyticsJob(Base):
+    """Durable job queue for analytics batch processing.
+    
+    Provides at-least-once delivery with deduplication for hourly aggregations.
+    """
+
+    __tablename__ = "analytics_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_type = Column(String(50), nullable=False, index=True)  # hourly_table, hourly_player, cleanup
+    deduplication_key = Column(String(255), nullable=False, unique=True, index=True)
+    status = Column(String(20), nullable=False, default="pending", index=True)  # pending, running, completed, failed
+    
+    # Job parameters
+    params = Column(JSONB, nullable=True)
+    
+    # Execution tracking
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(String(1000), nullable=True)
+    retry_count = Column(Integer, nullable=False, default=0)
+    
+    __table_args__ = (
+        Index("idx_analytics_jobs_status_created", "status", "created_at"),
+        Index("idx_analytics_jobs_type", "job_type"),
+    )
+
+
+class AnomalyAlert(Base):
+    """Anomaly detection alerts for suspicious patterns.
+    
+    Stores detected anomalies for admin review.
+    """
+
+    __tablename__ = "anomaly_alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    alert_type = Column(String(50), nullable=False, index=True)  # big_pot, timeout_surge, vpip_mismatch, rapid_action
+    severity = Column(String(20), nullable=False, index=True)  # low, medium, high, critical
+    
+    # Context
+    table_id = Column(
+        Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    hand_id = Column(
+        Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    
+    # Alert details
+    message = Column(String(500), nullable=False)
+    metadata = Column(JSONB, nullable=True)
+    
+    # Status tracking
+    status = Column(String(20), nullable=False, default="open", index=True)  # open, reviewed, dismissed
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    reviewed_by = Column(Integer, nullable=True)  # admin user_id
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    __table_args__ = (
+        Index("idx_anomaly_alerts_type_created", "alert_type", "created_at"),
+        Index("idx_anomaly_alerts_severity_status", "severity", "status"),
+        Index("idx_anomaly_alerts_table", "table_id"),
+    )
