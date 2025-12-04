@@ -16,6 +16,10 @@ import WalletPage from './pages/Wallet'
 import TablePage from './pages/Table'
 import GroupInvitePage from './pages/GroupInvite'
 import GroupJoinPage from './pages/GroupJoin'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminAnalytics from './pages/admin/AdminAnalytics'
+import AdminInsights from './pages/admin/AdminInsights'
+import AdminTables from './pages/admin/AdminTables'
 import { useTelegram } from './hooks/useTelegram'
 
 function StartParamBridge() {
@@ -67,6 +71,12 @@ function App() {
                     </Route>
                     <Route path="wallet" element={<WalletPage />} />
                     <Route path="table/:tableId" element={<TablePage />} />
+                  </Route>
+                  <Route path="admin" element={<AdminDashboard />}>
+                    <Route index element={<Navigate to="/admin/analytics" replace />} />
+                    <Route path="analytics" element={<AdminAnalytics />} />
+                    <Route path="insights" element={<AdminInsights />} />
+                    <Route path="tables" element={<AdminTables />} />
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

@@ -230,7 +230,7 @@ export default function Avatar({
 
         {cards && cards.length > 0 && (
           <div className="pointer-events-none absolute -right-7 bottom-0 z-20 flex gap-1.5">
-            {cards.slice(0, 2).map((card, idx) => (
+            {cards.map((card, idx) => (
               <div
                 key={`${card}-${idx}`}
                 className="drop-shadow-md"

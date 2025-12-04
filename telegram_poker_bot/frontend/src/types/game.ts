@@ -18,12 +18,16 @@ export type AllowedActionType =
   | 'raise'
   | 'all_in'
   | 'ready'
+  | 'discard'
+  | 'stand_pat'
 
 export interface AllowedAction {
   action_type: AllowedActionType
   amount?: number
   min_amount?: number
   max_amount?: number
+  cards_to_discard?: string[] // For draw games
+  max_discards?: number // Maximum cards that can be discarded
 }
 
 export type AllowedActionsPayload =
@@ -131,6 +135,7 @@ export interface TableState {
     amount?: number | null
     street?: string | null
     created_at?: string | null
+    cards_discarded?: string[] // For draw games
   } | null
   hand_result?: HandResultPayload | null
   inter_hand_wait?: boolean
@@ -152,4 +157,8 @@ export interface TableState {
   allowed_actions?: AllowedActionsPayload
   allowed_actions_legacy?: AllowedActionsPayload
   ready_players?: Array<number | string>
+  // Variant-specific fields
+  draw_round?: number // Current draw round (1, 2, 3 for Triple Draw)
+  max_draw_rounds?: number // Total draw rounds for this variant
+  variant?: string // Game variant identifier
 }
