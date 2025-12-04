@@ -530,25 +530,11 @@ async def list_tables_analytics(
         "per_page": per_page,
     }
 
-    Returns live counters including hand count, pot sum, active seats,
-    waitlist count, aggression metrics, and performance indicators.
-    """
-    redis_client = await get_redis_client()
-    redis_analytics = await get_redis_analytics(redis_client)
-    
-    # Get all metrics in one call
-    metrics = await redis_analytics.get_all_table_metrics(table_id)
-    
-    return {
-        "table_id": table_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "metrics": metrics,
-    }
 
 
 @analytics_admin_router.get("/tables/live")
 async def get_all_tables_live_metrics(
-    is_admin: bool = Depends(verify_admin_access),
+    current_user: CurrentUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Get real-time metrics for all active tables.
@@ -587,7 +573,7 @@ async def get_all_tables_live_metrics(
 async def get_table_stats(
     table_id: int,
     hours: int = Query(default=24, ge=1, le=168, description="Hours of data to retrieve"),
-    is_admin: bool = Depends(verify_admin_access),
+    current_user: CurrentUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Get historical statistics for a table.
@@ -664,7 +650,7 @@ async def get_table_stats(
 async def get_player_stats(
     user_id: int,
     hours: int = Query(default=168, ge=1, le=720, description="Hours of data to retrieve"),
-    is_admin: bool = Depends(verify_admin_access),
+    current_user: CurrentUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Get comprehensive statistics for a player.
@@ -774,7 +760,7 @@ async def get_anomalies(
     severity: Optional[str] = Query(None, description="Filter by severity"),
     status: Optional[str] = Query("open", description="Filter by status"),
     limit: int = Query(100, ge=1, le=500),
-    is_admin: bool = Depends(verify_admin_access),
+    current_user: CurrentUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Get anomaly alerts.
@@ -823,7 +809,7 @@ async def get_anomalies(
 async def review_anomaly(
     alert_id: int,
     new_status: str = Query(..., description="New status (reviewed or dismissed)"),
-    is_admin: bool = Depends(verify_admin_access),
+    current_user: CurrentUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Mark an anomaly alert as reviewed or dismissed.
@@ -858,7 +844,7 @@ async def review_anomaly(
 @analytics_admin_router.post("/anomalies/scan")
 async def scan_for_anomalies(
     table_id: Optional[int] = Query(None, description="Scan specific table"),
-    is_admin: bool = Depends(verify_admin_access),
+    current_user: CurrentUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Manually trigger anomaly scan.
@@ -898,7 +884,7 @@ async def scan_for_anomalies(
 async def get_leaderboards(
     leaderboard_type: str = Query("daily", description="Leaderboard type"),
     variant: Optional[str] = Query(None, description="Filter by variant"),
-    is_admin: bool = Depends(verify_admin_access),
+    current_user: CurrentUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Get leaderboard snapshots.
@@ -1191,7 +1177,7 @@ async def create_export_job(
     job = AnalyticsJob(
         job_type=f"export_{export_request.export_type}",
         status="queued",
-        metadata={
+        params={
             "export_type": export_request.export_type,
             "format": export_request.format,
             "time_range": {
@@ -1233,344 +1219,6 @@ async def create_export_job(
     }
 
 
-@analytics_admin_router.get("/export/{job_id}")
-async def get_export_job_status(
-    job_id: int,
-    current_user: CurrentUser = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get export job status and download URL.
-    
-    Admin-only endpoint. Returns job status and download URL if completed.
-    """
-    result = await db.execute(
-        select(AnalyticsJob).where(AnalyticsJob.id == job_id)
-    )
-    job = result.scalar_one_or_none()
-    
-    if not job:
-        raise HTTPException(status_code=404, detail="Export job not found")
-    
-    # Check if user is authorized to view this job
-    if job.metadata and job.metadata.get("requested_by") != current_user.user_id:
-        if not current_user.is_admin():
-            raise HTTPException(status_code=403, detail="Not authorized to view this job")
-    
-    download_url = None
-    if job.status == "completed" and job.result_data:
-        # In production, this should be a signed S3 URL or similar
-        download_url = f"/api/admin/analytics/export/{job_id}/download"
-    
-    return {
-        "job_id": job.id,
-        "status": job.status,
-        "export_type": job.metadata.get("export_type") if job.metadata else None,
-        "created_at": job.created_at.isoformat() if job.created_at else None,
-        "completed_at": job.completed_at.isoformat() if job.completed_at else None,
-        "download_url": download_url,
-        "error": job.error_message if job.status == "failed" else None,
-    }
-
-
-# ==================== Phase 4: Hand Drill-Down Endpoints ====================
-
-@analytics_admin_router.get("/tables/{table_id}/hands")
-async def get_table_hands(
-    table_id: int,
-    limit: int = Query(50, ge=1, le=200),
-    cursor: Optional[int] = Query(None, description="Hand ID cursor for pagination"),
-    current_user: CurrentUser = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get hand summaries for a table.
-    
-    Admin-only endpoint. Returns paginated hand summaries with cursor-based pagination.
-    """
-    from telegram_poker_bot.shared.models import Hand
-    
-    query = select(Hand).where(Hand.table_id == table_id)
-    
-    if cursor:
-        query = query.where(Hand.id < cursor)
-    
-    query = query.order_by(Hand.id.desc()).limit(limit)
-    
-    result = await db.execute(query)
-    hands = result.scalars().all()
-    
-    # Get hand analytics for detailed info
-    hand_ids = [h.id for h in hands]
-    analytics_result = await db.execute(
-        select(HandAnalytics).where(HandAnalytics.hand_id.in_(hand_ids))
-    )
-    analytics_by_hand_id = {a.hand_id: a for a in analytics_result.scalars().all()}
-    
-    hands_data = []
-    for hand in hands:
-        analytics = analytics_by_hand_id.get(hand.id)
-        hands_data.append({
-            "hand_id": hand.id,
-            "hand_no": hand.hand_no,
-            "table_id": hand.table_id,
-            "created_at": hand.created_at.isoformat() if hand.created_at else None,
-            "pot_total": analytics.total_pot if analytics else 0,
-            "rake": analytics.rake if analytics else 0,
-            "went_to_showdown": analytics.went_to_showdown if analytics else False,
-        })
-    
-    # Log admin query
-    jwt_service = get_jwt_auth_service()
-    await jwt_service.log_admin_action(
-        db,
-        admin_user_id=current_user.user_id,
-        action_type="view_table_hands",
-        resource_type="table",
-        resource_id=table_id,
-    )
-    await db.commit()
-    
-    next_cursor = hands[-1].id if hands else None
-    
-    return {
-        "hands": hands_data,
-        "count": len(hands_data),
-        "next_cursor": next_cursor,
-        "has_more": len(hands) == limit,
-    }
-
-
-@analytics_admin_router.get("/hands/{hand_id}")
-async def get_hand_details(
-    hand_id: int,
-    current_user: CurrentUser = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get detailed hand information including action timeline.
-    
-    Admin-only endpoint. Returns complete hand history with actions and results.
-    """
-    from telegram_poker_bot.shared.models import Hand, HandHistoryEvent
-    
-    # Get hand
-    hand_result = await db.execute(
-        select(Hand).where(Hand.id == hand_id)
-    )
-    hand = hand_result.scalar_one_or_none()
-    
-    if not hand:
-        raise HTTPException(status_code=404, detail="Hand not found")
-    
-    # Get hand analytics
-    analytics_result = await db.execute(
-        select(HandAnalytics).where(HandAnalytics.hand_id == hand_id)
-    )
-    analytics = analytics_result.scalar_one_or_none()
-    
-    # Get action timeline
-    from telegram_poker_bot.shared.models import HandHistoryEvent
-    events_result = await db.execute(
-        select(HandHistoryEvent)
-        .where(HandHistoryEvent.hand_id == hand_id)
-        .order_by(HandHistoryEvent.sequence.asc())
-    )
-    events = events_result.scalars().all()
-    
-    # Log admin query
-    jwt_service = get_jwt_auth_service()
-    await jwt_service.log_admin_action(
-        db,
-        admin_user_id=current_user.user_id,
-        action_type="view_hand_details",
-        resource_type="hand",
-        resource_id=hand_id,
-    )
-    await db.commit()
-    
-    return {
-        "hand_id": hand.id,
-        "hand_no": hand.hand_no,
-        "table_id": hand.table_id,
-        "started_at": hand.started_at.isoformat() if hand.started_at else None,
-        "ended_at": hand.ended_at.isoformat() if hand.ended_at else None,
-        "analytics": {
-            "pot_total": analytics.total_pot if analytics else 0,
-            "rake": analytics.rake if analytics else 0,
-            "board_cards": analytics.board_cards if analytics else [],
-            "went_to_showdown": analytics.went_to_showdown if analytics else False,
-            "winner_user_ids": analytics.winner_user_ids if analytics else [],
-        } if analytics else None,
-        "events": [
-            {
-                "sequence": e.sequence,
-                "street": e.street,
-                "action_type": e.action_type,
-                "actor_user_id": e.actor_user_id,
-                "amount": e.amount,
-                "pot_size": e.pot_size,
-                "board_cards": e.board_cards,
-                "created_at": e.created_at.isoformat() if e.created_at else None,
-            }
-            for e in events
-        ],
-    }
-
-
-# ==================== Phase 4: Enhanced Anomaly Management ====================
-
-@analytics_admin_router.post("/anomalies/{anomaly_id}/ack")
-async def acknowledge_anomaly(
-    anomaly_id: int,
-    notes: Optional[str] = Query(None),
-    current_user: CurrentUser = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Acknowledge an anomaly alert.
-    
-    Admin-only endpoint. Marks anomaly as acknowledged but not resolved.
-    """
-    result = await db.execute(
-        select(AnomalyAlert).where(AnomalyAlert.id == anomaly_id)
-    )
-    alert = result.scalar_one_or_none()
-    
-    if not alert:
-        raise HTTPException(status_code=404, detail="Anomaly not found")
-    
-    alert.status = "acknowledged"
-    alert.reviewed_at = datetime.now(timezone.utc)
-    alert.reviewed_by = current_user.user_id
-    
-    # Log admin action
-    jwt_service = get_jwt_auth_service()
-    await jwt_service.log_admin_action(
-        db,
-        admin_user_id=current_user.user_id,
-        action_type="anomaly_acknowledged",
-        resource_type="anomaly",
-        resource_id=anomaly_id,
-        details=notes,
-    )
-    
-    await db.commit()
-    
-    return {
-        "anomaly_id": anomaly_id,
-        "status": "acknowledged",
-        "reviewed_at": alert.reviewed_at.isoformat(),
-        "reviewed_by": current_user.user_id,
-    }
-
-
-@analytics_admin_router.post("/anomalies/{anomaly_id}/resolve")
-async def resolve_anomaly(
-    anomaly_id: int,
-    resolution: str = Query(..., description="Resolution notes"),
-    current_user: CurrentUser = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Resolve an anomaly alert.
-    
-    Admin-only endpoint. Marks anomaly as resolved with resolution notes.
-    """
-    result = await db.execute(
-        select(AnomalyAlert).where(AnomalyAlert.id == anomaly_id)
-    )
-    alert = result.scalar_one_or_none()
-    
-    if not alert:
-        raise HTTPException(status_code=404, detail="Anomaly not found")
-    
-    alert.status = "resolved"
-    alert.reviewed_at = datetime.now(timezone.utc)
-    alert.reviewed_by = current_user.user_id
-    
-    # Update metadata with resolution
-    if not alert.alert_metadata:
-        alert.alert_metadata = {}
-    alert.alert_metadata["resolution"] = resolution
-    alert.alert_metadata["resolved_by"] = current_user.user_id
-    alert.alert_metadata["resolved_at"] = datetime.now(timezone.utc).isoformat()
-    
-    # Log admin action
-    jwt_service = get_jwt_auth_service()
-    await jwt_service.log_admin_action(
-        db,
-        admin_user_id=current_user.user_id,
-        action_type="anomaly_resolved",
-        resource_type="anomaly",
-        resource_id=anomaly_id,
-        details=resolution,
-    )
-    
-    await db.commit()
-    
-    return {
-        "anomaly_id": anomaly_id,
-        "status": "resolved",
-        "reviewed_at": alert.reviewed_at.isoformat(),
-        "reviewed_by": current_user.user_id,
-        "resolution": resolution,
-    }
-
-
-# ==================== Phase 4: Export API ====================
-
-@analytics_admin_router.post("/export")
-async def create_export_job(
-    export_request: ExportRequest,
-    current_user: CurrentUser = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Create an export job for analytics data.
-    
-    Admin-only endpoint. Creates an async job to export data in requested format.
-    Supports: hourly_aggregates, hand_summaries, player_sessions, anomalies.
-    """
-    # Create export job
-    job = AnalyticsJob(
-        job_type=f"export_{export_request.export_type}",
-        status="queued",
-        metadata={
-            "export_type": export_request.export_type,
-            "format": export_request.format,
-            "time_range": {
-                "start": export_request.time_range.start.isoformat() if export_request.time_range else None,
-                "end": export_request.time_range.end.isoformat() if export_request.time_range else None,
-            } if export_request.time_range else None,
-            "filters": export_request.filters or {},
-            "requested_by": current_user.user_id,
-        },
-    )
-    db.add(job)
-    await db.flush()
-    
-    # Log admin action
-    jwt_service = get_jwt_auth_service()
-    await jwt_service.log_admin_action(
-        db,
-        admin_user_id=current_user.user_id,
-        action_type="export_job_created",
-        resource_type="export_job",
-        resource_id=job.id,
-        details=f"Export type: {export_request.export_type}, format: {export_request.format}",
-    )
-    
-    await db.commit()
-    
-    logger.info(
-        "Export job created",
-        job_id=job.id,
-        export_type=export_request.export_type,
-        user_id=current_user.user_id,
-    )
-    
-    return {
-        "job_id": job.id,
-        "export_type": export_request.export_type,
-        "status": "queued",
-        "created_at": job.created_at.isoformat() if job.created_at else None,
-    }
-
 
 @analytics_admin_router.get("/export/{job_id}")
 async def get_export_job_status(
@@ -1591,19 +1239,19 @@ async def get_export_job_status(
         raise HTTPException(status_code=404, detail="Export job not found")
     
     # Check if user is authorized to view this job
-    if job.metadata and job.metadata.get("requested_by") != current_user.user_id:
+    if job.params and job.params.get("requested_by") != current_user.user_id:
         if not current_user.is_admin():
             raise HTTPException(status_code=403, detail="Not authorized to view this job")
     
     download_url = None
-    if job.status == "completed" and job.result_data:
+    if job.status == "completed" and job.params:
         # In production, this should be a signed S3 URL or similar
         download_url = f"/api/admin/analytics/export/{job_id}/download"
     
     return {
         "job_id": job.id,
         "status": job.status,
-        "export_type": job.metadata.get("export_type") if job.metadata else None,
+        "export_type": job.params.get("export_type") if job.params else None,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "completed_at": job.completed_at.isoformat() if job.completed_at else None,
         "download_url": download_url,
