@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     trace_sql: bool = False
     trace_engine: bool = False
 
+    # Auth / Security
+    jwt_secret_key: str = "CHANGE_ME_IN_PRODUCTION"
+
     # Feature Flags
     feature_wallet: bool = False
 
