@@ -1,5 +1,7 @@
 @import url('https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css');
 @import './styles/design-tokens.css';
+@import './styles/animations.css';
+@import './styles/mobile.css';
 
 @tailwind base;
 @tailwind components;

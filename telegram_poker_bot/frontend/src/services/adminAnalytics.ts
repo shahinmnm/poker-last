@@ -205,8 +205,11 @@ export async function deliverInsights(
  */
 export async function fetchAdminTableDetail(
   tableId: number,
-  _initData?: string | null
+  initData?: string | null
 ): Promise<AdminTableDetail> {
+  // Suppress unused parameter warning - kept for future implementation
+  void initData
+  
   // Endpoint not yet implemented - throw error to prevent silent failures
   throw new Error(
     `Admin table detail endpoint not yet implemented in backend. ` +

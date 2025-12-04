@@ -1,0 +1,223 @@
+/**
+ * Phase 5: Mobile Responsive Styles
+ * 
+ * Mobile-first responsive design for poker table UI.
+ */
+
+/* Mobile base styles */
+@media (max-width: 768px) {
+  /* Table view - stacked layout */
+  .table-view {
+    padding: 0.5rem;
+  }
+
+  /* Seats container - adjust for smaller screens */
+  .seats-container {
+    max-width: 100% !important;
+    height: 300px !important;
+  }
+
+  /* Seat component - smaller on mobile */
+  .seat-component .avatar {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  .seat-component .info-pill {
+    min-width: 80px !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.65rem;
+  }
+
+  /* Cards - smaller on mobile */
+  .playing-card.w-14 {
+    width: 2rem !important;
+    height: 2.75rem !important;
+  }
+
+  .playing-card.w-10 {
+    width: 1.75rem !important;
+    height: 2.5rem !important;
+  }
+
+  /* Community board - compact */
+  .community-board {
+    margin-bottom: 1rem !important;
+  }
+
+  /* Action panel - condensed */
+  .action-panel {
+    padding: 0.75rem !important;
+  }
+
+  .action-panel .flex {
+    flex-direction: column;
+  }
+
+  .action-panel button {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Lobby - stacked */
+  .lobby-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .lobby-row > div {
+    width: 100%;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .seats-container {
+    max-width: 600px !important;
+    height: 350px !important;
+  }
+
+  .seat-component .avatar {
+    width: 56px !important;
+    height: 56px !important;
+  }
+}
+
+/* Portrait mode specific */
+@media (orientation: portrait) {
+  .table-view {
+    flex-direction: column;
+  }
+
+  /* Adjust seat ring for portrait */
+  .seats-container {
+    aspect-ratio: 1 / 1.2;
+  }
+
+  /* Action panel - full width at bottom */
+  .action-panel-container,
+  .draw-phase-container {
+    bottom: 1rem !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}
+
+/* Landscape mode - utilize horizontal space */
+@media (orientation: landscape) and (max-height: 600px) {
+  .table-view {
+    padding: 0.5rem;
+  }
+
+  .community-board-container {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .seats-container {
+    height: 250px !important;
+  }
+
+  .action-panel-container,
+  .draw-phase-container {
+    bottom: 0.5rem !important;
+  }
+}
+
+/* Touch-friendly sizes */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase tap targets */
+  button,
+  .seat-component,
+  .lobby-row {
+    min-height: 44px;
+  }
+
+  /* Larger action buttons */
+  .action-panel button {
+    padding: 1rem !important;
+    font-size: 1rem !important;
+  }
+
+  /* Larger seat tap area */
+  .seat-component {
+    padding: 0.5rem;
+  }
+}
+
+/* Small screens - very compact */
+@media (max-width: 375px) {
+  .seat-component .avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .seat-component .info-pill {
+    min-width: 70px !important;
+    font-size: 0.6rem;
+  }
+
+  .playing-card.w-14 {
+    width: 1.75rem !important;
+    height: 2.5rem !important;
+  }
+
+  .action-panel {
+    padding: 0.5rem !important;
+  }
+
+  /* Hide some non-essential info on very small screens */
+  .lobby-row .text-sm {
+    font-size: 0.7rem;
+  }
+}
+
+/* Swipe gesture areas (optional for mobile) */
+.swipe-area {
+  touch-action: pan-x;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Prevent zoom on double tap (iOS) */
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+/* Safe area support for notched devices (iOS) */
+@supports (padding: constant(safe-area-inset-bottom)) {
+  .action-panel-container,
+  .draw-phase-container {
+    padding-bottom: calc(0.5rem + constant(safe-area-inset-bottom));
+  }
+
+  .table-view {
+    padding-bottom: constant(safe-area-inset-bottom);
+  }
+}
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  .action-panel-container,
+  .draw-phase-container {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
+
+  .table-view {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* High DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper card rendering */
+  .playing-card {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
