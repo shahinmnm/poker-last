@@ -1,5 +1,9 @@
 import { useState, useCallback } from 'react'
 
+/**
+ * DiscardAction type for external use
+ * Represents the state of a discard action with selected cards
+ */
 export interface DiscardAction {
   selectedCards: string[]
   maxDiscards: number

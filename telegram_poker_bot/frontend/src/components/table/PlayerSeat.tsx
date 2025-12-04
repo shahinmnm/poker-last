@@ -61,6 +61,10 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     const totalTime = typeof turnTotalSeconds === 'number' ? turnTotalSeconds : null
     const showTimer =
       isActive && Boolean(turnDeadline) && totalTime !== null && totalTime > 0
+    
+    // Note: Default fallback to 2 cards for backwards compatibility
+    // In future, variant info should be passed to this component for proper fallback
+    // (e.g., 4 cards for Omaha, 5 cards for Draw)
     const safeCards = showFaces ? holeCards : Array(2).fill('XX')
     const cardsHidden = !showFaces
 

@@ -196,23 +196,33 @@ export async function deliverInsights(
 }
 
 /**
- * Fetch admin table detail (placeholder - endpoint not yet implemented in backend)
+ * Fetch admin table detail
+ * 
+ * Note: This endpoint is not yet implemented in the backend.
+ * This function is a placeholder for future implementation.
+ * 
+ * @throws {Error} Will throw an error indicating the endpoint is not implemented
  */
 export async function fetchAdminTableDetail(
   tableId: number,
-  initData?: string | null
+  _initData?: string | null
 ): Promise<AdminTableDetail> {
-  const options: ApiFetchOptions = {
-    method: 'GET',
-  }
-
-  if (initData) {
-    options.initData = initData
-  }
-
-  // Note: This endpoint structure is proposed but not yet implemented in backend
-  return await apiFetch<AdminTableDetail>(
-    `/admin/tables/${tableId}`,
-    options
+  // Endpoint not yet implemented - throw error to prevent silent failures
+  throw new Error(
+    `Admin table detail endpoint not yet implemented in backend. ` +
+    `Attempted to fetch table ${tableId}. ` +
+    `Backend needs to implement: GET /admin/tables/:id`
   )
+  
+  // Future implementation when backend is ready:
+  // const options: ApiFetchOptions = {
+  //   method: 'GET',
+  // }
+  // if (_initData) {
+  //   options.initData = _initData
+  // }
+  // return await apiFetch<AdminTableDetail>(
+  //   `/admin/tables/${tableId}`,
+  //   options
+  // )
 }
