@@ -26,6 +26,7 @@ from telegram_poker_bot.bot.handlers.wallet import (
     wallet_keyboard,
 )
 from telegram_poker_bot.bot.locales import get_text
+from telegram_poker_bot.bot.utils.helpers import safe_answer_callback_query
 from telegram_poker_bot.bot.states.user_states import UserState
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.database import AsyncSessionLocal
@@ -193,7 +194,7 @@ async def handle_language_selection(
     """Handle language choice and user creation."""
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     data = query.data if query else ""
     lang = "en" if data.endswith("en") else "fa"
     tg_user = update.effective_user
@@ -219,7 +220,7 @@ async def handle_menu_callbacks(
     """Dispatch main menu callbacks."""
     query = update.callback_query
     if query:
-        await query.answer()
+        await safe_answer_callback_query(query)
     data = query.data if query else ""
     async with AsyncSessionLocal() as session:
         user = await _find_user_by_tg(session, update.effective_user.id)  # type: ignore[arg-type]

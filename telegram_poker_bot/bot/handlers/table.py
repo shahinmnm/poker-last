@@ -16,6 +16,7 @@ from telegram_poker_bot.bot.api.client import api_client
 from telegram_poker_bot.bot.ws_client.table_client import TableWebSocketClient, PollingClient
 from telegram_poker_bot.bot.services.table_sessions import table_session_manager
 from telegram_poker_bot.bot.handlers.commands import _get_or_create_user
+from telegram_poker_bot.bot.utils.helpers import safe_answer_callback_query
 
 logger = get_logger(__name__)
 
@@ -256,7 +257,9 @@ async def leave_table_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         session = table_session_manager.get_session(user.tg_user_id)
         
         if not session:
-            await update.callback_query.answer("You're not at a table.")
+            await safe_answer_callback_query(
+                update.callback_query, text="You're not at a table."
+            )
             return
         
         table_id = session.table_id
@@ -267,7 +270,7 @@ async def leave_table_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Remove session
         await table_session_manager.remove_session(user.tg_user_id)
         
-        await update.callback_query.answer("Left table.")
+        await safe_answer_callback_query(update.callback_query, text="Left table.")
         
         # Show main menu
         from telegram_poker_bot.bot.keyboards.menu import get_main_menu_keyboard
@@ -278,7 +281,7 @@ async def leave_table_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         
     except Exception as e:
         logger.error("Error leaving table", error=str(e), exc_info=e)
-        await update.callback_query.answer("An error occurred.")
+        await safe_answer_callback_query(update.callback_query, text="An error occurred.")
 
 
 async def submit_action_handler(
@@ -295,17 +298,23 @@ async def submit_action_handler(
         session = table_session_manager.get_session(user.tg_user_id)
         
         if not session:
-            await update.callback_query.answer("You're not at a table.")
+            await safe_answer_callback_query(
+                update.callback_query, text="You're not at a table."
+            )
             return
         
         # Submit action via API
         result = await api_client.submit_action(session.table_id, action, amount)
         
         if result:
-            await update.callback_query.answer(f"Action: {action}")
+            await safe_answer_callback_query(
+                update.callback_query, text=f"Action: {action}"
+            )
         else:
-            await update.callback_query.answer("Failed to submit action. Try again.")
+            await safe_answer_callback_query(
+                update.callback_query, text="Failed to submit action. Try again."
+            )
         
     except Exception as e:
         logger.error("Error submitting action", error=str(e), exc_info=e)
-        await update.callback_query.answer("An error occurred.")
+        await safe_answer_callback_query(update.callback_query, text="An error occurred.")
