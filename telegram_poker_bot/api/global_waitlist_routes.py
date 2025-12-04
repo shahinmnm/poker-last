@@ -35,8 +35,16 @@ class GlobalWaitlistStatsResponse(BaseModel):
 def get_user_id(x_user_id: Optional[str] = None) -> int:
     """Dependency to get user ID from headers.
     
-    For now, this is a simplified version. In production, this would
-    validate Telegram Mini App init data or use proper authentication.
+    WARNING: This is a SIMPLIFIED authentication mechanism for Phase 2 demonstration.
+    In production, this MUST be replaced with:
+    1. Telegram Mini App init data validation (verify_telegram_init_data)
+    2. JWT token-based authentication
+    3. Or other secure authentication mechanism
+    
+    The current implementation is VULNERABLE to user ID spoofing and should
+    NEVER be used in production without proper security hardening.
+    
+    TODO (Security): Replace with proper authentication before production deployment.
     """
     if not x_user_id:
         raise HTTPException(status_code=401, detail="User ID required")

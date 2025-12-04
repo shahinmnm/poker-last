@@ -35,6 +35,10 @@ def upgrade() -> None:
     op.create_index('idx_tables_sng_state', 'tables', ['sng_state'])
     
     # Create global waitlist table
+    # NOTE: This assumes 'waitliststatus' enum already exists from migration 022.
+    # The enum should have values: 'waiting', 'entered', 'cancelled'
+    # If the enum doesn't exist or has different values, this migration will fail
+    # with a clear error message, prompting manual intervention.
     op.create_table(
         'global_waitlist_entries',
         sa.Column('id', sa.Integer(), primary_key=True, index=True),
@@ -44,7 +48,7 @@ def upgrade() -> None:
         sa.Column('status', postgresql.ENUM(
             'waiting', 'entered', 'cancelled',
             name='waitliststatus',
-            create_type=False  # Already exists from previous migration
+            create_type=False  # Already exists from migration 022
         ), nullable=False, server_default='waiting'),
         sa.Column('routed_table_id', sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),

@@ -274,6 +274,11 @@ async def find_best_table_for_player(
             score += 50
         
         # Penalty: Nearly dead tables (1 player)
+        # Rationale: Single-player tables are at risk of becoming abandoned.
+        # The -200 penalty is chosen to override the +100 "has active players"
+        # bonus but still allow routing if it's the only option available.
+        # This encourages routing to more stable tables first.
+        # TODO: Make this penalty configurable via system settings if needed.
         if seat_count == 1:
             score -= 200
         

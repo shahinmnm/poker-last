@@ -155,15 +155,19 @@ def validate_template_config(config: Dict[str, Any]) -> None:
     # Validate SNG config if enabled
     if config.get("sng_enabled", False):
         sng_min = config.get("sng_min_players")
-        if sng_min is not None:
-            try:
-                sng_min_int = int(sng_min)
-                if sng_min_int < 2:
-                    raise ValueError("sng_min_players must be at least 2")
-                if sng_min_int > max_players:
-                    raise ValueError(f"sng_min_players ({sng_min_int}) cannot exceed max_players ({max_players})")
-            except (TypeError, ValueError) as exc:
-                raise ValueError("sng_min_players must be an integer >= 2") from exc
+        if sng_min is None:
+            raise ValueError("sng_min_players is required when sng_enabled is True")
+        
+        try:
+            sng_min_int = int(sng_min)
+            if sng_min_int < 2:
+                raise ValueError("sng_min_players must be at least 2")
+            if sng_min_int > max_players:
+                raise ValueError(f"sng_min_players ({sng_min_int}) cannot exceed max_players ({max_players})")
+        except (TypeError, ValueError) as exc:
+            if "sng_min_players" in str(exc):
+                raise
+            raise ValueError("sng_min_players must be an integer >= 2") from exc
         
         sng_window = config.get("sng_join_window_seconds")
         if sng_window is not None:
