@@ -3603,39 +3603,7 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
         logger.info("Admin analytics WebSocket connection closed")
 
 
-_api_path_prefix = _derive_api_path_prefix(settings.vite_api_url)
-mount_targets = {"/"}
-
-if _api_path_prefix:
-    mount_targets.add(_api_path_prefix)
-else:
-    mount_targets.add(DEFAULT_API_PREFIX)
-
-if len(mount_targets) == 1:
-    app = api_app
-else:
-    logger.info(
-        "Mounting API under multiple prefixes",
-        prefixes=sorted(mount_targets),
-    )
-    container_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-    # Mount longer paths first so more specific prefixes take precedence.
-    for prefix in sorted(mount_targets, key=len, reverse=True):
-        container_app.mount(prefix, api_app)
-
-    # Register WebSocket endpoint directly on container app to ensure it's accessible
-    # WebSocket connections don't work properly when only registered in mounted sub-apps
-    @container_app.websocket("/ws/{table_id}")
-    async def container_websocket_endpoint(websocket: WebSocket, table_id: int):
-        """WebSocket endpoint registered on container app for proper routing."""
-        await websocket_endpoint(websocket, table_id)
-
-    @container_app.websocket("/ws/lobby")
-    async def container_lobby_websocket_endpoint(websocket: WebSocket):
-        """Lobby WebSocket endpoint registered on container app for proper routing."""
-        await lobby_websocket_endpoint(websocket)
-
-    app = container_app
+app = api_app
 
 
 if __name__ == "__main__":
