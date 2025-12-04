@@ -119,14 +119,18 @@ api_app.add_middleware(
 # Include admin router
 api_app.include_router(admin_router)
 
+# Import and mount auth routes (Phase 4)
+from telegram_poker_bot.api.auth_routes import auth_router
+api_app.include_router(auth_router)
+
 # Import and mount global waitlist routes
 from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
 api_app.include_router(global_waitlist_router, prefix=api_prefix)
 
-# Import and mount analytics routes (Phase 3)
+# Import and mount analytics routes (Phase 3 + Phase 4)
 from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
 from telegram_poker_bot.api.analytics_user_routes import analytics_user_router
-api_app.include_router(analytics_admin_router, prefix=api_prefix)
+api_app.include_router(analytics_admin_router)
 api_app.include_router(analytics_user_router, prefix=api_prefix)
 
 
