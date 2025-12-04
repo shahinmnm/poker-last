@@ -107,11 +107,21 @@ async def test_leave_table_allows_rejoin(db_session: AsyncSession) -> None:
     db_session.add_all([creator, guest])
     await db_session.flush()
 
-    table = await table_service.create_table_with_config(
+    # Create template for test
+    from telegram_poker_bot.tests.conftest import create_test_template
+    from telegram_poker_bot.shared.models import TableTemplateType
+    template = await create_test_template(
+        db_session,
+        name="Test Template",
+        table_type=TableTemplateType.PRIVATE if False else TableTemplateType.EXPIRING,
+    )
+
+    table = await table_service.create_table(
         db_session,
         creator_user_id=creator.id,
-        is_private=False,
+        template_id=template.id,
         auto_seat_creator=True,
+    
     )
 
     await table_service.seat_user_at_table(db_session, table.id, guest.id)

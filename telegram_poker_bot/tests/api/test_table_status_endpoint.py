@@ -159,16 +159,19 @@ async def test_table_status_expired(
     await db_session.flush()
 
     # Create a table and mark it as expired
-    table = await table_service.create_table_with_config(
+    # Create template for test
+    from telegram_poker_bot.tests.conftest import create_test_template
+    template = await create_test_template(
+        db_session,
+        name="Test Template",
+    )
+
+    table = await table_service.create_table(
         db_session,
         creator_user_id=user.id,
-        small_blind=25,
-        big_blind=50,
-        starting_stack=10000,
-        max_players=8,
-        table_name="Expired Table",
-        is_private=False,
+        template_id=template.id,
         auto_seat_creator=True,
+    
     )
 
     # Mark table as expired
