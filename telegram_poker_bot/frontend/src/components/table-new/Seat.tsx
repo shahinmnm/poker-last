@@ -13,13 +13,12 @@ import { useMemo } from 'react'
 import type { Seat as SeatType } from '../../types/normalized'
 import CardRenderer from './CardRenderer'
 import CircularTimer from './CircularTimer'
-import { formatByCurrency } from '@/utils/currency'
+import { formatByCurrency, type CurrencyType } from '@/utils/currency'
 
 interface SeatProps {
   seat: SeatType
   actionDeadline?: number | null
-  currency?: string
-  isSelf?: boolean
+  currency?: CurrencyType
   onClick?: () => void
   className?: string
 }
@@ -27,8 +26,7 @@ interface SeatProps {
 export function Seat({
   seat,
   actionDeadline,
-  currency = 'chips',
-  isSelf = false,
+  currency = 'PLAY',
   onClick,
   className = '',
 }: SeatProps) {

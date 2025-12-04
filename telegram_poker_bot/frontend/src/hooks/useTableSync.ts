@@ -10,7 +10,6 @@ import { createTableWebSocket, WebSocketManager } from '../services/WebSocketMan
 import type {
   ConnectionState,
   NormalizedTableState,
-  TableDeltaMessage,
 } from '../types/normalized'
 
 interface UseTableSyncOptions {

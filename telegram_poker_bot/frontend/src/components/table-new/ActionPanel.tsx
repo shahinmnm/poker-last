@@ -8,19 +8,19 @@
 import { useState, useMemo } from 'react'
 import type { LegalAction, ActionType } from '../../types/normalized'
 import Button from '../ui/Button'
-import { formatByCurrency } from '@/utils/currency'
+import { formatByCurrency, type CurrencyType } from '@/utils/currency'
 
 interface ActionPanelProps {
   legalActions: LegalAction[]
   onAction: (action: ActionType, amount?: number) => void
-  currency?: string
+  currency?: CurrencyType
   disabled?: boolean
 }
 
 export function ActionPanel({
   legalActions,
   onAction,
-  currency = 'chips',
+  currency = 'PLAY',
   disabled = false,
 }: ActionPanelProps) {
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null)
@@ -74,7 +74,7 @@ export function ActionPanel({
               <Button
                 key={action.action}
                 onClick={handleRaiseClick}
-                variant={showRaiseSlider ? 'primary' : 'default'}
+                variant="primary"
                 disabled={disabled}
                 className="flex-1 min-w-[100px]"
               >
@@ -93,7 +93,7 @@ export function ActionPanel({
               <Button
                 key={action.action}
                 onClick={() => handleAction('call')}
-                variant="success"
+                variant="primary"
                 disabled={disabled}
                 className="flex-1 min-w-[100px]"
               >
@@ -112,7 +112,7 @@ export function ActionPanel({
               <Button
                 key={action.action}
                 onClick={() => handleAction('check')}
-                variant="success"
+                variant="primary"
                 disabled={disabled}
                 className="flex-1 min-w-[100px]"
               >
@@ -140,7 +140,7 @@ export function ActionPanel({
               <Button
                 key={action.action}
                 onClick={() => handleAction('all_in')}
-                variant="warning"
+                variant="danger"
                 disabled={disabled}
                 className="flex-1 min-w-[100px]"
               >

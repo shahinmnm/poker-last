@@ -13,12 +13,12 @@ import type {
   LobbyDeltaMessage,
 } from '../types/normalized'
 
-interface UseLobby SyncOptions {
+interface UseLobbySyncOptions {
   enabled?: boolean
   refreshInterval?: number // ms for periodic REST refresh
 }
 
-interface UseLobby SyncReturn {
+interface UseLobbySyncReturn {
   tables: LobbyEntry[]
   connectionState: ConnectionState
   isConnected: boolean
@@ -26,7 +26,7 @@ interface UseLobby SyncReturn {
   refresh: () => void
 }
 
-export function useLobbySync(options: UseLobby SyncOptions = {}): UseLobby SyncReturn {
+export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncReturn {
   const { enabled = true, refreshInterval = 25000 } = options
 
   const [tables, setTables] = useState<LobbyEntry[]>([])
