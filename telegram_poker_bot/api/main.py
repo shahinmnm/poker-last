@@ -71,6 +71,7 @@ from telegram_poker_bot.game_core.pokerkit_runtime import (
     get_pokerkit_runtime_manager,
 )
 from telegram_poker_bot.api.admin_routes import admin_router
+from telegram_poker_bot.api import template_routes
 
 settings = get_settings()
 configure_logging()
@@ -126,6 +127,9 @@ api_app.include_router(auth_router)
 # Import and mount global waitlist routes
 from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
 api_app.include_router(global_waitlist_router, prefix=DEFAULT_API_PREFIX)
+
+# Template CRUD routes
+api_app.include_router(template_routes.router, prefix=DEFAULT_API_PREFIX)
 
 # Import and mount analytics routes (Phase 3 + Phase 4)
 from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
@@ -1772,34 +1776,6 @@ async def get_table_status(
     is_active = table.status in [TableStatus.ACTIVE, TableStatus.WAITING]
 
     return {"active": is_active}
-
-
-@api_app.get("/table-templates")
-async def list_table_templates(
-    db: AsyncSession = Depends(get_db),
-):
-    """List all available table templates for creating tables."""
-    from telegram_poker_bot.shared.models import TableTemplate
-    
-    result = await db.execute(
-        select(TableTemplate).order_by(TableTemplate.id.asc())
-    )
-    templates = result.scalars().all()
-    
-    return {
-        "templates": [
-            {
-                "id": t.id,
-                "name": t.name,
-                "table_type": t.table_type.value,
-                "has_waitlist": t.has_waitlist,
-                "config": t.config_json or {},
-                "created_at": t.created_at.isoformat() if t.created_at else None,
-                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-            }
-            for t in templates
-        ]
-    }
 
 
 @api_app.get("/tables")

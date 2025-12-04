@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -6,7 +6,8 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import PageHeader from '../components/ui/PageHeader'
 import { useTelegram } from '../hooks/useTelegram'
-import { createTable, type TableSummary } from '../services/tables'
+import { createTable, getTableTemplates, type TableSummary } from '../services/tables'
+import type { TableTemplateInfo } from '../types'
 
 interface CreateTableFormState {
   templateId: number | ''
@@ -32,6 +33,8 @@ export default function CreateGamePage() {
   const [status, setStatus] = useState<ViewState>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [tableResult, setTableResult] = useState<TableSummary | null>(null)
+  const [templates, setTemplates] = useState<TableTemplateInfo[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState<boolean>(false)
 
   const handleFieldChange = useCallback(
     (field: keyof CreateTableFormState, value: string | number | boolean) => {
@@ -50,7 +53,34 @@ export default function CreateGamePage() {
     [],
   )
 
-  const submitDisabled = status === 'loading' || !ready || formState.templateId === ''
+  const submitDisabled = status === 'loading' || !ready || formState.templateId === '' || loadingTemplates
+
+  useEffect(() => {
+    let active = true
+    const fetchTemplates = async () => {
+      try {
+        setLoadingTemplates(true)
+        const response = await getTableTemplates()
+        if (!active) return
+        const fetched = response.templates || []
+        setTemplates(fetched)
+        if (formState.templateId === '' && fetched.length > 0) {
+          const initial = Number(fetched[0].id)
+          if (Number.isFinite(initial)) {
+            setFormState((prev) => ({ ...prev, templateId: initial }))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load templates', error)
+      } finally {
+        if (active) setLoadingTemplates(false)
+      }
+    }
+    fetchTemplates()
+    return () => {
+      active = false
+    }
+  }, [formState.templateId, setFormState])
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -124,19 +154,35 @@ export default function CreateGamePage() {
       <Card>
         <form className="space-y-[var(--space-lg)]" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="template-id">
-              {t('createGame.form.templateId', { defaultValue: 'Template ID' })}
+            <label className="font-medium text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-label)' }} htmlFor="template-select">
+              {t('createGame.form.templateId', { defaultValue: 'Template' })}
             </label>
-            <input
-              id="template-id"
-              type="number"
-              min={1}
+            <select
+              id="template-select"
               value={formState.templateId}
-              onChange={(event) => handleFieldChange('templateId', event.target.value ? Number(event.target.value) : '')}
-              placeholder={t('createGame.form.templatePlaceholder', { defaultValue: 'Enter template ID' }) ?? ''}
+              onChange={(event) =>
+                handleFieldChange('templateId', event.target.value ? Number(event.target.value) : '')
+              }
               className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
               style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
-            />
+              disabled={loadingTemplates || templates.length === 0}
+            >
+              {templates.length === 0 ? (
+                <option value="">{t('createGame.form.templatePlaceholder', { defaultValue: 'No templates available' })}</option>
+              ) : (
+                templates.map((template) => {
+                  const small = template.config?.small_blind
+                  const big = template.config?.big_blind
+                  const variant = template.config?.game_variant || 'variant'
+                  const label = `${template.name} — ${small ?? '?'} / ${big ?? '?'} — ${variant} — ${template.table_type}`
+                  return (
+                    <option key={template.id} value={template.id}>
+                      {label}
+                    </option>
+                  )
+                })
+              )}
+            </select>
             <p className="text-[color:var(--text-muted)]" style={{ fontSize: 'var(--fs-caption)' }}>
               {t('createGame.form.templateHint', { defaultValue: 'Select an existing table template to use its rules.' })}
             </p>
