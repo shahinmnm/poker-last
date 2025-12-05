@@ -50,12 +50,12 @@ def scan_json_files(directory: str) -> List[str]:
         List of JSON file paths
     """
     if not os.path.exists(directory):
-        print("❌ Error: Templates directory '{}' not found.".format(directory))
+        print(f"❌ Error: Templates directory '{directory}' not found.")
         print("Please create the directory in the same location as this script.")
         sys.exit(1)
 
     if not os.path.isdir(directory):
-        print("❌ Error: '{}' is not a directory.".format(directory))
+        print(f"❌ Error: '{directory}' is not a directory.")
         sys.exit(1)
 
     json_files = []
@@ -162,7 +162,7 @@ def main():
     json_files = scan_json_files(templates_path)
 
     if not json_files:
-        print("⚠️  No JSON files found in '{}' directory.".format(TEMPLATES_DIR))
+        print(f"⚠️  No JSON files found in '{TEMPLATES_DIR}' directory.")
         sys.exit(0)
 
     # Parse all JSON files and collect templates
