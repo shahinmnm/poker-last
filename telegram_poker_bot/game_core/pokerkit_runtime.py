@@ -1568,15 +1568,29 @@ class PokerKitTableRuntimeManager:
         """
         # Always fetch fresh table and seat data from database
         # Use with_for_update() to lock the table row during updates
+        # NOTE: We cannot use joinedload with with_for_update() because asyncpg
+        # doesn't support FOR UPDATE on the nullable side of OUTER JOINs.
+        # Solution: Lock table first, load template via separate query without lock.
         result = await db.execute(
             select(Table)
-            .options(joinedload(Table.template))
             .where(Table.id == table_id)
             .with_for_update()
         )
-        table = result.scalars().unique().one_or_none()
+        table = result.scalars().one_or_none()
         if not table:
             raise ValueError("Table not found")
+        
+        # Load the template relationship in a separate query (without FOR UPDATE)
+        # This avoids the FOR UPDATE + OUTER JOIN compatibility issue with asyncpg
+        from telegram_poker_bot.shared.models import TableTemplate
+        if table.template_id:
+            template_result = await db.execute(
+                select(TableTemplate).where(TableTemplate.id == table.template_id)
+            )
+            template = template_result.scalar_one_or_none()
+            # Manually set the template on the table instance
+            if template:
+                table.template = template
         seats_result = await db.execute(
             select(Seat)
             .options(selectinload(Seat.user))
