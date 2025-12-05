@@ -12,6 +12,7 @@ import type {
   ConnectionState,
   LobbyEntry,
   LobbyDeltaMessage,
+  TableType,
 } from '../types/normalized'
 
 interface UseLobbySyncOptions {
@@ -25,6 +26,16 @@ interface UseLobbySyncReturn {
   isConnected: boolean
   reconnect: () => void
   refresh: () => void
+}
+
+// Helper to normalize table_type string to TableType
+function normalizeTableType(tableType: string | undefined): TableType {
+  if (!tableType) return 'public'
+  const normalized = tableType.toLowerCase()
+  if (normalized === 'public' || normalized === 'private' || normalized === 'persistent' || normalized === 'sng') {
+    return normalized as TableType
+  }
+  return 'public'
 }
 
 export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncReturn {
@@ -68,7 +79,7 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
         waitlist_count: t.waitlist_count || 0,
         uptime: t.uptime,
         expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-        table_type: t.table_type || 'public',
+        table_type: normalizeTableType(t.table_type),
         invite_only: t.is_private || false,
       }))
       
@@ -94,8 +105,7 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
 
         if (lobbyMessage.type === 'lobby_snapshot') {
           // Initial snapshot from server - replace entire table list
-          const snapshotTables = lobbyMessage.tables || []
-          const lobbyEntries: LobbyEntry[] = snapshotTables.map((t: {
+          const snapshotTables = (lobbyMessage.tables || []) as Array<{
             table_id: number
             template?: { name?: string; config?: { stakes?: string } }
             table_name?: string
@@ -107,7 +117,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
             expires_at?: string
             table_type?: string
             is_private?: boolean
-          }) => ({
+          }>
+          const lobbyEntries: LobbyEntry[] = snapshotTables.map((t) => ({
             table_id: t.table_id,
             template_name: t.template?.name || t.table_name || 'Unknown',
             variant: t.game_variant || 'holdem',
@@ -117,7 +128,7 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
             waitlist_count: t.waitlist_count || 0,
             uptime: t.uptime,
             expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-            table_type: t.table_type || 'public',
+            table_type: normalizeTableType(t.table_type),
             invite_only: t.is_private || false,
           }))
           
@@ -176,7 +187,7 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
               waitlist_count: t.waitlist_count || 0,
               uptime: t.uptime,
               expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-              table_type: t.table_type || 'public',
+              table_type: normalizeTableType(t.table_type),
               invite_only: t.is_private || false,
             }
             setTables((prev) => {
