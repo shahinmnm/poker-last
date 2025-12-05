@@ -1839,6 +1839,10 @@ async def list_tables(
         "public",
         description="Scope for table visibility: public, private, mine, or all.",
     ),
+    lobby_persistent: bool = Query(
+        False,
+        description="When true, bypass authentication and return only public tables.",
+    ),
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1850,21 +1854,26 @@ async def list_tables(
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
 
-    if not x_telegram_init_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Telegram init data",
-        )
+    # When lobby_persistent is true, bypass all authentication and force public scope
+    if lobby_persistent:
+        scope = "public"
+        viewer_user_id = None
+    else:
+        if not x_telegram_init_data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing Telegram init data",
+            )
 
-    auth = verify_telegram_init_data(x_telegram_init_data)
-    if not auth:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Telegram init data",
-        )
+        auth = verify_telegram_init_data(x_telegram_init_data)
+        if not auth:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Telegram init data",
+            )
 
-    viewer = await ensure_user(db, auth)
-    viewer_user_id = viewer.id
+        viewer = await ensure_user(db, auth)
+        viewer_user_id = viewer.id
 
     normalized_scope = (scope or "public").strip().lower()
     redis_client = None
