@@ -1587,6 +1587,8 @@ class PokerKitTableRuntimeManager:
             template_result = await db.execute(
                 select(TableTemplate).where(TableTemplate.id == table.template_id)
             )
+            # scalar_one_or_none() returns None if template not found (e.g., deleted)
+            # This is safe since we query by PK, so we get exactly 0 or 1 result
             table.template = template_result.scalar_one_or_none()
         seats_result = await db.execute(
             select(Seat)
