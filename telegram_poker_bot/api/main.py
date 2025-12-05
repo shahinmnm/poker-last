@@ -82,7 +82,9 @@ logger = get_logger(__name__)
 DEFAULT_API_PREFIX = "/api"
 
 # Create a unified APIRouter for all game endpoints (tables, users, etc.)
-# This router will be mounted under /api to ensure consistent routing
+# This router is mounted under /api, so all endpoints defined with @game_router
+# will automatically have /api prefix. For example: @game_router.get("/tables")
+# will be accessible at /api/tables
 game_router = APIRouter(prefix=DEFAULT_API_PREFIX, tags=["game"])
 
 
@@ -136,8 +138,10 @@ api_app.include_router(auth_router)
 # Admin router - mount under /api/admin
 api_app.include_router(admin_router, prefix=DEFAULT_API_PREFIX)
 
-# Analytics routers - mount under /api/analytics
-api_app.include_router(analytics_admin_router, prefix=f"{DEFAULT_API_PREFIX}/analytics")
+# Analytics routers
+# analytics_admin_router already has /api/admin/analytics prefix built-in
+api_app.include_router(analytics_admin_router)
+# analytics_user_router needs /api prefix
 api_app.include_router(analytics_user_router, prefix=DEFAULT_API_PREFIX)
 
 # Global waitlist routes - already expects /api prefix
@@ -2512,10 +2516,6 @@ async def start_next_hand(
 
     viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
     return await _attach_template_to_payload(db, table_id, viewer_state)
-
-# Note: This endpoint path doesn't use DEFAULT_API_PREFIX in the decorator
-# because game_router already has prefix="/api", so the final path is:
-# POST /api/tables/{table_id}/sng/force-start
 @game_router.post("/tables/{table_id}/sng/force-start")
 async def force_start_sng_endpoint(
     table_id: int,
