@@ -28,8 +28,14 @@ except ImportError:
 
 
 # Configuration
-API_ENDPOINT = "https://poker.shahin8n.sbs/api/table-templates"
-API_TOKEN = "Telegrampokerbot5973"
+API_ENDPOINT = os.getenv(
+    "POKER_API_ENDPOINT",
+    "https://poker.shahin8n.sbs/api/table-templates"
+)
+API_TOKEN = os.getenv(
+    "POKER_API_TOKEN",
+    "Telegrampokerbot5973"
+)
 TEMPLATES_DIR = "templates"
 
 

@@ -39,7 +39,20 @@ This script automatically imports poker table templates from JSON files to the r
 ## Requirements
 
 - Python 3.6 or higher
-- `requests` library (already included in project dependencies)
+- `requests` library (included in project dependencies)
+
+## Configuration
+
+The script uses default configuration values but can be customized via environment variables:
+
+- `POKER_API_ENDPOINT` - API endpoint URL (default: `https://poker.shahin8n.sbs/api/table-templates`)
+- `POKER_API_TOKEN` - Authentication token (default: `Telegrampokerbot5973`)
+
+Example with custom configuration:
+```bash
+export POKER_API_TOKEN="your-custom-token"
+python3 import_all_templates.py
+```
 
 ## Template Format
 
