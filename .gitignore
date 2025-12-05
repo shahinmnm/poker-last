@@ -224,3 +224,7 @@ backups/
 pgdata/
 ../pgdata/
 
+# Templates directory for import_all_templates.py script
+# Users place their JSON template files here
+templates/
+
