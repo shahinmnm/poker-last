@@ -1969,6 +1969,15 @@ async def create_table(
             "Failed to invalidate public table cache after create", error=str(exc)
         )
 
+    # Broadcast table creation to lobby
+    await lobby_manager.broadcast(
+        {
+            "type": "TABLE_CREATED",
+            "table_id": table.id,
+            "creator_user_id": user.id,
+        }
+    )
+
     table_info = await table_service.get_table_info(
         db,
         table.id,
@@ -2026,6 +2035,15 @@ async def sit_at_table(
                 "Failed to invalidate public table cache after seat", error=str(exc)
             )
 
+        # Broadcast to lobby that player count changed
+        await lobby_manager.broadcast(
+            {
+                "type": "TABLE_UPDATED",
+                "table_id": table_id,
+                "update_type": "player_joined",
+            }
+        )
+
         return {
             "success": True,
             "table_id": table_id,
@@ -2059,6 +2077,16 @@ async def sit_at_table(
                 }
 
         raise HTTPException(status_code=400, detail=error_message)
+
+
+@game_router.post("/tables/{table_id}/join")
+async def join_table(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Join a table (alias for sit_at_table)."""
+    return await sit_at_table(table_id, x_telegram_init_data, db)
 
 
 @game_router.post("/tables/{table_id}/leave")
@@ -2151,6 +2179,16 @@ async def leave_table(
             logger.warning(
                 "Failed to invalidate public table cache after leave", error=str(exc)
             )
+
+        # Broadcast to lobby that player count changed
+        await lobby_manager.broadcast(
+            {
+                "type": "TABLE_UPDATED",
+                "table_id": table_id,
+                "update_type": "player_left",
+            }
+        )
+
         return {"success": True, "table_id": table_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
