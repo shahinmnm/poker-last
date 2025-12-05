@@ -10,6 +10,9 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+DEFAULT_API_PREFIX = "/api"
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -87,6 +90,7 @@ class Settings(BaseSettings):
     vite_bot_username: str = "@pokerbazabot"
     mini_app_base_url: Optional[str] = None
     group_invite_ttl_seconds: int = 900
+    api_prefix: str = DEFAULT_API_PREFIX
 
     @field_validator("public_base_url", mode="before")
     @classmethod
@@ -131,6 +135,18 @@ class Settings(BaseSettings):
             expanded = os.path.expandvars(value)
             return os.path.expanduser(expanded)
         return value
+
+    @field_validator("api_prefix", mode="before")
+    @classmethod
+    def normalize_api_prefix(cls, value: Optional[str]) -> str:
+        """Ensure API prefix always exists and never collapses to the root path."""
+        if not isinstance(value, str):
+            return DEFAULT_API_PREFIX
+        trimmed = value.strip()
+        stripped = trimmed.strip("/")
+        if not stripped:
+            return DEFAULT_API_PREFIX
+        return f"/{stripped}"
 
     @model_validator(mode="after")
     def ensure_database_url(self) -> "Settings":

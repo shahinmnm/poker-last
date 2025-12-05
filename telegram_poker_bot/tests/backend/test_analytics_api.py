@@ -38,7 +38,7 @@ async def db_session() -> AsyncSession:
 @pytest.fixture
 def test_client(db_session: AsyncSession):
     """Create a test client with database dependency override."""
-    from telegram_poker_bot.api.main import api_app
+    from telegram_poker_bot.api.main import api_app, app
     from telegram_poker_bot.shared.database import get_db
 
     async def override_get_db():
@@ -46,7 +46,7 @@ def test_client(db_session: AsyncSession):
 
     api_app.dependency_overrides[get_db] = override_get_db
 
-    yield TestClient(api_app)
+    yield TestClient(app)
 
     api_app.dependency_overrides.clear()
 
@@ -55,7 +55,7 @@ def test_client(db_session: AsyncSession):
 async def test_get_table_snapshots(
     db_session: AsyncSession, test_client: TestClient
 ) -> None:
-    """Test GET /analytics/tables/{table_id}/snapshots endpoint."""
+    """Test GET /api/analytics/tables/{table_id}/snapshots endpoint."""
     # Create a test template
     template = TableTemplate(
         name="Test Template",
@@ -89,7 +89,7 @@ async def test_get_table_snapshots(
     await db_session.commit()
 
     # Call the endpoint
-    response = test_client.get(f"/analytics/tables/{table.id}/snapshots?hours=24")
+    response = test_client.get(f"/api/analytics/tables/{table.id}/snapshots?hours=24")
 
     assert response.status_code == 200
     data = response.json()
@@ -104,7 +104,7 @@ async def test_get_table_snapshots(
 async def test_get_table_hourly_stats(
     db_session: AsyncSession, test_client: TestClient
 ) -> None:
-    """Test GET /analytics/tables/{table_id}/hourly-stats endpoint."""
+    """Test GET /api/analytics/tables/{table_id}/hourly-stats endpoint."""
     # Create a test template
     template = TableTemplate(
         name="Test Template",
@@ -140,7 +140,7 @@ async def test_get_table_hourly_stats(
     await db_session.commit()
 
     # Call the endpoint
-    response = test_client.get(f"/analytics/tables/{table.id}/hourly-stats?days=7")
+    response = test_client.get(f"/api/analytics/tables/{table.id}/hourly-stats?days=7")
 
     assert response.status_code == 200
     data = response.json()
@@ -155,7 +155,7 @@ async def test_get_table_hourly_stats(
 async def test_get_recent_snapshots(
     db_session: AsyncSession, test_client: TestClient
 ) -> None:
-    """Test GET /analytics/snapshots/recent endpoint."""
+    """Test GET /api/analytics/snapshots/recent endpoint."""
     # Create test templates
     template = TableTemplate(
         name="Test Template",
@@ -193,7 +193,7 @@ async def test_get_recent_snapshots(
     await db_session.commit()
 
     # Call the endpoint
-    response = test_client.get("/analytics/snapshots/recent?limit=10")
+    response = test_client.get("/api/analytics/snapshots/recent?limit=10")
 
     assert response.status_code == 200
     data = response.json()
@@ -208,7 +208,7 @@ async def test_get_recent_snapshots(
 async def test_get_recent_hourly_stats(
     db_session: AsyncSession, test_client: TestClient
 ) -> None:
-    """Test GET /analytics/hourly-stats/recent endpoint."""
+    """Test GET /api/analytics/hourly-stats/recent endpoint."""
     # Create test template
     template = TableTemplate(
         name="Test Template",
@@ -248,7 +248,7 @@ async def test_get_recent_hourly_stats(
     await db_session.commit()
 
     # Call the endpoint
-    response = test_client.get("/analytics/hourly-stats/recent?limit=10")
+    response = test_client.get("/api/analytics/hourly-stats/recent?limit=10")
 
     assert response.status_code == 200
     data = response.json()
@@ -284,27 +284,27 @@ async def test_analytics_endpoints_empty_data(
     await db_session.commit()
 
     # Test snapshots endpoint
-    response = test_client.get(f"/analytics/tables/{table.id}/snapshots")
+    response = test_client.get(f"/api/analytics/tables/{table.id}/snapshots")
     assert response.status_code == 200
     data = response.json()
     assert data["count"] == 0
     assert len(data["snapshots"]) == 0
 
     # Test hourly stats endpoint
-    response = test_client.get(f"/analytics/tables/{table.id}/hourly-stats")
+    response = test_client.get(f"/api/analytics/tables/{table.id}/hourly-stats")
     assert response.status_code == 200
     data = response.json()
     assert data["count"] == 0
     assert len(data["hourly_stats"]) == 0
 
     # Test recent snapshots
-    response = test_client.get("/analytics/snapshots/recent")
+    response = test_client.get("/api/analytics/snapshots/recent")
     assert response.status_code == 200
     data = response.json()
     assert data["count"] == 0
 
     # Test recent hourly stats
-    response = test_client.get("/analytics/hourly-stats/recent")
+    response = test_client.get("/api/analytics/hourly-stats/recent")
     assert response.status_code == 200
     data = response.json()
     assert data["count"] == 0

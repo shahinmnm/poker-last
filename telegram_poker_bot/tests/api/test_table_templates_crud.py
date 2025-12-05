@@ -31,7 +31,7 @@ async def db_session() -> AsyncSession:
 @pytest.fixture
 def test_client(db_session: AsyncSession):
     """Create a test client with database and admin dependency overrides."""
-    from telegram_poker_bot.api.main import api_app
+    from telegram_poker_bot.api.main import api_app, app
     from telegram_poker_bot.shared.database import get_db
 
     async def override_get_db():
@@ -43,7 +43,7 @@ def test_client(db_session: AsyncSession):
     api_app.dependency_overrides[get_db] = override_get_db
     api_app.dependency_overrides[require_admin] = override_require_admin
 
-    yield TestClient(api_app)
+    yield TestClient(app)
 
     api_app.dependency_overrides.clear()
 
@@ -268,4 +268,3 @@ async def test_template_auto_creates_table(db_session: AsyncSession, test_client
     assert auto_table.creator_user_id is None, "Auto-generated table should have no creator"
     assert auto_table.lobby_persistent is True
     assert auto_table.is_auto_generated is True
-

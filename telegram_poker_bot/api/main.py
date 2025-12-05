@@ -8,7 +8,7 @@ import asyncio
 import json
 import hmac
 import hashlib
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl
 
 from fastapi import (
     APIRouter,
@@ -3427,7 +3427,7 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
         logger.info("WebSocket connection closed", table_id=table_id)
 
 
-@api_app.websocket("/api/ws/admin")
+@api_app.websocket("/ws/admin")
 async def admin_analytics_websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for admin analytics feed.
@@ -3621,7 +3621,9 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
         logger.info("Admin analytics WebSocket connection closed")
 
 
-app = api_app
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+app.mount(API_PREFIX, api_app)
+logger.info("API prefix mounted at: %s", API_PREFIX)
 
 
 if __name__ == "__main__":
