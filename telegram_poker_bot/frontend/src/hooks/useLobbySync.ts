@@ -28,6 +28,21 @@ interface UseLobbySyncReturn {
   refresh: () => void
 }
 
+// Raw table data shape from backend
+interface RawTableData {
+  table_id: number
+  template?: { name?: string; config?: { stakes?: string } }
+  table_name?: string
+  game_variant?: string
+  player_count?: number
+  max_players?: number
+  waitlist_count?: number
+  uptime?: number
+  expires_at?: string
+  table_type?: string
+  is_private?: boolean
+}
+
 // Helper to normalize table_type string to TableType
 function normalizeTableType(tableType: string | undefined): TableType {
   if (!tableType) return 'public'
@@ -36,6 +51,23 @@ function normalizeTableType(tableType: string | undefined): TableType {
     return normalized as TableType
   }
   return 'public'
+}
+
+// Helper to convert raw table data to LobbyEntry
+function convertToLobbyEntry(t: RawTableData): LobbyEntry {
+  return {
+    table_id: t.table_id,
+    template_name: t.template?.name || t.table_name || 'Unknown',
+    variant: t.game_variant || 'holdem',
+    stakes: t.template?.config?.stakes || 'Unknown',
+    player_count: t.player_count || 0,
+    max_players: t.max_players || 9,
+    waitlist_count: t.waitlist_count || 0,
+    uptime: t.uptime,
+    expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
+    table_type: normalizeTableType(t.table_type),
+    invite_only: t.is_private || false,
+  }
 }
 
 export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncReturn {
@@ -56,32 +88,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       }
       const data = await response.json()
       
-      // Transform to LobbyEntry format
-      const lobbyTables: LobbyEntry[] = (data.tables || []).map((t: {
-        table_id: number
-        template?: { name?: string; config?: { stakes?: string } }
-        table_name?: string
-        game_variant?: string
-        player_count?: number
-        max_players?: number
-        waitlist_count?: number
-        uptime?: number
-        expires_at?: string
-        table_type?: string
-        is_private?: boolean
-      }) => ({
-        table_id: t.table_id,
-        template_name: t.template?.name || t.table_name || 'Unknown',
-        variant: t.game_variant || 'holdem',
-        stakes: t.template?.config?.stakes || 'Unknown',
-        player_count: t.player_count || 0,
-        max_players: t.max_players || 9,
-        waitlist_count: t.waitlist_count || 0,
-        uptime: t.uptime,
-        expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-        table_type: normalizeTableType(t.table_type),
-        invite_only: t.is_private || false,
-      }))
+      // Transform to LobbyEntry format using helper
+      const lobbyTables: LobbyEntry[] = (data.tables || []).map((t: RawTableData) => convertToLobbyEntry(t))
       
       setTables(lobbyTables)
     } catch (error) {
@@ -105,32 +113,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
 
         if (lobbyMessage.type === 'lobby_snapshot') {
           // Initial snapshot from server - replace entire table list
-          const snapshotTables = (lobbyMessage.tables || []) as Array<{
-            table_id: number
-            template?: { name?: string; config?: { stakes?: string } }
-            table_name?: string
-            game_variant?: string
-            player_count?: number
-            max_players?: number
-            waitlist_count?: number
-            uptime?: number
-            expires_at?: string
-            table_type?: string
-            is_private?: boolean
-          }>
-          const lobbyEntries: LobbyEntry[] = snapshotTables.map((t) => ({
-            table_id: t.table_id,
-            template_name: t.template?.name || t.table_name || 'Unknown',
-            variant: t.game_variant || 'holdem',
-            stakes: t.template?.config?.stakes || 'Unknown',
-            player_count: t.player_count || 0,
-            max_players: t.max_players || 9,
-            waitlist_count: t.waitlist_count || 0,
-            uptime: t.uptime,
-            expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-            table_type: normalizeTableType(t.table_type),
-            invite_only: t.is_private || false,
-          }))
+          const snapshotTables = (lobbyMessage.tables || []) as RawTableData[]
+          const lobbyEntries: LobbyEntry[] = snapshotTables.map(convertToLobbyEntry)
           
           setTables(lobbyEntries)
           console.log('[useLobbySync] Received lobby snapshot', { tableCount: lobbyEntries.length })
@@ -164,32 +148,7 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
           // Backend sends uppercase event type with table payload
           const tablePayload = (lobbyMessage as { table?: unknown }).table
           if (tablePayload) {
-            const t = tablePayload as {
-              table_id: number
-              template?: { name?: string; config?: { stakes?: string } }
-              table_name?: string
-              game_variant?: string
-              player_count?: number
-              max_players?: number
-              waitlist_count?: number
-              uptime?: number
-              expires_at?: string
-              table_type?: string
-              is_private?: boolean
-            }
-            const entry: LobbyEntry = {
-              table_id: t.table_id,
-              template_name: t.template?.name || t.table_name || 'Unknown',
-              variant: t.game_variant || 'holdem',
-              stakes: t.template?.config?.stakes || 'Unknown',
-              player_count: t.player_count || 0,
-              max_players: t.max_players || 9,
-              waitlist_count: t.waitlist_count || 0,
-              uptime: t.uptime,
-              expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-              table_type: normalizeTableType(t.table_type),
-              invite_only: t.is_private || false,
-            }
+            const entry = convertToLobbyEntry(tablePayload as RawTableData)
             setTables((prev) => {
               const index = prev.findIndex((t) => t.table_id === entry.table_id)
               if (index >= 0) {
