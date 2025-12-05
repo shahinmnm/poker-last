@@ -419,6 +419,8 @@ async def create_table_template(
 ) -> TableTemplate:
     """Create and persist a TableTemplate with validated configuration.
     
+    Automatically creates a lobby-persistent table from the template.
+    
     Args:
         db: Database session
         payload: Pydantic payload for template creation (preferred)
@@ -455,6 +457,40 @@ async def create_table_template(
     )
     db.add(template)
     await db.flush()
+    
+    # Auto-create a table from this template after successful template creation
+    try:
+        # Create a system user for auto-generated tables (user_id = 0 or similar)
+        # We'll use creator_user_id = 1 as a fallback (admin user)
+        # In production, you might want to have a dedicated system user
+        auto_table = await create_table(
+            db,
+            creator_user_id=1,  # System/admin user
+            template_id=template.id,
+            mode=GameMode.ANONYMOUS,
+            group_id=None,
+            auto_seat_creator=False,
+            lobby_persistent=True,
+            is_auto_generated=True,
+        )
+        logger.info(
+            "Auto-created table from template",
+            template_id=template.id,
+            template_name=template.name,
+            table_id=auto_table.id,
+            lobby_persistent=True,
+            is_auto_generated=True,
+        )
+    except Exception as exc:
+        # Log error but don't block template creation
+        logger.error(
+            "Failed to auto-create table from template",
+            template_id=template.id,
+            template_name=template.name,
+            error=str(exc),
+            exc_info=True,
+        )
+    
     return template
 
 
@@ -612,6 +648,8 @@ async def create_table(
     mode: GameMode = GameMode.ANONYMOUS,
     group_id: Optional[int] = None,
     auto_seat_creator: bool = False,
+    lobby_persistent: bool = False,
+    is_auto_generated: bool = False,
 ) -> Table:
     """Create a table from a TableTemplate."""
 
@@ -677,6 +715,8 @@ async def create_table(
         invite_code=invite_code,
         expires_at=expires_at,
         template_id=template.id,
+        lobby_persistent=lobby_persistent,
+        is_auto_generated=is_auto_generated,
     )
     table.template = template
     db.add(table)
@@ -695,6 +735,8 @@ async def create_table(
         expires_at=expires_at.isoformat() if expires_at else None,
         currency_type=currency_type.value,
         game_variant=game_variant,
+        lobby_persistent=lobby_persistent,
+        is_auto_generated=is_auto_generated,
     )
 
     await _refresh_table_runtime(db, table.id)
