@@ -7,12 +7,60 @@ export type GameVariant =
   | 'triple_draw_2_7_lowball'
   | 'badugi'
 
+export interface TemplateLayout {
+  type: 'ring' | 'oval' | 'double-board'
+  seat_count: number
+  radius: number
+  avatar_size: number
+  card_scale: number
+}
+
+export interface TemplateTheme {
+  table_color: string
+  felt_pattern: string
+  accent_color: string
+  ui_color_mode: 'light' | 'dark'
+}
+
+export interface TemplateTimers {
+  avatar_ring: boolean
+  ring_color: string
+  ring_thickness: number
+}
+
+export interface TemplateIcons {
+  table_icon: string
+  stake_label: string
+  variant_badge: string
+}
+
+export interface TemplateRulesDisplay {
+  show_blinds: boolean
+  show_speed: boolean
+  show_buyin: boolean
+}
+
+export interface TemplateUISchema {
+  layout: TemplateLayout
+  theme: TemplateTheme
+  timers: TemplateTimers
+  icons: TemplateIcons
+  rules_display: TemplateRulesDisplay
+}
+
+export interface TableTemplateConfig {
+  backend: Record<string, any>
+  ui_schema: TemplateUISchema
+}
+
 export interface TableTemplateInfo {
   id: number | string
   name?: string
   table_type: string
-  config: Record<string, any>
+  config_json: TableTemplateConfig
+  config?: Record<string, any>
   has_waitlist?: boolean
+  is_active?: boolean
   variant_config?: VariantConfig
 }
 

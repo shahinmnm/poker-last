@@ -4,7 +4,7 @@ import type { GameVariant, TableTemplateInfo } from '@/types'
 export type TableVisibility = 'public' | 'private'
 
 export interface CreateTableOptions {
-  templateId: number
+  templateId: string
   visibility?: TableVisibility
   autoSeatHost?: boolean
 }
@@ -70,7 +70,8 @@ export interface TableTemplatePayload {
   name: string
   table_type: string
   has_waitlist?: boolean
-  config?: Record<string, any>
+  is_active?: boolean
+  config_json: Record<string, any>
   [key: string]: any
 }
 
@@ -78,8 +79,23 @@ export interface TableTemplateUpdatePayload {
   name?: string
   table_type?: string
   has_waitlist?: boolean
-  config?: Record<string, any>
+  is_active?: boolean
+  config_json?: Record<string, any>
   [key: string]: any
+}
+
+function normalizeTemplateInfo(template: any): TableTemplateInfo {
+  const config_json =
+    template?.config_json ??
+    (template?.config
+      ? { backend: template.config, ui_schema: template.ui_schema ?? {} }
+      : { backend: {}, ui_schema: {} })
+
+  return {
+    ...template,
+    config_json,
+    config: config_json?.backend ?? template?.config ?? {},
+  }
 }
 
 export async function createTable(
@@ -119,7 +135,11 @@ export async function getTableTemplates(
   const query = searchParams.toString()
   const path = query ? `/table-templates?${query}` : '/table-templates'
 
-  return apiFetch<TableTemplateListResponse>(path, { method: 'GET' })
+  const response = await apiFetch<TableTemplateListResponse>(path, { method: 'GET' })
+  return {
+    ...response,
+    templates: (response.templates || []).map(normalizeTemplateInfo),
+  }
 }
 
 export async function createTableTemplate(
@@ -133,11 +153,12 @@ export async function createTableTemplate(
   if (initData) {
     options.initData = initData
   }
-  return apiFetch<TableTemplateInfo>('/table-templates', options)
+  const response = await apiFetch<TableTemplateInfo>('/table-templates', options)
+  return normalizeTemplateInfo(response)
 }
 
 export async function updateTableTemplate(
-  templateId: number | string,
+  templateId: string,
   data: TableTemplateUpdatePayload,
   initData?: string | null,
 ): Promise<TableTemplateInfo> {
@@ -148,5 +169,29 @@ export async function updateTableTemplate(
   if (initData) {
     options.initData = initData
   }
-  return apiFetch<TableTemplateInfo>(`/table-templates/${templateId}`, options)
+  const response = await apiFetch<TableTemplateInfo>(`/table-templates/${templateId}`, options)
+  return normalizeTemplateInfo(response)
+}
+
+export async function getTableTemplate(
+  templateId: string,
+  initData?: string | null,
+): Promise<TableTemplateInfo> {
+  const options: ApiFetchOptions = { method: 'GET' }
+  if (initData) {
+    options.initData = initData
+  }
+  const response = await apiFetch<TableTemplateInfo>(`/table-templates/${templateId}`, options)
+  return normalizeTemplateInfo(response)
+}
+
+export async function deleteTableTemplate(
+  templateId: string,
+  initData?: string | null,
+): Promise<void> {
+  const options: ApiFetchOptions = { method: 'DELETE' }
+  if (initData) {
+    options.initData = initData
+  }
+  await apiFetch<void>(`/table-templates/${templateId}`, options)
 }

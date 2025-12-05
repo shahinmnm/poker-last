@@ -3,6 +3,7 @@
 from datetime import datetime, timezone, timedelta
 from functools import lru_cache
 from typing import Optional, List, Dict, Any, Tuple
+from uuid import UUID
 import asyncio
 import json
 import hmac
@@ -71,7 +72,7 @@ from telegram_poker_bot.game_core.pokerkit_runtime import (
     get_pokerkit_runtime_manager,
 )
 from telegram_poker_bot.api.admin_routes import admin_router
-from telegram_poker_bot.api import template_routes
+from telegram_poker_bot.api.routes.table_templates import router as table_templates_router
 
 settings = get_settings()
 configure_logging()
@@ -129,7 +130,7 @@ from telegram_poker_bot.api.global_waitlist_routes import router as global_waitl
 api_app.include_router(global_waitlist_router, prefix=DEFAULT_API_PREFIX)
 
 # Template CRUD routes
-api_app.include_router(template_routes.router, prefix=DEFAULT_API_PREFIX)
+api_app.include_router(table_templates_router, prefix=DEFAULT_API_PREFIX)
 
 # Import and mount analytics routes (Phase 3 + Phase 4)
 from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
@@ -444,18 +445,21 @@ async def _attach_template_to_payload(
     if not table or not table.template:
         return sanitized
 
-    config = table.template.config_json or {}
+    config_json = table.template.config_json or {}
+    backend_config = config_json.get("backend", config_json)
     template_block = {
         "id": table.template.id,
         "table_type": table.template.table_type.value,
-        "config": config,
+        "config": backend_config,
+        "config_json": config_json,
         "has_waitlist": table.template.has_waitlist,
+        "is_active": getattr(table.template, "is_active", True),
     }
 
     sanitized["template"] = template_block
     sanitized.setdefault("table_id", table.id)
     if sanitized.get("table_name") is None:
-        sanitized["table_name"] = config.get("table_name")
+        sanitized["table_name"] = backend_config.get("table_name")
 
     nested_state = sanitized.get("state")
     if isinstance(nested_state, dict):
@@ -463,7 +467,7 @@ async def _attach_template_to_payload(
         nested_state_clean["template"] = template_block
         nested_state_clean.setdefault("table_id", table.id)
         if nested_state_clean.get("table_name") is None:
-            nested_state_clean["table_name"] = config.get("table_name")
+            nested_state_clean["table_name"] = backend_config.get("table_name")
         sanitized["state"] = nested_state_clean
 
     return sanitized
@@ -1147,7 +1151,8 @@ async def monitor_sng_join_windows():
                         if not table.template or not table.template.config_json:
                             continue
                         
-                        config = table.template.config_json
+                        config_json = table.template.config_json
+                        config = config_json.get("backend", config_json)
                         sng_config = sng_manager.get_sng_config(config)
                         
                         if not table.sng_join_window_started_at:
@@ -1512,7 +1517,7 @@ async def register_current_user(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_group_game_invite(
-    template_id: int = Query(..., description="Table template id"),
+    template_id: UUID = Query(..., description="Table template id"),
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):

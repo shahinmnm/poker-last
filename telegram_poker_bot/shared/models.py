@@ -2,6 +2,7 @@
 
 import enum
 from enum import Enum as PyEnum
+from uuid import uuid4
 
 from sqlalchemy import (
     BigInteger,
@@ -15,7 +16,7 @@ from sqlalchemy import (
     Index,
     event,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -62,6 +63,8 @@ class GameVariant(str, enum.Enum):
 class TableTemplateType(str, enum.Enum):
     """Table template type enumeration."""
 
+    CASH_GAME = "CASH_GAME"
+    TOURNAMENT = "TOURNAMENT"
     PERSISTENT = "PERSISTENT"
     EXPIRING = "EXPIRING"
     PRIVATE = "PRIVATE"
@@ -211,7 +214,14 @@ class TableTemplate(Base):
 
     __tablename__ = "table_templates"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        index=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    legacy_id = Column(Integer, unique=True, nullable=True)
     name = Column(String(255), nullable=False)
     table_type = Column(
         Enum(
@@ -223,6 +233,7 @@ class TableTemplate(Base):
     )
     has_waitlist = Column(Boolean, nullable=False, default=False, server_default="false")
     config_json = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    is_active = Column(Boolean, nullable=False, default=True, server_default="true")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -251,7 +262,7 @@ class Table(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     template_id = Column(
-        Integer,
+        UUID(as_uuid=True),
         ForeignKey("table_templates.id", ondelete="RESTRICT"),
         nullable=False,
     )
@@ -879,7 +890,10 @@ class HandAnalytics(Base):
         Integer, ForeignKey("hands.id", ondelete="CASCADE"), nullable=False, index=True
     )
     template_id = Column(
-        Integer, ForeignKey("table_templates.id", ondelete="RESTRICT"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("table_templates.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
     )
     hand_no = Column(Integer, nullable=False)
     variant = Column(String(50), nullable=False)
@@ -944,7 +958,10 @@ class PlayerSession(Base):
         Integer, ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True
     )
     template_id = Column(
-        Integer, ForeignKey("table_templates.id", ondelete="RESTRICT"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("table_templates.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
     )
     
     # Session boundaries

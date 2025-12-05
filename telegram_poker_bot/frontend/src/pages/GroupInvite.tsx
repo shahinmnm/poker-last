@@ -42,7 +42,7 @@ export default function GroupInvitePage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const canUseNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
-  const [templateId, setTemplateId] = useState<number | ''>('')
+  const [templateId, setTemplateId] = useState<string>('')
 
   useEffect(() => {
     if (!ready) {
@@ -125,13 +125,12 @@ export default function GroupInvitePage() {
       setState('error')
       return
     }
-    const numericTemplateId = typeof templateId === 'number' ? templateId : Number(templateId)
-    if (!Number.isFinite(numericTemplateId) || numericTemplateId <= 0) {
+    if (!templateId) {
       setErrorKey('groupInvite.errors.missingTemplate')
       setState('error')
       return
     }
-    createInvite(initData, numericTemplateId)
+    createInvite(initData, templateId)
   }
 
   const handleRegenerate = () => {
@@ -175,10 +174,9 @@ export default function GroupInvitePage() {
                 {t('groupInvite.fields.templateId', { defaultValue: 'Template ID' })}
               </label>
               <input
-                type="number"
-                min={1}
+                type="text"
                 value={templateId}
-                onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : '')}
+                onChange={(e) => setTemplateId(e.target.value)}
                 placeholder={t('groupInvite.fields.templatePlaceholder', { defaultValue: 'Enter template ID' }) ?? ''}
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none dark:border-[#333333] dark:bg-[#121212] dark:text-gray-100"
               />

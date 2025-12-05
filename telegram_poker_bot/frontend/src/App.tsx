@@ -20,6 +20,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminInsights from './pages/admin/AdminInsights'
 import AdminTables from './pages/admin/AdminTables'
+import AdminTableTemplates from './pages/admin/AdminTableTemplates'
 import { useTelegram } from './hooks/useTelegram'
 
 function StartParamBridge() {
@@ -77,6 +78,7 @@ function App() {
                     <Route path="analytics" element={<AdminAnalytics />} />
                     <Route path="insights" element={<AdminInsights />} />
                     <Route path="tables" element={<AdminTables />} />
+                    <Route path="table-templates" element={<AdminTableTemplates />} />
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

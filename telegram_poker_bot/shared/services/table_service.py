@@ -7,8 +7,10 @@ import string
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, TYPE_CHECKING, Tuple
+from uuid import UUID
 import json
 
+from pydantic import ValidationError
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -33,6 +35,7 @@ from telegram_poker_bot.shared.types import (
     TableTemplateCreateRequest,
     TableTemplateUpdateRequest,
 )
+from telegram_poker_bot.shared.schemas import TemplateUISchema
 from telegram_poker_bot.shared.services import table_lifecycle
 from telegram_poker_bot.shared.services.table_buyin_service import TableBuyInService
 
@@ -46,6 +49,36 @@ PUBLIC_TABLE_CACHE_PREFIX = "lobby:public_tables"
 PUBLIC_TABLE_CACHE_KEYS = f"{PUBLIC_TABLE_CACHE_PREFIX}:keys"
 INVITE_CODE_LENGTH = 6
 INVITE_CODE_FALLBACK_LENGTH = 8
+DEFAULT_UI_SCHEMA = {
+    "layout": {
+        "type": "ring",
+        "seat_count": 8,
+        "radius": 120,
+        "avatar_size": 48,
+        "card_scale": 1.0,
+    },
+    "theme": {
+        "table_color": "#0b3d2e",
+        "felt_pattern": "classic",
+        "accent_color": "#ffc107",
+        "ui_color_mode": "dark",
+    },
+    "timers": {
+        "avatar_ring": True,
+        "ring_color": "#00ffc6",
+        "ring_thickness": 3,
+    },
+    "icons": {
+        "table_icon": "🃏",
+        "stake_label": "Default",
+        "variant_badge": "NLH",
+    },
+    "rules_display": {
+        "show_blinds": True,
+        "show_speed": True,
+        "show_buyin": True,
+    },
+}
 
 
 @dataclass
@@ -78,53 +111,18 @@ def _require_int(config: Dict[str, Any], key: str) -> int:
         raise ValueError(f"{key} must be an integer in template config") from exc
 
 
-def validate_template_config(config: Dict[str, Any]) -> None:
-    """Validate that a template config has all required fields.
-    
-    This function ensures that a template configuration dictionary contains
-    all mandatory fields with valid types and values. It should be called
-    before creating or updating a TableTemplate.
-    
-    Args:
-        config: Template configuration dictionary
-        
-    Raises:
-        ValueError: If any required field is missing or invalid
-        
-    Required fields:
-        - small_blind: int
-        - big_blind: int
-        - starting_stack: int
-        - max_players: int
-        - game_variant: str (valid GameVariant)
-        - currency_type: str (valid CurrencyType)
-        
-    Optional but validated if present:
-        - ante: int
-        - raw_antes: int
-        - raw_blinds_or_straddles: tuple/list of 2 ints
-        - min_bet: int
-        - bring_in: int
-        - rake_percentage: float
-        - rake_cap: int
-        - turn_timeout_seconds: int
-        - expiration_minutes: int (required for EXPIRING tables)
-        - sng_enabled: bool
-        - sng_min_players: int (if sng_enabled)
-        - sng_join_window_seconds: int (if sng_enabled)
-    """
-    # Required fields
-    _require_int(config, "small_blind")
-    _require_int(config, "big_blind")
-    _require_int(config, "starting_stack")
-    max_players = _require_int(config, "max_players")
-    
-    # Validate max_players range
+def _validate_backend_rules(backend: Dict[str, Any]) -> None:
+    """Validate backend poker rules portion of the config."""
+
+    _require_int(backend, "small_blind")
+    _require_int(backend, "big_blind")
+    _require_int(backend, "starting_stack")
+    max_players = _require_int(backend, "max_players")
+
     if max_players < 2 or max_players > 8:
         raise ValueError("max_players must be between 2 and 8")
-    
-    # Validate game variant
-    game_variant = config.get("game_variant")
+
+    game_variant = backend.get("game_variant")
     if not game_variant:
         raise ValueError("game_variant is required in table template config")
     try:
@@ -134,9 +132,8 @@ def validate_template_config(config: Dict[str, Any]) -> None:
             raise ValueError("game_variant must be a string or GameVariant enum")
     except ValueError as exc:
         raise ValueError(f"Invalid game_variant: {game_variant}") from exc
-    
-    # Validate currency type
-    currency_type = config.get("currency_type")
+
+    currency_type = backend.get("currency_type")
     if not currency_type:
         raise ValueError("currency_type is required in table template config")
     try:
@@ -146,22 +143,20 @@ def validate_template_config(config: Dict[str, Any]) -> None:
             raise ValueError("currency_type must be a string or CurrencyType enum")
     except ValueError as exc:
         raise ValueError(f"Invalid currency_type: {currency_type}") from exc
-    
-    # Validate optional fields if present
-    if "rake_percentage" in config:
+
+    if "rake_percentage" in backend:
         try:
-            rake_pct = float(config["rake_percentage"])
+            rake_pct = float(backend["rake_percentage"])
             if rake_pct < 0 or rake_pct > 1:
                 raise ValueError("rake_percentage must be between 0 and 1")
         except (TypeError, ValueError) as exc:
             raise ValueError("rake_percentage must be a number between 0 and 1") from exc
-    
-    # Validate SNG config if enabled
-    if config.get("sng_enabled", False):
-        sng_min = config.get("sng_min_players")
+
+    if backend.get("sng_enabled", False):
+        sng_min = backend.get("sng_min_players")
         if sng_min is None:
             raise ValueError("sng_min_players is required when sng_enabled is True")
-        
+
         try:
             sng_min_int = int(sng_min)
             if sng_min_int < 2:
@@ -172,8 +167,8 @@ def validate_template_config(config: Dict[str, Any]) -> None:
             if "sng_min_players" in str(exc):
                 raise
             raise ValueError("sng_min_players must be an integer >= 2") from exc
-        
-        sng_window = config.get("sng_join_window_seconds")
+
+        sng_window = backend.get("sng_join_window_seconds")
         if sng_window is not None:
             try:
                 sng_window_int = int(sng_window)
@@ -183,8 +178,37 @@ def validate_template_config(config: Dict[str, Any]) -> None:
                 raise ValueError("sng_join_window_seconds must be a positive integer") from exc
 
 
+def validate_template_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate template config structure (backend + ui_schema)."""
+
+    if not isinstance(config, dict):
+        raise ValueError("config_json must be an object")
+
+    backend = config.get("backend") if "backend" in config else config
+    backend_dict = dict(backend or {})
+    ui_schema_raw = config.get("ui_schema") or DEFAULT_UI_SCHEMA
+
+    try:
+        parsed_ui = TemplateUISchema.parse_obj(ui_schema_raw)
+    except ValidationError as exc:
+        raise ValueError(f"Invalid ui_schema: {exc}") from exc
+
+    _validate_backend_rules(backend_dict)
+
+    extras = {k: v for k, v in config.items() if k not in {"backend", "ui_schema"}}
+    normalized = {
+        "backend": backend_dict,
+        "ui_schema": parsed_ui.dict(),
+        **extras,
+    }
+    return normalized
+
+
 def parse_template_rules(config: Dict[str, Any]) -> TableRuleConfig:
     """Normalize required rule values from a template config."""
+
+    if isinstance(config, dict) and "backend" in config:
+        config = config.get("backend") or {}
 
     small_blind = _require_int(config, "small_blind")
     big_blind = _require_int(config, "big_blind")
@@ -269,7 +293,10 @@ def get_template_config(table: Table) -> Dict[str, Any]:
 
     template = getattr(table, "template", None)
     if template and template.config_json:
-        return template.config_json
+        config = template.config_json
+        if isinstance(config, dict) and "backend" in config:
+            return config.get("backend") or {}
+        return config
     return {}
 
 
@@ -413,18 +440,17 @@ async def create_table_template(
             name=name,
             table_type=table_type,
             has_waitlist=has_waitlist,
-            config=config or {},
+            config_json=config or {},
         )
 
-    config_dict = payload.config or {}
-
-    # Validate configuration before creating template
-    validate_template_config(config_dict)
+    raw_config = payload.config_json.dict() if hasattr(payload.config_json, "dict") else dict(payload.config_json or {})
+    config_dict = validate_template_config(raw_config)
 
     template = TableTemplate(
         name=payload.name,
         table_type=payload.table_type,
         has_waitlist=payload.has_waitlist,
+        is_active=getattr(payload, "is_active", True),
         config_json=config_dict,
     )
     db.add(template)
@@ -457,7 +483,7 @@ async def create_default_template(
         Created template instance
     """
 
-    base_config: Dict[str, Any] = {
+    backend_config: Dict[str, Any] = {
         "small_blind": 25,
         "big_blind": 50,
         "starting_stack": 10000,
@@ -469,7 +495,12 @@ async def create_default_template(
         "turn_timeout_seconds": 25,
     }
     if config_overrides:
-        base_config.update(config_overrides)
+        backend_config.update(config_overrides)
+
+    full_config = {
+        "backend": backend_config,
+        "ui_schema": DEFAULT_UI_SCHEMA,
+    }
 
     return await create_table_template(
         db,
@@ -477,14 +508,14 @@ async def create_default_template(
             name=name,
             table_type=table_type,
             has_waitlist=has_waitlist,
-            config=base_config,
+            config_json=full_config,
         ),
     )
 
 
 async def update_table_template(
     db: AsyncSession,
-    template_id: int,
+    template_id: UUID,
     payload: TableTemplateUpdateRequest,
 ) -> TableTemplate:
     """Update an existing table template with optional fields."""
@@ -495,9 +526,10 @@ async def update_table_template(
     if not template:
         raise ValueError(f"TableTemplate {template_id} not found")
 
-    if payload.config is not None:
+    if payload.config_json is not None:
         merged_config = dict(template.config_json or {})
-        merged_config.update(payload.config or {})
+        new_config = payload.config_json.dict() if hasattr(payload.config_json, "dict") else payload.config_json
+        merged_config.update(new_config or {})
         validate_template_config(merged_config)
         template.config_json = merged_config
 
@@ -507,12 +539,14 @@ async def update_table_template(
         template.table_type = payload.table_type
     if payload.has_waitlist is not None:
         template.has_waitlist = payload.has_waitlist
+    if payload.is_active is not None:
+        template.is_active = payload.is_active
 
     await db.flush()
     return template
 
 
-async def delete_table_template(db: AsyncSession, template_id: int) -> None:
+async def delete_table_template(db: AsyncSession, template_id: UUID) -> None:
     """Delete a template if no tables depend on it."""
 
     template = await db.scalar(
@@ -548,7 +582,10 @@ async def list_table_templates(
         base_query = base_query.where(TableTemplate.table_type == table_type)
     if variant:
         base_query = base_query.where(
-            TableTemplate.config_json["game_variant"].astext == variant
+            or_(
+                TableTemplate.config_json["backend"]["game_variant"].astext == variant,
+                TableTemplate.config_json["game_variant"].astext == variant,
+            )
         )
     if has_waitlist is not None:
         base_query = base_query.where(TableTemplate.has_waitlist == has_waitlist)
@@ -571,7 +608,7 @@ async def create_table(
     db: AsyncSession,
     *,
     creator_user_id: int,
-    template_id: int,
+    template_id: UUID,
     mode: GameMode = GameMode.ANONYMOUS,
     group_id: Optional[int] = None,
     auto_seat_creator: bool = False,
@@ -585,12 +622,13 @@ async def create_table(
         raise ValueError(f"TableTemplate {template_id} not found")
 
     config = template.config_json or {}
+    backend_config = config.get("backend") if isinstance(config, dict) and "backend" in config else config
     rules = parse_template_rules(config)
 
     if template.table_type == TableTemplateType.PERSISTENT and not template.has_waitlist:
         raise ValueError("Persistent tables must enable waitlists in their template")
 
-    expiration_minutes = config.get("expiration_minutes")
+    expiration_minutes = backend_config.get("expiration_minutes") if isinstance(backend_config, dict) else None
     if template.table_type == TableTemplateType.EXPIRING:
         if expiration_minutes is None:
             raise ValueError("Expiring table templates must define expiration_minutes")
@@ -601,15 +639,15 @@ async def create_table(
         if expiration_minutes <= 0:
             raise ValueError("expiration_minutes must be positive for expiring tables")
 
-    allow_invite_code = config.get("allow_invite_code", True)
+    allow_invite_code = backend_config.get("allow_invite_code", True) if isinstance(backend_config, dict) else True
     if template.table_type == TableTemplateType.PRIVATE and allow_invite_code is False:
         raise ValueError("Private table templates must allow invite codes")
 
     max_players = rules.max_players
     starting_stack = rules.starting_stack
-    table_name = config.get("table_name") or f"Table #{datetime.now().strftime('%H%M%S')}"
-    currency_type = _coerce_currency_type(config.get("currency_type"))
-    game_variant = _coerce_game_variant(config.get("game_variant"))
+    table_name = (backend_config.get("table_name") if isinstance(backend_config, dict) else None) or f"Table #{datetime.now().strftime('%H%M%S')}"
+    currency_type = _coerce_currency_type(backend_config.get("currency_type") if isinstance(backend_config, dict) else None)
+    game_variant = _coerce_game_variant(backend_config.get("game_variant") if isinstance(backend_config, dict) else None)
 
     is_public = template.table_type != TableTemplateType.PRIVATE
 
@@ -679,7 +717,7 @@ async def create_table_with_config(
     db: AsyncSession,
     *,
     creator_user_id: int,
-    template_id: int,
+    template_id: UUID,
     mode: GameMode = GameMode.ANONYMOUS,
     group_id: Optional[int] = None,
     auto_seat_creator: bool = False,
@@ -729,7 +767,7 @@ async def create_table_with_config(
 async def create_private_table(
     db: AsyncSession,
     creator_user_id: int,
-    template_id: int,
+    template_id: UUID,
 ) -> Table:
     """Create a private table (template must be PRIVATE)."""
 
@@ -745,7 +783,7 @@ async def create_group_table(
     db: AsyncSession,
     creator_user_id: int,
     group_id: int,
-    template_id: int,
+    template_id: UUID,
 ) -> Table:
     """Create a group-linked table from a template."""
 

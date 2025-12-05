@@ -30,6 +30,11 @@ export default function AdminDashboard() {
               Tables
             </Link>
           </li>
+          <li>
+            <Link to="/admin/table-templates" data-active={isActive('/admin/table-templates')}>
+              Templates
+            </Link>
+          </li>
         </ul>
       </nav>
       <main>

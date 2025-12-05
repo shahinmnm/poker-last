@@ -65,7 +65,8 @@ async def start_join_window(
     if not table.template or not table.template.config_json:
         raise ValueError("Table must have a template with config")
     
-    config = table.template.config_json
+    config_json = table.template.config_json
+    config = config_json.get("backend", config_json)
     if not is_sng_enabled(config):
         raise ValueError("SNG is not enabled for this table")
     
@@ -96,7 +97,8 @@ async def check_auto_start_conditions(
     if not table.template or not table.template.config_json:
         return False, None
     
-    config = table.template.config_json
+    config_json = table.template.config_json
+    config = config_json.get("backend", config_json)
     sng_config = get_sng_config(config)
     
     if not sng_config["enabled"] or not sng_config["auto_start"]:
@@ -163,7 +165,11 @@ async def force_start_sng(
     if table.status != TableStatus.WAITING:
         raise ValueError("Can only force-start tables in WAITING status")
     
-    if not table.template or not is_sng_enabled(table.template.config_json or {}):
+    if not table.template:
+        raise ValueError("Table is not an SNG table")
+    base_config = table.template.config_json or {}
+    backend_config = base_config.get("backend", base_config)
+    if not is_sng_enabled(backend_config):
         raise ValueError("Table is not an SNG table")
     
     # Check minimum players
@@ -175,7 +181,7 @@ async def force_start_sng(
     )
     seats = result.scalars().all()
     
-    config = table.template.config_json or {}
+    config = backend_config
     sng_config = get_sng_config(config)
     
     if len(seats) < sng_config["min_players"]:
@@ -207,7 +213,11 @@ async def on_player_seated(
         db: Database session
         table: Table instance
     """
-    if not table.template or not is_sng_enabled(table.template.config_json or {}):
+    if not table.template:
+        return
+    config_json = table.template.config_json or {}
+    backend_config = config_json.get("backend", config_json)
+    if not is_sng_enabled(backend_config):
         return
     
     # Start join window if this is the first player
