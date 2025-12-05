@@ -15,6 +15,14 @@ function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, '')
 }
 
+function ensureApiSuffix(value: string) {
+  const normalized = normalizeBaseUrl(value)
+  if (!normalized) {
+    return '/api'
+  }
+  return normalized.endsWith('/api') ? normalized : `${normalized}/api`
+}
+
 function ensureLeadingSlash(path: string) {
   return path.startsWith('/') ? path : `/${path}`
 }
@@ -34,18 +42,18 @@ function getApiBaseInfo(): ApiBaseInfo {
   }
 
   if (/^https?:\/\//i.test(trimmed)) {
-    const info: ApiBaseInfo = { kind: 'absolute', value: normalizeBaseUrl(trimmed) }
+    const info: ApiBaseInfo = { kind: 'absolute', value: ensureApiSuffix(trimmed) }
     API_BASE_CACHE.api = info
     return info
   }
 
   if (trimmed.startsWith('/')) {
-    const info: ApiBaseInfo = { kind: 'relative', value: normalizeBaseUrl(trimmed) }
+    const info: ApiBaseInfo = { kind: 'relative', value: ensureApiSuffix(trimmed) }
     API_BASE_CACHE.api = info
     return info
   }
 
-  const fallback: ApiBaseInfo = { kind: 'absolute', value: normalizeBaseUrl(trimmed) }
+  const fallback: ApiBaseInfo = { kind: 'absolute', value: ensureApiSuffix(trimmed) }
   API_BASE_CACHE.api = fallback
   return fallback
 }
