@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createLobbyWebSocket, WebSocketManager } from '../services/WebSocketManager'
+import { buildApiUrl } from '../utils/apiClient'
 import type {
   ConnectionState,
   LobbyEntry,
@@ -38,7 +39,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
   // Fetch tables from REST API
   const fetchTables = useCallback(async () => {
     try {
-      const response = await fetch('/api/tables?scope=public')
+      const apiUrl = buildApiUrl('/tables?scope=public')
+      const response = await fetch(apiUrl)
       if (!response.ok) {
         throw new Error('Failed to fetch tables')
       }
