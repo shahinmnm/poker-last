@@ -11,7 +11,7 @@ from uuid import UUID
 import json
 
 from pydantic import ValidationError
-from sqlalchemy import select, func, desc, or_
+from sqlalchemy import select, func, desc, or_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -1279,7 +1279,7 @@ async def list_available_tables(
     """List tables visible to the viewer, optionally using a Redis cache."""
 
     normalized_scope = (scope or "public").strip().lower()
-    if normalized_scope not in {"public", "all", "mine"}:
+    if normalized_scope not in {"public", "all", "mine", "private"}:
         raise ValueError(f"Unsupported scope: {scope}")
 
     use_cache = normalized_scope == "public" and redis_client is not None
@@ -1321,6 +1321,22 @@ async def list_available_tables(
 
         if normalized_scope == "public":
             query = query.where(Table.is_public.is_(True))
+        elif normalized_scope == "private":
+            if viewer_user_id is None:
+                return []
+
+            seat_exists = exists().where(
+                Seat.table_id == Table.id,
+                Seat.user_id == viewer_user_id,
+                Seat.left_at.is_(None),
+            )
+            query = query.where(
+                Table.is_public.is_(False),
+                or_(
+                    Table.creator_user_id == viewer_user_id,
+                    seat_exists,
+                ),
+            )
         elif normalized_scope == "mine":
             if viewer_user_id is None:
                 return []

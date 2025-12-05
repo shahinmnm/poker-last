@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -501,6 +501,38 @@ async def _broadcast_lobby_table_update(
             "reason": reason,
         }
     )
+
+
+async def _broadcast_lobby_table_event(
+    db: AsyncSession,
+    table_id: int,
+    event_type: str,
+    *,
+    table_payload: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Broadcast table updates to the lobby (public tables only)."""
+
+    payload = table_payload
+    if payload is None:
+        try:
+            payload = await table_service.get_table_info(
+                db, table_id, viewer_user_id=None
+            )
+        except (ValueError, SQLAlchemyError):
+            return
+
+    if not payload.get("is_public"):
+        return
+
+    try:
+        await lobby_manager.broadcast({"type": event_type, "table": payload})
+    except Exception as exc:
+        logger.exception(
+            "Failed to broadcast lobby table event",
+            table_id=table_id,
+            event_type=event_type,
+            error=str(exc),
+        )
 
 
 table_lifecycle.register_table_status_listener(_broadcast_lobby_table_update)
@@ -1804,7 +1836,7 @@ async def list_tables(
     limit: int = 20,
     scope: str = Query(
         "public",
-        description="Scope for table visibility: public, all, or mine.",
+        description="Scope for table visibility: public, private, mine, or all.",
     ),
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -1817,13 +1849,21 @@ async def list_tables(
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
 
-    viewer_user_id: Optional[int] = None
-    if x_telegram_init_data:
-        auth = verify_telegram_init_data(x_telegram_init_data)
-        if not auth:
-            raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-        viewer = await ensure_user(db, auth)
-        viewer_user_id = viewer.id
+    if not x_telegram_init_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Telegram init data",
+        )
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram init data",
+        )
+
+    viewer = await ensure_user(db, auth)
+    viewer_user_id = viewer.id
 
     normalized_scope = (scope or "public").strip().lower()
     redis_client = None
@@ -1894,15 +1934,30 @@ async def join_table_by_invite(
             normalized_code,
             user.id,
         )
-        table_info = await table_service.get_table_info(
-            db,
-            table.id,
-            viewer_user_id=user.id,
-        )
         await db.commit()
     except ValueError as exc:
         await db.rollback()
         raise HTTPException(status_code=404, detail=str(exc))
+
+    table_info = await table_service.get_table_info(
+        db,
+        table.id,
+        viewer_user_id=user.id,
+    )
+
+    try:
+        await _broadcast_lobby_table_event(
+            db,
+            table.id,
+            "TABLE_UPDATED",
+            table_payload=table_info,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to broadcast lobby update after join-by-invite",
+            table_id=table.id,
+            error=str(exc),
+        )
 
     status_value = "seated" if seat else "joined"
     message = (
@@ -1974,6 +2029,19 @@ async def create_table(
         table.id,
         viewer_user_id=user.id,
     )
+    try:
+        await _broadcast_lobby_table_event(
+            db,
+            table.id,
+            "TABLE_CREATED",
+            table_payload=table_info,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to broadcast lobby update after create",
+            table_id=table.id,
+            error=str(exc),
+        )
     return table_info
 
 
@@ -2002,6 +2070,19 @@ async def sit_at_table(
             table.last_action_at = datetime.now(timezone.utc)
 
         await db.commit()
+
+        try:
+            await _broadcast_lobby_table_event(
+                db,
+                table_id,
+                "TABLE_UPDATED",
+            )
+        except Exception as exc:
+            logger.exception(
+                "Failed to broadcast lobby update after sit",
+                table_id=table_id,
+                error=str(exc),
+            )
 
         # CRITICAL FIX: Broadcast FULL table state to all clients
         # This ensures all connected clients see the new player immediately
@@ -2061,6 +2142,21 @@ async def sit_at_table(
         raise HTTPException(status_code=400, detail=error_message)
 
 
+@game_router.post("/tables/{table_id}/join")
+async def join_table(
+    table_id: int,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Join a table (alias for sitting)."""
+
+    return await sit_at_table(
+        table_id=table_id,
+        x_telegram_init_data=x_telegram_init_data,
+        db=db,
+    )
+
+
 @game_router.post("/tables/{table_id}/leave")
 async def leave_table(
     table_id: int,
@@ -2089,6 +2185,19 @@ async def leave_table(
         waitlist_seat = await table_service.try_seat_from_waitlist(db, table_id)
 
         await db.commit()
+
+        try:
+            await _broadcast_lobby_table_event(
+                db,
+                table_id,
+                "TABLE_UPDATED",
+            )
+        except Exception as exc:
+            logger.exception(
+                "Failed to broadcast lobby update after leave",
+                table_id=table_id,
+                error=str(exc),
+            )
 
         # Broadcast seat_vacated event
         await manager.broadcast(
