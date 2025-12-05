@@ -175,7 +175,7 @@ export class WebSocketManager {
       this.options.onMessage(message)
 
       // Handle specific message types
-      if (message.type === 'snapshot') {
+      if (message.type === 'snapshot' || message.type === 'lobby_snapshot') {
         this.handleSnapshot(message as unknown as TableDeltaMessage)
       } else if (this.isDeltaMessage(message)) {
         this.handleDelta(message as unknown as TableDeltaMessage)
@@ -188,8 +188,9 @@ export class WebSocketManager {
   private handleSnapshot(message: TableDeltaMessage): void {
     const snapshot = message.payload as NormalizedTableState
 
-    // Check schema version
+    // Check schema version (only for table snapshots, not lobby snapshots)
     if (
+      message.type === 'snapshot' &&
       this.expectedSchemaVersion &&
       message.schema_version !== this.expectedSchemaVersion
     ) {
@@ -213,6 +214,7 @@ export class WebSocketManager {
     this.updateState('live')
 
     console.log('[WS] Snapshot received', {
+      type: message.type,
       table_version: message.table_version,
       event_seq: message.event_seq,
     })

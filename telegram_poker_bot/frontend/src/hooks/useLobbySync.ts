@@ -12,6 +12,7 @@ import type {
   ConnectionState,
   LobbyEntry,
   LobbyDeltaMessage,
+  TableType,
 } from '../types/normalized'
 
 interface UseLobbySyncOptions {
@@ -25,6 +26,51 @@ interface UseLobbySyncReturn {
   isConnected: boolean
   reconnect: () => void
   refresh: () => void
+}
+
+// Raw table data shape from backend
+interface RawTableData {
+  table_id: number
+  template?: {
+    name?: string
+    config?: { stakes?: string }
+    table_type?: string
+  }
+  table_name?: string
+  game_variant?: string
+  player_count?: number
+  max_players?: number
+  waitlist_count?: number
+  uptime?: number
+  expires_at?: string
+  is_private?: boolean
+}
+
+// Helper to normalize table_type string to TableType
+function normalizeTableType(tableType: string | undefined): TableType {
+  if (!tableType) return 'public'
+  const normalized = tableType.toLowerCase()
+  if (normalized === 'public' || normalized === 'private' || normalized === 'persistent' || normalized === 'sng') {
+    return normalized as TableType
+  }
+  return 'public'
+}
+
+// Helper to convert raw table data to LobbyEntry
+function convertToLobbyEntry(t: RawTableData): LobbyEntry {
+  return {
+    table_id: t.table_id,
+    template_name: t.template?.name || t.table_name || 'Unknown',
+    variant: t.game_variant || 'holdem',
+    stakes: t.template?.config?.stakes || 'Unknown',
+    player_count: t.player_count || 0,
+    max_players: t.max_players || 9,
+    waitlist_count: t.waitlist_count || 0,
+    uptime: t.uptime,
+    expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
+    table_type: normalizeTableType(t.template?.table_type),
+    invite_only: t.is_private || false,
+  }
 }
 
 export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncReturn {
@@ -45,32 +91,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       }
       const data = await response.json()
       
-      // Transform to LobbyEntry format
-      const lobbyTables: LobbyEntry[] = (data.tables || []).map((t: {
-        table_id: number
-        template?: { name?: string; config?: { stakes?: string } }
-        table_name?: string
-        game_variant?: string
-        player_count?: number
-        max_players?: number
-        waitlist_count?: number
-        uptime?: number
-        expires_at?: string
-        table_type?: string
-        is_private?: boolean
-      }) => ({
-        table_id: t.table_id,
-        template_name: t.template?.name || t.table_name || 'Unknown',
-        variant: t.game_variant || 'holdem',
-        stakes: t.template?.config?.stakes || 'Unknown',
-        player_count: t.player_count || 0,
-        max_players: t.max_players || 9,
-        waitlist_count: t.waitlist_count || 0,
-        uptime: t.uptime,
-        expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-        table_type: t.table_type || 'public',
-        invite_only: t.is_private || false,
-      }))
+      // Transform to LobbyEntry format using helper
+      const lobbyTables: LobbyEntry[] = (data.tables || []).map((t: RawTableData) => convertToLobbyEntry(t))
       
       setTables(lobbyTables)
     } catch (error) {
@@ -92,7 +114,14 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       onMessage: (message) => {
         const lobbyMessage = message as unknown as LobbyDeltaMessage
 
-        if (lobbyMessage.type === 'lobby_update') {
+        if (lobbyMessage.type === 'lobby_snapshot') {
+          // Initial snapshot from server - replace entire table list
+          const snapshotTables = (lobbyMessage.tables || []) as RawTableData[]
+          const lobbyEntries: LobbyEntry[] = snapshotTables.map(convertToLobbyEntry)
+          
+          setTables(lobbyEntries)
+          console.log('[useLobbySync] Received lobby snapshot', { tableCount: lobbyEntries.length })
+        } else if (lobbyMessage.type === 'lobby_update') {
           const entry = lobbyMessage.payload as LobbyEntry
           setTables((prev) => {
             const index = prev.findIndex((t) => t.table_id === entry.table_id)
@@ -112,6 +141,28 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
         } else if (lobbyMessage.type === 'table_removed') {
           const { table_id } = lobbyMessage.payload as { table_id: number }
           setTables((prev) => prev.filter((t) => t.table_id !== table_id))
+        } else if (lobbyMessage.type === 'TABLE_REMOVED') {
+          // Backend sends uppercase event type
+          const table_id = (lobbyMessage as { table_id?: number }).table_id
+          if (table_id) {
+            setTables((prev) => prev.filter((t) => t.table_id !== table_id))
+          }
+        } else if (lobbyMessage.type === 'TABLE_UPDATED') {
+          // Backend sends uppercase event type with table payload
+          const tablePayload = (lobbyMessage as { table?: unknown }).table
+          if (tablePayload) {
+            const entry = convertToLobbyEntry(tablePayload as RawTableData)
+            setTables((prev) => {
+              const index = prev.findIndex((t) => t.table_id === entry.table_id)
+              if (index >= 0) {
+                const updated = [...prev]
+                updated[index] = entry
+                return updated
+              } else {
+                return [...prev, entry]
+              }
+            })
+          }
         }
       },
       onStateChange: (newState) => {

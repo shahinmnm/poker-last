@@ -265,8 +265,11 @@ export interface LobbyEntry {
 }
 
 export interface LobbyDeltaMessage {
-  type: 'lobby_update' | 'table_added' | 'table_removed'
-  payload: LobbyEntry | { table_id: number }
+  type: 'lobby_update' | 'table_added' | 'table_removed' | 'lobby_snapshot' | 'TABLE_UPDATED' | 'TABLE_REMOVED'
+  payload?: LobbyEntry | { table_id: number }
+  tables?: unknown[] // For lobby_snapshot
+  table?: unknown // For TABLE_UPDATED
+  table_id?: number // For TABLE_REMOVED
 }
 
 // ============================================================================
