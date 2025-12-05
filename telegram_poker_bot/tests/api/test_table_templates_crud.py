@@ -227,3 +227,45 @@ async def test_table_creation_uses_new_template(db_session: AsyncSession, test_c
 
     assert table.template_id == template_id
     assert table.template.config_json["small_blind"] == 5
+
+
+@pytest.mark.asyncio
+async def test_template_auto_creates_table(db_session: AsyncSession, test_client: TestClient):
+    """Test that creating a template automatically creates a lobby-persistent table."""
+    from sqlalchemy import select
+    from telegram_poker_bot.shared.models import Table
+    
+    payload = {
+        "name": "Auto Table Template",
+        "table_type": "EXPIRING",
+        "config": {
+            "small_blind": 25,
+            "big_blind": 50,
+            "starting_stack": 10000,
+            "max_players": 8,
+            "game_variant": "no_limit_texas_holdem",
+            "currency_type": "PLAY",
+            "expiration_minutes": 60,
+        },
+    }
+    
+    # Create template via API
+    create_resp = test_client.post("/api/table-templates", json=payload)
+    assert create_resp.status_code == 201
+    template_id = create_resp.json()["id"]
+    
+    # Verify auto-generated table was created
+    result = await db_session.execute(
+        select(Table).where(
+            Table.template_id == template_id,
+            Table.is_auto_generated == True,
+            Table.lobby_persistent == True,
+        )
+    )
+    auto_table = result.scalar_one_or_none()
+    
+    assert auto_table is not None, "Auto-generated table should exist"
+    assert auto_table.creator_user_id is None, "Auto-generated table should have no creator"
+    assert auto_table.lobby_persistent is True
+    assert auto_table.is_auto_generated is True
+
