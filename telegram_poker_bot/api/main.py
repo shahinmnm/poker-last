@@ -11,6 +11,7 @@ import hashlib
 from urllib.parse import parse_qsl, urlparse
 
 from fastapi import (
+    APIRouter,
     Body,
     Depends,
     FastAPI,
@@ -82,7 +83,6 @@ DEFAULT_API_PREFIX = "/api"
 
 # Create a unified APIRouter for all game endpoints (tables, users, etc.)
 # This router will be mounted under /api to ensure consistent routing
-from fastapi import APIRouter
 game_router = APIRouter(prefix=DEFAULT_API_PREFIX, tags=["game"])
 
 
@@ -2513,7 +2513,9 @@ async def start_next_hand(
     viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
     return await _attach_template_to_payload(db, table_id, viewer_state)
 
-
+# Note: This endpoint path doesn't use DEFAULT_API_PREFIX in the decorator
+# because game_router already has prefix="/api", so the final path is:
+# POST /api/tables/{table_id}/sng/force-start
 @game_router.post("/tables/{table_id}/sng/force-start")
 async def force_start_sng_endpoint(
     table_id: int,
