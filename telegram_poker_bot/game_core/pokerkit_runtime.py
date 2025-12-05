@@ -26,6 +26,7 @@ from telegram_poker_bot.shared.models import (
     Seat,
     Table,
     TableStatus,
+    TableTemplate,
     GameVariant,
     CurrencyType,
 )
@@ -1582,15 +1583,11 @@ class PokerKitTableRuntimeManager:
         
         # Load the template relationship in a separate query (without FOR UPDATE)
         # This avoids the FOR UPDATE + OUTER JOIN compatibility issue with asyncpg
-        from telegram_poker_bot.shared.models import TableTemplate
         if table.template_id:
             template_result = await db.execute(
                 select(TableTemplate).where(TableTemplate.id == table.template_id)
             )
-            template = template_result.scalar_one_or_none()
-            # Manually set the template on the table instance
-            if template:
-                table.template = template
+            table.template = template_result.scalar_one_or_none()
         seats_result = await db.execute(
             select(Seat)
             .options(selectinload(Seat.user))
