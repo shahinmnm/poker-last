@@ -77,7 +77,7 @@ def generate_admin_jwt() -> str:
         JWT token string with admin claims
     """
     now = datetime.now(timezone.utc)
-    # Token expires in 24 hours
+    # Token expires in 24 hours (per requirements specification)
     expire = now + timedelta(hours=24)
     
     payload = {
