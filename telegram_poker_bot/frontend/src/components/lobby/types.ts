@@ -1,4 +1,4 @@
-import type { GameVariant } from '@/types'
+import type { GameVariant, TableTemplateInfo as SharedTemplateInfo } from '@/types'
 
 export type TableStatusTone = 'running' | 'waiting' | 'finished'
 
@@ -16,12 +16,7 @@ export interface TableViewerState {
   is_creator?: boolean
 }
 
-export interface TableTemplateInfo {
-  id: number | string
-  table_type: string
-  has_waitlist?: boolean
-  config: Record<string, any>
-}
+export type TableTemplateInfo = SharedTemplateInfo
 
 export interface TableInfo {
   table_id: number

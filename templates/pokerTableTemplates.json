@@ -1,145 +1,356 @@
 [
   {
+    "name": "NLHE 6-Max Micro",
     "backend": {
-      "template_name": "Micro Stakes NLHE 6-Max",
-      "variant_code": "NT",
+      "template_name": "NLHE 6-Max Micro",
       "game_type": "cash",
-      "description": "Micro stakes no-limit Texas Hold'em cash game for beginners",
-      "player_count_min": 2,
-      "player_count_max": 6,
-      "default_player_count": 6,
-      "blinds_or_straddles": [
-        0.01,
-        0.02
-      ],
-      "antes": [],
+      "game_variant": "no_limit_texas_holdem",
+      "small_blind": 10,
+      "big_blind": 20,
+      "starting_stack": 2000,
+      "max_players": 6,
+      "min_players": 2,
+      "ante": 0,
       "bring_in": null,
-      "rake_policy": {
-        "type": "percentage",
-        "rate": 0.05,
-        "cap": 0.5
-      },
-      "buyin_min": 0.4,
-      "buyin_max": 4.0,
-      "betting_structure": "no_limit",
-      "stack_type": "cash",
-      "starting_stack_size": 2.0,
-      "time_settings": {
-        "action_time_seconds": 30,
-        "timebank_seconds": 60
-      },
+      "rake_percentage": 0.05,
+      "rake_cap": 200,
+      "currency_type": "REAL",
+      "turn_timeout_seconds": 25,
       "table_speed": "normal",
-      "allow_auto_rebuy": true,
+      "buy_in_min": 400,
+      "buy_in_max": 4000,
       "board_count": 1,
       "hole_dealing_count": 2,
       "board_dealing_count": 5,
       "hand_types": [
         "high"
       ],
-      "deck_type": "standard_52",
-      "metadata": {
-        "stakes_category": "micro",
-        "recommended_bankroll": 40.0
-      }
+      "allow_invite_code": true
     },
-    "ui": {
-      "display_name": "Micro Stakes 6-Max",
-      "ui_icon": "🃏",
-      "ui_tags": [
-        "NLHE",
-        "micro",
-        "6-max",
-        "beginner"
-      ],
-      "theme_color": "#4CAF50",
-      "recommended_for": "Perfect for beginners learning poker fundamentals",
-      "ui_sort_index": 10,
-      "ui_layout": "card-large",
-      "is_default_showcase": true,
-      "ui_badges": [
-        "Popular",
-        "Beginner Friendly"
-      ],
-      "ui_group": "Texas Hold'em",
-      "ui_blind_label": "$0.01/$0.02",
-      "ui_variant_label": "NLHE",
-      "ui_player_label": "6-Max",
-      "ui_speed_label": "normal",
-      "ui_stake_category": "micro",
-      "ui_short_description": "The perfect starting point for new players with very low stakes",
-      "ui_color_mode": "light",
-      "ui_icon_style": "emoji"
+    "ui_schema": {
+      "layout": {
+        "type": "ring",
+        "seat_count": 6,
+        "radius": 150,
+        "avatar_size": 52,
+        "card_scale": 1
+      },
+      "theme": {
+        "table_color": "#0a5b3c",
+        "felt_pattern": "micro-knit",
+        "accent_color": "#2ee59d",
+        "ui_color_mode": "dark"
+      },
+      "timers": {
+        "avatar_ring": true,
+        "ring_color": "#2ee59d",
+        "ring_thickness": 3
+      },
+      "icons": {
+        "table_icon": "♠️",
+        "stake_label": "$0.10/$0.20",
+        "variant_badge": "NLHE"
+      },
+      "rules_display": {
+        "show_blinds": true,
+        "show_speed": true,
+        "show_buyin": true
+      }
     }
   },
   {
+    "name": "NLHE 9-Max Micro",
     "backend": {
-      "template_name": "Micro Stakes NLHE 9-Max",
-      "variant_code": "NT",
+      "template_name": "NLHE 9-Max Micro",
       "game_type": "cash",
-      "description": "Full-ring micro stakes no-limit Texas Hold'em",
-      "player_count_min": 2,
-      "player_count_max": 9,
-      "default_player_count": 9,
-      "blinds_or_straddles": [
-        0.01,
-        0.02
-      ],
-      "antes": [],
+      "game_variant": "no_limit_texas_holdem",
+      "small_blind": 10,
+      "big_blind": 20,
+      "starting_stack": 2000,
+      "max_players": 9,
+      "min_players": 2,
+      "ante": 0,
       "bring_in": null,
-      "rake_policy": {
-        "type": "percentage",
-        "rate": 0.05,
-        "cap": 0.5
-      },
-      "buyin_min": 0.4,
-      "buyin_max": 4.0,
-      "betting_structure": "no_limit",
-      "stack_type": "cash",
-      "starting_stack_size": 2.0,
-      "time_settings": {
-        "action_time_seconds": 30,
-        "timebank_seconds": 60
-      },
+      "rake_percentage": 0.05,
+      "rake_cap": 200,
+      "currency_type": "REAL",
+      "turn_timeout_seconds": 30,
       "table_speed": "normal",
-      "allow_auto_rebuy": true,
+      "buy_in_min": 400,
+      "buy_in_max": 4000,
       "board_count": 1,
       "hole_dealing_count": 2,
       "board_dealing_count": 5,
       "hand_types": [
         "high"
       ],
-      "deck_type": "standard_52",
-      "metadata": {
-        "stakes_category": "micro",
-        "recommended_bankroll": 40.0
-      }
+      "allow_invite_code": true
     },
-    "ui": {
-      "display_name": "Micro Stakes 9-Max",
-      "ui_icon": "🎰",
-      "ui_tags": [
-        "NLHE",
-        "micro",
-        "9-max",
-        "full-ring"
+    "ui_schema": {
+      "layout": {
+        "type": "oval",
+        "seat_count": 9,
+        "radius": 170,
+        "avatar_size": 48,
+        "card_scale": 0.96
+      },
+      "theme": {
+        "table_color": "#115b9c",
+        "felt_pattern": "brushed",
+        "accent_color": "#f6c31c",
+        "ui_color_mode": "dark"
+      },
+      "timers": {
+        "avatar_ring": true,
+        "ring_color": "#f6c31c",
+        "ring_thickness": 2
+      },
+      "icons": {
+        "table_icon": "♦️",
+        "stake_label": "$0.10/$0.20",
+        "variant_badge": "NLHE FR"
+      },
+      "rules_display": {
+        "show_blinds": true,
+        "show_speed": true,
+        "show_buyin": true
+      }
+    }
+  },
+  {
+    "name": "NLHE 6-Max Mid",
+    "backend": {
+      "template_name": "NLHE 6-Max Mid",
+      "game_type": "cash",
+      "game_variant": "no_limit_texas_holdem",
+      "small_blind": 100,
+      "big_blind": 200,
+      "starting_stack": 20000,
+      "max_players": 6,
+      "min_players": 2,
+      "ante": 0,
+      "bring_in": null,
+      "rake_percentage": 0.04,
+      "rake_cap": 3000,
+      "currency_type": "REAL",
+      "turn_timeout_seconds": 30,
+      "table_speed": "fast",
+      "buy_in_min": 4000,
+      "buy_in_max": 40000,
+      "board_count": 1,
+      "hole_dealing_count": 2,
+      "board_dealing_count": 5,
+      "hand_types": [
+        "high"
       ],
-      "theme_color": "#4CAF50",
-      "recommended_for": "Best for players who prefer full-ring action",
-      "ui_sort_index": 11,
-      "ui_layout": "card-large",
-      "is_default_showcase": false,
-      "ui_badges": [
-        "Full Ring"
+      "allow_invite_code": true
+    },
+    "ui_schema": {
+      "layout": {
+        "type": "ring",
+        "seat_count": 6,
+        "radius": 160,
+        "avatar_size": 56,
+        "card_scale": 1.05
+      },
+      "theme": {
+        "table_color": "#0f1024",
+        "felt_pattern": "carbon",
+        "accent_color": "#ff6f00",
+        "ui_color_mode": "dark"
+      },
+      "timers": {
+        "avatar_ring": true,
+        "ring_color": "#ff6f00",
+        "ring_thickness": 4
+      },
+      "icons": {
+        "table_icon": "🔥",
+        "stake_label": "$1/$2",
+        "variant_badge": "NLHE"
+      },
+      "rules_display": {
+        "show_blinds": true,
+        "show_speed": true,
+        "show_buyin": true
+      }
+    }
+  },
+  {
+    "name": "PLO 6-Max",
+    "backend": {
+      "template_name": "PLO 6-Max",
+      "game_type": "cash",
+      "game_variant": "pot_limit_omaha",
+      "small_blind": 100,
+      "big_blind": 200,
+      "starting_stack": 20000,
+      "max_players": 6,
+      "min_players": 2,
+      "ante": 0,
+      "bring_in": null,
+      "rake_percentage": 0.05,
+      "rake_cap": 3500,
+      "currency_type": "REAL",
+      "turn_timeout_seconds": 30,
+      "table_speed": "normal",
+      "buy_in_min": 4000,
+      "buy_in_max": 40000,
+      "board_count": 1,
+      "hole_dealing_count": 4,
+      "board_dealing_count": 5,
+      "hand_types": [
+        "high"
       ],
-      "ui_group": "Texas Hold'em",
-      "ui_blind_label": "$0.01/$0.02",
-      "ui_variant_label": "NLHE",
-      "ui_player_label": "9-Max",
-      "ui_speed_label": "normal",
-      "ui_stake_category": "micro",
-      "ui_short_description": "Classic full-ring poker with nine players at the table",
-      "ui_color_mode": "light",
-      "ui_icon_style": "emoji"
+      "allow_invite_code": true
+    },
+    "ui_schema": {
+      "layout": {
+        "type": "ring",
+        "seat_count": 6,
+        "radius": 155,
+        "avatar_size": 54,
+        "card_scale": 1.08
+      },
+      "theme": {
+        "table_color": "#0f2b46",
+        "felt_pattern": "wave",
+        "accent_color": "#4dd0e1",
+        "ui_color_mode": "dark"
+      },
+      "timers": {
+        "avatar_ring": true,
+        "ring_color": "#4dd0e1",
+        "ring_thickness": 3
+      },
+      "icons": {
+        "table_icon": "🌊",
+        "stake_label": "$1/$2 PLO",
+        "variant_badge": "PLO"
+      },
+      "rules_display": {
+        "show_blinds": true,
+        "show_speed": true,
+        "show_buyin": true
+      }
+    }
+  },
+  {
+    "name": "Short Deck 6-Max",
+    "backend": {
+      "template_name": "Short Deck 6-Max",
+      "game_type": "cash",
+      "game_variant": "no_limit_short_deck_holdem",
+      "small_blind": 50,
+      "big_blind": 100,
+      "starting_stack": 5000,
+      "max_players": 6,
+      "min_players": 2,
+      "ante": 20,
+      "bring_in": null,
+      "rake_percentage": 0.05,
+      "rake_cap": 2500,
+      "currency_type": "REAL",
+      "turn_timeout_seconds": 25,
+      "table_speed": "fast",
+      "buy_in_min": 2000,
+      "buy_in_max": 20000,
+      "board_count": 1,
+      "hole_dealing_count": 2,
+      "board_dealing_count": 5,
+      "hand_types": [
+        "high"
+      ],
+      "allow_invite_code": true
+    },
+    "ui_schema": {
+      "layout": {
+        "type": "double-board",
+        "seat_count": 6,
+        "radius": 150,
+        "avatar_size": 52,
+        "card_scale": 0.95
+      },
+      "theme": {
+        "table_color": "#2b1b27",
+        "felt_pattern": "shortdeck",
+        "accent_color": "#ff3b6a",
+        "ui_color_mode": "dark"
+      },
+      "timers": {
+        "avatar_ring": true,
+        "ring_color": "#ff3b6a",
+        "ring_thickness": 3
+      },
+      "icons": {
+        "table_icon": "🀄️",
+        "stake_label": "$0.50/$1 + ante",
+        "variant_badge": "Short Deck"
+      },
+      "rules_display": {
+        "show_blinds": true,
+        "show_speed": true,
+        "show_buyin": true
+      }
+    }
+  },
+  {
+    "name": "NLHE 6-Max Hyper",
+    "backend": {
+      "template_name": "NLHE 6-Max Hyper",
+      "game_type": "cash",
+      "game_variant": "no_limit_texas_holdem",
+      "small_blind": 200,
+      "big_blind": 400,
+      "starting_stack": 8000,
+      "max_players": 6,
+      "min_players": 2,
+      "ante": 0,
+      "bring_in": null,
+      "rake_percentage": 0.04,
+      "rake_cap": 2500,
+      "currency_type": "REAL",
+      "turn_timeout_seconds": 10,
+      "table_speed": "hyper",
+      "buy_in_min": 4000,
+      "buy_in_max": 16000,
+      "board_count": 1,
+      "hole_dealing_count": 2,
+      "board_dealing_count": 5,
+      "hand_types": [
+        "high"
+      ],
+      "allow_invite_code": true
+    },
+    "ui_schema": {
+      "layout": {
+        "type": "ring",
+        "seat_count": 6,
+        "radius": 145,
+        "avatar_size": 50,
+        "card_scale": 0.92
+      },
+      "theme": {
+        "table_color": "#1e1e1e",
+        "felt_pattern": "hyper",
+        "accent_color": "#00e5ff",
+        "ui_color_mode": "dark"
+      },
+      "timers": {
+        "avatar_ring": true,
+        "ring_color": "#ff1744",
+        "ring_thickness": 4
+      },
+      "icons": {
+        "table_icon": "⚡",
+        "stake_label": "$2/$4 Hyper",
+        "variant_badge": "Turbo"
+      },
+      "rules_display": {
+        "show_blinds": true,
+        "show_speed": true,
+        "show_buyin": true
+      }
     }
   }
 ]

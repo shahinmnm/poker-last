@@ -7,7 +7,7 @@ Implements secure JWT handling with role-based access control.
 import hashlib
 import secrets
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 import jwt
 from pydantic import BaseModel, Field
 from sqlalchemy import select, and_
@@ -56,8 +56,10 @@ WS_SESSION_TOKEN_EXPIRE_MINUTES = 60  # WebSocket session token
 class TokenPayload(BaseModel):
     """JWT token payload."""
     
-    sub: int = Field(..., description="User ID")
+    sub: Union[int, str] = Field(..., description="User ID")
     roles: List[str] = Field(default_factory=list, description="User roles")
+    role: Optional[str] = Field(None, description="Primary role claim")
+    is_admin: Optional[bool] = Field(False, description="Admin flag claim")
     token_type: str = Field(..., description="Token type (access/refresh/ws_session)")
     exp: int = Field(..., description="Expiration timestamp")
     iat: int = Field(..., description="Issued at timestamp")

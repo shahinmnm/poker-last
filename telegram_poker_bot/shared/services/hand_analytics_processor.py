@@ -5,6 +5,7 @@ for player performance tracking and historical analysis.
 """
 
 from typing import Dict, List, Optional, Any
+from uuid import UUID
 from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -150,8 +151,9 @@ class HandAnalyticsProcessor:
             Dict with calculated metrics
         """
         # Extract template config
-        config = template.config_json or {}
-        variant = config.get("variant", "no_limit_texas_holdem")
+        config_json = template.config_json or {}
+        config = config_json.get("backend", config_json)
+        variant = config.get("game_variant", config.get("variant", "no_limit_texas_holdem"))
         small_blind = config.get("small_blind", 25)
         big_blind = config.get("big_blind", 50)
         stakes = f"{small_blind}/{big_blind}"
@@ -322,7 +324,7 @@ class HandAnalyticsProcessor:
         db: AsyncSession,
         user_id: int,
         table_id: int,
-        template_id: int,
+        template_id: UUID,
         buy_in: int,
     ) -> PlayerSession:
         """Create a new player session when joining a table.

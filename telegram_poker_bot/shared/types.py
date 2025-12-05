@@ -2,10 +2,12 @@
 
 from enum import Enum
 from typing import Optional, Dict, Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from telegram_poker_bot.shared.models import GameVariant, CurrencyType, TableTemplateType
+from telegram_poker_bot.shared.schemas import TableTemplateConfig
 
 
 class GameMode(str, Enum):
@@ -57,7 +59,7 @@ class TableVisibility(str, Enum):
 class TableCreateRequest(BaseModel):
     """Validated payload for creating poker tables."""
 
-    template_id: int = Field(gt=0)
+    template_id: UUID
     auto_seat_host: Optional[bool] = None
 
 
@@ -66,8 +68,13 @@ class TableTemplateCreateRequest(BaseModel):
 
     name: str
     table_type: TableTemplateType
+    config_json: TableTemplateConfig
     has_waitlist: bool = False
-    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    is_active: bool = True
+
+    class Config:
+        allow_population_by_field_name = True
+        fields = {"config_json": "config"}
 
 
 class TableTemplateUpdateRequest(BaseModel):
@@ -76,17 +83,22 @@ class TableTemplateUpdateRequest(BaseModel):
     name: Optional[str] = None
     table_type: Optional[TableTemplateType] = None
     has_waitlist: Optional[bool] = None
-    config: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+    config_json: Optional[TableTemplateConfig] = Field(default=None, alias="config")
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 class TableTemplateResponse(BaseModel):
     """Response schema for table templates."""
 
-    id: int
+    id: UUID
     name: str
     table_type: TableTemplateType
     has_waitlist: bool
-    config: Dict[str, Any] = Field(default_factory=dict)
+    is_active: bool = True
+    config_json: TableTemplateConfig
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -123,7 +135,7 @@ class Table(BaseModel):
     status: TableStatus
     created_at: str
     updated_at: str
-    template_id: int
+    template_id: UUID
     creator_user_id: Optional[int] = None
     is_public: bool = True
     expires_at: Optional[str] = None

@@ -151,7 +151,9 @@ async def compute_prestart_expiry(
             expiration_minutes = None
             template = getattr(table, "template", None)
             if template and template.config_json:
-                expiration_minutes = template.config_json.get("expiration_minutes")
+                config_json = template.config_json
+                config = config_json.get("backend", config_json)
+                expiration_minutes = config.get("expiration_minutes")
             return (
                 True,
                 "pre-game timeout"

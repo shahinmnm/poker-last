@@ -10,7 +10,7 @@ import { createTable, getTableTemplates, type TableSummary } from '../services/t
 import type { TableTemplateInfo } from '../types'
 
 interface CreateTableFormState {
-  templateId: number | ''
+  templateId: string
   autoSeatHost: boolean
 }
 
@@ -23,11 +23,10 @@ export default function CreateGamePage() {
   const [searchParams] = useSearchParams()
   const tips = t('createGame.tips', { returnObjects: true }) as string[]
 
-  const initialTemplateParam = searchParams.get('template_id') || searchParams.get('templateId')
-  const parsedTemplateId = initialTemplateParam ? Number(initialTemplateParam) : Number.NaN
+  const initialTemplateParam = searchParams.get('template_id') || searchParams.get('templateId') || ''
 
   const [formState, setFormState] = useState<CreateTableFormState>({
-    templateId: Number.isFinite(parsedTemplateId) ? parsedTemplateId : '',
+    templateId: initialTemplateParam,
     autoSeatHost: true,
   })
   const [status, setStatus] = useState<ViewState>('idle')
@@ -42,11 +41,9 @@ export default function CreateGamePage() {
         ...prev,
         [field]:
           field === 'templateId'
-            ? typeof value === 'number'
+            ? typeof value === 'string'
               ? value
-              : value === ''
-                ? ''
-                : Number(value)
+              : String(value ?? '')
             : value,
       }))
     },
@@ -64,11 +61,9 @@ export default function CreateGamePage() {
         if (!active) return
         const fetched = response.templates || []
         setTemplates(fetched)
-        if (formState.templateId === '' && fetched.length > 0) {
-          const initial = Number(fetched[0].id)
-          if (Number.isFinite(initial)) {
-            setFormState((prev) => ({ ...prev, templateId: initial }))
-          }
+        if (!formState.templateId && fetched.length > 0) {
+          const initial = String(fetched[0].id)
+          setFormState((prev) => ({ ...prev, templateId: initial }))
         }
       } catch (error) {
         console.error('Failed to load templates', error)
@@ -95,12 +90,7 @@ export default function CreateGamePage() {
       setErrorMessage(null)
 
       try {
-        const templateId =
-          typeof formState.templateId === 'number'
-            ? formState.templateId
-            : Number(formState.templateId)
-
-        if (!Number.isFinite(templateId) || templateId <= 0) {
+        if (!formState.templateId) {
           setStatus('error')
           setErrorMessage(t('createGame.errors.templateRequired', { defaultValue: 'Template ID is required' }))
           return
@@ -108,7 +98,7 @@ export default function CreateGamePage() {
 
         const response = await createTable(
           {
-            templateId,
+            templateId: String(formState.templateId),
             autoSeatHost: formState.autoSeatHost,
           },
           initData,
@@ -161,7 +151,7 @@ export default function CreateGamePage() {
               id="template-select"
               value={formState.templateId}
               onChange={(event) =>
-                handleFieldChange('templateId', event.target.value ? Number(event.target.value) : '')
+                handleFieldChange('templateId', event.target.value || '')
               }
               className="w-full border border-[color:var(--surface-border)] bg-transparent px-4 py-3 text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-soft)]"
               style={{ borderRadius: 'var(--radius-xl)', fontSize: 'var(--fs-body)' }}
@@ -176,7 +166,7 @@ export default function CreateGamePage() {
                   const variant = template.config?.game_variant || 'variant'
                   const label = `${template.name} — ${small ?? '?'} / ${big ?? '?'} — ${variant} — ${template.table_type}`
                   return (
-                    <option key={template.id} value={template.id}>
+                    <option key={template.id} value={String(template.id)}>
                       {label}
                     </option>
                   )

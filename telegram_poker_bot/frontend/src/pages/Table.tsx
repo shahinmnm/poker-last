@@ -23,6 +23,7 @@ import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import GameVariantBadge from '../components/ui/GameVariantBadge'
 import CommunityBoard from '@/legacy/ui/table-legacy/table/CommunityBoard'
 import ActionBar from '@/legacy/ui/table-legacy/table/ActionBar'
+import DynamicPokerTable from '@/components/table/DynamicPokerTable'
 import PlayerSeat from '@/legacy/ui/table-legacy/table/PlayerSeat'
 import { getSeatLayout } from '@/config/tableLayout'
 import { useGameVariant } from '@/utils/gameVariant'
@@ -102,6 +103,7 @@ interface TableDetails {
     id: number | string
     table_type: string
     config: Record<string, any>
+    config_json?: Record<string, any>
     has_waitlist?: boolean
   } | null
 }
@@ -1055,6 +1057,11 @@ export default function TablePage() {
       }),
     [tableDetails?.currency_type, tableDetails?.max_players, tableDetails?.table_name, tableDetails?.template],
   )
+  const uiSchema = useMemo(() => {
+    const tpl = tableDetails?.template as any
+    const configJson = tpl?.config_json ?? tpl?.config
+    return configJson?.ui_schema
+  }, [tableDetails?.template])
   const tableMaxPlayers = templateRules.maxPlayers ?? tableDetails?.max_players ?? 0
   const tableStartingStack = templateRules.startingStack ?? tableDetails?.starting_stack ?? 0
   const stakesLabel = templateRules.stakesLabel ?? null
@@ -1501,6 +1508,12 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
+      {uiSchema && (
+        <div className="mb-6 flex justify-center">
+          <DynamicPokerTable template={uiSchema} />
+        </div>
+      )}
+
       <div className="table-screen">
         {/* Arena - Game Content */}
         {liveState ? (

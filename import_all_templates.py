@@ -80,12 +80,12 @@ def generate_admin_jwt() -> str:
     # Token expires in 24 hours (per requirements specification)
     expire = now + timedelta(hours=24)
     
-    # System script JWT payload - uses user_id 0 and admin role
-    # to authenticate with backend API endpoints that require admin access
     payload = {
-        "sub": 0,  # System script user ID
+        "sub": "admin-script",
         "token_type": "access",
-        "roles": ["admin"],
+        "role": "superadmin",
+        "roles": ["superadmin"],
+        "is_admin": True,
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
@@ -156,6 +156,29 @@ def parse_json_file(filepath: str) -> List[Dict[str, Any]]:
     return templates
 
 
+def normalize_template(template: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize legacy template structure into API payload format.
+    """
+    backend = template.get("backend", {})
+    ui_schema = template.get("ui_schema") or template.get("ui") or {}
+
+    name = backend.get("template_name") or template.get("name") or "Unknown"
+    raw_game_type = (backend.get("game_type") or "").lower()
+    table_type = "CASH_GAME" if raw_game_type == "cash" else "TOURNAMENT" if raw_game_type == "tournament" else raw_game_type.upper()
+    if not table_type:
+        table_type = "CASH_GAME"
+
+    return {
+        "name": name,
+        "table_type": table_type,
+        "config_json": {
+            "backend": backend,
+            "ui_schema": ui_schema,
+        },
+    }
+
+
 def upload_template(template: Dict[str, Any], index: int, total: int, admin_token: str) -> bool:
     """
     Upload a single template to the API endpoint.
@@ -169,8 +192,8 @@ def upload_template(template: Dict[str, Any], index: int, total: int, admin_toke
     Returns:
         True if successful, False otherwise
     """
-    # Extract template name from backend data
-    template_name = template.get('backend', {}).get('template_name', 'Unknown')
+    normalized = normalize_template(template)
+    template_name = normalized.get('name', 'Unknown')
 
     print(f"[{index}/{total}] Importing: {template_name}")
 
@@ -182,7 +205,7 @@ def upload_template(template: Dict[str, Any], index: int, total: int, admin_toke
     try:
         response = requests.post(
             API_ENDPOINT,
-            json=template,
+            json=normalized,
             headers=headers,
             timeout=30
         )

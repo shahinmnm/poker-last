@@ -132,7 +132,8 @@ async def get_next_waiting_player(
     if not table.template:
         return None
     
-    config = table.template.config_json or {}
+    config_json = table.template.config_json or {}
+    config = config_json.get("backend", config_json)
     table_variant = config.get("game_variant")
     
     # Build query for waiting players
@@ -234,7 +235,8 @@ async def find_best_table_for_player(
         if not table.template:
             continue
         
-        config = table.template.config_json or {}
+        config_json = table.template.config_json or {}
+        config = config_json.get("backend", config_json)
         max_players = config.get("max_players", 8)
         table_variant = config.get("game_variant")
         
