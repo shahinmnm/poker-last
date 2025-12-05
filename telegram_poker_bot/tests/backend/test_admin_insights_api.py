@@ -37,7 +37,7 @@ async def db_session() -> AsyncSession:
 @pytest.fixture
 def test_client(db_session: AsyncSession):
     """Create a test client with database dependency override."""
-    from telegram_poker_bot.api.main import api_app, app
+    from telegram_poker_bot.api.main import api_app
     from telegram_poker_bot.shared.database import get_db
 
     async def override_get_db():
@@ -45,7 +45,7 @@ def test_client(db_session: AsyncSession):
 
     api_app.dependency_overrides[get_db] = override_get_db
 
-    yield TestClient(app)
+    yield TestClient(api_app)
 
     api_app.dependency_overrides.clear()
 
@@ -96,7 +96,7 @@ async def test_generate_insights_endpoint(
     await db_session.commit()
     
     # Generate insights
-    response = test_client.get("/api/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -133,7 +133,7 @@ async def test_generate_insights_custom_hours(
     await db_session.commit()
     
     # Generate insights for last 2 hours
-    response = test_client.get("/api/admin/insights/generate?hours=2")
+    response = test_client.get("/admin/insights/generate?hours=2")
     assert response.status_code == 200
     
     data = response.json()
@@ -143,7 +143,7 @@ async def test_generate_insights_custom_hours(
 @pytest.mark.asyncio
 async def test_generate_insights_no_data(db_session: AsyncSession, test_client: TestClient) -> None:
     """Test insights generation with no analytics data."""
-    response = test_client.get("/api/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -170,7 +170,7 @@ async def test_deliver_insights_endpoint(
     await db_session.commit()
     
     # Deliver insights
-    response = test_client.post("/api/admin/insights/deliver?hours=1")
+    response = test_client.post("/admin/insights/deliver?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -206,7 +206,7 @@ async def test_insights_structure(
     await db_session.commit()
     
     # Generate insights
-    response = test_client.get("/api/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -255,7 +255,7 @@ async def test_insights_by_type_counts(
     
     await db_session.commit()
     
-    response = test_client.get("/api/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()
@@ -289,7 +289,7 @@ async def test_insights_by_severity_counts(
     
     await db_session.commit()
     
-    response = test_client.get("/api/admin/insights/generate?hours=1")
+    response = test_client.get("/admin/insights/generate?hours=1")
     assert response.status_code == 200
     
     data = response.json()

@@ -83,7 +83,7 @@ async def test_group_invite_creation_and_join(api_client):
     )
 
     create_response = await api_client.post(
-        "/api/group-games/invites",
+        "/group-games/invites",
         headers={"X-Telegram-Init-Data": init_data},
     )
     assert create_response.status_code == 201
@@ -94,13 +94,13 @@ async def test_group_invite_creation_and_join(api_client):
 
     game_id = payload["game_id"]
 
-    status_response = await api_client.get(f"/api/group-games/invites/{game_id}")
+    status_response = await api_client.get(f"/group-games/invites/{game_id}")
     assert status_response.status_code == 200
     status_payload = status_response.json()
     assert status_payload["status"] == "pending"
 
     profile_response = await api_client.get(
-        "/api/users/me", headers={"X-Telegram-Init-Data": init_data}
+        "/users/me", headers={"X-Telegram-Init-Data": init_data}
     )
     assert profile_response.status_code == 200
     profile = profile_response.json()
@@ -108,7 +108,7 @@ async def test_group_invite_creation_and_join(api_client):
     assert profile["user_id"] is not None
 
     join_response = await api_client.post(
-        f"/api/group-games/invites/{game_id}/attend",
+        f"/group-games/invites/{game_id}/attend",
         headers={"X-Telegram-Init-Data": init_data},
     )
     assert join_response.status_code == 200

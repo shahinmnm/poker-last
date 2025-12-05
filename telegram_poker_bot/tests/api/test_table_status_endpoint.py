@@ -1,4 +1,4 @@
-"""Tests for the GET /api/tables/{table_id}/status endpoint."""
+"""Tests for the GET /tables/{table_id}/status endpoint."""
 
 import pytest
 import pytest_asyncio
@@ -29,7 +29,7 @@ async def db_session() -> AsyncSession:
 @pytest.fixture
 def test_client(db_session: AsyncSession):
     """Create a test client with database dependency override."""
-    from telegram_poker_bot.api.main import api_app, app
+    from telegram_poker_bot.api.main import api_app
     from telegram_poker_bot.shared.database import get_db
 
     async def override_get_db():
@@ -37,7 +37,7 @@ def test_client(db_session: AsyncSession):
 
     api_app.dependency_overrides[get_db] = override_get_db
 
-    yield TestClient(app)
+    yield TestClient(api_app)
 
     api_app.dependency_overrides.clear()
 
@@ -73,7 +73,7 @@ async def test_table_status_active(
     await table_service.start_table(db_session, table.id, user_id=user1.id)
     await db_session.commit()
 
-    response = test_client.get(f"/api/tables/{table.id}/status")
+    response = test_client.get(f"/tables/{table.id}/status")
 
     assert response.status_code == 200
     data = response.json()
@@ -107,7 +107,7 @@ async def test_table_status_waiting(
     # Verify table is in WAITING status
     assert table.status == TableStatus.WAITING
 
-    response = test_client.get(f"/api/tables/{table.id}/status")
+    response = test_client.get(f"/tables/{table.id}/status")
 
     assert response.status_code == 200
     data = response.json()
@@ -141,7 +141,7 @@ async def test_table_status_ended(
     table.status = TableStatus.ENDED
     await db_session.commit()
 
-    response = test_client.get(f"/api/tables/{table.id}/status")
+    response = test_client.get(f"/tables/{table.id}/status")
 
     assert response.status_code == 200
     data = response.json()
@@ -178,7 +178,7 @@ async def test_table_status_expired(
     table.status = TableStatus.EXPIRED
     await db_session.commit()
 
-    response = test_client.get(f"/api/tables/{table.id}/status")
+    response = test_client.get(f"/tables/{table.id}/status")
 
     assert response.status_code == 200
     data = response.json()
@@ -189,7 +189,7 @@ async def test_table_status_expired(
 async def test_table_status_not_found(test_client: TestClient) -> None:
     """Test that status endpoint returns active=false for non-existent tables."""
     # Use a table ID that doesn't exist
-    response = test_client.get("/api/tables/99999/status")
+    response = test_client.get("/tables/99999/status")
 
     assert response.status_code == 200
     data = response.json()
