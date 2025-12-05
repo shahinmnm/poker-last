@@ -21,7 +21,7 @@ def _compile_jsonb_sqlite(_type, _compiler, **_kw):
 @compiles(UUID, "sqlite")
 def _compile_uuid_sqlite(_type, _compiler, **_kw):
     """Render PostgreSQL UUID columns as TEXT when using SQLite."""
-    
+
     return "TEXT"
 
 
@@ -96,7 +96,7 @@ def create_test_template_config(
         "turn_timeout_seconds": kwargs.get("turn_timeout_seconds", 30),
         "game_variant": kwargs.get("game_variant", "no_limit_texas_holdem"),
         "currency_type": kwargs.get("currency_type", "PLAY"),
-        "expiration_minutes": kwargs.get("expiration_minutes", 60),  # Add default expiration for EXPIRING templates
+        "expiration_minutes": kwargs.get("expiration_minutes", 60),  # Required for TableTemplateType.EXPIRING templates
     }
     # Allow arbitrary additional fields
     for key, value in kwargs.items():

@@ -61,7 +61,7 @@ async def test_list_tables_with_lobby_persistent_true_bypasses_auth(db_session: 
     data = response.json()
     assert "tables" in data
     tables = data["tables"]
-    assert len(tables) >= 0  # May be empty or contain tables
+    assert isinstance(tables, list)  # Validate tables is a list
 
 
 @pytest.mark.asyncio
