@@ -1,6 +1,6 @@
 """Add is_auto_generated and lobby_persistent columns to tables.
 
-Revision ID: 028_add_table_auto_generation_fields
+Revision ID: 028_table_auto_gen_fields
 Revises: 027_template_ui_schema
 Create Date: 2025-12-05
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "028_add_table_auto_generation_fields"
+revision = "028_table_auto_gen_fields"
 down_revision = "027_template_ui_schema"
 branch_labels = None
 depends_on = None
