@@ -31,7 +31,11 @@ interface UseLobbySyncReturn {
 // Raw table data shape from backend
 interface RawTableData {
   table_id: number
-  template?: { name?: string; config?: { stakes?: string } }
+  template?: {
+    name?: string
+    config?: { stakes?: string }
+    table_type?: string
+  }
   table_name?: string
   game_variant?: string
   player_count?: number
@@ -39,7 +43,6 @@ interface RawTableData {
   waitlist_count?: number
   uptime?: number
   expires_at?: string
-  table_type?: string
   is_private?: boolean
 }
 
@@ -65,7 +68,7 @@ function convertToLobbyEntry(t: RawTableData): LobbyEntry {
     waitlist_count: t.waitlist_count || 0,
     uptime: t.uptime,
     expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-    table_type: normalizeTableType(t.table_type),
+    table_type: normalizeTableType(t.template?.table_type),
     invite_only: t.is_private || false,
   }
 }
