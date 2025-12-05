@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
@@ -16,6 +16,13 @@ def _compile_jsonb_sqlite(_type, _compiler, **_kw):
     """Render PostgreSQL JSONB columns as generic JSON when using SQLite."""
 
     return "JSON"
+
+
+@compiles(UUID, "sqlite")
+def _compile_uuid_sqlite(_type, _compiler, **_kw):
+    """Render PostgreSQL UUID columns as TEXT when using SQLite."""
+
+    return "TEXT"
 
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_suite.db")
@@ -73,9 +80,9 @@ def create_test_template_config(
         **kwargs: Additional config parameters to override defaults
         
     Returns:
-        Template configuration dictionary
+        Template configuration dictionary with backend and ui_schema
     """
-    config = {
+    backend_config = {
         "small_blind": small_blind,
         "big_blind": big_blind,
         "starting_stack": starting_stack,
@@ -89,12 +96,48 @@ def create_test_template_config(
         "turn_timeout_seconds": kwargs.get("turn_timeout_seconds", 30),
         "game_variant": kwargs.get("game_variant", "no_limit_texas_holdem"),
         "currency_type": kwargs.get("currency_type", "PLAY"),
+        "expiration_minutes": kwargs.get("expiration_minutes", 60),  # Required for TableTemplateType.EXPIRING templates
     }
     # Allow arbitrary additional fields
     for key, value in kwargs.items():
-        if key not in config:
-            config[key] = value
-    return config
+        if key not in backend_config:
+            backend_config[key] = value
+    
+    # Create the full config with backend and ui_schema as required by TableTemplateConfig
+    # Use the same DEFAULT_UI_SCHEMA from table_service
+    return {
+        "backend": backend_config,
+        "ui_schema": {
+            "layout": {
+                "type": "ring",
+                "seat_count": max_players,
+                "radius": 120,
+                "avatar_size": 48,
+                "card_scale": 1.0,
+            },
+            "theme": {
+                "table_color": "#0b3d2e",
+                "felt_pattern": "classic",
+                "accent_color": "#ffc107",
+                "ui_color_mode": "dark",
+            },
+            "timers": {
+                "avatar_ring": True,
+                "ring_color": "#00ffc6",
+                "ring_thickness": 3,
+            },
+            "icons": {
+                "table_icon": "🃏",
+                "stake_label": kwargs.get("table_name", "Test Table"),
+                "variant_badge": "NLH",
+            },
+            "rules_display": {
+                "show_blinds": True,
+                "show_speed": True,
+                "show_buyin": True,
+            },
+        }
+    }
 
 
 @pytest.fixture
