@@ -37,3 +37,4 @@ Pillow==10.2.0
 
 # Script dependencies
 requests==2.31.0
+PyJWT==2.7.0
