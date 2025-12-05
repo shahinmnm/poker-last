@@ -460,12 +460,11 @@ async def create_table_template(
     
     # Auto-create a table from this template after successful template creation
     try:
-        # Create a system user for auto-generated tables (user_id = 0 or similar)
-        # We'll use creator_user_id = 1 as a fallback (admin user)
-        # In production, you might want to have a dedicated system user
+        # Use creator_user_id=None for auto-generated tables
+        # The creator_user_id is nullable in the database schema
         auto_table = await create_table(
             db,
-            creator_user_id=1,  # System/admin user
+            creator_user_id=None,  # System-generated, no specific user
             template_id=template.id,
             mode=GameMode.ANONYMOUS,
             group_id=None,
@@ -643,7 +642,7 @@ async def list_table_templates(
 async def create_table(
     db: AsyncSession,
     *,
-    creator_user_id: int,
+    creator_user_id: Optional[int],
     template_id: UUID,
     mode: GameMode = GameMode.ANONYMOUS,
     group_id: Optional[int] = None,
@@ -741,7 +740,7 @@ async def create_table(
 
     await _refresh_table_runtime(db, table.id)
 
-    if auto_seat_creator:
+    if auto_seat_creator and creator_user_id is not None:
         try:
             await seat_user_at_table(db, table.id, creator_user_id)
         except ValueError as exc:  # pragma: no cover - defensive
