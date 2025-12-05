@@ -11,12 +11,16 @@ Usage:
 Requirements:
     - Python 3.6+
     - requests library
+    - PyJWT library
+    - python-dotenv library
     - templates/ directory in the same location as this script
+    - .env file with JWT_SECRET_KEY
 """
 
 import json
 import os
 import sys
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List
 
 try:
@@ -26,17 +30,66 @@ except ImportError:
     print("Please install it with: pip install requests")
     sys.exit(1)
 
+try:
+    import jwt
+except ImportError:
+    print("❌ Error: 'PyJWT' library is required but not installed.")
+    print("Please install it with: pip install PyJWT")
+    sys.exit(1)
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    print("❌ Error: 'python-dotenv' library is required but not installed.")
+    print("Please install it with: pip install python-dotenv")
+    sys.exit(1)
+
+
+# Load environment variables from .env file
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, '.env')
+load_dotenv(dotenv_path=env_path)
 
 # Configuration
 API_ENDPOINT = os.getenv(
     "POKER_API_ENDPOINT",
     "https://poker.shahin8n.sbs/api/table-templates"
 )
-API_TOKEN = os.getenv(
-    "POKER_API_TOKEN",
-    "Telegrampokerbot5973"
-)
 TEMPLATES_DIR = "templates"
+
+# JWT Configuration - must be loaded from environment
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY or JWT_SECRET_KEY.strip() == "":
+    print("❌ Error: JWT_SECRET_KEY is not set in the .env file.")
+    print("Please ensure your .env file contains a valid JWT_SECRET_KEY.")
+    print("Example: JWT_SECRET_KEY=your_secret_key_here")
+    sys.exit(1)
+
+# Never print the secret key for security
+JWT_ALGORITHM = "HS256"
+
+
+def generate_admin_jwt() -> str:
+    """
+    Generate a JWT token for admin authentication.
+    
+    Returns:
+        JWT token string with admin claims
+    """
+    now = datetime.now(timezone.utc)
+    # Token expires in 24 hours
+    expire = now + timedelta(hours=24)
+    
+    payload = {
+        "user_id": "admin-script",
+        "is_admin": True,
+        "role": "superadmin",
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp()),
+    }
+    
+    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return token
 
 
 def scan_json_files(directory: str) -> List[str]:
@@ -101,7 +154,7 @@ def parse_json_file(filepath: str) -> List[Dict[str, Any]]:
     return templates
 
 
-def upload_template(template: Dict[str, Any], index: int, total: int) -> bool:
+def upload_template(template: Dict[str, Any], index: int, total: int, admin_token: str) -> bool:
     """
     Upload a single template to the API endpoint.
 
@@ -109,6 +162,7 @@ def upload_template(template: Dict[str, Any], index: int, total: int) -> bool:
         template: Template object to upload
         index: Current template index (1-based)
         total: Total number of templates
+        admin_token: JWT token for authentication
 
     Returns:
         True if successful, False otherwise
@@ -120,7 +174,7 @@ def upload_template(template: Dict[str, Any], index: int, total: int) -> bool:
 
     headers = {
         'Content-Type': 'application/json',
-        'Authorization': f'Bearer {API_TOKEN}'
+        'Authorization': f'Bearer {admin_token}'
     }
 
     try:
@@ -154,6 +208,13 @@ def main():
     """Main execution function."""
     print("🚀 Starting Template Import Process\n")
 
+    # Generate admin JWT token for authentication
+    try:
+        admin_token = generate_admin_jwt()
+    except Exception as e:
+        print(f"❌ Error generating JWT token: {e}")
+        sys.exit(1)
+
     # Get the directory where the script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
     templates_path = os.path.join(script_dir, TEMPLATES_DIR)
@@ -184,7 +245,7 @@ def main():
     failed_count = 0
 
     for index, template in enumerate(all_templates, start=1):
-        if upload_template(template, index, len(all_templates)):
+        if upload_template(template, index, len(all_templates), admin_token):
             success_count += 1
         else:
             failed_count += 1
