@@ -42,7 +42,7 @@ from telegram_poker_bot.shared.services.jwt_auth_service import get_jwt_auth_ser
 logger = get_logger(__name__)
 
 # Router for admin analytics
-analytics_admin_router = APIRouter(prefix="/api/admin/analytics", tags=["admin-analytics"])
+analytics_admin_router = APIRouter(prefix="/admin/analytics", tags=["admin-analytics"])
 
 
 # ==================== Request/Response Models ====================

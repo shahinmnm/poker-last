@@ -38,7 +38,7 @@ async def db_session() -> AsyncSession:
 @pytest.fixture
 def test_client(db_session: AsyncSession):
     """Create a test client with database dependency override."""
-    from telegram_poker_bot.api.main import api_app
+    from telegram_poker_bot.api.main import api_app, app
     from telegram_poker_bot.shared.database import get_db
 
     async def override_get_db():
@@ -46,7 +46,7 @@ def test_client(db_session: AsyncSession):
 
     api_app.dependency_overrides[get_db] = override_get_db
 
-    yield TestClient(api_app)
+    yield TestClient(app)
 
     api_app.dependency_overrides.clear()
 
@@ -99,7 +99,7 @@ async def test_get_realtime_analytics(
     await db_session.commit()
     
     # Fetch realtime analytics
-    response = test_client.get("/admin/analytics/realtime")
+    response = test_client.get("/api/admin/analytics/realtime")
     assert response.status_code == 200
     
     data = response.json()
@@ -137,7 +137,7 @@ async def test_get_hourly_aggregates(
     await db_session.commit()
     
     # Fetch hourly aggregates
-    response = test_client.get("/admin/analytics/hourly?hours=24")
+    response = test_client.get("/api/admin/analytics/hourly?hours=24")
     assert response.status_code == 200
     
     data = response.json()
@@ -179,7 +179,7 @@ async def test_get_hourly_aggregates_filtered(
     await db_session.commit()
     
     # Fetch hourly aggregates for specific table
-    response = test_client.get(f"/admin/analytics/hourly?hours=24&table_id={sample_table.id}")
+    response = test_client.get(f"/api/admin/analytics/hourly?hours=24&table_id={sample_table.id}")
     assert response.status_code == 200
     
     data = response.json()
@@ -217,7 +217,7 @@ async def test_get_historical_range_hourly(
     end_date = now.isoformat()
     
     response = test_client.get(
-        f"/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
+        f"/api/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
     )
     assert response.status_code == 200
     
@@ -253,7 +253,7 @@ async def test_get_historical_range_snapshot(
     end_date = now.isoformat()
     
     response = test_client.get(
-        f"/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=snapshot"
+        f"/api/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=snapshot"
     )
     assert response.status_code == 200
     
@@ -272,7 +272,7 @@ async def test_get_historical_range_invalid_dates(test_client: TestClient) -> No
     end_date = (now - timedelta(days=1)).isoformat()
     
     response = test_client.get(
-        f"/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
+        f"/api/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
     )
     assert response.status_code == 400
     assert "before end_date" in response.json()["detail"]
@@ -286,7 +286,7 @@ async def test_get_historical_range_exceeds_limit(test_client: TestClient) -> No
     end_date = now.isoformat()
     
     response = test_client.get(
-        f"/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
+        f"/api/admin/analytics/historical?start_date={start_date}&end_date={end_date}&metric_type=hourly"
     )
     assert response.status_code == 400
     assert "90 days" in response.json()["detail"]
@@ -320,7 +320,7 @@ async def test_get_analytics_summary(
     await db_session.commit()
     
     # Fetch summary
-    response = test_client.get("/admin/analytics/summary")
+    response = test_client.get("/api/admin/analytics/summary")
     assert response.status_code == 200
     
     data = response.json()

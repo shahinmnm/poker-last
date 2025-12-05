@@ -8,7 +8,7 @@ import asyncio
 import json
 import hmac
 import hashlib
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl
 
 from fastapi import (
     Body,
@@ -77,26 +77,7 @@ from telegram_poker_bot.api.routes.table_templates import router as table_templa
 settings = get_settings()
 configure_logging()
 logger = get_logger(__name__)
-
-DEFAULT_API_PREFIX = "/api"
-
-
-def _derive_api_path_prefix(api_url: Optional[str]) -> str:
-    """Extract a normalized path prefix from the configured API URL."""
-
-    if not api_url:
-        return ""
-
-    parsed = urlparse(api_url)
-    if parsed.scheme or parsed.netloc:
-        candidate = parsed.path or ""
-    else:
-        candidate = api_url
-
-    normalized = "/" + candidate.strip("/") if candidate.strip("/") else ""
-    if normalized == "/":
-        return ""
-    return normalized
+API_PREFIX = settings.api_prefix
 
 
 api_app = FastAPI(
@@ -127,16 +108,16 @@ api_app.include_router(auth_router)
 
 # Import and mount global waitlist routes
 from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
-api_app.include_router(global_waitlist_router, prefix=DEFAULT_API_PREFIX)
+api_app.include_router(global_waitlist_router)
 
 # Template CRUD routes
-api_app.include_router(table_templates_router, prefix=DEFAULT_API_PREFIX)
+api_app.include_router(table_templates_router)
 
 # Import and mount analytics routes (Phase 3 + Phase 4)
 from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
 from telegram_poker_bot.api.analytics_user_routes import analytics_user_router
 api_app.include_router(analytics_admin_router)
-api_app.include_router(analytics_user_router, prefix=DEFAULT_API_PREFIX)
+api_app.include_router(analytics_user_router)
 
 
 # Pydantic models
@@ -2503,7 +2484,7 @@ async def start_next_hand(
     return await _attach_template_to_payload(db, table_id, viewer_state)
 
 
-@api_app.post(f"{DEFAULT_API_PREFIX}/tables/{{table_id}}/sng/force-start")
+@api_app.post("/tables/{table_id}/sng/force-start")
 async def force_start_sng_endpoint(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -3414,7 +3395,7 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
         logger.info("WebSocket connection closed", table_id=table_id)
 
 
-@api_app.websocket("/api/ws/admin")
+@api_app.websocket("/ws/admin")
 async def admin_analytics_websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for admin analytics feed.
@@ -3608,7 +3589,9 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
         logger.info("Admin analytics WebSocket connection closed")
 
 
-app = api_app
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+app.mount(API_PREFIX, api_app)
+logger.info("API prefix mounted at: %s", API_PREFIX)
 
 
 if __name__ == "__main__":

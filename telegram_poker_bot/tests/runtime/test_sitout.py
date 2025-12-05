@@ -6,7 +6,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from telegram_poker_bot.api.main import api_app
+from telegram_poker_bot.api.main import app
 from telegram_poker_bot.shared.database import get_db, engine
 from telegram_poker_bot.shared.models import User, Table, Seat, TableStatus, Base
 from telegram_poker_bot.shared.types import GameMode
@@ -25,7 +25,7 @@ async def db():
 
 @pytest_asyncio.fixture
 async def client():
-    transport = ASGITransport(app=api_app)
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 

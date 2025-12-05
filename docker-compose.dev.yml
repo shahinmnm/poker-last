@@ -20,7 +20,7 @@ services:
     command:
       [
         "uvicorn",
-        "telegram_poker_bot.api.main:api_app",
+        "telegram_poker_bot.api.main:app",
         "--host",
         "0.0.0.0",
         "--port",
