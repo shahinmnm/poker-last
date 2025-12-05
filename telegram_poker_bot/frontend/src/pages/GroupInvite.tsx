@@ -63,7 +63,7 @@ export default function GroupInvitePage() {
     return user.first_name || user.username || ''
   }, [user])
 
-  const createInvite = async (authData: string, targetTemplateId: number) => {
+  const createInvite = async (authData: string, targetTemplateId: string) => {
     setState('loading')
     setErrorKey(null)
     try {
