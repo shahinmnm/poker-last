@@ -150,8 +150,9 @@ api_app.include_router(global_waitlist_router, prefix=DEFAULT_API_PREFIX)
 # Template CRUD routes - already expects /api prefix
 api_app.include_router(table_templates_router, prefix=DEFAULT_API_PREFIX)
 
-# Include the unified game router with all table, user, and game endpoints
-api_app.include_router(game_router)
+# NOTE: game_router is included AFTER all endpoints are defined (see below, after line 3382)
+# This is CRITICAL because FastAPI's include_router() only registers routes that exist
+# at the time of the call. Routes added after include_router() are NOT registered.
 
 
 # Pydantic models
@@ -3379,6 +3380,16 @@ async def get_recent_hourly_stats(
         ],
         "count": len(stats),
     }
+
+
+# ============================================================================
+# Mount game_router AFTER all endpoints are defined
+# ============================================================================
+# CRITICAL: This must be done AFTER all @game_router decorated endpoints above.
+# FastAPI's include_router() only registers routes that exist at call time.
+# Moving this before the endpoint definitions would cause all game endpoints
+# (/api/tables, /api/users/me, etc.) to be unreachable!
+api_app.include_router(game_router)
 
 
 @api_app.websocket("/ws/lobby")
