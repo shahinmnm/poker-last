@@ -11,6 +11,7 @@ import hashlib
 from urllib.parse import parse_qsl, urlparse
 
 from fastapi import (
+    APIRouter,
     Body,
     Depends,
     FastAPI,
@@ -80,6 +81,12 @@ logger = get_logger(__name__)
 
 DEFAULT_API_PREFIX = "/api"
 
+# Create a unified APIRouter for all game endpoints (tables, users, etc.)
+# This router is mounted under /api, so all endpoints defined with @game_router
+# will automatically have /api prefix. For example: @game_router.get("/tables")
+# will be accessible at /api/tables
+game_router = APIRouter(prefix=DEFAULT_API_PREFIX, tags=["game"])
+
 
 def _derive_api_path_prefix(api_url: Optional[str]) -> str:
     """Extract a normalized path prefix from the configured API URL."""
@@ -118,25 +125,33 @@ api_app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include admin router
-api_app.include_router(admin_router)
-
-# Import and mount auth routes (Phase 4)
+# Import all routers
 from telegram_poker_bot.api.auth_routes import auth_router
-api_app.include_router(auth_router)
-
-# Import and mount global waitlist routes
 from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
-api_app.include_router(global_waitlist_router, prefix=DEFAULT_API_PREFIX)
-
-# Template CRUD routes
-api_app.include_router(table_templates_router, prefix=DEFAULT_API_PREFIX)
-
-# Import and mount analytics routes (Phase 3 + Phase 4)
 from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
 from telegram_poker_bot.api.analytics_user_routes import analytics_user_router
+
+# Mount all routers with consistent /api prefix
+# Auth router already has /api/auth prefix
+api_app.include_router(auth_router)
+
+# Admin router - mount under /api/admin
+api_app.include_router(admin_router, prefix=DEFAULT_API_PREFIX)
+
+# Analytics routers
+# analytics_admin_router already has /api/admin/analytics prefix built-in
 api_app.include_router(analytics_admin_router)
+# analytics_user_router needs /api prefix
 api_app.include_router(analytics_user_router, prefix=DEFAULT_API_PREFIX)
+
+# Global waitlist routes - already expects /api prefix
+api_app.include_router(global_waitlist_router, prefix=DEFAULT_API_PREFIX)
+
+# Template CRUD routes - already expects /api prefix
+api_app.include_router(table_templates_router, prefix=DEFAULT_API_PREFIX)
+
+# Include the unified game router with all table, user, and game endpoints
+api_app.include_router(game_router)
 
 
 # Pydantic models
@@ -1431,13 +1446,13 @@ async def send_invite_share_message(
         )
 
 
-@api_app.get("/health")
+@game_router.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok", "service": "api"}
 
 
-@api_app.get("/users/me", response_model=UserProfileResponse)
+@game_router.get("/users/me", response_model=UserProfileResponse)
 async def get_current_user_profile(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -1479,7 +1494,7 @@ async def get_current_user_profile(
     )
 
 
-@api_app.post("/users/register", response_model=UserProfileResponse)
+@game_router.post("/users/register", response_model=UserProfileResponse)
 async def register_current_user(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -1511,7 +1526,7 @@ async def register_current_user(
     )
 
 
-@api_app.post(
+@game_router.post(
     "/group-games/invites",
     response_model=GroupInviteResponse,
     status_code=status.HTTP_201_CREATED,
@@ -1588,7 +1603,7 @@ async def create_group_game_invite(
     )
 
 
-@api_app.get(
+@game_router.get(
     "/group-games/invites/{game_id}",
     response_model=GroupInviteStatusResponse,
 )
@@ -1633,7 +1648,7 @@ async def get_group_game_invite(
     )
 
 
-@api_app.post(
+@game_router.post(
     "/group-games/invites/{game_id}/attend",
     response_model=GroupInviteJoinResponse,
 )
@@ -1727,7 +1742,7 @@ async def attend_group_game_invite(
         )
 
 
-@api_app.get("/tables/{table_id}")
+@game_router.get("/tables/{table_id}")
 async def get_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -1753,7 +1768,7 @@ async def get_table(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@api_app.get("/tables/{table_id}/status")
+@game_router.get("/tables/{table_id}/status")
 async def get_table_status(
     table_id: int,
     db: AsyncSession = Depends(get_db),
@@ -1783,7 +1798,7 @@ async def get_table_status(
     return {"active": is_active}
 
 
-@api_app.get("/tables")
+@game_router.get("/tables")
 async def list_tables(
     mode: Optional[str] = None,
     limit: int = 20,
@@ -1834,7 +1849,7 @@ async def list_tables(
     return {"tables": tables}
 
 
-@api_app.get("/games/join", include_in_schema=False)
+@game_router.get("/games/join", include_in_schema=False)
 async def redirect_games_join(code: Optional[str] = Query(default=None)):
     """Redirect legacy join links to the mini app frontend.
 
@@ -1855,7 +1870,7 @@ async def redirect_games_join(code: Optional[str] = Query(default=None)):
     return RedirectResponse(url=target, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 
-@api_app.post("/tables/join-by-invite")
+@game_router.post("/tables/join-by-invite")
 async def join_table_by_invite(
     payload: JoinByInviteRequest,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -1912,7 +1927,7 @@ async def join_table_by_invite(
     }
 
 
-@api_app.post("/tables", status_code=status.HTTP_201_CREATED)
+@game_router.post("/tables", status_code=status.HTTP_201_CREATED)
 async def create_table(
     payload: Optional[TableCreateRequest] = Body(None),
     x_telegram_init_data: Optional[str] = Header(None),
@@ -1962,7 +1977,7 @@ async def create_table(
     return table_info
 
 
-@api_app.post("/tables/{table_id}/sit")
+@game_router.post("/tables/{table_id}/sit")
 async def sit_at_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2046,7 +2061,7 @@ async def sit_at_table(
         raise HTTPException(status_code=400, detail=error_message)
 
 
-@api_app.post("/tables/{table_id}/leave")
+@game_router.post("/tables/{table_id}/leave")
 async def leave_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2141,7 +2156,7 @@ async def leave_table(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@api_app.post("/tables/{table_id}/waitlist/join")
+@game_router.post("/tables/{table_id}/waitlist/join")
 async def join_table_waitlist(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2208,7 +2223,7 @@ async def join_table_waitlist(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@api_app.post("/tables/{table_id}/waitlist/leave")
+@game_router.post("/tables/{table_id}/waitlist/leave")
 async def leave_table_waitlist(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2253,7 +2268,7 @@ async def leave_table_waitlist(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@api_app.get("/tables/{table_id}/waitlist")
+@game_router.get("/tables/{table_id}/waitlist")
 async def get_table_waitlist(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2308,7 +2323,7 @@ async def get_table_waitlist(
     }
 
 
-@api_app.post("/tables/{table_id}/sitout")
+@game_router.post("/tables/{table_id}/sitout")
 async def toggle_sitout(
     table_id: int,
     request: SitOutRequest,
@@ -2357,7 +2372,7 @@ async def toggle_sitout(
     return {"success": True, "is_sitting_out_next_hand": request.sit_out}
 
 
-@api_app.post("/tables/{table_id}/ready")
+@game_router.post("/tables/{table_id}/ready")
 async def mark_ready(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2411,7 +2426,7 @@ async def mark_ready(
     return {"ready_players": ready_info.get("ready_players", [])}
 
 
-@api_app.post("/tables/{table_id}/start")
+@game_router.post("/tables/{table_id}/start")
 async def start_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2461,7 +2476,7 @@ async def start_table(
     return await _attach_template_to_payload(db, table_id, viewer_state)
 
 
-@api_app.post("/tables/{table_id}/next-hand")
+@game_router.post("/tables/{table_id}/next-hand")
 async def start_next_hand(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2501,9 +2516,7 @@ async def start_next_hand(
 
     viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
     return await _attach_template_to_payload(db, table_id, viewer_state)
-
-
-@api_app.post(f"{DEFAULT_API_PREFIX}/tables/{{table_id}}/sng/force-start")
+@game_router.post("/tables/{table_id}/sng/force-start")
 async def force_start_sng_endpoint(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2551,7 +2564,7 @@ async def force_start_sng_endpoint(
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@api_app.get("/tables/{table_id}/state")
+@game_router.get("/tables/{table_id}/state")
 async def get_table_state(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2570,7 +2583,7 @@ async def get_table_state(
         raise HTTPException(status_code=404, detail=str(exc))
 
 
-@api_app.delete("/tables/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
+@game_router.delete("/tables/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_table(
     table_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2667,7 +2680,7 @@ async def delete_table(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@api_app.get("/users/me/stats")
+@game_router.get("/users/me/stats")
 async def get_my_stats(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -2687,7 +2700,7 @@ async def get_my_stats(
     return stats
 
 
-@api_app.get("/users/me/balance")
+@game_router.get("/users/me/balance")
 async def get_my_balance(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -2710,7 +2723,7 @@ async def get_my_balance(
     return balances
 
 
-@api_app.get("/users/me/transactions")
+@game_router.get("/users/me/transactions")
 async def get_my_transactions(
     x_telegram_init_data: Optional[str] = Header(None),
     limit: int = Query(
@@ -2767,7 +2780,7 @@ async def get_my_transactions(
     }
 
 
-@api_app.get("/users/me/avatar")
+@game_router.get("/users/me/avatar")
 async def get_my_avatar(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -2800,7 +2813,7 @@ async def get_my_avatar(
     )
 
 
-@api_app.get("/users/me/tables")
+@game_router.get("/users/me/tables")
 async def get_my_tables(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
@@ -2819,7 +2832,7 @@ async def get_my_tables(
     return {"tables": tables}
 
 
-@api_app.get("/users/me/history")
+@game_router.get("/users/me/history")
 async def get_my_history(
     limit: int = 10,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -2839,7 +2852,7 @@ async def get_my_history(
     return {"games": games}
 
 
-@api_app.post("/tables/{table_id}/actions")
+@game_router.post("/tables/{table_id}/actions")
 async def submit_action(
     table_id: int,
     action: ActionRequest,
@@ -2962,7 +2975,7 @@ async def submit_action(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@api_app.get("/tables/{table_id}/hands")
+@game_router.get("/tables/{table_id}/hands")
 async def get_table_hand_history(
     table_id: int,
     limit: int = Query(default=10, ge=1, le=50),
@@ -2994,7 +3007,7 @@ async def get_table_hand_history(
     }
 
 
-@api_app.get("/hands/{hand_id}/history")
+@game_router.get("/hands/{hand_id}/history")
 async def get_hand_detailed_history(
     hand_id: int,
     x_telegram_init_data: Optional[str] = Header(None),
@@ -3048,7 +3061,7 @@ async def get_hand_detailed_history(
     }
 
 
-@api_app.get("/users/me/hands")
+@game_router.get("/users/me/hands")
 async def get_user_hands(
     limit: int = Query(default=20, ge=1, le=100),
     x_telegram_init_data: Optional[str] = Header(None),
@@ -3095,7 +3108,7 @@ async def get_user_hands(
 # Analytics Endpoints
 
 
-@api_app.get("/analytics/tables/{table_id}/snapshots")
+@game_router.get("/analytics/tables/{table_id}/snapshots")
 async def get_table_snapshots(
     table_id: int,
     hours: int = Query(default=24, ge=1, le=168),
@@ -3140,7 +3153,7 @@ async def get_table_snapshots(
     }
 
 
-@api_app.get("/analytics/tables/{table_id}/hourly-stats")
+@game_router.get("/analytics/tables/{table_id}/hourly-stats")
 async def get_table_hourly_stats(
     table_id: int,
     days: int = Query(default=7, ge=1, le=30),
@@ -3187,7 +3200,7 @@ async def get_table_hourly_stats(
     }
 
 
-@api_app.get("/analytics/snapshots/recent")
+@game_router.get("/analytics/snapshots/recent")
 async def get_recent_snapshots(
     limit: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -3222,7 +3235,7 @@ async def get_recent_snapshots(
     }
 
 
-@api_app.get("/analytics/hourly-stats/recent")
+@game_router.get("/analytics/hourly-stats/recent")
 async def get_recent_hourly_stats(
     limit: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
