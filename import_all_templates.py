@@ -80,10 +80,12 @@ def generate_admin_jwt() -> str:
     # Token expires in 24 hours (per requirements specification)
     expire = now + timedelta(hours=24)
     
+    # System script JWT payload - uses user_id 0 and admin role
+    # to authenticate with backend API endpoints that require admin access
     payload = {
-        "user_id": "admin-script",
-        "is_admin": True,
-        "role": "superadmin",
+        "sub": 0,  # System script user ID
+        "token_type": "access",
+        "roles": ["admin"],
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
