@@ -30,7 +30,7 @@ from telegram_poker_bot.shared.services.rbac_middleware import (
 
 logger = get_logger(__name__)
 
-auth_router = APIRouter(prefix="/auth", tags=["auth"])
+auth_router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 # ==================== Request/Response Models ====================
