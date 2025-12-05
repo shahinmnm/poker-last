@@ -289,6 +289,19 @@ class Table(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    is_auto_generated = Column(
+        Boolean,
+        nullable=False,
+        server_default="false",
+        default=False,
+    )
+    lobby_persistent = Column(
+        Boolean,
+        nullable=False,
+        server_default="false",
+        default=False,
+        index=True,
+    )
 
     # Relationships
     group = relationship("Group", back_populates="tables")
