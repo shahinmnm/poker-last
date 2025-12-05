@@ -81,9 +81,9 @@ def generate_admin_jwt() -> str:
     expire = now + timedelta(hours=24)
     
     payload = {
-        "user_id": "admin-script",
-        "is_admin": True,
-        "role": "superadmin",
+        "sub": 0,  # System script user ID
+        "token_type": "access",
+        "roles": ["admin"],
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
