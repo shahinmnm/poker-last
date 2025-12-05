@@ -3408,6 +3408,41 @@ async def lobby_websocket_endpoint(websocket: WebSocket):
     await lobby_manager.connect(websocket)
     ping_task = None
 
+    # Send initial snapshot on connect
+    # Frontend expects this to transition from 'syncing_snapshot' to 'live' state
+    async with get_db_session() as db:
+        try:
+            # Fetch public tables using the same logic as GET /api/tables?lobby_persistent=true
+            tables = await table_service.list_available_tables(
+                db,
+                limit=100,  # Reasonable limit for lobby
+                mode=None,
+                viewer_user_id=None,
+                scope="public",
+                redis_client=None,
+            )
+            
+            # Send snapshot message matching frontend expectation
+            await websocket.send_json({
+                "type": "lobby_snapshot",
+                "tables": tables,
+            })
+            
+            logger.info(
+                "Sent lobby snapshot on connect",
+                table_count=len(tables),
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to send lobby snapshot",
+                error=str(exc),
+            )
+            # Send empty snapshot to unblock frontend
+            await websocket.send_json({
+                "type": "lobby_snapshot",
+                "tables": [],
+            })
+
     async def send_pings():
         try:
             while True:

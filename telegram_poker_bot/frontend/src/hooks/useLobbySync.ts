@@ -92,7 +92,38 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       onMessage: (message) => {
         const lobbyMessage = message as unknown as LobbyDeltaMessage
 
-        if (lobbyMessage.type === 'lobby_update') {
+        if (lobbyMessage.type === 'lobby_snapshot') {
+          // Initial snapshot from server - replace entire table list
+          const snapshotTables = lobbyMessage.tables || []
+          const lobbyEntries: LobbyEntry[] = snapshotTables.map((t: {
+            table_id: number
+            template?: { name?: string; config?: { stakes?: string } }
+            table_name?: string
+            game_variant?: string
+            player_count?: number
+            max_players?: number
+            waitlist_count?: number
+            uptime?: number
+            expires_at?: string
+            table_type?: string
+            is_private?: boolean
+          }) => ({
+            table_id: t.table_id,
+            template_name: t.template?.name || t.table_name || 'Unknown',
+            variant: t.game_variant || 'holdem',
+            stakes: t.template?.config?.stakes || 'Unknown',
+            player_count: t.player_count || 0,
+            max_players: t.max_players || 9,
+            waitlist_count: t.waitlist_count || 0,
+            uptime: t.uptime,
+            expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
+            table_type: t.table_type || 'public',
+            invite_only: t.is_private || false,
+          }))
+          
+          setTables(lobbyEntries)
+          console.log('[useLobbySync] Received lobby snapshot', { tableCount: lobbyEntries.length })
+        } else if (lobbyMessage.type === 'lobby_update') {
           const entry = lobbyMessage.payload as LobbyEntry
           setTables((prev) => {
             const index = prev.findIndex((t) => t.table_id === entry.table_id)
@@ -112,6 +143,53 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
         } else if (lobbyMessage.type === 'table_removed') {
           const { table_id } = lobbyMessage.payload as { table_id: number }
           setTables((prev) => prev.filter((t) => t.table_id !== table_id))
+        } else if (lobbyMessage.type === 'TABLE_REMOVED') {
+          // Backend sends uppercase event type
+          const table_id = (lobbyMessage as { table_id?: number }).table_id
+          if (table_id) {
+            setTables((prev) => prev.filter((t) => t.table_id !== table_id))
+          }
+        } else if (lobbyMessage.type === 'TABLE_UPDATED') {
+          // Backend sends uppercase event type with table payload
+          const tablePayload = (lobbyMessage as { table?: unknown }).table
+          if (tablePayload) {
+            const t = tablePayload as {
+              table_id: number
+              template?: { name?: string; config?: { stakes?: string } }
+              table_name?: string
+              game_variant?: string
+              player_count?: number
+              max_players?: number
+              waitlist_count?: number
+              uptime?: number
+              expires_at?: string
+              table_type?: string
+              is_private?: boolean
+            }
+            const entry: LobbyEntry = {
+              table_id: t.table_id,
+              template_name: t.template?.name || t.table_name || 'Unknown',
+              variant: t.game_variant || 'holdem',
+              stakes: t.template?.config?.stakes || 'Unknown',
+              player_count: t.player_count || 0,
+              max_players: t.max_players || 9,
+              waitlist_count: t.waitlist_count || 0,
+              uptime: t.uptime,
+              expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
+              table_type: t.table_type || 'public',
+              invite_only: t.is_private || false,
+            }
+            setTables((prev) => {
+              const index = prev.findIndex((t) => t.table_id === entry.table_id)
+              if (index >= 0) {
+                const updated = [...prev]
+                updated[index] = entry
+                return updated
+              } else {
+                return [...prev, entry]
+              }
+            })
+          }
         }
       },
       onStateChange: (newState) => {
