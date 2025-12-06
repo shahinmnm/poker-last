@@ -6,6 +6,7 @@ expired by the inactivity checker even when they have no players.
 
 import pytest
 from datetime import datetime, timezone
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram_poker_bot.shared.models import (
@@ -13,9 +14,11 @@ from telegram_poker_bot.shared.models import (
     Table,
     TableStatus,
     TableTemplateType,
+    Seat,
 )
 from telegram_poker_bot.shared.services import table_service
 from telegram_poker_bot.shared.services import table_lifecycle
+from telegram_poker_bot.tests.conftest import create_test_template
 
 
 @pytest.mark.asyncio
@@ -27,8 +30,6 @@ async def test_lobby_persistent_table_not_expired_when_empty(db_session: AsyncSe
     await db_session.flush()
 
     # Create a CASH_GAME template (not PERSISTENT)
-    from telegram_poker_bot.tests.conftest import create_test_template
-
     template = await create_test_template(
         db_session,
         name="Lobby Table Template",
@@ -60,9 +61,6 @@ async def test_lobby_persistent_table_not_expired_when_empty(db_session: AsyncSe
     await db_session.refresh(table)
 
     # The table should have no players and no expiration time
-    from sqlalchemy import select
-    from telegram_poker_bot.shared.models import Seat
-
     result = await db_session.execute(
         select(Seat).where(Seat.table_id == table.id, Seat.left_at.is_(None))
     )
@@ -110,8 +108,6 @@ async def test_non_lobby_persistent_cash_game_table_is_expired_when_empty(
     await db_session.flush()
 
     # Create a CASH_GAME template
-    from telegram_poker_bot.tests.conftest import create_test_template
-
     template = await create_test_template(
         db_session,
         name="Regular Cash Game Template",
@@ -188,8 +184,6 @@ async def test_persistent_template_type_tables_not_expired_when_empty(
     await db_session.flush()
 
     # Create a PERSISTENT template with waitlist
-    from telegram_poker_bot.tests.conftest import create_test_template
-
     template = await create_test_template(
         db_session,
         name="Persistent Template",
