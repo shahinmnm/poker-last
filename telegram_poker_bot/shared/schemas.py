@@ -64,6 +64,9 @@ class TableTemplateConfig(BaseModel):
     backend: Dict[str, Any]
     ui_schema: TemplateUISchema
 
+    class Config:
+        extra = "allow"  # Allow extra fields like auto_create, lobby_persistent, etc.
+
     @validator("backend")
     def validate_backend(cls, value: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(value, dict) or not value:

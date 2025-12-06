@@ -37,25 +37,37 @@ async def get_existing_table_count(
     Returns:
         Number of existing tables
     """
-    query = select(func.count(Table.id)).where(Table.template_id == template_id)
-    
     if lobby_persistent_only:
-        # Filter for lobby-persistent tables by checking config_json
-        # We need to join with template to access config
-        query = (
-            select(func.count(Table.id))
-            .select_from(Table)
+        # For SQLite compatibility, we need to check the config_json differently
+        # Use a simple count after filtering in Python
+        result = await db.execute(
+            select(Table)
             .join(TableTemplate, Table.template_id == TableTemplate.id)
-            .where(
-                Table.template_id == template_id,
-                # Check if lobby_persistent is true in template config
-                TableTemplate.config_json["lobby_persistent"].astext.cast(db.bind.dialect.BOOLEAN) == True,  # noqa: E712
-            )
+            .where(Table.template_id == template_id)
         )
-    
-    result = await db.execute(query)
-    count = result.scalar() or 0
-    return count
+        tables = result.scalars().all()
+        
+        # Filter for lobby_persistent in Python (works with both PostgreSQL and SQLite)
+        count = 0
+        for table in tables:
+            # Get the template for this table
+            template_result = await db.execute(
+                select(TableTemplate).where(TableTemplate.id == table.template_id)
+            )
+            template = template_result.scalar_one_or_none()
+            if template:
+                config = template.config_json or {}
+                if config.get("lobby_persistent", False):
+                    count += 1
+        
+        return count
+    else:
+        # Simple count without filtering
+        result = await db.execute(
+            select(func.count(Table.id)).where(Table.template_id == template_id)
+        )
+        count = result.scalar() or 0
+        return count
 
 
 async def safe_commit_with_retry(db: AsyncSession, max_retries: int = MAX_RETRIES) -> bool:
