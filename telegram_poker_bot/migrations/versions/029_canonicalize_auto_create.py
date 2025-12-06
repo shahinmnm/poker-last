@@ -93,7 +93,7 @@ def upgrade() -> None:
             # Update the template using parameter binding
             import json
             connection.execute(
-                sa.text("UPDATE table_templates SET config_json = :config::jsonb WHERE id = :id"),
+                sa.text("UPDATE table_templates SET config_json = CAST(:config AS jsonb) WHERE id = :id"),
                 {"config": json.dumps(config_json), "id": template_id}
             )
             templates_updated += 1
