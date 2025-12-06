@@ -20,15 +20,15 @@ class TestAutoCreateOnAPICall:
     
     async def test_create_template_with_auto_create(self, db_session):
         """Test that creating a template with auto_create creates tables."""
-        # Create config with auto_create
+        # Create config with auto_create (canonical schema only)
         config = create_test_template_config(
             small_blind=10,
             big_blind=20,
             starting_stack=1000,
             max_players=6,
         )
-        config["lobby_persistent"] = True
-        config["is_auto_generated"] = True
+        # Do NOT add lobby_persistent or is_auto_generated to config
+        # These belong ONLY in the tables DB columns
         config["auto_create"] = {
             "enabled": True,
             "min_tables": 2,
@@ -47,11 +47,10 @@ class TestAutoCreateOnAPICall:
         )
         await db_session.commit()
         
-        # Check that tables were created
+        # Check that auto-generated tables were created
         count = await get_existing_table_count(
             db_session,
             template.id,
-            lobby_persistent_only=True,
         )
         
         assert count == 2, f"Expected 2 tables, got {count}"
@@ -88,9 +87,8 @@ class TestRepairMissingTables:
     
     async def test_repair_creates_missing_tables(self, db_session):
         """Test that repair creates missing tables."""
-        # Create template with auto_create
+        # Create template with auto_create (canonical schema)
         config = create_test_template_config()
-        config["lobby_persistent"] = True
         config["auto_create"] = {
             "enabled": True,
             "min_tables": 3,
@@ -141,7 +139,6 @@ class TestNoDoubleCreation:
     async def test_idempotency(self, db_session):
         """Test that calling ensure_tables_for_template multiple times doesn't create duplicates."""
         config = create_test_template_config()
-        config["lobby_persistent"] = True
         config["auto_create"] = {
             "enabled": True,
             "min_tables": 2,
@@ -180,7 +177,6 @@ class TestMaxTablesRespected:
     async def test_max_tables_limit(self, db_session):
         """Test that tables are not created beyond max_tables."""
         config = create_test_template_config()
-        config["lobby_persistent"] = True
         config["auto_create"] = {
             "enabled": True,
             "min_tables": 2,
@@ -217,9 +213,8 @@ class TestGetExistingTableCount:
     """Test get_existing_table_count function."""
     
     async def test_count_lobby_persistent_tables(self, db_session):
-        """Test counting lobby-persistent tables only."""
+        """Test counting auto-generated tables."""
         config = create_test_template_config()
-        config["lobby_persistent"] = True
         config["auto_create"] = {
             "enabled": True,
             "min_tables": 1,
@@ -237,10 +232,9 @@ class TestGetExistingTableCount:
         )
         await db_session.commit()
         
-        # Should have 1 lobby-persistent table
+        # Should have 1 auto-generated table
         count = await get_existing_table_count(
             db_session,
             template.id,
-            lobby_persistent_only=True,
         )
         assert count == 1
