@@ -1274,52 +1274,111 @@ async def monitor_sng_join_windows():
             await asyncio.sleep(5)  # Back off on error
 
 
-async def startup_auto_create_repair():
-    """Repair missing tables for templates with auto_create enabled on startup."""
+async def startup_auto_create_tables():
+    """Automatically create and maintain tables based on templates upon application startup.
+    
+    This function is the single source of truth for ensuring tables exist for templates
+    with auto_create enabled. It replaces the deprecated repair_auto_create.py script.
+    
+    Creates its own isolated database session to avoid asyncio loop conflicts.
+    
+    Process:
+    1. Query all active TableTemplates from the database
+    2. Audit all templates to flag any with legacy auto_create fields
+    3. For each template with auto_create.enabled=true and auto_create.on_startup_repair=true:
+       a. Count existing auto-generated tables
+       b. Calculate deficit (min_tables - current count)
+       c. Create required tables with is_auto_generated=true and lobby_persistent set appropriately
+    4. Log all actions clearly for observability
+    """
     from telegram_poker_bot.shared.models import TableTemplate
     from telegram_poker_bot.services.table_auto_creator import ensure_tables_for_template
     from telegram_poker_bot.shared.validators import validate_auto_create_config
     
     try:
-        logger.info("Starting auto-create repair on startup")
+        logger.info("=" * 80)
+        logger.info("STARTUP AUTO-CREATE: Beginning table auto-creation process")
+        logger.info("=" * 80)
         
+        # Create isolated database session to avoid asyncio loop conflicts
         async with get_db_session() as db:
-            # Fetch all active templates
+            # Query all active templates
             result = await db.execute(
                 select(TableTemplate).where(TableTemplate.is_active == True)  # noqa: E712
             )
             templates = result.scalars().all()
             
             total_templates = len(templates)
+            templates_with_auto_create = 0
             templates_processed = 0
             tables_created = 0
-            templates_with_auto_create = 0
+            templates_with_invalid_config = 0
+            templates_with_legacy_fields = 0
             
+            logger.info(f"Found {total_templates} active template(s) in database")
+            
+            # Step 5: Audit existing templates for legacy fields
             for template in templates:
                 config_json = template.config_json or {}
                 auto_create_dict = config_json.get("auto_create")
                 
+                if not auto_create_dict or not isinstance(auto_create_dict, dict):
+                    continue
+                
+                # Check for forbidden legacy fields in auto_create block
+                forbidden_fields = {"lobby_persistent", "is_auto_generated"}
+                found_legacy_fields = forbidden_fields & set(auto_create_dict.keys())
+                
+                if found_legacy_fields:
+                    templates_with_legacy_fields += 1
+                    logger.error(
+                        f"STARTUP AUTO-CREATE: Template '{template.name}' has LEGACY FIELDS in auto_create block",
+                        template_id=template.id,
+                        template_name=template.name,
+                        legacy_fields=list(found_legacy_fields),
+                        message="These fields belong in the tables DB columns, NOT in auto_create config. "
+                                "Migration 029 should have removed them. Please investigate.",
+                    )
+            
+            if templates_with_legacy_fields > 0:
+                logger.warning(
+                    f"=" * 80 + "\n"
+                    f"WARNING: {templates_with_legacy_fields} template(s) contain LEGACY FIELDS in auto_create.\n"
+                    f"Migration 029 (canonicalize_auto_create) should have cleaned these up.\n"
+                    f"These templates may not function correctly. Please review the database.\n"
+                    f"=" * 80
+                )
+            
+            # Process templates for auto-creation
+            for template in templates:
+                config_json = template.config_json or {}
+                auto_create_dict = config_json.get("auto_create")
+                
+                # Skip templates without auto_create config
                 if not auto_create_dict:
                     continue
                 
+                # Validate auto_create configuration
                 try:
                     auto_create_config = validate_auto_create_config(auto_create_dict)
                 except ValueError as exc:
-                    logger.warning(
-                        "Invalid auto_create config for template",
+                    templates_with_invalid_config += 1
+                    logger.error(
+                        "STARTUP AUTO-CREATE: Invalid auto_create config detected",
                         template_id=template.id,
                         template_name=template.name,
                         error=str(exc),
                     )
                     continue
                 
+                # Skip if auto_create is disabled
                 if not auto_create_config:
                     continue
                 
-                # Check if on_startup_repair is enabled
+                # Skip if on_startup_repair is false
                 if not auto_create_config.on_startup_repair:
                     logger.debug(
-                        "Skipping template - on_startup_repair is false",
+                        f"Skipping template '{template.name}' - on_startup_repair is false",
                         template_id=template.id,
                         template_name=template.name,
                     )
@@ -1327,7 +1386,16 @@ async def startup_auto_create_repair():
                 
                 templates_with_auto_create += 1
                 
-                # Ensure tables for this template
+                # Log template being processed
+                logger.info(
+                    f"Processing template '{template.name}' with auto-create enabled",
+                    template_id=template.id,
+                    template_name=template.name,
+                    min_tables=auto_create_config.min_tables,
+                    max_tables=auto_create_config.max_tables,
+                )
+                
+                # Ensure minimum tables exist
                 result_dict = await ensure_tables_for_template(
                     db,
                     template,
@@ -1336,27 +1404,53 @@ async def startup_auto_create_repair():
                 
                 if result_dict.get("success"):
                     templates_processed += 1
-                    tables_created += result_dict.get("tables_created", 0)
+                    created_count = result_dict.get("tables_created", 0)
+                    existing_count = result_dict.get("tables_existing", 0)
+                    tables_created += created_count
                     
-                    if result_dict.get("tables_created", 0) > 0:
+                    if created_count > 0:
                         logger.info(
-                            "Repaired tables for template on startup",
+                            f"Created {created_count} table(s) for template '{template.name}' to meet min_tables={auto_create_config.min_tables}",
                             template_id=template.id,
                             template_name=template.name,
-                            tables_created=result_dict.get("tables_created"),
+                            tables_created=created_count,
+                            existing_count=existing_count,
+                            total_count=existing_count + created_count,
                         )
+                    else:
+                        logger.info(
+                            f"Template '{template.name}' already has sufficient tables ({existing_count}/{auto_create_config.min_tables})",
+                            template_id=template.id,
+                            template_name=template.name,
+                            existing_count=existing_count,
+                        )
+                else:
+                    logger.error(
+                        f"Failed to ensure tables for template '{template.name}'",
+                        template_id=template.id,
+                        template_name=template.name,
+                    )
             
-            logger.info(
-                "Completed auto-create repair on startup",
-                total_templates=total_templates,
-                templates_with_auto_create=templates_with_auto_create,
-                templates_processed=templates_processed,
-                tables_created=tables_created,
-            )
+            logger.info("=" * 80)
+            logger.info("STARTUP AUTO-CREATE: Summary")
+            logger.info("=" * 80)
+            logger.info(f"Total active templates: {total_templates}")
+            logger.info(f"Templates with legacy fields: {templates_with_legacy_fields}")
+            logger.info(f"Templates with auto_create enabled: {templates_with_auto_create}")
+            logger.info(f"Templates processed successfully: {templates_processed}")
+            logger.info(f"Templates with invalid config: {templates_with_invalid_config}")
+            logger.info(f"Total tables created: {tables_created}")
+            logger.info("=" * 80)
+            
+            if templates_with_invalid_config > 0:
+                logger.warning(
+                    f"WARNING: {templates_with_invalid_config} template(s) have invalid auto_create configs. "
+                    "These templates will not auto-create tables. Please review and fix."
+                )
     
     except Exception as exc:
         logger.error(
-            "Error during startup auto-create repair",
+            "STARTUP AUTO-CREATE: Fatal error during table auto-creation",
             error=str(exc),
             exc_info=True,
         )
@@ -1367,8 +1461,9 @@ async def startup_event():
     """Start background tasks on application startup."""
     global _auto_fold_task, _inactivity_check_task, _sng_monitor_task
     
-    # Run auto-create repair BEFORE starting background tasks
-    await startup_auto_create_repair()
+    # Run auto-create BEFORE starting background tasks
+    # This is the zero-touch system that ensures tables exist on startup
+    await startup_auto_create_tables()
     
     _auto_fold_task = asyncio.create_task(auto_fold_expired_actions())
     _inactivity_check_task = asyncio.create_task(check_table_inactivity())
