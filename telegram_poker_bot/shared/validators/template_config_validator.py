@@ -1,12 +1,27 @@
-"""Validator for table template configurations including auto_create block."""
+"""Validator for table template configurations including auto_create block.
+
+DEPRECATED: This module contains legacy validation logic. New code should use:
+- telegram_poker_bot.shared.schemas.AutoCreateConfig (Pydantic model)
+- telegram_poker_bot.shared.services.template_normalizer.TemplateNormalizer
+
+This module is kept for backward compatibility with table_auto_creator service.
+
+Note: The old AutoCreateConfig dataclass has different fields than the new Pydantic model:
+- Old: enabled, min_tables, max_tables, on_startup_repair, allow_missing_runtime
+- New: min_tables, max_tables, lobby_persistent, is_auto_generated
+"""
 
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
 
 @dataclass
-class AutoCreateConfig:
-    """Validated auto-create configuration."""
+class LegacyAutoCreateConfig:
+    """Legacy auto-create configuration dataclass.
+    
+    DEPRECATED: Use telegram_poker_bot.shared.schemas.AutoCreateConfig instead.
+    This is kept for backward compatibility with existing services.
+    """
     
     enabled: bool
     min_tables: int
@@ -15,14 +30,21 @@ class AutoCreateConfig:
     allow_missing_runtime: bool
 
 
-def validate_auto_create_config(config: Dict[str, Any]) -> Optional[AutoCreateConfig]:
+# Alias for backward compatibility
+AutoCreateConfig = LegacyAutoCreateConfig
+
+
+def validate_auto_create_config(config: Dict[str, Any]) -> Optional[LegacyAutoCreateConfig]:
     """Validate and parse auto_create configuration block.
+    
+    DEPRECATED: Use telegram_poker_bot.shared.schemas.AutoCreateConfig instead.
+    This function will be removed in version 2.0. Please migrate to the new Pydantic model.
     
     Args:
         config: The auto_create config dictionary
         
     Returns:
-        AutoCreateConfig if enabled and valid, None if disabled or missing
+        LegacyAutoCreateConfig if enabled and valid, None if disabled or missing
         
     Raises:
         ValueError: If configuration is invalid
@@ -82,7 +104,7 @@ def validate_auto_create_config(config: Dict[str, Any]) -> Optional[AutoCreateCo
     if not isinstance(allow_missing_runtime, bool):
         raise ValueError("auto_create.allow_missing_runtime must be a boolean")
     
-    return AutoCreateConfig(
+    return LegacyAutoCreateConfig(
         enabled=enabled,
         min_tables=min_tables,
         max_tables=max_tables,
@@ -91,14 +113,17 @@ def validate_auto_create_config(config: Dict[str, Any]) -> Optional[AutoCreateCo
     )
 
 
-def extract_auto_create_config(template_config: Dict[str, Any]) -> Optional[AutoCreateConfig]:
+def extract_auto_create_config(template_config: Dict[str, Any]) -> Optional[LegacyAutoCreateConfig]:
     """Extract and validate auto_create config from a template's config_json.
+    
+    DEPRECATED: Use telegram_poker_bot.shared.services.template_normalizer instead.
+    This function will be removed in version 2.0. Please use TemplateNormalizer.normalize_config().
     
     Args:
         template_config: Full template config_json dictionary
         
     Returns:
-        AutoCreateConfig if enabled and valid, None otherwise
+        LegacyAutoCreateConfig if enabled and valid, None otherwise
         
     Raises:
         ValueError: If auto_create configuration is invalid

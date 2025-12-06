@@ -159,23 +159,45 @@ def parse_json_file(filepath: str) -> List[Dict[str, Any]]:
 def normalize_template(template: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalize legacy template structure into API payload format.
+    
+    Transforms legacy structures into canonical format:
+    - Maps backend.template_name -> name
+    - Maps backend.game_type -> table_type (cash -> CASH_GAME, tournament -> TOURNAMENT)
+    - Ensures backend, ui_schema, and auto_create blocks exist
     """
     backend = template.get("backend", {})
     ui_schema = template.get("ui_schema") or template.get("ui") or {}
 
+    # Extract name from backend.template_name or top-level name
     name = backend.get("template_name") or template.get("name") or "Unknown"
+    
+    # Map game_type to table_type
     raw_game_type = (backend.get("game_type") or "").lower()
-    table_type = "CASH_GAME" if raw_game_type == "cash" else "TOURNAMENT" if raw_game_type == "tournament" else raw_game_type.upper()
-    if not table_type:
+    if raw_game_type == "cash":
         table_type = "CASH_GAME"
+    elif raw_game_type == "tournament":
+        table_type = "TOURNAMENT"
+    elif raw_game_type:
+        table_type = raw_game_type.upper()
+    else:
+        table_type = "CASH_GAME"  # Default
+
+    # Build canonical config_json structure
+    config_json = {
+        "backend": backend,
+        "ui_schema": ui_schema,
+        "auto_create": {
+            "min_tables": 1,
+            "max_tables": 2,
+            "lobby_persistent": True,
+            "is_auto_generated": True,
+        },
+    }
 
     return {
         "name": name,
         "table_type": table_type,
-        "config_json": {
-            "backend": backend,
-            "ui_schema": ui_schema,
-        },
+        "config_json": config_json,
     }
 
 
