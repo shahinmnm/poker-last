@@ -486,7 +486,7 @@ async def list_tables_analytics(
     query = query.offset(offset).limit(per_page)
     
     result = await db.execute(query)
-    tables = result.scalars().all()
+    tables = list(result.scalars())
     
     # Get analytics for each table
     tables_analytics = []
@@ -911,14 +911,14 @@ async def get_table_hands(
     query = query.order_by(Hand.id.desc()).limit(limit)
     
     result = await db.execute(query)
-    hands = result.scalars().all()
+    hands = list(result.scalars())
     
     # Get hand analytics for detailed info
     hand_ids = [h.id for h in hands]
     analytics_result = await db.execute(
         select(HandAnalytics).where(HandAnalytics.hand_id.in_(hand_ids))
     )
-    analytics_by_hand_id = {a.hand_id: a for a in analytics_result.scalars().all()}
+    analytics_by_hand_id = {a.hand_id: a for a in list(analytics_result.scalars())}
     
     hands_data = []
     for hand in hands:
@@ -987,7 +987,7 @@ async def get_hand_details(
         .where(HandHistoryEvent.hand_id == hand_id)
         .order_by(HandHistoryEvent.sequence.asc())
     )
-    events = events_result.scalars().all()
+    events = list(events_result.scalars())
     
     # Log admin query
     jwt_service = get_jwt_auth_service()

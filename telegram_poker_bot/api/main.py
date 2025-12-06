@@ -679,7 +679,7 @@ async def check_table_inactivity():
                             Table.status.in_([TableStatus.ACTIVE, TableStatus.WAITING])
                         )
                     )
-                    tables = result.scalars().all()
+                    tables = list(result.scalars())
 
                     for table in tables:
                         try:
@@ -689,7 +689,7 @@ async def check_table_inactivity():
                                     Seat.left_at.is_(None),
                                 )
                             )
-                            active_seats = seats_result.scalars().all()
+                            active_seats = list(seats_result.scalars())
                             active_player_count = len(
                                 [
                                     seat
@@ -918,7 +918,7 @@ async def auto_fold_expired_actions():
                     result = await db.execute(
                         select(Table).where(Table.status == TableStatus.ACTIVE)
                     )
-                    active_tables = result.scalars().all()
+                    active_tables = list(result.scalars())
 
                     for table in active_tables:
                         try:
@@ -1192,7 +1192,7 @@ async def monitor_sng_join_windows():
                         Table.status == TableStatus.WAITING,
                     )
                 )
-                tables = result.scalars().all()
+                tables = list(result.scalars())
                 
                 for table in tables:
                     try:
@@ -1306,7 +1306,7 @@ async def startup_auto_create_tables():
             result = await db.execute(
                 select(TableTemplate).where(TableTemplate.is_active == True)  # noqa: E712
             )
-            templates = result.scalars().all()
+            templates = list(result.scalars())
             
             total_templates = len(templates)
             templates_with_auto_create = 0
@@ -1690,7 +1690,7 @@ async def health_check_auto_create(db: AsyncSession = Depends(get_db)):
         result = await db.execute(
             select(TableTemplate).where(TableTemplate.is_active == True)  # noqa: E712
         )
-        templates = result.scalars().all()
+        templates = list(result.scalars())
         
         template_count = 0
         tables_created = 0
@@ -2690,7 +2690,7 @@ async def get_table_waitlist(
     # Get user information for each entry
     user_ids = [entry.user_id for entry in entries]
     result = await db.execute(select(User).where(User.id.in_(user_ids)))
-    users_by_id = {u.id: u for u in result.scalars().all()}
+    users_by_id = {u.id: u for u in list(result.scalars())}
 
     # Build response
     waitlist_data = []
@@ -3386,7 +3386,7 @@ async def get_table_hand_history(
         .order_by(HandHistory.hand_no.desc())
         .limit(limit)
     )
-    histories = result.scalars().all()
+    histories = list(result.scalars())
 
     return {
         "hands": [
@@ -3423,12 +3423,12 @@ async def get_hand_detailed_history(
         .where(HandHistoryEvent.hand_id == hand_id)
         .order_by(HandHistoryEvent.sequence.asc())
     )
-    events = events_result.scalars().all()
+    events = list(events_result.scalars())
 
     # Get usernames for actors
     user_ids = {e.actor_user_id for e in events if e.actor_user_id}
     users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
-    users = {u.id: u.username for u in users_result.scalars().all()}
+    users = {u.id: u.username for u in list(users_result.scalars())}
 
     return {
         "hand": {
@@ -3483,7 +3483,7 @@ async def get_user_hands(
         .limit(limit)
         .distinct()
     )
-    histories = result.scalars().all()
+    histories = list(result.scalars())
 
     return {
         "hands": [
@@ -3530,7 +3530,7 @@ async def get_table_snapshots(
         )
         .order_by(TableSnapshot.snapshot_time.desc())
     )
-    snapshots = result.scalars().all()
+    snapshots = list(result.scalars())
     
     return {
         "table_id": table_id,
@@ -3575,7 +3575,7 @@ async def get_table_hourly_stats(
         )
         .order_by(HourlyTableStats.hour_start.desc())
     )
-    stats = result.scalars().all()
+    stats = list(result.scalars())
     
     return {
         "table_id": table_id,
@@ -3612,7 +3612,7 @@ async def get_recent_snapshots(
         .order_by(TableSnapshot.snapshot_time.desc())
         .limit(limit)
     )
-    snapshots = result.scalars().all()
+    snapshots = list(result.scalars())
     
     return {
         "snapshots": [
@@ -3647,7 +3647,7 @@ async def get_recent_hourly_stats(
         .order_by(HourlyTableStats.hour_start.desc())
         .limit(limit)
     )
-    stats = result.scalars().all()
+    stats = list(result.scalars())
     
     return {
         "hourly_stats": [
