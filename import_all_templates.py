@@ -167,6 +167,7 @@ def normalize_template(template: Dict[str, Any]) -> Dict[str, Any]:
     """
     backend = template.get("backend", {})
     ui_schema = template.get("ui_schema") or template.get("ui") or {}
+    auto_create = template.get("auto_create", {})
 
     # Extract name from backend.template_name or top-level name
     name = backend.get("template_name") or template.get("name") or "Unknown"
@@ -182,16 +183,20 @@ def normalize_template(template: Dict[str, Any]) -> Dict[str, Any]:
     else:
         table_type = "CASH_GAME"  # Default
 
+    # Use auto_create from template if present, otherwise use defaults
+    if not auto_create:
+        auto_create = {
+            "enabled": True,
+            "min_tables": 1,
+            "max_tables": 2,
+            "on_startup_repair": True,
+        }
+
     # Build canonical config_json structure
     config_json = {
         "backend": backend,
         "ui_schema": ui_schema,
-        "auto_create": {
-            "min_tables": 1,
-            "max_tables": 2,
-            "lobby_persistent": True,
-            "is_auto_generated": True,
-        },
+        "auto_create": auto_create,
     }
 
     return {
