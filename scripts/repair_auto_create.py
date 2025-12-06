@@ -48,12 +48,6 @@ def canonicalize_auto_create(config_json: Dict[str, Any]) -> tuple[Dict[str, Any
     # Define canonical fields
     canonical_fields = {"enabled", "min_tables", "max_tables", "on_startup_repair", "allow_missing_runtime"}
     
-    # Check for invalid fields
-    invalid_fields = set(auto_create.keys()) - canonical_fields
-    
-    if not invalid_fields:
-        return config_json, False
-    
     # Create new auto_create with only canonical fields
     new_auto_create = {
         k: v for k, v in auto_create.items() 
@@ -72,10 +66,14 @@ def canonicalize_auto_create(config_json: Dict[str, Any]) -> tuple[Dict[str, Any
     if "allow_missing_runtime" not in new_auto_create:
         new_auto_create["allow_missing_runtime"] = True
     
-    # Update config
-    config_json["auto_create"] = new_auto_create
+    # Check if anything changed
+    was_modified = (auto_create != new_auto_create)
     
-    return config_json, True
+    if was_modified:
+        # Update config
+        config_json["auto_create"] = new_auto_create
+    
+    return config_json, was_modified
 
 
 async def canonicalize_templates(dry_run: bool = False) -> Dict[str, Any]:
