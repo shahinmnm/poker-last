@@ -25,49 +25,26 @@ async def get_existing_table_count(
     db: AsyncSession,
     template_id: UUID,
     *,
-    lobby_persistent_only: bool = True,
+    lobby_persistent_only: bool = False,
 ) -> int:
     """Count existing tables for a template.
     
     Args:
         db: Database session
         template_id: Template UUID
-        lobby_persistent_only: If True, only count lobby-persistent tables
+        lobby_persistent_only: Deprecated. Kept for backward compatibility.
         
     Returns:
-        Number of existing tables
+        Number of existing auto-generated tables
     """
-    if lobby_persistent_only:
-        # For SQLite compatibility, we need to check the config_json differently
-        # Use a simple count after filtering in Python
-        result = await db.execute(
-            select(Table)
-            .join(TableTemplate, Table.template_id == TableTemplate.id)
-            .where(Table.template_id == template_id)
-        )
-        tables = result.scalars().all()
-        
-        # Filter for lobby_persistent in Python (works with both PostgreSQL and SQLite)
-        count = 0
-        for table in tables:
-            # Get the template for this table
-            template_result = await db.execute(
-                select(TableTemplate).where(TableTemplate.id == table.template_id)
-            )
-            template = template_result.scalar_one_or_none()
-            if template:
-                config = template.config_json or {}
-                if config.get("lobby_persistent", False):
-                    count += 1
-        
-        return count
-    else:
-        # Simple count without filtering
-        result = await db.execute(
-            select(func.count(Table.id)).where(Table.template_id == template_id)
-        )
-        count = result.scalar() or 0
-        return count
+    # Count all auto-generated tables for this template
+    result = await db.execute(
+        select(func.count(Table.id))
+        .where(Table.template_id == template_id)
+        .where(Table.is_auto_generated == True)  # noqa: E712
+    )
+    count = result.scalar() or 0
+    return count
 
 
 async def safe_commit_with_retry(db: AsyncSession, max_retries: int = MAX_RETRIES) -> bool:
@@ -128,24 +105,21 @@ async def create_single_table(
     db: AsyncSession,
     template: TableTemplate,
     *,
-    auto_generated: bool = True,
+    on_startup_repair: bool = False,
 ) -> Optional[Table]:
     """Create a single table from a template.
     
     Args:
         db: Database session
         template: TableTemplate to create from
-        auto_generated: Mark table as auto-generated
+        on_startup_repair: Value from auto_create.on_startup_repair to set lobby_persistent
         
     Returns:
         Created Table instance or None on failure
     """
     try:
-        # Check if template config has lobby_persistent flag
-        config = template.config_json or {}
-        lobby_persistent = config.get("lobby_persistent", False)
-        is_auto_generated = config.get("is_auto_generated", auto_generated)
-        
+        # Always set is_auto_generated=True and lobby_persistent based on on_startup_repair
+        # These fields come from the auto_create config, NOT from the template config_json
         table = await table_service.create_table(
             db,
             creator_user_id=None,  # System-generated
@@ -153,8 +127,8 @@ async def create_single_table(
             mode=GameMode.ANONYMOUS,
             group_id=None,
             auto_seat_creator=False,
-            lobby_persistent=lobby_persistent,
-            is_auto_generated=is_auto_generated,
+            lobby_persistent=on_startup_repair,
+            is_auto_generated=True,
         )
         
         await db.flush()
@@ -164,8 +138,8 @@ async def create_single_table(
             template_id=template.id,
             template_name=template.name,
             table_id=table.id,
-            lobby_persistent=lobby_persistent,
-            is_auto_generated=is_auto_generated,
+            lobby_persistent=on_startup_repair,
+            is_auto_generated=True,
         )
         
         return table
@@ -232,19 +206,20 @@ async def ensure_tables_for_template(
                 return result
         
         if not auto_create_config:
-            # Auto-create disabled
+            # Auto-create disabled (enabled=False)
             result["success"] = True
             return result
         
         min_tables = auto_create_config.min_tables
         max_tables = auto_create_config.max_tables
+        on_startup_repair = auto_create_config.on_startup_repair
         result["target_min"] = min_tables
         
-        # Count existing tables
+        # Count existing auto-generated tables (not from template config)
         existing_count = await get_existing_table_count(
             db,
             template.id,
-            lobby_persistent_only=True,
+            lobby_persistent_only=False,  # Count all auto-generated tables
         )
         result["tables_existing"] = existing_count
         
@@ -274,9 +249,9 @@ async def ensure_tables_for_template(
         if existing_count + tables_to_create > max_tables:
             tables_to_create = max(0, max_tables - existing_count)
         
-        # Create tables
+        # Create tables with on_startup_repair value
         for i in range(tables_to_create):
-            table = await create_single_table(db, template)
+            table = await create_single_table(db, template, on_startup_repair=on_startup_repair)
             if table:
                 result["tables_created"] += 1
             else:

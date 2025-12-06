@@ -59,18 +59,32 @@ class TemplateUISchema(BaseModel):
 
 
 class AutoCreateConfig(BaseModel):
-    """Auto-create configuration for lobby-persistent tables."""
+    """Auto-create configuration for lobby-persistent tables.
+    
+    Canonical schema - these are the ONLY allowed fields:
+    - enabled: boolean (required)
+    - min_tables: int (required)
+    - max_tables: int (required)
+    - on_startup_repair: boolean (required)
+    - allow_missing_runtime: boolean (required)
+    
+    Fields like lobby_persistent and is_auto_generated belong ONLY in the tables DB table,
+    not in the template config.
+    """
+    
+    model_config = ConfigDict(extra="forbid")  # Strictly forbid any extra fields
 
-    min_tables: int = Field(default=1, ge=0, description="Minimum number of tables to maintain")
-    max_tables: int = Field(default=2, ge=1, description="Maximum number of tables to create")
-    lobby_persistent: bool = Field(default=True, description="Whether tables should persist in lobby")
-    is_auto_generated: bool = Field(default=True, description="Whether tables are auto-generated")
+    enabled: bool = Field(description="Whether auto-creation is enabled")
+    min_tables: int = Field(ge=0, description="Minimum number of tables to maintain")
+    max_tables: int = Field(ge=1, description="Maximum number of tables to create")
+    on_startup_repair: bool = Field(description="Whether to repair missing tables on startup")
+    allow_missing_runtime: bool = Field(description="Whether to allow missing tables at runtime")
 
     @field_validator("max_tables")
     @classmethod
     def validate_max_tables(cls, v: int, info) -> int:
         """Ensure max_tables is at least min_tables."""
-        min_tables = info.data.get("min_tables", 1)
+        min_tables = info.data.get("min_tables", 0)
         if v < min_tables:
             raise ValueError(f"max_tables ({v}) must be >= min_tables ({min_tables})")
         return v
@@ -83,7 +97,7 @@ class TableTemplateConfig(BaseModel):
 
     backend: Dict[str, Any]
     ui_schema: TemplateUISchema
-    auto_create: AutoCreateConfig = Field(default_factory=AutoCreateConfig)
+    auto_create: Optional[AutoCreateConfig] = Field(default=None)
 
     @field_validator("backend")
     @classmethod
@@ -91,11 +105,4 @@ class TableTemplateConfig(BaseModel):
         if not isinstance(value, dict) or not value:
             raise ValueError("backend must be a non-empty object")
         return value
-
-    @model_validator(mode="after")
-    def ensure_auto_create(self) -> "TableTemplateConfig":
-        """Ensure auto_create block exists with defaults if missing."""
-        if self.auto_create is None:
-            self.auto_create = AutoCreateConfig()
-        return self
 
