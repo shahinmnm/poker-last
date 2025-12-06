@@ -41,7 +41,7 @@ async def get_existing_table_count(
     result = await db.execute(
         select(func.count(Table.id))
         .where(Table.template_id == template_id)
-        .where(Table.is_auto_generated == True)  # noqa: E712
+        .where(Table.is_auto_generated)
     )
     count = result.scalar() or 0
     return count
