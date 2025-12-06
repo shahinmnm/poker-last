@@ -16,7 +16,10 @@ echo "Templates directory: templates/"
 echo "----------------------------------------"
 
 # Count JSON files in templates directory
-template_count=$(find templates -name "*.json" -type f 2>/dev/null | wc -l || echo "0")
+template_count=$(find templates -name "*.json" -type f 2>/dev/null | wc -l | tr -d '[:space:]')
+
+# Default to 0 if empty
+template_count=${template_count:-0}
 
 if [ "$template_count" -eq 0 ]; then
     echo "⚠ WARNING: No JSON template files found in templates/ directory"
