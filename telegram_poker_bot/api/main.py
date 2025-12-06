@@ -1274,10 +1274,102 @@ async def monitor_sng_join_windows():
             await asyncio.sleep(5)  # Back off on error
 
 
+async def startup_auto_create_repair():
+    """Repair missing tables for templates with auto_create enabled on startup."""
+    from telegram_poker_bot.shared.models import TableTemplate
+    from telegram_poker_bot.services.table_auto_creator import ensure_tables_for_template
+    from telegram_poker_bot.shared.validators import validate_auto_create_config
+    
+    try:
+        logger.info("Starting auto-create repair on startup")
+        
+        async with get_db_session() as db:
+            # Fetch all active templates
+            result = await db.execute(
+                select(TableTemplate).where(TableTemplate.is_active == True)  # noqa: E712
+            )
+            templates = result.scalars().all()
+            
+            total_templates = len(templates)
+            templates_processed = 0
+            tables_created = 0
+            templates_with_auto_create = 0
+            
+            for template in templates:
+                config_json = template.config_json or {}
+                auto_create_dict = config_json.get("auto_create")
+                
+                if not auto_create_dict:
+                    continue
+                
+                try:
+                    auto_create_config = validate_auto_create_config(auto_create_dict)
+                except ValueError as exc:
+                    logger.warning(
+                        "Invalid auto_create config for template",
+                        template_id=template.id,
+                        template_name=template.name,
+                        error=str(exc),
+                    )
+                    continue
+                
+                if not auto_create_config:
+                    continue
+                
+                # Check if on_startup_repair is enabled
+                if not auto_create_config.on_startup_repair:
+                    logger.debug(
+                        "Skipping template - on_startup_repair is false",
+                        template_id=template.id,
+                        template_name=template.name,
+                    )
+                    continue
+                
+                templates_with_auto_create += 1
+                
+                # Ensure tables for this template
+                result_dict = await ensure_tables_for_template(
+                    db,
+                    template,
+                    auto_create_config=auto_create_config,
+                )
+                
+                if result_dict.get("success"):
+                    templates_processed += 1
+                    tables_created += result_dict.get("tables_created", 0)
+                    
+                    if result_dict.get("tables_created", 0) > 0:
+                        logger.info(
+                            "Repaired tables for template on startup",
+                            template_id=template.id,
+                            template_name=template.name,
+                            tables_created=result_dict.get("tables_created"),
+                        )
+            
+            logger.info(
+                "Completed auto-create repair on startup",
+                total_templates=total_templates,
+                templates_with_auto_create=templates_with_auto_create,
+                templates_processed=templates_processed,
+                tables_created=tables_created,
+            )
+    
+    except Exception as exc:
+        logger.error(
+            "Error during startup auto-create repair",
+            error=str(exc),
+            exc_info=True,
+        )
+
+
 @api_app.on_event("startup")
 async def startup_event():
     """Start background tasks on application startup."""
     global _auto_fold_task, _inactivity_check_task, _sng_monitor_task
+    
+    # Run auto-create repair BEFORE starting background tasks
+    await startup_auto_create_repair()
+    
     _auto_fold_task = asyncio.create_task(auto_fold_expired_actions())
     _inactivity_check_task = asyncio.create_task(check_table_inactivity())
     _sng_monitor_task = asyncio.create_task(monitor_sng_join_windows())
@@ -1483,6 +1575,95 @@ async def send_invite_share_message(
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok", "service": "api"}
+
+
+@game_router.get("/health/auto-create")
+async def health_check_auto_create(db: AsyncSession = Depends(get_db)):
+    """Auto-create system health check endpoint.
+    
+    Returns detailed status of the auto-create system including:
+    - Number of templates with auto_create enabled
+    - Number of tables created vs expected
+    - Overall health status
+    """
+    from telegram_poker_bot.shared.models import TableTemplate
+    from telegram_poker_bot.services.table_auto_creator import get_existing_table_count
+    from telegram_poker_bot.shared.validators import validate_auto_create_config
+    
+    try:
+        # Fetch all active templates
+        result = await db.execute(
+            select(TableTemplate).where(TableTemplate.is_active == True)  # noqa: E712
+        )
+        templates = result.scalars().all()
+        
+        template_count = 0
+        tables_created = 0
+        tables_missing = 0
+        repairs_needed = 0
+        
+        for template in templates:
+            config_json = template.config_json or {}
+            auto_create_dict = config_json.get("auto_create")
+            
+            if not auto_create_dict:
+                continue
+            
+            try:
+                auto_create_config = validate_auto_create_config(auto_create_dict)
+            except ValueError:
+                continue
+            
+            if not auto_create_config:
+                continue
+            
+            template_count += 1
+            
+            # Count existing tables
+            existing_count = await get_existing_table_count(
+                db,
+                template.id,
+                lobby_persistent_only=True,
+            )
+            
+            min_tables = auto_create_config.min_tables
+            
+            if existing_count >= min_tables:
+                tables_created += existing_count
+            else:
+                tables_created += existing_count
+                missing = min_tables - existing_count
+                tables_missing += missing
+                repairs_needed += 1
+        
+        # Determine overall status
+        if tables_missing > 0:
+            health_status = "degraded"
+        else:
+            health_status = "healthy"
+        
+        return {
+            "status": health_status,
+            "template_count": template_count,
+            "tables_created": tables_created,
+            "tables_missing": tables_missing,
+            "repairs_needed": repairs_needed,
+        }
+    
+    except Exception as exc:
+        logger.error(
+            "Error in auto-create health check",
+            error=str(exc),
+            exc_info=True,
+        )
+        return {
+            "status": "error",
+            "template_count": 0,
+            "tables_created": 0,
+            "tables_missing": 0,
+            "repairs_needed": 0,
+            "error": str(exc),
+        }
 
 
 @game_router.get("/users/me", response_model=UserProfileResponse)
