@@ -36,6 +36,10 @@ RUN pip install --no-cache-dir -r /tmp/runtime-requirements.txt
 # Copy application code without flattening the package structure
 COPY telegram_poker_bot/ /opt/app/telegram_poker_bot/
 
+# Copy root-level scripts and templates directories
+COPY scripts/ /opt/app/scripts/
+COPY templates/ /opt/app/templates/
+
 # Verify runtime environment matches PokerKit requirements
 RUN python - <<'PY'
 import sys
