@@ -20,9 +20,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,9 +29,18 @@ from telegram_poker_bot.shared.logging import configure_logging, get_logger
 from telegram_poker_bot.shared.models import TableTemplate, TableTemplateType
 from telegram_poker_bot.shared.services import table_service
 from telegram_poker_bot.shared.types import TableTemplateCreateRequest
+from telegram_poker_bot.services.table_auto_creator import ensure_tables_for_template
 
 configure_logging()
 logger = get_logger(__name__)
+
+# Default auto_create configuration used when templates don't specify it
+DEFAULT_AUTO_CREATE_CONFIG = {
+    "enabled": True,
+    "min_tables": 1,
+    "max_tables": 2,
+    "on_startup_repair": True,
+}
 
 
 def scan_json_files(templates_dir: Path) -> List[Path]:
@@ -98,14 +104,9 @@ def normalize_template(template: Dict[str, Any]) -> Dict[str, Any]:
     else:
         table_type = TableTemplateType.CASH_GAME  # Default
     
-    # Ensure auto_create has required fields
+    # Use template's auto_create or default if not provided
     if not auto_create:
-        auto_create = {
-            "enabled": True,
-            "min_tables": 1,
-            "max_tables": 2,
-            "on_startup_repair": True,
-        }
+        auto_create = DEFAULT_AUTO_CREATE_CONFIG.copy()
     
     # Build config_json
     config_json = {
@@ -152,17 +153,13 @@ async def upsert_template(
         await db.flush()
         
         # Auto-create tables if needed
-        try:
-            from telegram_poker_bot.services.table_auto_creator import ensure_tables_for_template
-            result_dict = await ensure_tables_for_template(db, existing_template)
-            if result_dict.get("success"):
-                logger.info(
-                    f"Auto-creation check completed for template '{name}'",
-                    tables_created=result_dict.get("tables_created", 0),
-                    tables_existing=result_dict.get("tables_existing", 0),
-                )
-        except Exception as exc:
-            logger.error(f"Failed to auto-create tables for template '{name}': {exc}")
+        result_dict = await ensure_tables_for_template(db, existing_template)
+        if result_dict.get("success"):
+            logger.info(
+                f"Auto-creation check completed for template '{name}'",
+                tables_created=result_dict.get("tables_created", 0),
+                tables_existing=result_dict.get("tables_existing", 0),
+            )
         
         return existing_template, False
     else:

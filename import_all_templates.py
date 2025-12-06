@@ -68,6 +68,14 @@ if not JWT_SECRET_KEY or JWT_SECRET_KEY.strip() == "":
 # Never print the secret key for security
 JWT_ALGORITHM = "HS256"
 
+# Default auto_create configuration - matches scripts/import_templates_on_startup.py
+DEFAULT_AUTO_CREATE_CONFIG = {
+    "enabled": True,
+    "min_tables": 1,
+    "max_tables": 2,
+    "on_startup_repair": True,
+}
+
 
 def generate_admin_jwt() -> str:
     """
@@ -183,14 +191,9 @@ def normalize_template(template: Dict[str, Any]) -> Dict[str, Any]:
     else:
         table_type = "CASH_GAME"  # Default
 
-    # Use auto_create from template if present, otherwise use defaults
+    # Use template's auto_create or default if not provided
     if not auto_create:
-        auto_create = {
-            "enabled": True,
-            "min_tables": 1,
-            "max_tables": 2,
-            "on_startup_repair": True,
-        }
+        auto_create = DEFAULT_AUTO_CREATE_CONFIG.copy()
 
     # Build canonical config_json structure
     config_json = {

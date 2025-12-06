@@ -100,11 +100,13 @@ This is a quick reference for adding new poker table templates to the system.
 
 ## Common Game Variants
 
-```
-no_limit_texas_holdem    - No-Limit Hold'em
-pot_limit_omaha          - Pot-Limit Omaha
-no_limit_short_deck_holdem - Short Deck (6+)
-```
+Supported `game_variant` values:
+- `no_limit_texas_holdem` - No-Limit Texas Hold'em
+- `pot_limit_omaha` - Pot-Limit Omaha
+- `no_limit_short_deck_holdem` - Short Deck (6+ Hold'em)
+- `limit_texas_holdem` - Limit Texas Hold'em
+
+Note: Check the codebase for the complete list of supported variants in `telegram_poker_bot/shared/models.py`
 
 ## Validation Checklist
 
