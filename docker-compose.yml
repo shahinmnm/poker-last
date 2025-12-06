@@ -63,6 +63,24 @@ services:
         condition: service_healthy
     restart: "no"
 
+  template_import:
+    build: *backend-build
+    image: pokerbot/backend:latest
+    pull_policy: never
+    container_name: pokerbot_template_import
+    command:
+      [
+        "bash",
+        "telegram_poker_bot/scripts/import_templates.sh"
+      ]
+    env_file: *backend-env-file
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    restart: "no"
+
   bot:
     build: *backend-build
     image: pokerbot/backend:latest
@@ -81,6 +99,8 @@ services:
       redis:
         condition: service_healthy
       migrations:
+        condition: service_completed_successfully
+      template_import:
         condition: service_completed_successfully
     restart: unless-stopped
     ports:
@@ -107,6 +127,8 @@ services:
       redis:
         condition: service_healthy
       migrations:
+        condition: service_completed_successfully
+      template_import:
         condition: service_completed_successfully
     restart: unless-stopped
     ports:

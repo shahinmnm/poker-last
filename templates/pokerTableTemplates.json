@@ -56,6 +56,12 @@
         "show_speed": true,
         "show_buyin": true
       }
+    },
+    "auto_create": {
+      "enabled": true,
+      "min_tables": 1,
+      "max_tables": 3,
+      "on_startup_repair": true
     }
   },
   {
@@ -115,6 +121,12 @@
         "show_speed": true,
         "show_buyin": true
       }
+    },
+    "auto_create": {
+      "enabled": true,
+      "min_tables": 1,
+      "max_tables": 2,
+      "on_startup_repair": true
     }
   },
   {
@@ -174,6 +186,12 @@
         "show_speed": true,
         "show_buyin": true
       }
+    },
+    "auto_create": {
+      "enabled": true,
+      "min_tables": 1,
+      "max_tables": 2,
+      "on_startup_repair": true
     }
   },
   {
@@ -233,6 +251,12 @@
         "show_speed": true,
         "show_buyin": true
       }
+    },
+    "auto_create": {
+      "enabled": true,
+      "min_tables": 1,
+      "max_tables": 2,
+      "on_startup_repair": true
     }
   },
   {
@@ -292,6 +316,12 @@
         "show_speed": true,
         "show_buyin": true
       }
+    },
+    "auto_create": {
+      "enabled": true,
+      "min_tables": 1,
+      "max_tables": 2,
+      "on_startup_repair": true
     }
   },
   {
@@ -351,6 +381,12 @@
         "show_speed": true,
         "show_buyin": true
       }
+    },
+    "auto_create": {
+      "enabled": true,
+      "min_tables": 1,
+      "max_tables": 2,
+      "on_startup_repair": true
     }
   }
 ]
