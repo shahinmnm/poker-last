@@ -54,11 +54,14 @@ class TemplateNormalizer:
             return dict(auto_create)
         
         # Return default auto_create config
+        # NOTE: lobby_persistent and is_auto_generated are Table model columns,
+        # NOT auto_create config fields (see migration 029)
         return {
+            "enabled": True,
             "min_tables": 1,
             "max_tables": 2,
-            "lobby_persistent": True,
-            "is_auto_generated": True,
+            "on_startup_repair": True,
+            "allow_missing_runtime": True,
         }
 
     @staticmethod
