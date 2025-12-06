@@ -38,6 +38,7 @@ def validate_auto_create_config(config: Dict[str, Any]) -> Optional[LegacyAutoCr
     """Validate and parse auto_create configuration block.
     
     DEPRECATED: Use telegram_poker_bot.shared.schemas.AutoCreateConfig instead.
+    This function will be removed in version 2.0. Please migrate to the new Pydantic model.
     
     Args:
         config: The auto_create config dictionary
@@ -116,6 +117,7 @@ def extract_auto_create_config(template_config: Dict[str, Any]) -> Optional[Lega
     """Extract and validate auto_create config from a template's config_json.
     
     DEPRECATED: Use telegram_poker_bot.shared.services.template_normalizer instead.
+    This function will be removed in version 2.0. Please use TemplateNormalizer.normalize_config().
     
     Args:
         template_config: Full template config_json dictionary

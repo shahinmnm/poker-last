@@ -83,7 +83,11 @@ class TemplateNormalizer:
         # Validate max_players range
         max_players = backend.get("max_players")
         if max_players is not None:
-            max_players_int = int(max_players)
+            try:
+                max_players_int = int(max_players)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"max_players must be an integer, got {max_players}") from exc
+            
             if max_players_int < 2 or max_players_int > 8:
                 raise ValueError(f"max_players must be between 2 and 8, got {max_players_int}")
 

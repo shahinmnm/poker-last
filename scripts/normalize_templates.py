@@ -72,11 +72,24 @@ async def main(repair: bool = False):
     
     print_separator()
     
+    # Validate database configuration
+    try:
+        db_url = settings.DATABASE_URL
+        if not db_url:
+            raise ValueError("DATABASE_URL is not configured in settings")
+    except Exception as exc:
+        print(f"\n❌ Error: Failed to get database configuration: {exc}")
+        return 1
+    
     # Create database engine
-    engine = create_async_engine(
-        settings.DATABASE_URL,
-        echo=False,
-    )
+    try:
+        engine = create_async_engine(
+            db_url,
+            echo=False,
+        )
+    except Exception as exc:
+        print(f"\n❌ Error: Failed to create database engine: {exc}")
+        return 1
     
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     
