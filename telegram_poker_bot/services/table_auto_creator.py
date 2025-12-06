@@ -1,6 +1,6 @@
 """Table auto-creation service for maintaining persistent lobby tables."""
 
-import time
+import asyncio
 from typing import Optional, Dict, Any
 from uuid import UUID
 
@@ -99,7 +99,7 @@ async def safe_commit_with_retry(db: AsyncSession, max_retries: int = MAX_RETRIE
                         error=str(exc),
                     )
                     await db.rollback()
-                    time.sleep(backoff)
+                    await asyncio.sleep(backoff)  # Use asyncio.sleep instead of time.sleep
                     backoff = min(backoff * 2, MAX_BACKOFF)
                     continue
             

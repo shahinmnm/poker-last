@@ -1,7 +1,6 @@
 """Integration tests for table auto-creation."""
 
 import pytest
-import pytest_asyncio
 
 from telegram_poker_bot.shared.models import TableTemplateType, Table
 from telegram_poker_bot.services.table_auto_creator import (
