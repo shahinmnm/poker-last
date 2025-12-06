@@ -195,6 +195,15 @@ def validate_template_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
     _validate_backend_rules(backend_dict)
 
+    # Validate auto_create config if present
+    auto_create = config.get("auto_create")
+    if auto_create:
+        from telegram_poker_bot.shared.validators import validate_auto_create_config
+        try:
+            validate_auto_create_config(auto_create)
+        except ValueError as exc:
+            raise ValueError(f"Invalid auto_create config: {exc}") from exc
+
     extras = {k: v for k, v in config.items() if k not in {"backend", "ui_schema"}}
     normalized = {
         "backend": backend_dict,
@@ -458,32 +467,27 @@ async def create_table_template(
     db.add(template)
     await db.flush()
     
-    # Auto-create a table from this template after successful template creation
+    # Auto-create tables based on auto_create config
     try:
-        # Use creator_user_id=None for auto-generated tables
-        # The creator_user_id is nullable in the database schema
-        auto_table = await create_table(
-            db,
-            creator_user_id=None,  # System-generated, no specific user
-            template_id=template.id,
-            mode=GameMode.ANONYMOUS,
-            group_id=None,
-            auto_seat_creator=False,
-            lobby_persistent=True,
-            is_auto_generated=True,
-        )
-        logger.info(
-            "Auto-created table from template",
-            template_id=template.id,
-            template_name=template.name,
-            table_id=auto_table.id,
-            lobby_persistent=True,
-            is_auto_generated=True,
-        )
+        from telegram_poker_bot.services.table_auto_creator import ensure_tables_for_template
+        result = await ensure_tables_for_template(db, template)
+        if result.get("success"):
+            logger.info(
+                "Auto-created tables for new template",
+                template_id=template.id,
+                template_name=template.name,
+                tables_created=result.get("tables_created", 0),
+            )
+        else:
+            logger.warning(
+                "Failed to auto-create tables for new template",
+                template_id=template.id,
+                template_name=template.name,
+            )
     except Exception as exc:
         # Log error but don't block template creation
         logger.error(
-            "Failed to auto-create table from template",
+            "Failed to auto-create tables from template",
             template_id=template.id,
             template_name=template.name,
             error=str(exc),
