@@ -81,9 +81,12 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
 
   const wsManagerRef = useRef<WebSocketManager | null>(null)
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Fetch tables from REST API
-  const fetchTables = useCallback(async () => {
+  
+  // Store fetch function in a ref so it can be called without being in dependencies
+  const fetchTablesRef = useRef<() => Promise<void>>()
+  
+  // Define the fetch function
+  fetchTablesRef.current = async () => {
     try {
       const response = await fetch(resolveApiUrl('/tables', { lobby_persistent: true }))
       if (!response.ok) {
@@ -98,17 +101,19 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
     } catch (error) {
       console.error('[useLobbySync] Failed to fetch tables:', error)
     }
-  }, [])
+  }
 
   // Initialize WebSocket manager
   useEffect(() => {
     if (!enabled) return
 
     // Initial fetch
-    fetchTables()
+    fetchTablesRef.current?.()
 
     // Setup periodic refresh
-    refreshTimerRef.current = setInterval(fetchTables, refreshInterval)
+    refreshTimerRef.current = setInterval(() => {
+      fetchTablesRef.current?.()
+    }, refreshInterval)
 
     const wsManager = createLobbyWebSocket({
       onMessage: (message) => {
@@ -183,15 +188,15 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       wsManager.disconnect()
       wsManagerRef.current = null
     }
-  }, [enabled, refreshInterval, fetchTables])
+  }, [enabled, refreshInterval])
 
   const reconnect = useCallback(() => {
     wsManagerRef.current?.connect()
   }, [])
 
   const refresh = useCallback(() => {
-    fetchTables()
-  }, [fetchTables])
+    fetchTablesRef.current?.()
+  }, [])
 
   const isConnected = connectionState !== 'disconnected'
 
