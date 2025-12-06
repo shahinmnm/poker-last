@@ -82,11 +82,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
   const wsManagerRef = useRef<WebSocketManager | null>(null)
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   
-  // Store fetch function in a ref so it can be called without being in dependencies
-  const fetchTablesRef = useRef<() => Promise<void>>()
-  
-  // Define the fetch function
-  fetchTablesRef.current = async () => {
+  // Create a stable fetch function using useCallback
+  const fetchTables = useCallback(async () => {
     try {
       const response = await fetch(resolveApiUrl('/tables', { lobby_persistent: true }))
       if (!response.ok) {
@@ -101,19 +98,17 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
     } catch (error) {
       console.error('[useLobbySync] Failed to fetch tables:', error)
     }
-  }
+  }, []) // Empty deps - function is stable across renders
 
   // Initialize WebSocket manager
   useEffect(() => {
     if (!enabled) return
 
     // Initial fetch
-    fetchTablesRef.current?.()
+    fetchTables()
 
     // Setup periodic refresh
-    refreshTimerRef.current = setInterval(() => {
-      fetchTablesRef.current?.()
-    }, refreshInterval)
+    refreshTimerRef.current = setInterval(fetchTables, refreshInterval)
 
     const wsManager = createLobbyWebSocket({
       onMessage: (message) => {
@@ -188,6 +183,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       wsManager.disconnect()
       wsManagerRef.current = null
     }
+    // fetchTables is stable (empty deps in useCallback), no need to include in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, refreshInterval])
 
   const reconnect = useCallback(() => {
@@ -195,8 +192,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
   }, [])
 
   const refresh = useCallback(() => {
-    fetchTablesRef.current?.()
-  }, [])
+    fetchTables()
+  }, [fetchTables])
 
   const isConnected = connectionState !== 'disconnected'
 
