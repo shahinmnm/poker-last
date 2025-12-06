@@ -570,7 +570,11 @@ async def update_table_template(
         new_config = payload.config_json.model_dump() if hasattr(payload.config_json, "model_dump") else dict(payload.config_json or {})
         
         # Normalize the new config first
-        normalized_new = validate_template_config(new_config)
+        try:
+            normalized_new = validate_template_config(new_config)
+        except ValueError as exc:
+            logger.error("Failed to normalize new config during update", error=str(exc))
+            raise
         
         # Deep merge: merge backend, ui_schema, and auto_create separately
         merged = {
@@ -580,7 +584,12 @@ async def update_table_template(
         }
         
         # Validate the merged config
-        final_config = validate_template_config(merged)
+        try:
+            final_config = validate_template_config(merged)
+        except ValueError as exc:
+            logger.error("Failed to validate merged config during update", error=str(exc), merged=merged)
+            raise
+        
         template.config_json = final_config
 
     if payload.name is not None:

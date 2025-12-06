@@ -136,6 +136,8 @@ async def update_table_template(
     try:
         template = await table_service.update_table_template(db, template_id, payload)
         await db.commit()
+        # Re-fetch template to ensure we have the latest from DB
+        template = await db.get(TableTemplate, template_id)
     except ValueError as exc:
         await db.rollback()
         message = str(exc)
