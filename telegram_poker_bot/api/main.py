@@ -1284,11 +1284,12 @@ async def startup_auto_create_tables():
     
     Process:
     1. Query all active TableTemplates from the database
-    2. For each template with auto_create.enabled=true and auto_create.on_startup_repair=true:
+    2. Audit all templates to flag any with legacy auto_create fields
+    3. For each template with auto_create.enabled=true and auto_create.on_startup_repair=true:
        a. Count existing auto-generated tables
        b. Calculate deficit (min_tables - current count)
        c. Create required tables with is_auto_generated=true and lobby_persistent set appropriately
-    3. Log all actions clearly for observability
+    4. Log all actions clearly for observability
     """
     from telegram_poker_bot.shared.models import TableTemplate
     from telegram_poker_bot.services.table_auto_creator import ensure_tables_for_template
@@ -1312,9 +1313,43 @@ async def startup_auto_create_tables():
             templates_processed = 0
             tables_created = 0
             templates_with_invalid_config = 0
+            templates_with_legacy_fields = 0
             
             logger.info(f"Found {total_templates} active template(s) in database")
             
+            # Step 5: Audit existing templates for legacy fields
+            for template in templates:
+                config_json = template.config_json or {}
+                auto_create_dict = config_json.get("auto_create")
+                
+                if not auto_create_dict or not isinstance(auto_create_dict, dict):
+                    continue
+                
+                # Check for forbidden legacy fields in auto_create block
+                forbidden_fields = {"lobby_persistent", "is_auto_generated"}
+                found_legacy_fields = forbidden_fields & set(auto_create_dict.keys())
+                
+                if found_legacy_fields:
+                    templates_with_legacy_fields += 1
+                    logger.error(
+                        f"STARTUP AUTO-CREATE: Template '{template.name}' has LEGACY FIELDS in auto_create block",
+                        template_id=template.id,
+                        template_name=template.name,
+                        legacy_fields=list(found_legacy_fields),
+                        message="These fields belong in the tables DB columns, NOT in auto_create config. "
+                                "Migration 029 should have removed them. Please investigate.",
+                    )
+            
+            if templates_with_legacy_fields > 0:
+                logger.warning(
+                    f"=" * 80 + "\n"
+                    f"WARNING: {templates_with_legacy_fields} template(s) contain LEGACY FIELDS in auto_create.\n"
+                    f"Migration 029 (canonicalize_auto_create) should have cleaned these up.\n"
+                    f"These templates may not function correctly. Please review the database.\n"
+                    f"=" * 80
+                )
+            
+            # Process templates for auto-creation
             for template in templates:
                 config_json = template.config_json or {}
                 auto_create_dict = config_json.get("auto_create")
@@ -1400,6 +1435,7 @@ async def startup_auto_create_tables():
             logger.info("STARTUP AUTO-CREATE: Summary")
             logger.info("=" * 80)
             logger.info(f"Total active templates: {total_templates}")
+            logger.info(f"Templates with legacy fields: {templates_with_legacy_fields}")
             logger.info(f"Templates with auto_create enabled: {templates_with_auto_create}")
             logger.info(f"Templates processed successfully: {templates_processed}")
             logger.info(f"Templates with invalid config: {templates_with_invalid_config}")
