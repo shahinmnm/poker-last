@@ -179,37 +179,36 @@ def _validate_backend_rules(backend: Dict[str, Any]) -> None:
 
 
 def validate_template_config(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate template config structure (backend + ui_schema)."""
-
+    """Validate and normalize template config to canonical structure.
+    
+    This function ensures all templates follow the canonical structure:
+    - backend: game rules and settings
+    - ui_schema: UI display configuration
+    - auto_create: auto-creation settings (injected if missing)
+    
+    Args:
+        config: Raw config dictionary
+        
+    Returns:
+        Normalized and validated config dictionary
+        
+    Raises:
+        ValueError: If config is invalid
+    """
+    from telegram_poker_bot.shared.services.template_normalizer import TemplateNormalizer
+    
     if not isinstance(config, dict):
         raise ValueError("config_json must be an object")
 
-    backend = config.get("backend") if "backend" in config else config
-    backend_dict = dict(backend or {})
-    ui_schema_raw = config.get("ui_schema") or DEFAULT_UI_SCHEMA
-
-    try:
-        parsed_ui = TemplateUISchema.parse_obj(ui_schema_raw)
-    except ValidationError as exc:
-        raise ValueError(f"Invalid ui_schema: {exc}") from exc
-
+    # Use normalizer to get canonical structure
+    normalized = TemplateNormalizer.normalize_config(config)
+    
+    # Extract backend for validation
+    backend_dict = normalized.get("backend", {})
+    
+    # Validate backend rules
     _validate_backend_rules(backend_dict)
-
-    # Validate auto_create config if present
-    auto_create = config.get("auto_create")
-    if auto_create:
-        from telegram_poker_bot.shared.validators import validate_auto_create_config
-        try:
-            validate_auto_create_config(auto_create)
-        except ValueError as exc:
-            raise ValueError(f"Invalid auto_create config: {exc}") from exc
-
-    extras = {k: v for k, v in config.items() if k not in {"backend", "ui_schema"}}
-    normalized = {
-        "backend": backend_dict,
-        "ui_schema": parsed_ui.dict(),
-        **extras,
-    }
+    
     return normalized
 
 
@@ -454,7 +453,7 @@ async def create_table_template(
             config_json=config or {},
         )
 
-    raw_config = payload.config_json.dict() if hasattr(payload.config_json, "dict") else dict(payload.config_json or {})
+    raw_config = payload.config_json.model_dump() if hasattr(payload.config_json, "model_dump") else dict(payload.config_json or {})
     config_dict = validate_template_config(raw_config)
 
     template = TableTemplate(
@@ -566,11 +565,23 @@ async def update_table_template(
         raise ValueError(f"TableTemplate {template_id} not found")
 
     if payload.config_json is not None:
-        merged_config = dict(template.config_json or {})
-        new_config = payload.config_json.dict() if hasattr(payload.config_json, "dict") else payload.config_json
-        merged_config.update(new_config or {})
-        validate_template_config(merged_config)
-        template.config_json = merged_config
+        # Get current normalized config
+        current_config = dict(template.config_json or {})
+        new_config = payload.config_json.model_dump() if hasattr(payload.config_json, "model_dump") else dict(payload.config_json or {})
+        
+        # Normalize the new config first
+        normalized_new = validate_template_config(new_config)
+        
+        # Deep merge: merge backend, ui_schema, and auto_create separately
+        merged = {
+            "backend": {**current_config.get("backend", {}), **normalized_new.get("backend", {})},
+            "ui_schema": normalized_new.get("ui_schema", current_config.get("ui_schema", {})),
+            "auto_create": normalized_new.get("auto_create", current_config.get("auto_create", {})),
+        }
+        
+        # Validate the merged config
+        final_config = validate_template_config(merged)
+        template.config_json = final_config
 
     if payload.name is not None:
         template.name = payload.name

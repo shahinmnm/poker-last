@@ -68,7 +68,7 @@ class TableTemplateCreateRequest(BaseModel):
 
     name: str
     table_type: TableTemplateType
-    config_json: TableTemplateConfig
+    config_json: Dict[str, Any]  # Accept any dict, normalize in service layer
     has_waitlist: bool = False
     is_active: bool = True
 
@@ -84,7 +84,7 @@ class TableTemplateUpdateRequest(BaseModel):
     table_type: Optional[TableTemplateType] = None
     has_waitlist: Optional[bool] = None
     is_active: Optional[bool] = None
-    config_json: Optional[TableTemplateConfig] = Field(default=None, alias="config")
+    config_json: Optional[Dict[str, Any]] = Field(default=None, alias="config")  # Accept any dict
 
     class Config:
         allow_population_by_field_name = True
@@ -98,12 +98,13 @@ class TableTemplateResponse(BaseModel):
     table_type: TableTemplateType
     has_waitlist: bool
     is_active: bool = True
-    config_json: TableTemplateConfig
+    config_json: Dict[str, Any]  # Return normalized dict
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
     class Config:
         orm_mode = True
+        populate_by_name = True
 
 
 class GroupGameInviteStatus(str, Enum):
