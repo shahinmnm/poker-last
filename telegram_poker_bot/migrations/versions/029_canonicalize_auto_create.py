@@ -67,7 +67,7 @@ def upgrade() -> None:
     # Fetch all templates with auto_create configs
     # Use text() for raw SQL to be database-agnostic
     result = connection.execute(
-        sa.text("SELECT id, config_json FROM table_templates WHERE config_json::text LIKE '%auto_create%'")
+        sa.text("SELECT id, config_json FROM table_templates WHERE CAST(config_json AS text) LIKE '%auto_create%'")
     )
     
     templates_updated = 0
@@ -93,7 +93,7 @@ def upgrade() -> None:
             # Update the template using parameter binding
             import json
             connection.execute(
-                sa.text("UPDATE table_templates SET config_json = :config::jsonb WHERE id = :id"),
+                sa.text("UPDATE table_templates SET config_json = CAST(:config AS jsonb) WHERE id = :id"),
                 {"config": json.dumps(config_json), "id": template_id}
             )
             templates_updated += 1
