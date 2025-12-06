@@ -140,7 +140,7 @@ async def compute_prestart_expiry(
     result = await db.execute(
         select(Seat).where(Seat.table_id == table.id, Seat.left_at.is_(None))
     )
-    active_seats = result.scalars().all()
+    active_seats = list(result.scalars())
     if not active_seats:
         return True, "no players remaining at table"
 
@@ -197,7 +197,7 @@ async def compute_poststart_inactivity(
             Seat.left_at.is_(None),
         )
     )
-    active_seats = result.scalars().all()
+    active_seats = list(result.scalars())
 
     if not active_seats:
         return True, "no active players remaining"
@@ -267,7 +267,7 @@ async def mark_table_completed_and_cleanup(
             Seat.left_at.is_(None),
         )
     )
-    active_seats = result.scalars().all()
+    active_seats = list(result.scalars())
 
     for seat in active_seats:
         seat.left_at = now

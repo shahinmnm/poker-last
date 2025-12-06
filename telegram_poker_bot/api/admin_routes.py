@@ -94,7 +94,7 @@ async def get_realtime_analytics(
         )
         .order_by(TableSnapshot.table_id)
     )
-    snapshots = result.scalars().all()
+    snapshots = list(result.scalars())
     
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -136,7 +136,7 @@ async def get_hourly_aggregates(
     query = query.order_by(HourlyTableStats.hour_start.desc())
     
     result = await db.execute(query)
-    stats = result.scalars().all()
+    stats = list(result.scalars())
     
     return {
         "period": {
@@ -216,7 +216,7 @@ async def get_historical_range(
         query = query.order_by(HourlyTableStats.hour_start.asc())
         
         result = await db.execute(query)
-        stats = result.scalars().all()
+        stats = list(result.scalars())
         
         return {
             "metric_type": "hourly",
@@ -252,7 +252,7 @@ async def get_historical_range(
         query = query.order_by(TableSnapshot.snapshot_time.asc())
         
         result = await db.execute(query)
-        snapshots = result.scalars().all()
+        snapshots = list(result.scalars())
         
         return {
             "metric_type": "snapshot",
