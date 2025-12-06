@@ -701,11 +701,13 @@ async def check_table_inactivity():
                             )
 
                             if table.status == TableStatus.WAITING and not active_seats:
-                                # Skip persistent tables
-                                if table.template and table.template.table_type == TableTemplateType.PERSISTENT:
+                                # Skip persistent tables and lobby-persistent tables
+                                if (table.template and table.template.table_type == TableTemplateType.PERSISTENT) or table.lobby_persistent:
                                     logger.debug(
-                                        "Skipping cleanup for persistent table with no players",
+                                        "Skipping cleanup for persistent/lobby-persistent table with no players",
                                         table_id=table.id,
+                                        is_persistent_template=(table.template and table.template.table_type == TableTemplateType.PERSISTENT),
+                                        is_lobby_persistent=table.lobby_persistent,
                                     )
                                     continue
                                 
@@ -738,12 +740,14 @@ async def check_table_inactivity():
                                 continue
 
                             if table.status == TableStatus.ACTIVE and active_player_count < 2:
-                                # Skip persistent tables
-                                if table.template and table.template.table_type == TableTemplateType.PERSISTENT:
+                                # Skip persistent tables and lobby-persistent tables
+                                if (table.template and table.template.table_type == TableTemplateType.PERSISTENT) or table.lobby_persistent:
                                     logger.debug(
-                                        "Skipping min-player cleanup for persistent table",
+                                        "Skipping min-player cleanup for persistent/lobby-persistent table",
                                         table_id=table.id,
                                         active_player_count=active_player_count,
+                                        is_persistent_template=(table.template and table.template.table_type == TableTemplateType.PERSISTENT),
+                                        is_lobby_persistent=table.lobby_persistent,
                                     )
                                     continue
                                 
