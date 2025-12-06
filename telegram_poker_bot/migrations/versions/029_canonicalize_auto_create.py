@@ -67,7 +67,7 @@ def upgrade() -> None:
     # Fetch all templates with auto_create configs
     # Use text() for raw SQL to be database-agnostic
     result = connection.execute(
-        sa.text("SELECT id, config_json FROM table_templates WHERE config_json::text LIKE '%auto_create%'")
+        sa.text("SELECT id, config_json FROM table_templates WHERE CAST(config_json AS text) LIKE '%auto_create%'")
     )
     
     templates_updated = 0
