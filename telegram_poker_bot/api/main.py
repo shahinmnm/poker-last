@@ -675,7 +675,9 @@ async def check_table_inactivity():
 
                 async with get_db_session() as db:
                     result = await db.execute(
-                        select(Table).where(
+                        select(Table)
+                        .options(joinedload(Table.template))
+                        .where(
                             Table.status.in_([TableStatus.ACTIVE, TableStatus.WAITING])
                         )
                     )
