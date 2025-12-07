@@ -81,8 +81,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
 
   const wsManagerRef = useRef<WebSocketManager | null>(null)
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Fetch tables from REST API
+  
+  // Create a stable fetch function using useCallback
   const fetchTables = useCallback(async () => {
     try {
       const response = await fetch(resolveApiUrl('/tables', { lobby_persistent: true }))
@@ -98,7 +98,7 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
     } catch (error) {
       console.error('[useLobbySync] Failed to fetch tables:', error)
     }
-  }, [])
+  }, []) // Empty deps - function is stable across renders
 
   // Initialize WebSocket manager
   useEffect(() => {
@@ -183,7 +183,9 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       wsManager.disconnect()
       wsManagerRef.current = null
     }
-  }, [enabled, refreshInterval, fetchTables])
+    // fetchTables is stable (empty deps in useCallback), no need to include in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, refreshInterval])
 
   const reconnect = useCallback(() => {
     wsManagerRef.current?.connect()
