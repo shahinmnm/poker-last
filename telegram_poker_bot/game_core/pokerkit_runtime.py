@@ -141,9 +141,7 @@ class PokerKitTableRuntime:
         active_seats = [
             s
             for s in self.seats
-            if s.left_at is None
-            and s.chips > 0
-            and not s.is_sitting_out_next_hand
+            if s.left_at is None and s.chips > 0 and not s.is_sitting_out_next_hand
         ]
         # Sort by position to ensure canonical ordering
         active_seats.sort(key=lambda s: s.position)
@@ -498,8 +496,12 @@ class PokerKitTableRuntime:
                     "winners": hand_result[
                         "winners"
                     ],  # Full details: ID, Rank, Cards, Amount (post-rake)
-                    "rake_amount": hand_result.get("rake_amount", 0),  # Rake deducted from pot
-                    "total_pot": hand_result.get("total_pot", 0),  # Total pot before rake
+                    "rake_amount": hand_result.get(
+                        "rake_amount", 0
+                    ),  # Rake deducted from pot
+                    "total_pot": hand_result.get(
+                        "total_pot", 0
+                    ),  # Total pot before rake
                     "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)
                     "status": "INTER_HAND_WAIT",
                     "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
@@ -541,7 +543,9 @@ class PokerKitTableRuntime:
                 if self.current_hand:
                     await db.refresh(self.current_hand)
             except Exception:  # Best-effort cleanup
-                logger.warning("Failed to refresh hand after rollback", table_id=self.table.id)
+                logger.warning(
+                    "Failed to refresh hand after rollback", table_id=self.table.id
+                )
             self.ready_players = set()
             self.inter_hand_wait_start = None
             logger.exception(
@@ -771,9 +775,11 @@ class PokerKitTableRuntime:
             players=len(active_seats),
             button_index=button_index,
             actor_index=self.engine.state.actor_index,
-            game_variant=game_variant.value
-            if hasattr(game_variant, "value")
-            else str(game_variant),
+            game_variant=(
+                game_variant.value
+                if hasattr(game_variant, "value")
+                else str(game_variant)
+            ),
             actor_indices=(
                 list(self.engine.state.actor_indices)
                 if self.engine.state.actor_indices
@@ -854,9 +860,11 @@ class PokerKitTableRuntime:
             hand_no=self.hand_no,
             players=len(active_seats),
             button_index=button_index,
-            game_variant=game_variant.value
-            if hasattr(game_variant, "value")
-            else str(game_variant),
+            game_variant=(
+                game_variant.value
+                if hasattr(game_variant, "value")
+                else str(game_variant)
+            ),
         )
 
         # Return initial state
@@ -968,9 +976,11 @@ class PokerKitTableRuntime:
         street_name = (
             "showdown"
             if not self.engine.state.status
-            else street_names[street_index]
-            if street_index is not None and 0 <= street_index < len(street_names)
-            else "preflop"
+            else (
+                street_names[street_index]
+                if street_index is not None and 0 <= street_index < len(street_names)
+                else "preflop"
+            )
         )
 
         hand_complete = self.engine.is_hand_complete() or (
@@ -978,9 +988,7 @@ class PokerKitTableRuntime:
         )
 
         if hand_complete:
-            raise HandCompleteError(
-                "No player to act; hand is already complete."
-            )
+            raise HandCompleteError("No player to act; hand is already complete.")
 
         # Validate it's this player's turn
         player_index = self.user_id_to_player_index.get(user_id)
@@ -988,9 +996,7 @@ class PokerKitTableRuntime:
             raise ValueError("User not seated in this hand")
 
         if actor_index is None:
-            raise HandCompleteError(
-                "No player to act; hand is already complete."
-            )
+            raise HandCompleteError("No player to act; hand is already complete.")
 
         # Log current state before action
         logger.info(
@@ -1133,7 +1139,10 @@ class PokerKitTableRuntime:
 
         if allowed_map.get("can_call"):
             actions.append(
-                {"action_type": "call", "amount": _to_int(allowed_map.get("call_amount"))}
+                {
+                    "action_type": "call",
+                    "amount": _to_int(allowed_map.get("call_amount")),
+                }
             )
 
         min_raise = _to_int(allowed_map.get("min_raise_to"))
@@ -1251,9 +1260,7 @@ class PokerKitTableRuntime:
         ]
         if missing_indices:
             # Fallback: rebuild mapping from current seats to avoid KeyError when state is restored inconsistently
-            active_seats = [
-                s for s in self.seats if s.left_at is None
-            ]
+            active_seats = [s for s in self.seats if s.left_at is None]
             active_seats.sort(key=lambda s: s.position)
             for i, seat in enumerate(active_seats):
                 if i >= expected_player_count:
@@ -1346,12 +1353,13 @@ class PokerKitTableRuntime:
             "big_blind", self.engine.big_blind if self.engine else 0
         )
 
-        if (
-            self.table.status in {TableStatus.ENDED, TableStatus.EXPIRED}
-            or (self.current_hand and self.current_hand.status == HandStatus.ENDED)
+        if self.table.status in {TableStatus.ENDED, TableStatus.EXPIRED} or (
+            self.current_hand and self.current_hand.status == HandStatus.ENDED
         ):
             phase = "finished"
-        elif self.current_hand and self.current_hand.status == HandStatus.INTER_HAND_WAIT:
+        elif (
+            self.current_hand and self.current_hand.status == HandStatus.INTER_HAND_WAIT
+        ):
             phase = "inter_hand_wait"
         elif self.table.status == TableStatus.WAITING and not self.current_hand:
             phase = "waiting"
@@ -1378,8 +1386,7 @@ class PokerKitTableRuntime:
             "current_actor_user_id": current_actor_user_id,
             "action_deadline": (
                 (
-                    datetime.now(timezone.utc)
-                    + timedelta(seconds=timeout_seconds)
+                    datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds)
                 ).isoformat()
                 if current_actor_user_id and timeout_seconds
                 else None
@@ -1428,7 +1435,9 @@ class PokerKitTableRuntime:
                         }
                         for w in winners
                     ],
-                    "total_pot": sum(pot.amount for pot in list(self.engine.state.pots)),
+                    "total_pot": sum(
+                        pot.amount for pot in list(self.engine.state.pots)
+                    ),
                     "rake_amount": 0,
                 }
                 payload["hand_result"] = hand_result
@@ -1466,8 +1475,7 @@ class PokerKitTableRuntime:
                 )
 
             payload["allowed_actions"] = [
-                {"action_type": "ready"}
-                for _ in range(1 if can_ready else 0)
+                {"action_type": "ready"} for _ in range(1 if can_ready else 0)
             ]
             payload["allowed_actions_legacy"] = {"ready": can_ready}
             payload["ready_players"] = ready_players
@@ -1570,14 +1578,12 @@ class PokerKitTableRuntimeManager:
         # doesn't support FOR UPDATE on the nullable side of OUTER JOINs.
         # Solution: Lock table first, load template via separate query without lock.
         result = await db.execute(
-            select(Table)
-            .where(Table.id == table_id)
-            .with_for_update()
+            select(Table).where(Table.id == table_id).with_for_update()
         )
         table = result.scalars().one_or_none()
         if not table:
             raise ValueError("Table not found")
-        
+
         # Load the template relationship in a separate query (without FOR UPDATE)
         # This avoids the FOR UPDATE + OUTER JOIN compatibility issue with asyncpg
         if table.template_id:
@@ -1618,9 +1624,7 @@ class PokerKitTableRuntimeManager:
                 if state.identity:
                     hand_id = state.identity[0]
             except Exception as exc:  # pragma: no cover - defensive logging
-                logger.warning(
-                    "Failed to inspect cached hand", error=str(exc)
-                )
+                logger.warning("Failed to inspect cached hand", error=str(exc))
 
             if hand_id is None:
                 # Fallback to direct attribute access if available
