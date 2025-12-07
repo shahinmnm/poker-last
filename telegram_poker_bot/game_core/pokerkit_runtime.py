@@ -1540,11 +1540,27 @@ class PokerKitTableRuntimeManager:
     async def _get_distributed_lock(self, table_id: int):
         """Get a distributed Redis lock for a specific table.
 
+        This method creates a Redis-backed distributed lock that is shared across
+        all worker processes, ensuring that only one worker can modify a table at a time.
+
         Args:
             table_id: The table ID to get a lock for
 
         Returns:
             A Redis lock for the specified table that can be used with async with
+
+        Lock Parameters:
+            - timeout=10: Lock auto-expires after 10 seconds if not released.
+              This prevents deadlocks if a worker crashes while holding the lock.
+            - blocking_timeout=5: Lock acquisition attempts timeout after 5 seconds.
+              This prevents indefinite waiting when another worker holds the lock.
+
+        Usage:
+            lock = await self._get_distributed_lock(table_id)
+            async with lock:
+                # Critical section - only one worker executes this at a time
+                runtime = await self.ensure_table(db, table_id)
+                # ... perform operations ...
         """
         redis = await get_redis_client()
         # Use a consistent key prefix, e.g., "lock:table:{id}"

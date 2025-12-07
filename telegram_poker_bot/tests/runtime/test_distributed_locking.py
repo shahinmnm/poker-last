@@ -14,6 +14,9 @@ from telegram_poker_bot.shared.services import table_service
 
 pytest.importorskip("aiosqlite")
 
+# Test lock keys for cleanup
+TEST_LOCK_KEYS = ["lock:table:1", "lock:table:2", "lock:table:999"]
+
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
@@ -36,10 +39,10 @@ async def redis_client():
     """Get Redis client for testing."""
     client = await get_redis_client()
     # Clean up any existing test locks
-    await client.delete("lock:table:1", "lock:table:2", "lock:table:999")
+    await client.delete(*TEST_LOCK_KEYS)
     yield client
     # Clean up after test
-    await client.delete("lock:table:1", "lock:table:2", "lock:table:999")
+    await client.delete(*TEST_LOCK_KEYS)
 
 
 @pytest.mark.asyncio
