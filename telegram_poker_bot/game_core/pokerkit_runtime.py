@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pokerkit import Mode
 from pokerkit.games import NoLimitTexasHoldem, NoLimitShortDeckHoldem
 
+from telegram_poker_bot.game_core import get_redis_client
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.models import (
     ActionType,
@@ -1528,23 +1529,20 @@ class PokerKitTableRuntimeManager:
         # Per-process cache for runtime objects
         # Contains table metadata and engine state
         self._tables: Dict[int, PokerKitTableRuntime] = {}
-        # Per-table locks to serialize operations within this process
-        self._locks: Dict[int, asyncio.Lock] = {}
 
-    def _get_lock_for_table(self, table_id: int) -> asyncio.Lock:
-        """Get or create a lock for a specific table.
+    async def _get_distributed_lock(self, table_id: int):
+        """Get a distributed Redis lock for a specific table.
 
         Args:
             table_id: The table ID to get a lock for
 
         Returns:
-            An asyncio.Lock for the specified table
+            A Redis lock for the specified table that can be used with async with
         """
-        lock = self._locks.get(table_id)
-        if lock is None:
-            lock = asyncio.Lock()
-            self._locks[table_id] = lock
-        return lock
+        redis = await get_redis_client()
+        # Use a consistent key prefix, e.g., "lock:table:{id}"
+        # Set a safe timeout (e.g., 10s) and blocking timeout
+        return redis.lock(f"lock:table:{table_id}", timeout=10, blocking_timeout=5)
 
     async def ensure_table(
         self, db: AsyncSession, table_id: int
@@ -1699,7 +1697,7 @@ class PokerKitTableRuntimeManager:
     ) -> Dict[str, Any]:
         """Mark a player as ready during the inter-hand wait phase."""
 
-        lock = self._get_lock_for_table(table_id)
+        lock = await self._get_distributed_lock(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
 
@@ -1753,7 +1751,7 @@ class PokerKitTableRuntimeManager:
     ) -> Dict[str, Any]:
         """Resolve the inter-hand wait phase by starting or ending the table."""
 
-        lock = self._get_lock_for_table(table_id)
+        lock = await self._get_distributed_lock(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
 
@@ -1802,7 +1800,7 @@ class PokerKitTableRuntimeManager:
             return {"state": state}
 
     async def start_game(self, db: AsyncSession, table_id: int) -> Dict:
-        lock = self._get_lock_for_table(table_id)
+        lock = await self._get_distributed_lock(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
             rules = runtime.rules
@@ -1822,7 +1820,7 @@ class PokerKitTableRuntimeManager:
         action: ActionType,
         amount: Optional[int],
     ) -> Dict:
-        lock = self._get_lock_for_table(table_id)
+        lock = await self._get_distributed_lock(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
 
@@ -2011,7 +2009,7 @@ class PokerKitTableRuntimeManager:
     async def get_state(
         self, db: AsyncSession, table_id: int, viewer_user_id: Optional[int]
     ) -> Dict:
-        lock = self._get_lock_for_table(table_id)
+        lock = await self._get_distributed_lock(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
             return runtime.to_payload(viewer_user_id)
