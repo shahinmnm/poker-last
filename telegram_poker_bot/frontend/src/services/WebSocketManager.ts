@@ -6,6 +6,7 @@
  * - Automatic reconnection with exponential backoff
  * - Snapshot syncing on connect
  * - Delta merging with sequence tracking
+ * - Out-of-order message buffering and reordering
  * - Schema version mismatch detection
  */
 
