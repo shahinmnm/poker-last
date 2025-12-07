@@ -31,6 +31,7 @@ interface WebSocketManagerOptions {
   heartbeatInterval?: number // ms
   reconnectDelay?: number // ms (initial)
   maxReconnectDelay?: number // ms
+  gapTimeoutMs?: number // ms (default: 500)
 }
 
 export class WebSocketManager {
@@ -60,6 +61,7 @@ export class WebSocketManager {
       heartbeatInterval: options.heartbeatInterval || 25000, // 25s
       reconnectDelay: options.reconnectDelay || 1000, // 1s
       maxReconnectDelay: options.maxReconnectDelay || 30000, // 30s
+      gapTimeoutMs: options.gapTimeoutMs || 500, // 500ms
     }
   }
 
@@ -300,7 +302,7 @@ export class WebSocketManager {
           this.messageBuffer.clear()
           this.gapTimeout = null
           this.requestSnapshot()
-        }, 500) // 500ms timeout
+        }, this.options.gapTimeoutMs)
       }
       return
     }
