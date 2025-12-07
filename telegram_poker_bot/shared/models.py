@@ -58,6 +58,7 @@ class GameVariant(str, enum.Enum):
 
     NO_LIMIT_TEXAS_HOLDEM = "no_limit_texas_holdem"
     NO_LIMIT_SHORT_DECK_HOLDEM = "no_limit_short_deck_holdem"
+    POT_LIMIT_OMAHA = "pot_limit_omaha"
 
 
 class TableTemplateType(str, enum.Enum):
