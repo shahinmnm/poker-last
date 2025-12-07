@@ -291,7 +291,7 @@ async def ensure_tables_for_template(
             try:
                 from telegram_poker_bot.game_core import get_matchmaking_pool
 
-                matchmaking_pool = get_matchmaking_pool()
+                matchmaking_pool = await get_matchmaking_pool()
                 if matchmaking_pool and hasattr(matchmaking_pool, "redis"):
                     await table_service.invalidate_public_table_cache(
                         matchmaking_pool.redis
