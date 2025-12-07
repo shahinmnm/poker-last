@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import OperationalError, IntegrityError
 
 from telegram_poker_bot.shared.logging import get_logger
-from telegram_poker_bot.shared.models import TableTemplate, Table, GameMode
+from telegram_poker_bot.shared.models import TableTemplate, Table, GameMode, TableStatus
 from telegram_poker_bot.shared.validators import validate_auto_create_config, AutoCreateConfig
 from telegram_poker_bot.shared.services import table_service
 
@@ -35,13 +35,14 @@ async def get_existing_table_count(
         lobby_persistent_only: Deprecated. Kept for backward compatibility.
         
     Returns:
-        Number of existing auto-generated tables
+        Number of existing auto-generated tables in WAITING or ACTIVE status
     """
-    # Count all auto-generated tables for this template
+    # Count all auto-generated tables for this template in WAITING or ACTIVE status
     result = await db.execute(
         select(func.count(Table.id))
         .where(Table.template_id == template_id)
         .where(Table.is_auto_generated)
+        .where(Table.status.in_([TableStatus.WAITING, TableStatus.ACTIVE]))
     )
     count = result.scalar() or 0
     return count
@@ -276,6 +277,26 @@ async def ensure_tables_for_template(
                 )
                 result["tables_created"] = 0
                 return result
+            
+            # Invalidate the public table cache after successful commit
+            try:
+                from telegram_poker_bot.game_core import get_matchmaking_pool
+                matchmaking_pool = get_matchmaking_pool()
+                if matchmaking_pool and hasattr(matchmaking_pool, 'redis'):
+                    await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
+                    logger.info(
+                        "Invalidated public table cache after auto-creation",
+                        template_id=template.id,
+                        template_name=template.name,
+                    )
+            except Exception as exc:
+                # Log but don't fail the operation if cache invalidation fails
+                logger.warning(
+                    "Failed to invalidate public table cache after auto-creation",
+                    template_id=template.id,
+                    template_name=template.name,
+                    error=str(exc),
+                )
         
         result["success"] = True
         logger.info(

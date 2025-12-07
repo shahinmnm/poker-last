@@ -726,7 +726,7 @@ async def create_table(
             invite_code = _generate_invite_code(length=INVITE_CODE_FALLBACK_LENGTH)
 
     expires_at = None
-    if template.table_type == TableTemplateType.EXPIRING:
+    if template.table_type == TableTemplateType.EXPIRING and not lobby_persistent:
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
 
     table = Table(
