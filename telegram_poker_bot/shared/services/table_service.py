@@ -10,7 +10,6 @@ from typing import Optional, Dict, Any, List, TYPE_CHECKING, Tuple
 from uuid import UUID
 import json
 
-from pydantic import ValidationError
 from sqlalchemy import select, func, desc, or_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -28,14 +27,12 @@ from telegram_poker_bot.shared.models import (
     CurrencyType,
     TableTemplate,
     TableTemplateType,
-    SNGState,
 )
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.types import (
     TableTemplateCreateRequest,
     TableTemplateUpdateRequest,
 )
-from telegram_poker_bot.shared.schemas import TemplateUISchema
 from telegram_poker_bot.shared.services import table_lifecycle
 from telegram_poker_bot.shared.services.table_buyin_service import TableBuyInService
 
@@ -150,7 +147,9 @@ def _validate_backend_rules(backend: Dict[str, Any]) -> None:
             if rake_pct < 0 or rake_pct > 1:
                 raise ValueError("rake_percentage must be between 0 and 1")
         except (TypeError, ValueError) as exc:
-            raise ValueError("rake_percentage must be a number between 0 and 1") from exc
+            raise ValueError(
+                "rake_percentage must be a number between 0 and 1"
+            ) from exc
 
     if backend.get("sng_enabled", False):
         sng_min = backend.get("sng_min_players")
@@ -162,7 +161,9 @@ def _validate_backend_rules(backend: Dict[str, Any]) -> None:
             if sng_min_int < 2:
                 raise ValueError("sng_min_players must be at least 2")
             if sng_min_int > max_players:
-                raise ValueError(f"sng_min_players ({sng_min_int}) cannot exceed max_players ({max_players})")
+                raise ValueError(
+                    f"sng_min_players ({sng_min_int}) cannot exceed max_players ({max_players})"
+                )
         except (TypeError, ValueError) as exc:
             if "sng_min_players" in str(exc):
                 raise
@@ -175,40 +176,44 @@ def _validate_backend_rules(backend: Dict[str, Any]) -> None:
                 if sng_window_int <= 0:
                     raise ValueError("sng_join_window_seconds must be positive")
             except (TypeError, ValueError) as exc:
-                raise ValueError("sng_join_window_seconds must be a positive integer") from exc
+                raise ValueError(
+                    "sng_join_window_seconds must be a positive integer"
+                ) from exc
 
 
 def validate_template_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Validate and normalize template config to canonical structure.
-    
+
     This function ensures all templates follow the canonical structure:
     - backend: game rules and settings
     - ui_schema: UI display configuration
     - auto_create: auto-creation settings (injected if missing)
-    
+
     Args:
         config: Raw config dictionary
-        
+
     Returns:
         Normalized and validated config dictionary
-        
+
     Raises:
         ValueError: If config is invalid
     """
-    from telegram_poker_bot.shared.services.template_normalizer import TemplateNormalizer
-    
+    from telegram_poker_bot.shared.services.template_normalizer import (
+        TemplateNormalizer,
+    )
+
     if not isinstance(config, dict):
         raise ValueError("config_json must be an object")
 
     # Use normalizer to get canonical structure
     normalized = TemplateNormalizer.normalize_config(config)
-    
+
     # Extract backend for validation
     backend_dict = normalized.get("backend", {})
-    
+
     # Validate backend rules
     _validate_backend_rules(backend_dict)
-    
+
     return normalized
 
 
@@ -271,7 +276,9 @@ def parse_template_rules(config: Dict[str, Any]) -> TableRuleConfig:
         try:
             turn_timeout_seconds = int(timeout_raw)
         except (TypeError, ValueError) as exc:
-            raise ValueError("turn_timeout_seconds must be an integer in template config") from exc
+            raise ValueError(
+                "turn_timeout_seconds must be an integer in template config"
+            ) from exc
 
     poker_mode = None
     if "poker_mode" in config:
@@ -335,7 +342,7 @@ def get_table_currency_type(table: Table) -> CurrencyType:
     """Return the table currency type from its template configuration."""
 
     config = get_template_config(table)
-    rules = parse_template_rules(config)
+    parse_template_rules(config)
     return _coerce_currency_type(config.get("currency_type"))
 
 
@@ -426,9 +433,9 @@ async def create_table_template(
     **legacy_kwargs: Any,
 ) -> TableTemplate:
     """Create and persist a TableTemplate with validated configuration.
-    
+
     Automatically creates a lobby-persistent table from the template.
-    
+
     Args:
         db: Database session
         payload: Pydantic payload for template creation (preferred)
@@ -436,10 +443,10 @@ async def create_table_template(
         table_type: Type of table (PERSISTENT, EXPIRING, PRIVATE)
         has_waitlist: Whether tables using this template should have waitlists
         config: Template configuration (validated before creation)
-        
+
     Returns:
         Created TableTemplate instance
-        
+
     Raises:
         ValueError: If config is invalid or missing required fields
     """
@@ -453,7 +460,11 @@ async def create_table_template(
             config_json=config or {},
         )
 
-    raw_config = payload.config_json.model_dump() if hasattr(payload.config_json, "model_dump") else dict(payload.config_json or {})
+    raw_config = (
+        payload.config_json.model_dump()
+        if hasattr(payload.config_json, "model_dump")
+        else dict(payload.config_json or {})
+    )
     config_dict = validate_template_config(raw_config)
 
     template = TableTemplate(
@@ -465,10 +476,13 @@ async def create_table_template(
     )
     db.add(template)
     await db.flush()
-    
+
     # Auto-create tables based on auto_create config
     try:
-        from telegram_poker_bot.services.table_auto_creator import ensure_tables_for_template
+        from telegram_poker_bot.services.table_auto_creator import (
+            ensure_tables_for_template,
+        )
+
         result = await ensure_tables_for_template(db, template)
         if result.get("success"):
             logger.info(
@@ -492,7 +506,7 @@ async def create_table_template(
             error=str(exc),
             exc_info=True,
         )
-    
+
     return template
 
 
@@ -502,21 +516,21 @@ async def create_default_template(
     name: str = "Default Table",
     table_type: TableTemplateType = TableTemplateType.EXPIRING,
     has_waitlist: bool = False,
-        config_overrides: Optional[Dict[str, Any]] = None,
+    config_overrides: Optional[Dict[str, Any]] = None,
 ) -> TableTemplate:
     """Create a template with sensible defaults (primarily for testing).
-    
+
     IMPORTANT: In production, use seed_default_templates.py to create templates.
     This function is mainly for test fixtures and should not be used for
     runtime table creation unless absolutely necessary.
-    
+
     Args:
         db: Database session
         name: Template name
         table_type: Type of table (EXPIRING, PERSISTENT, PRIVATE)
         has_waitlist: Whether table should have waitlist enabled
         config_overrides: Optional config to override defaults
-        
+
     Returns:
         Created template instance
     """
@@ -567,29 +581,44 @@ async def update_table_template(
     if payload.config_json is not None:
         # Get current normalized config
         current_config = dict(template.config_json or {})
-        new_config = payload.config_json.model_dump() if hasattr(payload.config_json, "model_dump") else dict(payload.config_json or {})
-        
+        new_config = (
+            payload.config_json.model_dump()
+            if hasattr(payload.config_json, "model_dump")
+            else dict(payload.config_json or {})
+        )
+
         # Normalize the new config first
         try:
             normalized_new = validate_template_config(new_config)
         except ValueError as exc:
             logger.error("Failed to normalize new config during update", error=str(exc))
             raise
-        
+
         # Deep merge: merge backend, ui_schema, and auto_create separately
         merged = {
-            "backend": {**current_config.get("backend", {}), **normalized_new.get("backend", {})},
-            "ui_schema": normalized_new.get("ui_schema", current_config.get("ui_schema", {})),
-            "auto_create": normalized_new.get("auto_create", current_config.get("auto_create", {})),
+            "backend": {
+                **current_config.get("backend", {}),
+                **normalized_new.get("backend", {}),
+            },
+            "ui_schema": normalized_new.get(
+                "ui_schema", current_config.get("ui_schema", {})
+            ),
+            "auto_create": normalized_new.get(
+                "auto_create", current_config.get("auto_create", {})
+            ),
         }
-        
+
         # Validate the merged config
         try:
             final_config = validate_template_config(merged)
         except ValueError as exc:
-            logger.error("Failed to validate merged config during update", error=str(exc), merged=merged)
+            logger.error(
+                "Failed to validate merged config during update",
+                error=str(exc),
+                merged=merged,
+            )
             raise
-        
+
         template.config_json = final_config
 
     if payload.name is not None:
@@ -652,11 +681,7 @@ async def list_table_templates(
     total = await db.scalar(select(func.count()).select_from(base_query.subquery()))
 
     offset = max(page - 1, 0) * per_page
-    query = (
-        base_query.order_by(TableTemplate.id.asc())
-        .offset(offset)
-        .limit(per_page)
-    )
+    query = base_query.order_by(TableTemplate.id.asc()).offset(offset).limit(per_page)
 
     result = await db.execute(query)
     templates = result.scalars().all()
@@ -683,32 +708,56 @@ async def create_table(
         raise ValueError(f"TableTemplate {template_id} not found")
 
     config = template.config_json or {}
-    backend_config = config.get("backend") if isinstance(config, dict) and "backend" in config else config
+    backend_config = (
+        config.get("backend")
+        if isinstance(config, dict) and "backend" in config
+        else config
+    )
     rules = parse_template_rules(config)
 
-    if template.table_type == TableTemplateType.PERSISTENT and not template.has_waitlist:
+    if (
+        template.table_type == TableTemplateType.PERSISTENT
+        and not template.has_waitlist
+    ):
         raise ValueError("Persistent tables must enable waitlists in their template")
 
-    expiration_minutes = backend_config.get("expiration_minutes") if isinstance(backend_config, dict) else None
+    expiration_minutes = (
+        backend_config.get("expiration_minutes")
+        if isinstance(backend_config, dict)
+        else None
+    )
     if template.table_type == TableTemplateType.EXPIRING:
         if expiration_minutes is None:
             raise ValueError("Expiring table templates must define expiration_minutes")
         try:
             expiration_minutes = int(expiration_minutes)
         except (TypeError, ValueError):
-            raise ValueError("expiration_minutes must be an integer for expiring tables")
+            raise ValueError(
+                "expiration_minutes must be an integer for expiring tables"
+            )
         if expiration_minutes <= 0:
             raise ValueError("expiration_minutes must be positive for expiring tables")
 
-    allow_invite_code = backend_config.get("allow_invite_code", True) if isinstance(backend_config, dict) else True
+    allow_invite_code = (
+        backend_config.get("allow_invite_code", True)
+        if isinstance(backend_config, dict)
+        else True
+    )
     if template.table_type == TableTemplateType.PRIVATE and allow_invite_code is False:
         raise ValueError("Private table templates must allow invite codes")
 
     max_players = rules.max_players
-    starting_stack = rules.starting_stack
-    table_name = (backend_config.get("table_name") if isinstance(backend_config, dict) else None) or f"Table #{datetime.now().strftime('%H%M%S')}"
-    currency_type = _coerce_currency_type(backend_config.get("currency_type") if isinstance(backend_config, dict) else None)
-    game_variant = _coerce_game_variant(backend_config.get("game_variant") if isinstance(backend_config, dict) else None)
+    (
+        backend_config.get("table_name") if isinstance(backend_config, dict) else None
+    ) or f"Table #{datetime.now().strftime('%H%M%S')}"
+    currency_type = _coerce_currency_type(
+        backend_config.get("currency_type")
+        if isinstance(backend_config, dict)
+        else None
+    )
+    game_variant = _coerce_game_variant(
+        backend_config.get("game_variant") if isinstance(backend_config, dict) else None
+    )
 
     is_public = template.table_type != TableTemplateType.PRIVATE
 
@@ -726,7 +775,7 @@ async def create_table(
             invite_code = _generate_invite_code(length=INVITE_CODE_FALLBACK_LENGTH)
 
     expires_at = None
-    if template.table_type == TableTemplateType.EXPIRING:
+    if template.table_type == TableTemplateType.EXPIRING and not lobby_persistent:
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
 
     table = Table(
@@ -790,10 +839,10 @@ async def create_table_with_config(
 ) -> Table:
     """
     DEPRECATED: Legacy entrypoint for backward compatibility.
-    
+
     This function now REQUIRES template_id and ignores all legacy_config parameters.
     All table configuration must come from TableTemplate.config_json.
-    
+
     Args:
         db: Database session
         creator_user_id: User creating the table
@@ -802,13 +851,13 @@ async def create_table_with_config(
         group_id: Optional group ID
         auto_seat_creator: Whether to auto-seat the creator
         **legacy_config: IGNORED - kept for backward compatibility only
-        
+
     Returns:
         Created table instance
-        
+
     Raises:
         ValueError: If template_id is not provided
-        
+
     Note:
         Use create_table() directly instead of this function.
     """
@@ -818,7 +867,7 @@ async def create_table_with_config(
             template_id=template_id,
             legacy_config_keys=list(legacy_config.keys()),
         )
-    
+
     return await create_table(
         db,
         creator_user_id=creator_user_id,
@@ -889,7 +938,7 @@ async def seat_user_at_table(
 ) -> Seat:
     """
     Seat a user at a table using template rules with race condition protection.
-    
+
     This is the unified entry point for all seat assignments:
     - Manual joins
     - Host auto-seat
@@ -897,7 +946,7 @@ async def seat_user_at_table(
     - Global waitlist routing
     """
     from telegram_poker_bot.shared.services import sng_manager
-    
+
     # Use row-level locking to prevent race conditions
     table_result = await db.execute(
         select(Table)
@@ -908,14 +957,16 @@ async def seat_user_at_table(
     table = table_result.scalar_one_or_none()
     if not table:
         raise ValueError(f"Table {table_id} not found")
-    
+
     config = get_template_config(table)
     rules = parse_template_rules(config)
     max_players = rules.max_players
 
     result = await db.execute(
         select(Seat)
-        .where(Seat.table_id == table_id, Seat.user_id == user_id, Seat.left_at.is_(None))
+        .where(
+            Seat.table_id == table_id, Seat.user_id == user_id, Seat.left_at.is_(None)
+        )
         .order_by(Seat.joined_at.desc())
     )
     existing_seats = result.scalars().all()
@@ -988,7 +1039,7 @@ async def seat_user_at_table(
     )
 
     await _refresh_table_runtime(db, table_id)
-    
+
     # Trigger SNG logic if applicable
     await sng_manager.on_player_seated(db, table)
 
@@ -1126,6 +1177,7 @@ async def get_table_info(
     is_expired = await check_and_mark_expired_table(db, table)
 
     config = get_template_config(table)
+    rules = parse_template_rules(config)
     creator_user_id = table.creator_user_id
     is_public = (
         table.is_public
