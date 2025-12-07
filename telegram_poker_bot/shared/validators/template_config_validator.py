@@ -31,7 +31,7 @@ class AutoCreateConfig:
     - min_tables: int (required)
     - max_tables: int (required)
     - on_startup_repair: boolean (required)
-    - allow_missing_runtime: boolean (required)
+    - allow_missing_runtime: boolean (optional, defaults to False)
     
     Fields like lobby_persistent and is_auto_generated belong ONLY in the
     tables DB table columns, NOT in the template config.
@@ -56,7 +56,7 @@ def validate_auto_create_config(config: Dict[str, Any]) -> Optional[AutoCreateCo
     - min_tables: int (required)
     - max_tables: int (required)
     - on_startup_repair: boolean (required)
-    - allow_missing_runtime: boolean (required)
+    - allow_missing_runtime: boolean (optional, defaults to False)
     
     Args:
         config: The auto_create config dictionary
