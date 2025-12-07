@@ -12,7 +12,7 @@ import json
 
 from sqlalchemy import select, func, desc, or_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from telegram_poker_bot.shared.models import (
     User,
@@ -950,7 +950,7 @@ async def seat_user_at_table(
     # Use row-level locking to prevent race conditions
     table_result = await db.execute(
         select(Table)
-        .options(joinedload(Table.template))
+        .options(selectinload(Table.template))
         .where(Table.id == table_id)
         .with_for_update()
     )
