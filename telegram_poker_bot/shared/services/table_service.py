@@ -116,8 +116,8 @@ def _validate_backend_rules(backend: Dict[str, Any]) -> None:
     _require_int(backend, "starting_stack")
     max_players = _require_int(backend, "max_players")
 
-    if max_players < 2 or max_players > 8:
-        raise ValueError("max_players must be between 2 and 8")
+    if max_players < 2 or max_players > 9:
+        raise ValueError("max_players must be between 2 and 9")
 
     game_variant = backend.get("game_variant")
     if not game_variant:
@@ -1334,7 +1334,7 @@ async def get_table_info(
         "permissions": permissions,
         "invite": invite_info,
         "template": {
-            "id": table.template.id,
+            "id": str(table.template.id),
             "table_type": table.template.table_type.value,
             "config": config,
             "has_waitlist": table.template.has_waitlist,
@@ -1508,7 +1508,7 @@ async def list_available_tables(
                     "creator_user_id": creator_user_id,
                     "viewer": None,
                     "template": {
-                        "id": table.template.id,
+                        "id": str(table.template.id),
                         "table_type": table.template.table_type.value,
                         "config": config,
                         "has_waitlist": table.template.has_waitlist,

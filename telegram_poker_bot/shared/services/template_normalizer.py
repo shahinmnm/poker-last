@@ -91,8 +91,8 @@ class TemplateNormalizer:
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"max_players must be an integer, got {max_players}") from exc
             
-            if max_players_int < 2 or max_players_int > 8:
-                raise ValueError(f"max_players must be between 2 and 8, got {max_players_int}")
+            if max_players_int < 2 or max_players_int > 9:
+                raise ValueError(f"max_players must be between 2 and 9, got {max_players_int}")
 
     @classmethod
     def normalize_config(cls, raw_config: Dict[str, Any]) -> Dict[str, Any]:

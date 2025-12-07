@@ -465,7 +465,7 @@ async def _attach_template_to_payload(
     config_json = table.template.config_json or {}
     backend_config = config_json.get("backend", config_json)
     template_block = {
-        "id": table.template.id,
+        "id": str(table.template.id),
         "table_type": table.template.table_type.value,
         "config": backend_config,
         "config_json": config_json,
