@@ -8,11 +8,9 @@ This test suite validates the fixes for:
 
 import pytest
 from datetime import datetime, timezone
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from telegram_poker_bot.shared.models import (
-    Table,
     TableStatus,
     TableTemplateType,
 )
@@ -26,7 +24,7 @@ async def test_lobby_persistent_table_with_expiring_template_no_expires_at(
     db_session: AsyncSession,
 ) -> None:
     """Test that lobby_persistent=True prevents expires_at from being set even on EXPIRING templates.
-    
+
     This is the core fix: when a table is created with lobby_persistent=True,
     it should NOT get an expires_at timestamp, even if the template is EXPIRING type.
     """
@@ -56,9 +54,9 @@ async def test_lobby_persistent_table_with_expiring_template_no_expires_at(
     # Verify the table does NOT have expires_at set
     assert table.template.table_type == TableTemplateType.EXPIRING
     assert table.lobby_persistent is True
-    assert table.expires_at is None, (
-        "Lobby-persistent table should NOT have expires_at even with EXPIRING template"
-    )
+    assert (
+        table.expires_at is None
+    ), "Lobby-persistent table should NOT have expires_at even with EXPIRING template"
     assert table.status == TableStatus.WAITING
 
 
@@ -93,11 +91,11 @@ async def test_non_lobby_persistent_expiring_table_has_expires_at(
     # Verify the table DOES have expires_at set
     assert table.template.table_type == TableTemplateType.EXPIRING
     assert table.lobby_persistent is False
-    assert table.expires_at is not None, (
-        "Regular EXPIRING table should have expires_at set"
-    )
+    assert (
+        table.expires_at is not None
+    ), "Regular EXPIRING table should have expires_at set"
     assert table.status == TableStatus.WAITING
-    
+
     # Verify expires_at is in the future
     now = datetime.now(timezone.utc)
     assert table.expires_at > now
@@ -108,7 +106,7 @@ async def test_get_existing_table_count_excludes_ended_and_expired(
     db_session: AsyncSession,
 ) -> None:
     """Test that get_existing_table_count only counts WAITING and ACTIVE tables.
-    
+
     This is the fix for the auto-creator counting zombie tables.
     """
     # Create a template (will auto-create 1 table by default)
@@ -122,17 +120,17 @@ async def test_get_existing_table_count_excludes_ended_and_expired(
 
     # Get initial count (should be 1 from auto-creation)
     initial_count = await get_existing_table_count(db_session, template.id)
-    
+
     # Create tables in various states
     # 1. WAITING table (should be counted)
-    table_waiting = await table_service.create_table(
+    _table_waiting = await table_service.create_table(
         db_session,
         creator_user_id=None,
         template_id=template.id,
         lobby_persistent=True,
         is_auto_generated=True,
     )
-    
+
     # 2. ACTIVE table (should be counted)
     table_active = await table_service.create_table(
         db_session,
@@ -142,7 +140,7 @@ async def test_get_existing_table_count_excludes_ended_and_expired(
         is_auto_generated=True,
     )
     table_active.status = TableStatus.ACTIVE
-    
+
     # 3. ENDED table (should NOT be counted)
     table_ended = await table_service.create_table(
         db_session,
@@ -152,7 +150,7 @@ async def test_get_existing_table_count_excludes_ended_and_expired(
         is_auto_generated=True,
     )
     table_ended.status = TableStatus.ENDED
-    
+
     # 4. EXPIRED table (should NOT be counted)
     table_expired = await table_service.create_table(
         db_session,
@@ -162,21 +160,21 @@ async def test_get_existing_table_count_excludes_ended_and_expired(
         is_auto_generated=True,
     )
     table_expired.status = TableStatus.EXPIRED
-    
+
     # 5. Non-auto-generated table (should NOT be counted)
-    table_manual = await table_service.create_table(
+    _table_manual = await table_service.create_table(
         db_session,
         creator_user_id=None,
         template_id=template.id,
         lobby_persistent=False,
         is_auto_generated=False,
     )
-    
+
     await db_session.commit()
 
     # Count existing tables
     count = await get_existing_table_count(db_session, template.id)
-    
+
     # Should only count the initial + WAITING and ACTIVE auto-generated tables
     expected = initial_count + 2  # Added 1 WAITING + 1 ACTIVE
     assert count == expected, (
@@ -197,7 +195,7 @@ async def test_all_status_transitions_with_table_count(
         expiration_minutes=10,
     )
     await db_session.commit()
-    
+
     # Get initial count from auto-creation
     initial_count = await get_existing_table_count(db_session, template.id)
 

@@ -6,11 +6,14 @@ from uuid import UUID
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy.exc import OperationalError
 
 from telegram_poker_bot.shared.logging import get_logger
 from telegram_poker_bot.shared.models import TableTemplate, Table, GameMode, TableStatus
-from telegram_poker_bot.shared.validators import validate_auto_create_config, AutoCreateConfig
+from telegram_poker_bot.shared.validators import (
+    validate_auto_create_config,
+    AutoCreateConfig,
+)
 from telegram_poker_bot.shared.services import table_service
 
 logger = get_logger(__name__)
@@ -28,12 +31,12 @@ async def get_existing_table_count(
     lobby_persistent_only: bool = False,
 ) -> int:
     """Count existing tables for a template.
-    
+
     Args:
         db: Database session
         template_id: Template UUID
         lobby_persistent_only: Deprecated. Kept for backward compatibility.
-        
+
     Returns:
         Number of existing auto-generated tables in WAITING or ACTIVE status
     """
@@ -48,18 +51,20 @@ async def get_existing_table_count(
     return count
 
 
-async def safe_commit_with_retry(db: AsyncSession, max_retries: int = MAX_RETRIES) -> bool:
+async def safe_commit_with_retry(
+    db: AsyncSession, max_retries: int = MAX_RETRIES
+) -> bool:
     """Commit database changes with retry on transient failures.
-    
+
     Args:
         db: Database session
         max_retries: Maximum number of retry attempts
-        
+
     Returns:
         True if commit succeeded, False otherwise
     """
     backoff = INITIAL_BACKOFF
-    
+
     for attempt in range(max_retries):
         try:
             await db.commit()
@@ -77,10 +82,12 @@ async def safe_commit_with_retry(db: AsyncSession, max_retries: int = MAX_RETRIE
                         error=str(exc),
                     )
                     await db.rollback()
-                    await asyncio.sleep(backoff)  # Use asyncio.sleep instead of time.sleep
+                    await asyncio.sleep(
+                        backoff
+                    )  # Use asyncio.sleep instead of time.sleep
                     backoff = min(backoff * 2, MAX_BACKOFF)
                     continue
-            
+
             # Non-retryable error or max retries exceeded
             logger.error(
                 "Database commit failed",
@@ -98,7 +105,7 @@ async def safe_commit_with_retry(db: AsyncSession, max_retries: int = MAX_RETRIE
             )
             await db.rollback()
             return False
-    
+
     return False
 
 
@@ -109,12 +116,12 @@ async def create_single_table(
     on_startup_repair: bool = False,
 ) -> Optional[Table]:
     """Create a single table from a template.
-    
+
     Args:
         db: Database session
         template: TableTemplate to create from
         on_startup_repair: Value from auto_create.on_startup_repair to set lobby_persistent
-        
+
     Returns:
         Created Table instance or None on failure
     """
@@ -131,9 +138,9 @@ async def create_single_table(
             lobby_persistent=on_startup_repair,
             is_auto_generated=True,
         )
-        
+
         await db.flush()
-        
+
         logger.info(
             "Created table from template",
             template_id=template.id,
@@ -142,7 +149,7 @@ async def create_single_table(
             lobby_persistent=on_startup_repair,
             is_auto_generated=True,
         )
-        
+
         return table
     except Exception as exc:
         logger.error(
@@ -162,14 +169,14 @@ async def ensure_tables_for_template(
     auto_create_config: Optional[AutoCreateConfig] = None,
 ) -> Dict[str, Any]:
     """Ensure minimum number of tables exist for a template.
-    
+
     This is the main entry point for auto-creation logic.
-    
+
     Args:
         db: Database session
         template: TableTemplate to ensure tables for
         auto_create_config: Optional pre-parsed auto-create config
-        
+
     Returns:
         Dict with keys:
             - tables_created: Number of tables created
@@ -183,18 +190,18 @@ async def ensure_tables_for_template(
         "target_min": 0,
         "success": False,
     }
-    
+
     try:
         # Parse auto_create config if not provided
         if auto_create_config is None:
             config_json = template.config_json or {}
             auto_create_dict = config_json.get("auto_create")
-            
+
             if not auto_create_dict:
                 # No auto_create config, nothing to do
                 result["success"] = True
                 return result
-            
+
             try:
                 auto_create_config = validate_auto_create_config(auto_create_dict)
             except ValueError as exc:
@@ -205,17 +212,17 @@ async def ensure_tables_for_template(
                     error=str(exc),
                 )
                 return result
-        
+
         if not auto_create_config:
             # Auto-create disabled (enabled=False)
             result["success"] = True
             return result
-        
+
         min_tables = auto_create_config.min_tables
         max_tables = auto_create_config.max_tables
         on_startup_repair = auto_create_config.on_startup_repair
         result["target_min"] = min_tables
-        
+
         # Count existing auto-generated tables (not from template config)
         existing_count = await get_existing_table_count(
             db,
@@ -223,7 +230,7 @@ async def ensure_tables_for_template(
             lobby_persistent_only=False,  # Count all auto-generated tables
         )
         result["tables_existing"] = existing_count
-        
+
         logger.info(
             "Checking table count for template",
             template_id=template.id,
@@ -232,10 +239,10 @@ async def ensure_tables_for_template(
             min_tables=min_tables,
             max_tables=max_tables,
         )
-        
+
         # Calculate how many to create
         tables_to_create = max(0, min_tables - existing_count)
-        
+
         if tables_to_create == 0:
             result["success"] = True
             logger.info(
@@ -245,14 +252,16 @@ async def ensure_tables_for_template(
                 existing_count=existing_count,
             )
             return result
-        
+
         # Don't exceed max_tables
         if existing_count + tables_to_create > max_tables:
             tables_to_create = max(0, max_tables - existing_count)
-        
+
         # Create tables with on_startup_repair value
         for i in range(tables_to_create):
-            table = await create_single_table(db, template, on_startup_repair=on_startup_repair)
+            table = await create_single_table(
+                db, template, on_startup_repair=on_startup_repair
+            )
             if table:
                 result["tables_created"] += 1
             else:
@@ -264,7 +273,7 @@ async def ensure_tables_for_template(
                     total_attempts=tables_to_create,
                 )
                 # Continue trying to create remaining tables
-        
+
         # Commit all created tables
         if result["tables_created"] > 0:
             commit_success = await safe_commit_with_retry(db)
@@ -277,13 +286,16 @@ async def ensure_tables_for_template(
                 )
                 result["tables_created"] = 0
                 return result
-            
+
             # Invalidate the public table cache after successful commit
             try:
                 from telegram_poker_bot.game_core import get_matchmaking_pool
+
                 matchmaking_pool = get_matchmaking_pool()
-                if matchmaking_pool and hasattr(matchmaking_pool, 'redis'):
-                    await table_service.invalidate_public_table_cache(matchmaking_pool.redis)
+                if matchmaking_pool and hasattr(matchmaking_pool, "redis"):
+                    await table_service.invalidate_public_table_cache(
+                        matchmaking_pool.redis
+                    )
                     logger.info(
                         "Invalidated public table cache after auto-creation",
                         template_id=template.id,
@@ -297,7 +309,7 @@ async def ensure_tables_for_template(
                     template_name=template.name,
                     error=str(exc),
                 )
-        
+
         result["success"] = True
         logger.info(
             "Completed table auto-creation for template",
@@ -307,7 +319,7 @@ async def ensure_tables_for_template(
             existing_count=existing_count,
             final_count=existing_count + result["tables_created"],
         )
-        
+
     except Exception as exc:
         logger.error(
             "Error in ensure_tables_for_template",
@@ -317,7 +329,7 @@ async def ensure_tables_for_template(
             exc_info=True,
         )
         await db.rollback()
-    
+
     return result
 
 
@@ -326,14 +338,14 @@ async def auto_create_worker(
     template: TableTemplate,
 ) -> Dict[str, Any]:
     """Background worker to ensure tables for a template.
-    
+
     This is a convenience wrapper around ensure_tables_for_template
     for use in background tasks.
-    
+
     Args:
         db: Database session
         template: TableTemplate to process
-        
+
     Returns:
         Result dict from ensure_tables_for_template
     """
