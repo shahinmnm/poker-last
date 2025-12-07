@@ -118,7 +118,7 @@ def validate_auto_create_config(config: Dict[str, Any]) -> Optional[AutoCreateCo
         raise ValueError("auto_create.on_startup_repair must be a boolean")
     
     # Validate allow_missing_runtime
-    allow_missing_runtime = config.get("allow_missing_runtime", True)
+    allow_missing_runtime = config.get("allow_missing_runtime", False)
     if not isinstance(allow_missing_runtime, bool):
         raise ValueError("auto_create.allow_missing_runtime must be a boolean")
     

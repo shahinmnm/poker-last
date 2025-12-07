@@ -61,7 +61,7 @@ class TemplateNormalizer:
             "min_tables": 1,
             "max_tables": 2,
             "on_startup_repair": True,
-            "allow_missing_runtime": True,
+            "allow_missing_runtime": False,
         }
 
     @staticmethod
