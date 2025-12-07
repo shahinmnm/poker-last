@@ -47,6 +47,7 @@ from telegram_poker_bot.shared.models import (
     GroupGameInviteStatus,
     TableStatus,
     Seat,
+    Hand,
     HandStatus,
     SNGState,
     TableTemplateType,
@@ -542,15 +543,7 @@ table_lifecycle.register_table_status_listener(_broadcast_lobby_table_update)
 _auto_fold_task: Optional[asyncio.Task] = None
 _inactivity_check_task: Optional[asyncio.Task] = None
 _sng_monitor_task: Optional[asyncio.Task] = None
-_inter_hand_tasks: Dict[int, Tuple[asyncio.Task, int]] = {}
-
-
-def _cancel_inter_hand_task(table_id: int) -> None:
-    """Cancel any pending inter-hand task for the table."""
-
-    task_entry = _inter_hand_tasks.pop(table_id, None)
-    if task_entry:
-        task_entry[0].cancel()
+_inter_hand_monitor_task: Optional[asyncio.Task] = None
 
 
 async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> None:
@@ -578,65 +571,110 @@ async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> No
             await manager.broadcast(table_id, state)
 
 
-async def _auto_complete_inter_hand(table_id: int, hand_no: int) -> None:
-    """Automatically resolve the inter-hand phase when the timer expires."""
+async def monitor_inter_hand_timeouts():
+    """
+    Background task that monitors inter-hand timeouts and auto-completes phases.
 
-    try:
-        await asyncio.sleep(settings.post_hand_delay_seconds)
-        async with get_db_session() as session:
-            runtime_mgr = get_pokerkit_runtime_manager()
-            runtime = await runtime_mgr.ensure_table(session, table_id)
+    This is a stateless, database-driven replacement for the old in-memory task system.
+    - Polls database every 5 seconds for tables in INTER_HAND_WAIT status
+    - Uses distributed lock to prevent duplicate execution in multi-worker environments
+    - Checks Table.last_action_at to determine if timeout has expired
+    - Automatically advances to next hand when timeout expires
+    - Race-safe with proper state checks
 
-            current_hand_no = runtime.hand_no
-            current_status = (
-                runtime.current_hand.status if runtime.current_hand else None
-            )
-            ready_count = len(runtime.ready_players)
-            active_count = len(
-                [
-                    s
-                    for s in runtime.seats
-                    if s.left_at is None and not s.is_sitting_out_next_hand
-                ]
-            )
+    Design Notes:
+    - Survives server restarts and worker process cycles
+    - No in-memory state that can be lost
+    - Multiple workers can run safely (only one processes at a time via Redis lock)
+    """
+    from telegram_poker_bot.shared.database import get_db_session
 
-            if (
-                not runtime.current_hand
-                or current_status != HandStatus.INTER_HAND_WAIT
-                or current_hand_no != hand_no
-            ):
-                logger.info(
-                    "Inter-hand self-destruct skipped: table already advanced",
-                    table_id=table_id,
-                    current_hand_no=current_hand_no,
-                    scheduled_for_hand_no=hand_no,
-                    current_hand_status=(
-                        current_status.value if hasattr(current_status, "value") else None
-                    ),
-                    ready_count=ready_count,
-                    active_count=active_count,
-                )
-                await session.commit()
-                return
+    LOCK_KEY = "lock:monitor_inter_hand"
+    LOCK_TTL = 10  # Lock expires after 10 seconds
 
-            result = await runtime_mgr.complete_inter_hand_phase(session, table_id)
-            await session.commit()
+    logger.info("Inter-hand timeout monitor started")
 
-        await _handle_inter_hand_result(table_id, result)
-    except asyncio.CancelledError:
-        return
-    finally:
-        _inter_hand_tasks.pop(table_id, None)
+    while True:
+        try:
+            await asyncio.sleep(5)  # Check every 5 seconds
 
+            redis_client = await get_redis_client()
+            lock_acquired = await redis_client.set(LOCK_KEY, "1", nx=True, ex=LOCK_TTL)
 
-def _schedule_inter_hand_completion(table_id: int, hand_no: int) -> None:
-    """Schedule or reset the inter-hand countdown task for a table."""
+            if not lock_acquired:
+                logger.debug("Inter-hand monitor lock held by another worker, skipping")
+                continue
 
-    _cancel_inter_hand_task(table_id)
-    _inter_hand_tasks[table_id] = (
-        asyncio.create_task(_auto_complete_inter_hand(table_id, hand_no)),
-        hand_no,
-    )
+            try:
+                now = datetime.now(timezone.utc)
+
+                async with get_db_session() as db:
+                    # Query for hands in INTER_HAND_WAIT status and join with Table
+                    result = await db.execute(
+                        select(Hand, Table)
+                        .join(Table, Hand.table_id == Table.id)
+                        .where(
+                            Hand.status == HandStatus.INTER_HAND_WAIT,
+                            Table.status == TableStatus.ACTIVE,
+                        )
+                    )
+                    hands_with_tables = list(result.all())
+
+                    for hand, table in hands_with_tables:
+                        try:
+                            # Check if timeout has expired
+                            if not table.last_action_at:
+                                logger.warning(
+                                    "Table in INTER_HAND_WAIT but no last_action_at",
+                                    table_id=table.id,
+                                    hand_no=hand.hand_no,
+                                )
+                                continue
+
+                            time_since_last_action = (now - table.last_action_at).total_seconds()
+
+                            if time_since_last_action > settings.post_hand_delay_seconds:
+                                logger.info(
+                                    "Inter-hand timeout expired, auto-completing",
+                                    table_id=table.id,
+                                    hand_no=hand.hand_no,
+                                    time_since_last_action=time_since_last_action,
+                                    timeout_threshold=settings.post_hand_delay_seconds,
+                                )
+
+                                # Call runtime manager to complete inter-hand phase
+                                runtime_mgr = get_pokerkit_runtime_manager()
+                                result = await runtime_mgr.complete_inter_hand_phase(
+                                    db, table.id
+                                )
+                                await db.commit()
+
+                                # Broadcast the result
+                                await _handle_inter_hand_result(table.id, result)
+
+                                logger.info(
+                                    "Inter-hand phase auto-completed successfully",
+                                    table_id=table.id,
+                                    hand_no=hand.hand_no,
+                                )
+
+                        except Exception as e:
+                            logger.error(
+                                "Error processing inter-hand timeout for table",
+                                table_id=table.id if table else None,
+                                hand_id=hand.id if hand else None,
+                                error=str(e),
+                            )
+                            await db.rollback()
+
+            finally:
+                await redis_client.delete(LOCK_KEY)
+
+        except asyncio.CancelledError:
+            logger.info("Inter-hand timeout monitor cancelled")
+            break
+        except Exception as e:
+            logger.error("Error in inter-hand timeout monitor", error=str(e))
 
 
 async def check_table_inactivity():
@@ -1146,12 +1184,8 @@ async def auto_fold_expired_actions():
                                 hand_ended_event = public_state.get("hand_ended_event")
                                 if hand_ended_event:
                                     await manager.broadcast(table.id, hand_ended_event)
-                                hand_no = (
-                                    public_state.get("hand_id")
-                                    or public_state.get("hand_no")
-                                    or 0
-                                )
-                                _schedule_inter_hand_completion(table.id, int(hand_no))
+                                # Note: Inter-hand timeout is now handled by monitor_inter_hand_timeouts()
+                                # No need to schedule in-memory task
 
                         except Exception as e:
                             logger.error(
@@ -1465,7 +1499,7 @@ async def startup_auto_create_tables():
 @api_app.on_event("startup")
 async def startup_event():
     """Start background tasks on application startup."""
-    global _auto_fold_task, _inactivity_check_task, _sng_monitor_task
+    global _auto_fold_task, _inactivity_check_task, _sng_monitor_task, _inter_hand_monitor_task
     
     # Run auto-create BEFORE starting background tasks
     # This is the zero-touch system that ensures tables exist on startup
@@ -1474,18 +1508,19 @@ async def startup_event():
     _auto_fold_task = asyncio.create_task(auto_fold_expired_actions())
     _inactivity_check_task = asyncio.create_task(check_table_inactivity())
     _sng_monitor_task = asyncio.create_task(monitor_sng_join_windows())
+    _inter_hand_monitor_task = asyncio.create_task(monitor_inter_hand_timeouts())
     
     # Start analytics scheduler
     scheduler = get_analytics_scheduler()
     await scheduler.start()
     
-    logger.info("Started background tasks: auto-fold, inactivity check, SNG monitor, and analytics scheduler")
+    logger.info("Started background tasks: auto-fold, inactivity check, SNG monitor, inter-hand monitor, and analytics scheduler")
 
 
 @api_app.on_event("shutdown")
 async def shutdown_event():
     """Clean up background tasks on application shutdown."""
-    global _auto_fold_task, _inactivity_check_task, _sng_monitor_task
+    global _auto_fold_task, _inactivity_check_task, _sng_monitor_task, _inter_hand_monitor_task
 
     if _auto_fold_task:
         _auto_fold_task.cancel()
@@ -1505,6 +1540,13 @@ async def shutdown_event():
         _sng_monitor_task.cancel()
         try:
             await _sng_monitor_task
+        except asyncio.CancelledError:
+            pass
+
+    if _inter_hand_monitor_task:
+        _inter_hand_monitor_task.cancel()
+        try:
+            await _inter_hand_monitor_task
         except asyncio.CancelledError:
             pass
 
@@ -2814,7 +2856,8 @@ async def mark_ready(
     )
 
     if all_ready:
-        _cancel_inter_hand_task(table_id)
+        # All players ready - immediately complete inter-hand phase
+        # No need to cancel task, monitor will handle it gracefully
         result = await runtime_mgr.complete_inter_hand_phase(db, table_id)
         await db.commit()
         await _handle_inter_hand_result(table_id, result)
@@ -3040,7 +3083,7 @@ async def delete_table(
             detail="Only the table creator can delete this table",
         )
 
-    _cancel_inter_hand_task(table_id)
+    # Note: No need to cancel inter-hand task - monitor handles cleanup gracefully
 
     # Close all WebSocket connections for this table
     await manager.close_all_connections(table_id)
@@ -3303,7 +3346,8 @@ async def submit_action(
             ready_players = set(ready_info.get("ready_players", []))
             seated_ids = set(ready_info.get("seated_user_ids", []))
             if seated_ids and ready_players >= seated_ids:
-                _cancel_inter_hand_task(table_id)
+                # All players ready - immediately complete inter-hand phase
+                # No need to cancel task, monitor will handle it gracefully
                 result = await runtime_mgr.complete_inter_hand_phase(db, table_id)
                 await db.commit()
                 await _handle_inter_hand_result(table_id, result)
@@ -3341,10 +3385,8 @@ async def submit_action(
             hand_ended_event = public_state.get("hand_ended_event")
             if hand_ended_event:
                 await manager.broadcast(table_id, hand_ended_event)
-            hand_no = (
-                public_state.get("hand_id") or public_state.get("hand_no") or 0
-            )
-            _schedule_inter_hand_completion(table_id, int(hand_no))
+            # Note: Inter-hand timeout is now handled by monitor_inter_hand_timeouts()
+            # No need to schedule in-memory task
 
         viewer_state = await runtime_mgr.get_state(db, table_id, user.id)
         if public_state.get("hand_result"):
