@@ -66,7 +66,7 @@ class AutoCreateConfig(BaseModel):
     - min_tables: int (required)
     - max_tables: int (required)
     - on_startup_repair: boolean (required)
-    - allow_missing_runtime: boolean (required)
+    - allow_missing_runtime: boolean (optional, defaults to False)
     
     Fields like lobby_persistent and is_auto_generated belong ONLY in the tables DB table,
     not in the template config.
@@ -78,7 +78,7 @@ class AutoCreateConfig(BaseModel):
     min_tables: int = Field(ge=0, description="Minimum number of tables to maintain")
     max_tables: int = Field(ge=1, description="Maximum number of tables to create")
     on_startup_repair: bool = Field(description="Whether to repair missing tables on startup")
-    allow_missing_runtime: bool = Field(description="Whether to allow missing tables at runtime")
+    allow_missing_runtime: Optional[bool] = Field(default=False, description="Whether to allow missing tables at runtime")
 
     @field_validator("max_tables")
     @classmethod
