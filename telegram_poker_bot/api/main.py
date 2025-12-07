@@ -590,7 +590,7 @@ async def monitor_inter_hand_timeouts():
     from telegram_poker_bot.shared.database import get_db_session
 
     LOCK_KEY = "lock:monitor_inter_hand"
-    LOCK_TTL = 10  # Lock expires after 10 seconds
+    LOCK_TTL = 30  # Lock expires after 30 seconds (sufficient for DB operations)
 
     logger.info("Inter-hand timeout monitor started")
 
@@ -665,7 +665,8 @@ async def monitor_inter_hand_timeouts():
                                 hand_id=hand.id if hand else None,
                                 error=str(e),
                             )
-                            await db.rollback()
+                            # Rollback is handled by context manager
+                            # Continue to next table
 
             finally:
                 await redis_client.delete(LOCK_KEY)
