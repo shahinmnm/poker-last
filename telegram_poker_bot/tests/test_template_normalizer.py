@@ -225,7 +225,7 @@ async def test_template_with_existing_auto_create():
 async def test_template_max_players_validation():
     """Test that max_players is validated."""
     # Test invalid max_players (too low)
-    with pytest.raises(ValueError, match="max_players must be between 2 and 8"):
+    with pytest.raises(ValueError, match="max_players must be between 2 and 9"):
         TemplateNormalizer.normalize_config({
             "backend": {
                 "small_blind": 10,
@@ -245,7 +245,7 @@ async def test_template_max_players_validation():
         })
 
     # Test invalid max_players (too high)
-    with pytest.raises(ValueError, match="max_players must be between 2 and 8"):
+    with pytest.raises(ValueError, match="max_players must be between 2 and 9"):
         TemplateNormalizer.normalize_config({
             "backend": {
                 "small_blind": 10,
