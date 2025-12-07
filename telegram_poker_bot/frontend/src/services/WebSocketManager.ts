@@ -43,6 +43,8 @@ export class WebSocketManager {
   private expectedSeq: number | null = null
   private expectedTableVersion: number | null = null
   private expectedSchemaVersion: string | null = null
+  private messageBuffer: Map<number, TableDeltaMessage> = new Map()
+  private gapTimeout: ReturnType<typeof setTimeout> | null = null
 
   private readonly url: string
   private readonly options: Required<WebSocketManagerOptions>
@@ -93,6 +95,13 @@ export class WebSocketManager {
   disconnect(): void {
     this.options.autoReconnect = false
     this.clearTimers()
+
+    // Clear buffer and timeout
+    this.messageBuffer.clear()
+    if (this.gapTimeout) {
+      clearTimeout(this.gapTimeout)
+      this.gapTimeout = null
+    }
 
     if (this.socket) {
       this.socket.close(1000, 'Client disconnect')
@@ -203,6 +212,13 @@ export class WebSocketManager {
       return
     }
 
+    // Clear buffer and timeout on snapshot
+    this.messageBuffer.clear()
+    if (this.gapTimeout) {
+      clearTimeout(this.gapTimeout)
+      this.gapTimeout = null
+    }
+
     // Store snapshot
     this.lastSnapshot = snapshot
     this.expectedSeq = message.event_seq
@@ -247,16 +263,59 @@ export class WebSocketManager {
       return
     }
 
-    // Check sequence
-    if (this.expectedSeq !== null && message.event_seq !== this.expectedSeq + 1) {
-      console.warn('[WS] Sequence mismatch, requesting snapshot', {
-        expected: this.expectedSeq + 1,
+    // Case 1: Stale/Duplicate - ignore messages with seq <= expectedSeq
+    if (this.expectedSeq !== null && message.event_seq <= this.expectedSeq) {
+      console.debug('[WS] Ignoring stale/duplicate message', {
+        expected: this.expectedSeq,
         received: message.event_seq,
       })
-      this.requestSnapshot()
       return
     }
 
+    // Case 2: Correct Sequence - seq === expectedSeq + 1
+    if (this.expectedSeq !== null && message.event_seq === this.expectedSeq + 1) {
+      // Apply the delta immediately
+      this.applyDelta(message)
+
+      // Recursively process any buffered messages that are now in sequence
+      this.processBufferedMessages()
+      return
+    }
+
+    // Case 3: Future Sequence - seq > expectedSeq + 1 (gap detected)
+    if (this.expectedSeq !== null && message.event_seq > this.expectedSeq + 1) {
+      console.warn('[WS] Future sequence detected, buffering message', {
+        expected: this.expectedSeq + 1,
+        received: message.event_seq,
+        gap: message.event_seq - this.expectedSeq - 1,
+      })
+
+      // Store message in buffer
+      this.messageBuffer.set(message.event_seq, message)
+
+      // Start gap timeout if not already active
+      if (!this.gapTimeout) {
+        this.gapTimeout = setTimeout(() => {
+          console.warn('[WS] Gap timeout, requesting snapshot')
+          this.messageBuffer.clear()
+          this.gapTimeout = null
+          this.requestSnapshot()
+        }, 500) // 500ms timeout
+      }
+      return
+    }
+
+    // Edge case: first delta without expectedSeq set
+    if (this.expectedSeq === null) {
+      console.warn('[WS] Receiving delta without expectedSeq, applying anyway')
+      this.applyDelta(message)
+    }
+  }
+
+  /**
+   * Apply a delta message and update tracking
+   */
+  private applyDelta(message: TableDeltaMessage): void {
     // Update tracking
     this.expectedSeq = message.event_seq
     this.expectedTableVersion = message.table_version
@@ -276,6 +335,33 @@ export class WebSocketManager {
       type: message.type,
       seq: message.event_seq,
     })
+  }
+
+  /**
+   * Process buffered messages in sequence
+   */
+  private processBufferedMessages(): void {
+    while (this.expectedSeq !== null) {
+      const nextSeq = this.expectedSeq + 1
+      const bufferedMessage = this.messageBuffer.get(nextSeq)
+
+      if (!bufferedMessage) {
+        // No more sequential messages in buffer
+        break
+      }
+
+      // Remove from buffer
+      this.messageBuffer.delete(nextSeq)
+
+      // Apply the buffered message
+      this.applyDelta(bufferedMessage)
+    }
+
+    // If buffer is empty after processing, clear the timeout
+    if (this.messageBuffer.size === 0 && this.gapTimeout) {
+      clearTimeout(this.gapTimeout)
+      this.gapTimeout = null
+    }
   }
 
   private handleError(error: Event): void {
