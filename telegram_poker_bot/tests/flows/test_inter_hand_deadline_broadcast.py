@@ -174,15 +174,12 @@ async def test_hand_ended_event_contains_deadline():
 @pytest.mark.asyncio
 async def test_hand_ended_event_contains_allowed_actions_with_ready():
     """
-    Test that hand_ended event includes allowed_actions with ready action.
+    Test that hand_ended event has EMPTY allowed_actions (no voting).
 
-    This test verifies the fix for the bug where the ready button wasn't shown
-    to all players because the hand_ended broadcast was missing allowed_actions.
-
-    The fix ensures that:
+    After refactoring to professional Sit & Go flow:
     1. hand_ended_event includes "allowed_actions" field
-    2. allowed_actions contains [{"action_type": "ready"}]
-    3. All players receiving the broadcast can see and click the ready button
+    2. allowed_actions is EMPTY [] (no ready button - auto-proceed)
+    3. Players don't need to click anything - hand auto-starts after 5s
     """
     from telegram_poker_bot.game_core.pokerkit_runtime import PokerKitTableRuntime
 
@@ -296,30 +293,16 @@ async def test_hand_ended_event_contains_allowed_actions_with_ready():
             # CRITICAL: Verify allowed_actions is present
             assert (
                 "allowed_actions" in hand_ended_event
-            ), "hand_ended_event MUST contain allowed_actions for ready button"
+            ), "hand_ended_event MUST contain allowed_actions"
 
-            # Verify allowed_actions is a non-empty list
+            # Verify allowed_actions is EMPTY (no voting required)
             allowed_actions = hand_ended_event["allowed_actions"]
             assert isinstance(allowed_actions, list), "allowed_actions should be a list"
-            assert len(allowed_actions) > 0, "allowed_actions should not be empty"
-
-            # Verify the ready action is present
-            action_types = [a.get("action_type") for a in allowed_actions]
-            assert (
-                "ready" in action_types
-            ), "allowed_actions must include 'ready' action type"
-
-            # Verify the exact structure
-            ready_action = next(
-                (a for a in allowed_actions if a.get("action_type") == "ready"), None
-            )
-            assert ready_action is not None, "ready action must be present"
-            assert ready_action == {
-                "action_type": "ready"
-            }, "ready action should have correct structure"
+            assert len(allowed_actions) == 0, "allowed_actions should be EMPTY (no voting)"
 
             # Verify all other expected fields are present
             assert hand_ended_event["type"] == "hand_ended"
             assert hand_ended_event["status"] == "INTER_HAND_WAIT"
             assert "winners" in hand_ended_event
             assert "inter_hand_wait_deadline" in hand_ended_event
+            assert hand_ended_event["next_hand_in"] == 5  # 5-second countdown
