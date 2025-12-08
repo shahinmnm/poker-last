@@ -564,6 +564,17 @@ async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> No
         await manager.close_all_connections(table_id)
         return
 
+    if result.get("table_paused"):
+        await manager.broadcast(
+            table_id,
+            {
+                "type": "table_paused",
+                "status": result.get("status", "waiting"),
+                "reason": result.get("reason", "Waiting for players..."),
+            },
+        )
+        return
+
     if result.get("state"):
         async with get_db_session() as session:
             state = await _attach_template_to_payload(
