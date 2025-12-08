@@ -91,6 +91,9 @@ async def check_auto_start_conditions(
 ) -> tuple[bool, Optional[str]]:
     """Check if table meets conditions for auto-start.
     
+    For PERSISTENT tables, auto-starts immediately when min_players is reached.
+    For SNG tables, follows the standard SNG join window logic.
+    
     Returns:
         (should_start, reason) tuple
     """
@@ -101,7 +104,10 @@ async def check_auto_start_conditions(
     config = config_json.get("backend", config_json)
     sng_config = get_sng_config(config)
     
-    if not sng_config["enabled"] or not sng_config["auto_start"]:
+    # Treat PERSISTENT tables as if SNG is enabled with auto_start
+    is_persistent = table.template.table_type == TableTemplateType.PERSISTENT
+    
+    if not is_persistent and (not sng_config["enabled"] or not sng_config["auto_start"]):
         return False, None
     
     # Count active seats
@@ -121,7 +127,11 @@ async def check_auto_start_conditions(
     
     # Check if min players met
     if player_count >= sng_config["min_players"]:
-        # If join window expired, auto-start
+        # For PERSISTENT tables, ignore join window and start immediately
+        if is_persistent:
+            return True, "ready_to_start"
+        
+        # For SNG tables, check if join window expired
         if table.sng_state == SNGState.JOIN_WINDOW:
             if table.sng_join_window_started_at:
                 now = datetime.now(timezone.utc)
