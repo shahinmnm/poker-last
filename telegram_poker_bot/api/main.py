@@ -740,15 +740,15 @@ async def check_table_inactivity():
                                 ]
                             )
 
+                            # Determine if table is persistent (Lobby/Cash Game)
+                            is_persistent = (
+                                table.lobby_persistent 
+                                or (table.template and table.template.table_type in [TableTemplateType.PERSISTENT, TableTemplateType.CASH_GAME])
+                            )
+
                             if table.status == TableStatus.WAITING and not active_seats:
-                                # Skip persistent tables and lobby-persistent tables
-                                if (table.template and table.template.table_type == TableTemplateType.PERSISTENT) or table.lobby_persistent:
-                                    logger.debug(
-                                        "Skipping cleanup for persistent/lobby-persistent table with no players",
-                                        table_id=table.id,
-                                        is_persistent_template=(table.template and table.template.table_type == TableTemplateType.PERSISTENT),
-                                        is_lobby_persistent=table.lobby_persistent,
-                                    )
+                                # NEVER expire persistent tables
+                                if is_persistent:
                                     continue
                                 
                                 reason = "no active players remaining"
@@ -780,52 +780,17 @@ async def check_table_inactivity():
                                 continue
 
                             if table.status == TableStatus.ACTIVE and active_player_count < 2:
-                                # For persistent tables, pause instead of ending
-                                if table.template and table.template.table_type == TableTemplateType.PERSISTENT:
-                                    logger.info(
-                                        "Pausing persistent table due to lack of players",
-                                        table_id=table.id,
-                                        active_player_count=active_player_count,
-                                    )
-                                    
-                                    # Change status to WAITING to allow new players to join
+                                # PAUSE persistent tables instead of ending them
+                                if is_persistent:
+                                    logger.info(f"Pausing persistent table {table.id} (insufficient players)")
                                     table.status = TableStatus.WAITING
-                                    table.updated_at = datetime.now(timezone.utc)
-                                    await db.flush()
+                                    await db.commit()
                                     
-                                    # Broadcast state update to show "Waiting for players"
-                                    try:
-                                        runtime_mgr = get_pokerkit_runtime_manager()
-                                        final_state = await runtime_mgr.get_state(
-                                            db, table.id, viewer_user_id=None
-                                        )
-                                        final_state["status"] = table.status.value.lower()
-                                        final_state["table_status"] = table.status.value.lower()
-                                        await manager.broadcast(table.id, final_state)
-                                        
-                                        # Also broadcast a TABLE_UPDATED event for lobby
-                                        await manager.broadcast(table.id, {
-                                            "type": "TABLE_UPDATED",
-                                            "table_id": table.id,
-                                            "status": table.status.value.lower(),
-                                            "reason": "paused_waiting_for_players",
-                                        })
-                                    except Exception as broadcast_err:
-                                        logger.error(
-                                            "Failed to broadcast paused state",
-                                            table_id=table.id,
-                                            error=str(broadcast_err),
-                                        )
-                                    continue
-                                
-                                # Skip lobby-persistent tables (non-PERSISTENT type)
-                                if table.lobby_persistent:
-                                    logger.debug(
-                                        "Skipping min-player cleanup for lobby-persistent table",
-                                        table_id=table.id,
-                                        active_player_count=active_player_count,
-                                        is_lobby_persistent=table.lobby_persistent,
-                                    )
+                                    await manager.broadcast(table.id, {
+                                        "type": "table_paused",
+                                        "status": "waiting",
+                                        "message": "Waiting for players..."
+                                    })
                                     continue
                                 
                                 reason = (

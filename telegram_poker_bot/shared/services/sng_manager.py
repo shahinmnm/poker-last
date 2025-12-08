@@ -49,40 +49,17 @@ def get_sng_config(config: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-async def start_join_window(
-    db: AsyncSession,
-    table: Table,
-) -> None:
-    """Start the join window countdown for an SNG table.
-    
-    Args:
-        db: Database session
-        table: Table instance
-        
-    Raises:
-        ValueError: If SNG is not enabled or window already started
-    """
-    if not table.template or not table.template.config_json:
-        raise ValueError("Table must have a template with config")
-    
-    config_json = table.template.config_json
-    config = config_json.get("backend", config_json)
-    if not is_sng_enabled(config):
-        raise ValueError("SNG is not enabled for this table")
-    
-    if table.sng_state == SNGState.JOIN_WINDOW:
-        logger.warning("Join window already started", table_id=table.id)
+async def start_join_window(db: AsyncSession, table: Table) -> None:
+    """Start SNG join window if applicable."""
+    if not table.template:
         return
+    config = table.template.config_json.get("backend", table.template.config_json or {})
     
-    table.sng_state = SNGState.JOIN_WINDOW
-    table.sng_join_window_started_at = datetime.now(timezone.utc)
-    await db.flush()
-    
-    logger.info(
-        "SNG join window started",
-        table_id=table.id,
-        duration_seconds=get_sng_config(config)["join_window_seconds"],
-    )
+    if is_sng_enabled(config) and table.sng_state == SNGState.WAITING:
+        table.sng_state = SNGState.JOIN_WINDOW
+        table.sng_join_window_started_at = datetime.now(timezone.utc)
+        await db.flush()
+        logger.info("SNG join window started", table_id=table.id)
 
 
 async def check_auto_start_conditions(
@@ -91,9 +68,6 @@ async def check_auto_start_conditions(
 ) -> tuple[bool, Optional[str]]:
     """Check if table meets conditions for auto-start.
     
-    For PERSISTENT tables: auto-starts when >= 2 players seated (ignores SNG config).
-    For SNG tables: uses SNG configuration (join window, min/max players, etc.).
-    
     Args:
         db: Database session
         table: Table instance to check
@@ -101,73 +75,59 @@ async def check_auto_start_conditions(
     Returns:
         Tuple of (should_start: bool, reason: Optional[str])
         - should_start: True if table should auto-start now
-        - reason: String describing why table should start (e.g., "persistent_min_players_met")
+        - reason: String describing why table should start (e.g., "cash_game_min_players_met")
     """
     if not table.template:
         return False, None
 
-    # === AUTO-START FOR PERSISTENT TABLES ===
-    # Persistent tables (Cash Games) auto-start when 2 players are seated,
-    # regardless of SNG configuration flags.
-    if table.template.table_type == TableTemplateType.PERSISTENT:
-        result = await db.execute(
-            select(Seat).where(
-                Seat.table_id == table.id,
-                Seat.left_at.is_(None),
-            )
-        )
-        seats = result.scalars().all()
-        # Auto-start when 2 or more players are seated
-        if len(seats) >= 2:
-            return True, "persistent_min_players_met"
-        return False, None
-    # =========================================
+    # Count active seats (joined and not sitting out)
+    result = await db.execute(
+        select(Seat).where(Seat.table_id == table.id, Seat.left_at.is_(None))
+    )
+    seats = result.scalars().all()
+    active_count = len(seats)
 
-    # For SNG tables, extract configuration
-    if not table.template.config_json:
+    # === LOGIC 1: PERSISTENT / CASH GAMES (Instant Start) ===
+    # If the table is persistent (Lobby) or explicitly marked as PERSISTENT/CASH_GAME
+    is_persistent = (
+        table.lobby_persistent 
+        or table.template.table_type == TableTemplateType.PERSISTENT
+        or table.template.table_type == TableTemplateType.CASH_GAME
+    )
+
+    if is_persistent:
+        # Standard Cash Game Logic: 2 players = Game On
+        if active_count >= 2:
+            return True, "cash_game_min_players_met"
         return False, None
-    
-    config_json = table.template.config_json
+    # ========================================================
+
+    # === LOGIC 2: SNG TOURNAMENTS (Join Windows) ===
+    config_json = table.template.config_json or {}
     config = config_json.get("backend", config_json)
     sng_config = get_sng_config(config)
 
     if not sng_config["enabled"] or not sng_config["auto_start"]:
         return False, None
 
-    # Count active seats
-    result = await db.execute(
-        select(Seat).where(
-            Seat.table_id == table.id,
-            Seat.left_at.is_(None),
-        )
-    )
-    seats = result.scalars().all()
-    player_count = len(seats)
-
-    # Check if table is full
-    if player_count >= sng_config["max_players"]:
+    # Force start if full
+    if active_count >= sng_config["max_players"]:
         if sng_config["force_start_on_full"]:
             return True, "table_full"
 
-    # Check if min players met
-    if player_count >= sng_config["min_players"]:
-        # If join window expired, auto-start
+    # Start if min players met + logic satisfied
+    if active_count >= sng_config["min_players"]:
         if table.sng_state == SNGState.JOIN_WINDOW:
             if table.sng_join_window_started_at:
                 now = datetime.now(timezone.utc)
                 elapsed = (now - table.sng_join_window_started_at).total_seconds()
                 if elapsed >= sng_config["join_window_seconds"]:
                     return True, "join_window_expired"
-
-        # Transition to READY state
+        
+        # Move to READY if not already
         if table.sng_state != SNGState.READY:
             table.sng_state = SNGState.READY
             await db.flush()
-            logger.info(
-                "SNG transitioned to READY",
-                table_id=table.id,
-                player_count=player_count,
-            )
 
     return False, None
 
@@ -233,34 +193,9 @@ async def force_start_sng(
     return table
 
 
-async def on_player_seated(
-    db: AsyncSession,
-    table: Table,
-) -> None:
-    """Handle SNG logic when a player is seated.
-    
-    Args:
-        db: Database session
-        table: Table instance
-    """
-    if not table.template:
-        return
-    config_json = table.template.config_json or {}
-    backend_config = config_json.get("backend", config_json)
-    if not is_sng_enabled(backend_config):
-        return
-    
-    # Start join window if this is the first player
-    result = await db.execute(
-        select(Seat).where(
-            Seat.table_id == table.id,
-            Seat.left_at.is_(None),
-        )
-    )
+async def on_player_seated(db: AsyncSession, table: Table) -> None:
+    """Handle SNG logic when a player is seated."""
+    result = await db.execute(select(Seat).where(Seat.table_id == table.id, Seat.left_at.is_(None)))
     seats = result.scalars().all()
-    
-    if len(seats) == 1 and table.sng_state == SNGState.WAITING:
+    if len(seats) == 1:
         await start_join_window(db, table)
-    
-    # Check auto-start conditions
-    await check_auto_start_conditions(db, table)
