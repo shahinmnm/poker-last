@@ -807,14 +807,8 @@ async def check_table_inactivity():
                                 # 2. Check Player Count
                                 if playing_count < 2:
                                     # 3. CHECK PERSISTENCE (The Missing Fix)
-                                    is_persistent = (
-                                        table.lobby_persistent 
-                                        or table.is_auto_generated
-                                        or (table.template and table.template.table_type in [
-                                            TableTemplateType.PERSISTENT, 
-                                            TableTemplateType.CASH_GAME
-                                        ])
-                                    )
+                                    # Re-check persistence to ensure we catch is_auto_generated tables
+                                    is_persistent = await table_lifecycle.is_persistent_table(table)
 
                                     if is_persistent:
                                         # PAUSE instead of END
