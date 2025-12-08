@@ -107,7 +107,7 @@ async def check_auto_start_conditions(
         return False, None
 
     # === FORCE START FOR PERSISTENT TABLES ===
-    # Persistent tables (Cash Games) auto-start when min_players (2) is met,
+    # Persistent tables (Cash Games) auto-start when 2 players are seated,
     # regardless of SNG configuration flags.
     if table.template.table_type == TableTemplateType.PERSISTENT:
         result = await db.execute(
@@ -117,7 +117,7 @@ async def check_auto_start_conditions(
             )
         )
         seats = result.scalars().all()
-        # Default min_players to 2 for cash games if not specified
+        # Auto-start when 2 or more players are seated
         if len(seats) >= 2:
             return True, "persistent_min_players_met"
         return False, None

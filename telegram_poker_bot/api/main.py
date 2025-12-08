@@ -1259,8 +1259,7 @@ async def monitor_table_autostart():
             await asyncio.sleep(1)  # Check every second
             
             async with get_db_session() as db:
-                # Find ALL tables in WAITING state (Persistent + SNG)
-                # Do NOT filter by sng_state, or we miss Persistent tables
+                # Find ALL tables in WAITING state (includes both Persistent and SNG tables)
                 result = await db.execute(
                     select(Table)
                     .options(joinedload(Table.template))
