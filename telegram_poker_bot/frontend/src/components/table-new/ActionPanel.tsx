@@ -8,6 +8,7 @@
 import { useState, useMemo } from 'react'
 import type { LegalAction, ActionType } from '../../types/normalized'
 import Button from '../ui/Button'
+import Toggle from '../ui/Toggle'
 import { formatByCurrency, type CurrencyType } from '@/utils/currency'
 
 interface ActionPanelProps {
@@ -15,6 +16,9 @@ interface ActionPanelProps {
   onAction: (action: ActionType, amount?: number) => void
   currency?: CurrencyType
   disabled?: boolean
+  isSittingOut?: boolean
+  onSitOutToggle?: (sitOut: boolean) => void
+  showSitOutToggle?: boolean
 }
 
 export function ActionPanel({
@@ -22,6 +26,9 @@ export function ActionPanel({
   onAction,
   currency = 'PLAY',
   disabled = false,
+  isSittingOut = false,
+  onSitOutToggle,
+  showSitOutToggle = false,
 }: ActionPanelProps) {
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null)
   const [showRaiseSlider, setShowRaiseSlider] = useState(false)
@@ -58,15 +65,16 @@ export function ActionPanel({
     setRaiseAmount(amount)
   }
 
-  // Render nothing if no actions available
-  if (legalActions.length === 0) {
+  // Don't render if no legal actions AND sit out toggle is not shown
+  if (legalActions.length === 0 && !showSitOutToggle) {
     return null
   }
 
   return (
     <div className="action-panel bg-gray-800 rounded-lg p-4 space-y-3">
       {/* Main action buttons */}
-      <div className="flex gap-2 flex-wrap">
+      {legalActions.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
         {legalActions.map((action) => {
           if (action.action === 'raise' || action.action === 'bet') {
             // Raise/Bet button with slider
@@ -176,6 +184,7 @@ export function ActionPanel({
           )
         })}
       </div>
+      )}
 
       {/* Raise/Bet slider */}
       {showRaiseSlider && raiseAction && (
@@ -219,6 +228,21 @@ export function ActionPanel({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sit Out Toggle */}
+      {showSitOutToggle && onSitOutToggle && (
+        <div className="sit-out-toggle flex items-center justify-between px-2 py-2 bg-gray-700 rounded-lg">
+          <label htmlFor="sit-out-toggle" className="text-sm font-medium text-gray-200 cursor-pointer">
+            Sit Out Next Hand
+          </label>
+          <Toggle
+            id="sit-out-toggle"
+            checked={isSittingOut}
+            onChange={onSitOutToggle}
+            disabled={disabled}
+          />
         </div>
       )}
     </div>
