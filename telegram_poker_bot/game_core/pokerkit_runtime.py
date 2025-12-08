@@ -468,7 +468,11 @@ class PokerKitTableRuntime:
                 )
 
                 # CRITICAL CHANGE: Do NOT force players to sit out.
-                # They remain seated and active by default.
+                # Previous behavior: After hand ended, all players were forced to sit out
+                # and had to vote "Ready" to continue playing.
+                # New behavior: Players remain seated and active by default. The next hand
+                # will auto-deal after the 5-second showdown countdown. No voting required.
+                # This creates a professional Sit & Go experience.
                 logger.info(
                     "Players remain active - no ready voting required",
                     table_id=self.table.id,
@@ -1783,7 +1787,9 @@ class PokerKitTableRuntimeManager:
             playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
 
             if len(playing_seats) < 2:
-                # PAUSE LOGIC: Not enough players to deal next hand
+                # PAUSE LOGIC: Not enough players (< 2) to deal next hand
+                # For persistent tables: Set status to WAITING (pause, don't delete)
+                # For non-persistent tables: Set status to ENDED (normal cleanup)
                 # Check if table is persistent using centralized helper
                 is_persistent = await table_lifecycle.is_persistent_table(runtime.table)
                 

@@ -79,18 +79,14 @@ async def is_persistent_table(table: Table) -> bool:
     Returns:
         True if table is persistent, False otherwise
     """
-    # Check lobby_persistent flag
-    if table.lobby_persistent:
-        return True
-    
-    # Check template type
-    if table.template and table.template.table_type in [
-        TableTemplateType.PERSISTENT,
-        TableTemplateType.CASH_GAME,
-    ]:
-        return True
-    
-    return False
+    return (
+        table.lobby_persistent
+        or (
+            table.template
+            and table.template.table_type
+            in [TableTemplateType.PERSISTENT, TableTemplateType.CASH_GAME]
+        )
+    )
 
 
 async def should_table_be_listed_publicly(table: Table) -> bool:
