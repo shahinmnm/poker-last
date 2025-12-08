@@ -1246,14 +1246,10 @@ async def auto_fold_expired_actions():
 async def monitor_table_autostart():
     """Background task to monitor tables and trigger auto-starts.
     
-    Runs every second to:
-    1. Check all tables in WAITING state (both SNG and PERSISTENT)
-    2. For SNG tables: emit tick events and handle join windows
-    3. For PERSISTENT tables: auto-start when min_players reached
-    4. Trigger auto-start when conditions are met
+    Checks ALL waiting tables (SNG and Persistent) for start conditions.
     """
     from telegram_poker_bot.shared.database import get_db_session
-    from telegram_poker_bot.shared.services import sng_manager, table_service
+    from telegram_poker_bot.shared.services import sng_manager
     from sqlalchemy.orm import joinedload
     
     logger.info("Table auto-start monitor started")
@@ -1263,133 +1259,60 @@ async def monitor_table_autostart():
             await asyncio.sleep(1)  # Check every second
             
             async with get_db_session() as db:
-                # Find all tables in WAITING state that need auto-start monitoring
-                # Only include:
-                # 1. PERSISTENT tables (auto-start when min_players reached)
-                # 2. SNG tables (have sng_state set)
+                # Find ALL tables in WAITING state (Persistent + SNG)
+                # Do NOT filter by sng_state, or we miss Persistent tables
                 result = await db.execute(
                     select(Table)
-                    .join(TableTemplate, Table.template_id == TableTemplate.id)
                     .options(joinedload(Table.template))
-                    .where(
-                        Table.status == TableStatus.WAITING,
-                        or_(
-                            TableTemplate.table_type == TableTemplateType.PERSISTENT,
-                            Table.sng_state.isnot(None),
-                        ),
-                    )
+                    .where(Table.status == TableStatus.WAITING)
                 )
                 tables = list(result.scalars())
                 
                 for table in tables:
-                    table_id = None
                     try:
-                        table_id = table.id
-                        if not table.template or not table.template.config_json:
-                            continue
-                        
-                        config_json = table.template.config_json
-                        config = config_json.get("backend", config_json)
-                        
-                        # Check if this is a PERSISTENT table
-                        is_persistent = table.template.table_type == TableTemplateType.PERSISTENT
-                        
-                        # For SNG tables in JOIN_WINDOW state, emit tick events
-                        if not is_persistent and table.sng_state == SNGState.JOIN_WINDOW:
-                            sng_config = sng_manager.get_sng_config(config)
-                            
-                            if table.sng_join_window_started_at:
-                                now = datetime.now(timezone.utc)
-                                elapsed = (now - table.sng_join_window_started_at).total_seconds()
-                                remaining = max(0, sng_config["join_window_seconds"] - elapsed)
-                                
-                                # Broadcast tick event
-                                await manager.broadcast(table.id, {
-                                    "type": "sng_join_window_tick",
-                                    "table_id": table.id,
-                                    "remaining_seconds": int(remaining),
-                                })
-                        
-                        # Check auto-start conditions for all tables
-                        should_start, reason = await sng_manager.check_auto_start_conditions(
-                            db, table
-                        )
+                        # Check start conditions
+                        should_start, reason = await sng_manager.check_auto_start_conditions(db, table)
                         
                         if should_start:
                             logger.info(
                                 "Auto-starting table",
                                 table_id=table.id,
+                                type=table.template.table_type.value if table.template else "unknown",
                                 reason=reason,
-                                is_persistent=is_persistent,
                             )
                             
-                            # Start the table using table_service (allows system start)
+                            # 1. Update Status (System Action)
+                            # Pass user_id=None to indicate system action
                             await table_service.start_table(db, table.id, user_id=None)
                             
-                            # Start the game using pokerkit runtime
+                            # 2. Initialize Game Engine
                             runtime_mgr = get_pokerkit_runtime_manager()
                             state = await runtime_mgr.start_game(db, table.id)
                             
-                            # Attach template to payload
+                            # 3. Broadcast Start Event
                             state = await _attach_template_to_payload(db, table.id, state)
-                            
-                            # Broadcast the state to all connected clients
                             await manager.broadcast(table.id, state)
                             
-                            await db.commit()
-                            
-                            logger.info(
-                                "Table auto-started successfully",
-                                table_id=table.id,
-                                reason=reason,
-                            )
-                        
-                        # For SNG tables, handle join window expiration without auto-start
-                        elif not is_persistent and table.sng_state == SNGState.JOIN_WINDOW:
-                            sng_config = sng_manager.get_sng_config(config)
-                            if table.sng_join_window_started_at:
-                                now = datetime.now(timezone.utc)
-                                elapsed = (now - table.sng_join_window_started_at).total_seconds()
-                                
-                                if elapsed >= sng_config["join_window_seconds"]:
-                                    # Window expired but not enough players
-                                    await manager.broadcast(table.id, {
-                                        "type": "sng_join_window_ended",
-                                        "table_id": table.id,
-                                        "auto_starting": False,
-                                    })
-                                    
-                                    # Reset to WAITING state
-                                    table.sng_state = SNGState.WAITING
-                                    table.sng_join_window_started_at = None
-                                    await db.commit()
-                                    
-                                    logger.info(
-                                        "SNG join window expired without enough players",
-                                        table_id=table.id,
-                                    )
-                    
+                            # 4. Invalidate Cache
+                            try:
+                                pool = await get_matchmaking_pool()
+                                await table_service.invalidate_public_table_cache(pool.redis)
+                            except Exception:
+                                pass
+
                     except Exception as exc:
                         logger.error(
-                            "Error processing table auto-start",
-                            table_id=table_id,
+                            "Error processing auto-start for table",
+                            table_id=table.id,
                             error=str(exc),
                         )
-                        try:
-                            await db.rollback()
-                        except Exception as rollback_err:
-                            logger.warning(
-                                "Failed to rollback after error",
-                                table_id=table_id,
-                                error=str(rollback_err),
-                            )
         
         except asyncio.CancelledError:
             logger.info("Table auto-start monitor cancelled")
             break
         except Exception as exc:
             logger.error("Error in table auto-start monitor", error=str(exc))
-            await asyncio.sleep(5)  # Back off on error
+            await asyncio.sleep(5)
 
 
 async def startup_auto_create_tables():
