@@ -1269,11 +1269,12 @@ async def monitor_table_autostart():
                 # 2. SNG tables (have sng_state set)
                 result = await db.execute(
                     select(Table)
+                    .join(TableTemplate, Table.template_id == TableTemplate.id)
                     .options(joinedload(Table.template))
                     .where(
                         Table.status == TableStatus.WAITING,
                         or_(
-                            Table.template.has(TableTemplate.table_type == TableTemplateType.PERSISTENT),
+                            TableTemplate.table_type == TableTemplateType.PERSISTENT,
                             Table.sng_state.isnot(None),
                         ),
                     )
@@ -1374,8 +1375,12 @@ async def monitor_table_autostart():
                         )
                         try:
                             await db.rollback()
-                        except Exception:
-                            pass  # Ignore rollback errors
+                        except Exception as rollback_err:
+                            logger.warning(
+                                "Failed to rollback after error",
+                                table_id=table.id,
+                                error=str(rollback_err),
+                            )
         
         except asyncio.CancelledError:
             logger.info("Table auto-start monitor cancelled")
