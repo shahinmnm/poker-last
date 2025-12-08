@@ -69,7 +69,8 @@ async def is_persistent_table(table: Table) -> bool:
     
     A table is considered persistent if:
     1. It has lobby_persistent flag set to True, OR
-    2. Its template type is PERSISTENT or CASH_GAME
+    2. It is auto-generated (is_auto_generated flag), OR
+    3. Its template type is PERSISTENT or CASH_GAME
     
     Persistent tables should never be deleted, only paused (returned to WAITING state).
     
@@ -81,6 +82,7 @@ async def is_persistent_table(table: Table) -> bool:
     """
     return (
         table.lobby_persistent
+        or table.is_auto_generated
         or (
             table.template
             and table.template.table_type

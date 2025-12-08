@@ -792,63 +792,44 @@ async def check_table_inactivity():
                                     continue
 
                             # --- STEP 3: HANDLE "ACTIVE" TABLES ---
+                            # Logic for ACTIVE Tables
                             if table.status == TableStatus.ACTIVE:
-                                # Check if a hand is currently running (don't kill mid-hand)
-                                # We exclude ENDED and SHOWDOWN because those states indicate
-                                # the hand is complete or transitioning to the next hand
+                                # 1. Check if hand is running (Don't kill mid-hand)
                                 active_hand = await db.scalar(
                                     select(Hand).where(
                                         Hand.table_id == table.id,
-                                        Hand.status.notin_(
-                                            [HandStatus.ENDED, HandStatus.SHOWDOWN]
-                                        ),
+                                        Hand.status.notin_([HandStatus.ENDED, HandStatus.SHOWDOWN])
                                     )
                                 )
-
-                                # If hand is running, skip lifecycle checks for now
                                 if active_hand:
                                     continue
 
-                                # If no hand is running, check if we have enough players to start the next one
+                                # 2. Check Player Count
                                 if playing_count < 2:
+                                    # 3. Apply persistence-based lifecycle rules
                                     if is_persistent:
-                                        # RULE: Persistent tables PAUSE, they do not END
+                                        # PAUSE instead of END
                                         logger.info(
                                             "Pausing persistent table (insufficient players)",
                                             table_id=table.id,
                                         )
                                         table.status = TableStatus.WAITING
-                                        table.last_action_at = now  # Refresh timestamp to prevent stale expiration
+                                        table.last_action_at = now
                                         await db.commit()
 
-                                        # Broadcast "Waiting" state to UI
-                                        await manager.broadcast(
-                                            table.id,
-                                            {
-                                                "type": "table_paused",
-                                                "status": "waiting",
-                                                "message": "Waiting for players...",
-                                            },
-                                        )
-
-                                        # Also broadcast full state update to sync clients
-                                        runtime_mgr = get_pokerkit_runtime_manager()
-                                        state = await runtime_mgr.get_state(
-                                            db, table.id, None
-                                        )
-                                        state = await _attach_template_to_payload(
-                                            db, table.id, state
-                                        )
-                                        await manager.broadcast(table.id, state)
+                                        await manager.broadcast(table.id, {
+                                            "type": "table_paused",
+                                            "status": "waiting",
+                                            "message": "Waiting for players..."
+                                        })
                                         continue
-                                    else:
-                                        # RULE: SNGs END when players leave
-                                        reason = f"lack of minimum player ({playing_count}/2 required)"
-                                        await table_lifecycle.mark_table_completed_and_cleanup(
-                                            db, table, reason
-                                        )
-                                        await manager.close_all_connections(table.id)
-                                        continue
+                                    
+                                    # DELETE (Only for SNGs)
+                                    await table_lifecycle.mark_table_completed_and_cleanup(
+                                        db, table, "insufficient players"
+                                    )
+                                    await manager.close_all_connections(table.id)
+                                    continue
 
                             # --- STEP 4: GENERIC LIFECYCLE CHECKS ---
                             # (Only for non-persistent tables)
