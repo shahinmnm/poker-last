@@ -91,7 +91,7 @@ async def check_auto_start_conditions(
 ) -> tuple[bool, Optional[str]]:
     """Check if table meets conditions for auto-start.
     
-    For PERSISTENT tables, auto-starts immediately when min_players is reached.
+    For PERSISTENT tables, auto-starts immediately when min_players (2) is reached.
     For SNG tables, follows the standard SNG join window logic.
     
     Returns:
@@ -102,13 +102,9 @@ async def check_auto_start_conditions(
     
     config_json = table.template.config_json
     config = config_json.get("backend", config_json)
-    sng_config = get_sng_config(config)
     
-    # Treat PERSISTENT tables as if SNG is enabled with auto_start
+    # Check if this is a PERSISTENT table
     is_persistent = table.template.table_type == TableTemplateType.PERSISTENT
-    
-    if not is_persistent and (not sng_config["enabled"] or not sng_config["auto_start"]):
-        return False, None
     
     # Count active seats
     result = await db.execute(
@@ -120,6 +116,18 @@ async def check_auto_start_conditions(
     seats = result.scalars().all()
     player_count = len(seats)
     
+    # For PERSISTENT tables: auto-start when >= 2 players
+    if is_persistent:
+        if player_count >= 2:
+            return True, "persistent_min_players_met"
+        return False, None
+    
+    # For non-PERSISTENT tables: use SNG logic
+    sng_config = get_sng_config(config)
+    
+    if not sng_config["enabled"] or not sng_config["auto_start"]:
+        return False, None
+    
     # Check if table is full
     if player_count >= sng_config["max_players"]:
         if sng_config["force_start_on_full"]:
@@ -127,10 +135,6 @@ async def check_auto_start_conditions(
     
     # Check if min players met
     if player_count >= sng_config["min_players"]:
-        # For PERSISTENT tables, ignore join window and start immediately
-        if is_persistent:
-            return True, "ready_to_start"
-        
         # For SNG tables, check if join window expired
         if table.sng_state == SNGState.JOIN_WINDOW:
             if table.sng_join_window_started_at:
