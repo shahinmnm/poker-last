@@ -27,7 +27,6 @@ from telegram_poker_bot.shared.models import (
     Table,
     TableStatus,
     TableTemplate,
-    TableTemplateType,
     GameVariant,
     CurrencyType,
 )
