@@ -63,7 +63,11 @@ from telegram_poker_bot.shared.services.group_invites import (
     generate_unique_game_id,
     token_length_for_ttl,
 )
-from telegram_poker_bot.shared.services import user_service, table_service, table_lifecycle
+from telegram_poker_bot.shared.services import (
+    user_service,
+    table_service,
+    table_lifecycle,
+)
 from telegram_poker_bot.shared.services.avatar_service import generate_avatar
 from telegram_poker_bot.shared.services.scheduler import get_analytics_scheduler
 from telegram_poker_bot.bot.i18n import get_translation
@@ -75,7 +79,9 @@ from telegram_poker_bot.game_core.pokerkit_runtime import (
     get_pokerkit_runtime_manager,
 )
 from telegram_poker_bot.api.admin_routes import admin_router
-from telegram_poker_bot.api.routes.table_templates import router as table_templates_router
+from telegram_poker_bot.api.routes.table_templates import (
+    router as table_templates_router,
+)
 
 settings = get_settings()
 configure_logging()
@@ -129,7 +135,9 @@ api_app.add_middleware(
 
 # Import all routers
 from telegram_poker_bot.api.auth_routes import auth_router
-from telegram_poker_bot.api.global_waitlist_routes import router as global_waitlist_router
+from telegram_poker_bot.api.global_waitlist_routes import (
+    router as global_waitlist_router,
+)
 from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
 from telegram_poker_bot.api.analytics_user_routes import analytics_user_router
 
@@ -369,7 +377,9 @@ class LobbyConnectionManager:
 
     async def broadcast(self, message: Dict[str, Any]) -> None:
         if not self.connections:
-            logger.debug("No lobby connections to broadcast", message_type=message.get("type"))
+            logger.debug(
+                "No lobby connections to broadcast", message_type=message.get("type")
+            )
             return
 
         payload_type = message.get("type", "unknown")
@@ -643,9 +653,14 @@ async def monitor_inter_hand_timeouts():
                                 )
                                 continue
 
-                            time_since_last_action = (now - table.last_action_at).total_seconds()
+                            time_since_last_action = (
+                                now - table.last_action_at
+                            ).total_seconds()
 
-                            if time_since_last_action > settings.post_hand_delay_seconds:
+                            if (
+                                time_since_last_action
+                                > settings.post_hand_delay_seconds
+                            ):
                                 logger.info(
                                     "Inter-hand timeout expired, auto-completing",
                                     table_id=table.id,
@@ -692,15 +707,12 @@ async def monitor_inter_hand_timeouts():
 
 async def check_table_inactivity():
     """
-    Background task that checks for inactive tables and marks them as expired.
+    Background task that manages table lifecycle.
 
-    Rules implemented via table_lifecycle service:
-    - Pre-game: Tables expire if expires_at is in the past (Rule A)
-    - Post-game: Tables self-destruct if insufficient active players (Rule D)
-    - All-sit-out: Tables where ALL players are sitting out expire after 5 minutes
-
-    Uses distributed lock to prevent duplicate execution in multi-worker environments.
-    Runs every 30 seconds.
+    CRITICAL LOGIC CHANGES:
+    1. Persistent tables (Lobby/Cash) NEVER expire when empty.
+    2. Persistent tables PAUSE (switch to WAITING) when players leave, instead of ENDING.
+    3. SNG/Tournament tables retain original cleanup logic.
     """
     from telegram_poker_bot.shared.database import get_db_session
     from telegram_poker_bot.shared.services import table_lifecycle
@@ -712,19 +724,19 @@ async def check_table_inactivity():
 
     while True:
         try:
-            await asyncio.sleep(30)
+            await asyncio.sleep(10)  # Check every 10 seconds for responsiveness
 
             redis_client = await get_redis_client()
             lock_acquired = await redis_client.set(LOCK_KEY, "1", nx=True, ex=LOCK_TTL)
 
             if not lock_acquired:
-                logger.debug("Inactivity check lock held by another worker, skipping")
                 continue
 
             try:
                 now = datetime.now(timezone.utc)
 
                 async with get_db_session() as db:
+                    # Fetch all tables that are not already dead
                     result = await db.execute(
                         select(Table)
                         .options(joinedload(Table.template))
@@ -736,18 +748,22 @@ async def check_table_inactivity():
 
                     for table in tables:
                         try:
-                            # Do not touch tables currently in the showdown/transition phase
-                            # This prevents the "Pausing persistent table" error from happening mid-showdown
-                            active_hand = await db.scalar(
-                                select(Hand).where(Hand.table_id == table.id, Hand.status == HandStatus.INTER_HAND_WAIT)
-                            )
-                            if active_hand:
-                                logger.debug(
-                                    "Skipping inactivity check for table in INTER_HAND_WAIT",
-                                    table_id=table.id,
+                            # --- STEP 1: IDENTIFY TABLE TYPE ---
+                            # A table is "Persistent" if it has the flag OR matches the template type
+                            is_persistent = (
+                                table.lobby_persistent
+                                or table.is_auto_generated
+                                or (
+                                    table.template
+                                    and table.template.table_type
+                                    in [
+                                        TableTemplateType.PERSISTENT,
+                                        TableTemplateType.CASH_GAME,
+                                    ]
                                 )
-                                continue
+                            )
 
+                            # Count active players (seated and not left)
                             seats_result = await db.execute(
                                 select(Seat).where(
                                     Seat.table_id == table.id,
@@ -755,182 +771,110 @@ async def check_table_inactivity():
                                 )
                             )
                             active_seats = list(seats_result.scalars())
-                            active_player_count = len(
+                            # Count strictly active players (not sitting out next hand)
+                            # This determines if a game can logically proceed
+                            playing_count = len(
                                 [
-                                    seat
-                                    for seat in active_seats
-                                    if not seat.is_sitting_out_next_hand
+                                    s
+                                    for s in active_seats
+                                    if not s.is_sitting_out_next_hand
                                 ]
                             )
 
-                            # Determine if table is persistent (Lobby/Cash Game)
-                            is_persistent = await table_lifecycle.is_persistent_table(table)
-
-                            if table.status == TableStatus.WAITING and not active_seats:
-                                # NEVER expire persistent tables
+                            # --- STEP 2: HANDLE "WAITING" TABLES ---
+                            if table.status == TableStatus.WAITING:
+                                # RULE: Persistent tables NEVER expire due to emptiness
                                 if is_persistent:
                                     continue
-                                
-                                reason = "no active players remaining"
-                                await table_lifecycle.mark_table_expired(
-                                    db, table, reason
-                                )
-                                logger.info(
-                                    "Table expired due to zero players",
-                                    table_id=table.id,
-                                    reason=reason,
-                                )
-                                try:
-                                    runtime_mgr = get_pokerkit_runtime_manager()
-                                    final_state = await runtime_mgr.get_state(
-                                        db, table.id, viewer_user_id=None
-                                    )
-                                    final_state["status"] = table.status.value.lower()
-                                    final_state["table_status"] = (
-                                        table.status.value.lower()
-                                    )
-                                    await manager.broadcast(table.id, final_state)
-                                except Exception as broadcast_err:
-                                    logger.error(
-                                        "Failed to broadcast lifecycle state",
-                                        table_id=table.id,
-                                        error=str(broadcast_err),
-                                    )
-                                await manager.close_all_connections(table.id)
-                                continue
 
-                            if table.status == TableStatus.ACTIVE and active_player_count < 2:
-                                # PAUSE persistent tables instead of ending them
-                                if is_persistent:
-                                    logger.info(f"Pausing persistent table {table.id} (insufficient players)")
-                                    table.status = TableStatus.WAITING
-                                    await db.commit()
-                                    
-                                    await manager.broadcast(table.id, {
-                                        "type": "table_paused",
-                                        "status": "waiting",
-                                        "message": "Waiting for players..."
-                                    })
+                                # RULE: Regular SNGs expire if empty for too long
+                                if not active_seats:
+                                    reason = "no active players remaining"
+                                    await table_lifecycle.mark_table_expired(
+                                        db, table, reason
+                                    )
+                                    await manager.broadcast(
+                                        table.id,
+                                        {"type": "table_removed", "reason": reason},
+                                    )
+                                    await manager.close_all_connections(table.id)
                                     continue
-                                
-                                reason = (
-                                    f"lack of minimum player ({active_player_count}/2 required)"
-                                )
-                                await table_lifecycle.mark_table_completed_and_cleanup(
-                                    db, table, reason
-                                )
-                                logger.info(
-                                    "Table completed due to insufficient active players",
-                                    table_id=table.id,
-                                    active_player_count=active_player_count,
-                                    reason=reason,
-                                )
-                                try:
-                                    runtime_mgr = get_pokerkit_runtime_manager()
-                                    final_state = await runtime_mgr.get_state(
-                                        db, table.id, viewer_user_id=None
-                                    )
-                                    final_state["status"] = table.status.value.lower()
-                                    final_state["table_status"] = (
-                                        table.status.value.lower()
-                                    )
-                                    await manager.broadcast(table.id, final_state)
-                                except Exception as broadcast_err:
-                                    logger.error(
-                                        "Failed to broadcast lifecycle state",
-                                        table_id=table.id,
-                                        error=str(broadcast_err),
-                                    )
-                                await manager.close_all_connections(table.id)
-                                continue
 
-                            # Use canonical lifecycle check
-                            was_expired, reason = (
-                                await table_lifecycle.check_and_enforce_lifecycle(
-                                    db, table
-                                )
-                            )
-
-                            if was_expired:
-                                logger.info(
-                                    "Table lifecycle action taken",
-                                    table_id=table.id,
-                                    reason=reason,
-                                    new_status=table.status.value,
+                            # --- STEP 3: HANDLE "ACTIVE" TABLES ---
+                            if table.status == TableStatus.ACTIVE:
+                                # Check if a hand is currently running (don't kill mid-hand)
+                                from telegram_poker_bot.shared.models import (
+                                    Hand,
+                                    HandStatus,
                                 )
 
-                                # Broadcast expired/ended state to all clients
-                                runtime_mgr = get_pokerkit_runtime_manager()
-                                try:
-                                    final_state = await runtime_mgr.get_state(
-                                        db, table.id, viewer_user_id=None
+                                active_hand = await db.scalar(
+                                    select(Hand).where(
+                                        Hand.table_id == table.id,
+                                        Hand.status.notin_(
+                                            [HandStatus.ENDED, HandStatus.SHOWDOWN]
+                                        ),
                                     )
-                                    final_state["status"] = table.status.value.lower()
-                                    final_state["table_status"] = (
-                                        table.status.value.lower()
+                                )
+
+                                # If hand is running, skip lifecycle checks for now
+                                if active_hand:
+                                    continue
+
+                                # If no hand is running, check if we have enough players to start the next one
+                                if playing_count < 2:
+                                    if is_persistent:
+                                        # RULE: Persistent tables PAUSE, they do not END
+                                        logger.info(
+                                            f"Pausing persistent table {table.id} (insufficient players)"
+                                        )
+                                        table.status = TableStatus.WAITING
+                                        table.last_action_at = now  # Refresh timestamp to prevent stale expiration
+                                        await db.commit()
+
+                                        # Broadcast "Waiting" state to UI
+                                        await manager.broadcast(
+                                            table.id,
+                                            {
+                                                "type": "table_paused",
+                                                "status": "waiting",
+                                                "message": "Waiting for players...",
+                                            },
+                                        )
+
+                                        # Also broadcast full state update to sync clients
+                                        runtime_mgr = get_pokerkit_runtime_manager()
+                                        state = await runtime_mgr.get_state(
+                                            db, table.id, None
+                                        )
+                                        state = await _attach_template_to_payload(
+                                            db, table.id, state
+                                        )
+                                        await manager.broadcast(table.id, state)
+                                        continue
+                                    else:
+                                        # RULE: SNGs END when players leave
+                                        reason = f"lack of minimum player ({playing_count}/2 required)"
+                                        await table_lifecycle.mark_table_completed_and_cleanup(
+                                            db, table, reason
+                                        )
+                                        await manager.close_all_connections(table.id)
+                                        continue
+
+                            # --- STEP 4: GENERIC LIFECYCLE CHECKS ---
+                            # (Only for non-persistent tables)
+                            if not is_persistent:
+                                was_expired, reason = (
+                                    await table_lifecycle.check_and_enforce_lifecycle(
+                                        db, table
                                     )
-                                    await manager.broadcast(table.id, final_state)
-                                except Exception as broadcast_err:
-                                    logger.error(
-                                        "Failed to broadcast lifecycle state",
-                                        table_id=table.id,
-                                        error=str(broadcast_err),
-                                    )
-
-                                await manager.close_all_connections(table.id)
-
-                            # Additional check for all-sit-out timeout (post-start only)
-                            elif table.status == TableStatus.ACTIVE:
-                                if active_seats:
-                                    all_sitting_out = all(
-                                        seat.is_sitting_out_next_hand
-                                        for seat in active_seats
-                                    )
-
-                                    if all_sitting_out and table.last_action_at:
-                                        sit_out_duration = now - table.last_action_at
-                                        if sit_out_duration > timedelta(
-                                            minutes=settings.table_all_sitout_timeout_minutes
-                                        ):
-                                            reason = f"all players sitting out ({sit_out_duration.total_seconds():.0f}s)"
-                                            await table_lifecycle.mark_table_completed_and_cleanup(
-                                                db, table, reason
-                                            )
-                                            logger.info(
-                                                "Table completed due to all-sitout",
-                                                table_id=table.id,
-                                                reason=reason,
-                                            )
-
-                                            # Broadcast and close
-                                            try:
-                                                runtime_mgr = (
-                                                    get_pokerkit_runtime_manager()
-                                                )
-                                                final_state = (
-                                                    await runtime_mgr.get_state(
-                                                        db,
-                                                        table.id,
-                                                        viewer_user_id=None,
-                                                    )
-                                                )
-                                                final_state["status"] = "ended"
-                                                final_state["table_status"] = "ended"
-                                                await manager.broadcast(
-                                                    table.id, final_state
-                                                )
-                                            except Exception:
-                                                pass
-
-                                            await manager.close_all_connections(
-                                                table.id
-                                            )
+                                )
+                                if was_expired:
+                                    await manager.close_all_connections(table.id)
 
                         except Exception as e:
                             logger.error(
-                                "Error checking inactivity for table",
-                                table_id=table.id,
-                                error=str(e),
+                                f"Error checking inactivity for table {table.id}: {e}"
                             )
 
                     await db.commit()
@@ -1111,9 +1055,7 @@ async def auto_fold_expired_actions():
                             # - Second+ consecutive timeout: always fold AND set to sit out
                             auto_action = ActionType.FOLD  # Default
 
-                            allowed_actions_raw = fresh_state.get(
-                                "allowed_actions", []
-                            )
+                            allowed_actions_raw = fresh_state.get("allowed_actions", [])
                             allowed_action_types = set()
                             if isinstance(allowed_actions_raw, list):
                                 for entry in allowed_actions_raw:
@@ -1230,19 +1172,19 @@ async def auto_fold_expired_actions():
 
 async def monitor_table_autostart():
     """Background task to monitor tables and trigger auto-starts.
-    
+
     Checks ALL waiting tables (SNG and Persistent) for start conditions.
     """
     from telegram_poker_bot.shared.database import get_db_session
     from telegram_poker_bot.shared.services import sng_manager, table_service
     from sqlalchemy.orm import joinedload
-    
+
     logger.info("Table auto-start monitor started")
-    
+
     while True:
         try:
             await asyncio.sleep(1)  # Check every second
-            
+
             async with get_db_session() as db:
                 # Find ALL tables in WAITING state (includes both Persistent and SNG tables)
                 result = await db.execute(
@@ -1251,39 +1193,49 @@ async def monitor_table_autostart():
                     .where(Table.status == TableStatus.WAITING)
                 )
                 tables = list(result.scalars())
-                
+
                 for table in tables:
                     try:
                         # Check start conditions
-                        should_start, reason = await sng_manager.check_auto_start_conditions(db, table)
-                        
+                        should_start, reason = (
+                            await sng_manager.check_auto_start_conditions(db, table)
+                        )
+
                         if should_start:
                             logger.info(
                                 "Auto-starting table",
                                 table_id=table.id,
-                                type=table.template.table_type.value if table.template else "unknown",
+                                type=(
+                                    table.template.table_type.value
+                                    if table.template
+                                    else "unknown"
+                                ),
                                 reason=reason,
                             )
-                            
+
                             # 1. Start Table (System Action)
                             # Pass user_id=None to indicate system action
                             await table_service.start_table(db, table.id, user_id=None)
-                            
+
                             # 2. Initialize Game Engine
                             runtime_mgr = get_pokerkit_runtime_manager()
                             state = await runtime_mgr.start_game(db, table.id)
-                            
+
                             # 3. Commit all changes
                             await db.commit()
-                            
+
                             # 4. Broadcast Start Event
-                            state = await _attach_template_to_payload(db, table.id, state)
+                            state = await _attach_template_to_payload(
+                                db, table.id, state
+                            )
                             await manager.broadcast(table.id, state)
-                            
+
                             # 5. Invalidate Cache
                             try:
                                 pool = await get_matchmaking_pool()
-                                await table_service.invalidate_public_table_cache(pool.redis)
+                                await table_service.invalidate_public_table_cache(
+                                    pool.redis
+                                )
                             except Exception:
                                 pass
 
@@ -1293,7 +1245,7 @@ async def monitor_table_autostart():
                             table_id=table.id,
                             error=str(exc),
                         )
-        
+
         except asyncio.CancelledError:
             logger.info("Table auto-start monitor cancelled")
             break
@@ -1304,12 +1256,12 @@ async def monitor_table_autostart():
 
 async def startup_auto_create_tables():
     """Automatically create and maintain tables based on templates upon application startup.
-    
+
     This function is the single source of truth for ensuring tables exist for templates
     with auto_create enabled. It replaces the deprecated repair_auto_create.py script.
-    
+
     Creates its own isolated database session to avoid asyncio loop conflicts.
-    
+
     Process:
     1. Query all active TableTemplates from the database
     2. Audit all templates to flag any with legacy auto_create fields
@@ -1320,43 +1272,47 @@ async def startup_auto_create_tables():
     4. Log all actions clearly for observability
     """
     from telegram_poker_bot.shared.models import TableTemplate
-    from telegram_poker_bot.services.table_auto_creator import ensure_tables_for_template
+    from telegram_poker_bot.services.table_auto_creator import (
+        ensure_tables_for_template,
+    )
     from telegram_poker_bot.shared.validators import validate_auto_create_config
-    
+
     try:
         logger.info("=" * 80)
         logger.info("STARTUP AUTO-CREATE: Beginning table auto-creation process")
         logger.info("=" * 80)
-        
+
         # Create isolated database session to avoid asyncio loop conflicts
         async with get_db_session() as db:
             # Query all active templates
             result = await db.execute(
-                select(TableTemplate).where(TableTemplate.is_active == True)  # noqa: E712
+                select(TableTemplate).where(
+                    TableTemplate.is_active == True
+                )  # noqa: E712
             )
             templates = list(result.scalars())
-            
+
             total_templates = len(templates)
             templates_with_auto_create = 0
             templates_processed = 0
             tables_created = 0
             templates_with_invalid_config = 0
             templates_with_legacy_fields = 0
-            
+
             logger.info(f"Found {total_templates} active template(s) in database")
-            
+
             # Step 5: Audit existing templates for legacy fields
             for template in templates:
                 config_json = template.config_json or {}
                 auto_create_dict = config_json.get("auto_create")
-                
+
                 if not auto_create_dict or not isinstance(auto_create_dict, dict):
                     continue
-                
+
                 # Check for forbidden legacy fields in auto_create block
                 forbidden_fields = {"lobby_persistent", "is_auto_generated"}
                 found_legacy_fields = forbidden_fields & set(auto_create_dict.keys())
-                
+
                 if found_legacy_fields:
                     templates_with_legacy_fields += 1
                     logger.error(
@@ -1365,9 +1321,9 @@ async def startup_auto_create_tables():
                         template_name=template.name,
                         legacy_fields=list(found_legacy_fields),
                         message="These fields belong in the tables DB columns, NOT in auto_create config. "
-                                "Migration 029 should have removed them. Please investigate.",
+                        "Migration 029 should have removed them. Please investigate.",
                     )
-            
+
             if templates_with_legacy_fields > 0:
                 logger.warning(
                     f"=" * 80 + "\n"
@@ -1376,16 +1332,16 @@ async def startup_auto_create_tables():
                     f"These templates may not function correctly. Please review the database.\n"
                     f"=" * 80
                 )
-            
+
             # Process templates for auto-creation
             for template in templates:
                 config_json = template.config_json or {}
                 auto_create_dict = config_json.get("auto_create")
-                
+
                 # Skip templates without auto_create config
                 if not auto_create_dict:
                     continue
-                
+
                 # Validate auto_create configuration
                 try:
                     auto_create_config = validate_auto_create_config(auto_create_dict)
@@ -1398,11 +1354,11 @@ async def startup_auto_create_tables():
                         error=str(exc),
                     )
                     continue
-                
+
                 # Skip if auto_create is disabled
                 if not auto_create_config:
                     continue
-                
+
                 # Skip if on_startup_repair is false
                 if not auto_create_config.on_startup_repair:
                     logger.debug(
@@ -1411,9 +1367,9 @@ async def startup_auto_create_tables():
                         template_name=template.name,
                     )
                     continue
-                
+
                 templates_with_auto_create += 1
-                
+
                 # Log template being processed
                 logger.info(
                     f"Processing template '{template.name}' with auto-create enabled",
@@ -1422,20 +1378,20 @@ async def startup_auto_create_tables():
                     min_tables=auto_create_config.min_tables,
                     max_tables=auto_create_config.max_tables,
                 )
-                
+
                 # Ensure minimum tables exist
                 result_dict = await ensure_tables_for_template(
                     db,
                     template,
                     auto_create_config=auto_create_config,
                 )
-                
+
                 if result_dict.get("success"):
                     templates_processed += 1
                     created_count = result_dict.get("tables_created", 0)
                     existing_count = result_dict.get("tables_existing", 0)
                     tables_created += created_count
-                    
+
                     if created_count > 0:
                         logger.info(
                             f"Created {created_count} table(s) for template '{template.name}' to meet min_tables={auto_create_config.min_tables}",
@@ -1458,24 +1414,28 @@ async def startup_auto_create_tables():
                         template_id=template.id,
                         template_name=template.name,
                     )
-            
+
             logger.info("=" * 80)
             logger.info("STARTUP AUTO-CREATE: Summary")
             logger.info("=" * 80)
             logger.info(f"Total active templates: {total_templates}")
             logger.info(f"Templates with legacy fields: {templates_with_legacy_fields}")
-            logger.info(f"Templates with auto_create enabled: {templates_with_auto_create}")
+            logger.info(
+                f"Templates with auto_create enabled: {templates_with_auto_create}"
+            )
             logger.info(f"Templates processed successfully: {templates_processed}")
-            logger.info(f"Templates with invalid config: {templates_with_invalid_config}")
+            logger.info(
+                f"Templates with invalid config: {templates_with_invalid_config}"
+            )
             logger.info(f"Total tables created: {tables_created}")
             logger.info("=" * 80)
-            
+
             if templates_with_invalid_config > 0:
                 logger.warning(
                     f"WARNING: {templates_with_invalid_config} template(s) have invalid auto_create configs. "
                     "These templates will not auto-create tables. Please review and fix."
                 )
-    
+
     except Exception as exc:
         logger.error(
             "STARTUP AUTO-CREATE: Fatal error during table auto-creation",
@@ -1488,21 +1448,23 @@ async def startup_auto_create_tables():
 async def startup_event():
     """Start background tasks on application startup."""
     global _auto_fold_task, _inactivity_check_task, _sng_monitor_task, _inter_hand_monitor_task
-    
+
     # Run auto-create BEFORE starting background tasks
     # This is the zero-touch system that ensures tables exist on startup
     await startup_auto_create_tables()
-    
+
     _auto_fold_task = asyncio.create_task(auto_fold_expired_actions())
     _inactivity_check_task = asyncio.create_task(check_table_inactivity())
     _sng_monitor_task = asyncio.create_task(monitor_table_autostart())
     _inter_hand_monitor_task = asyncio.create_task(monitor_inter_hand_timeouts())
-    
+
     # Start analytics scheduler
     scheduler = get_analytics_scheduler()
     await scheduler.start()
-    
-    logger.info("Started background tasks: auto-fold, inactivity check, table auto-start monitor, inter-hand monitor, and analytics scheduler")
+
+    logger.info(
+        "Started background tasks: auto-fold, inactivity check, table auto-start monitor, inter-hand monitor, and analytics scheduler"
+    )
 
 
 @api_app.on_event("shutdown")
@@ -1523,7 +1485,7 @@ async def shutdown_event():
             await _inactivity_check_task
         except asyncio.CancelledError:
             pass
-    
+
     if _sng_monitor_task:
         _sng_monitor_task.cancel()
         try:
@@ -1711,7 +1673,7 @@ async def health_check():
 @game_router.get("/health/auto-create")
 async def health_check_auto_create(db: AsyncSession = Depends(get_db)):
     """Auto-create system health check endpoint.
-    
+
     Returns detailed status of the auto-create system including:
     - Number of templates with auto_create enabled
     - Number of tables created vs expected
@@ -1720,45 +1682,45 @@ async def health_check_auto_create(db: AsyncSession = Depends(get_db)):
     from telegram_poker_bot.shared.models import TableTemplate
     from telegram_poker_bot.services.table_auto_creator import get_existing_table_count
     from telegram_poker_bot.shared.validators import validate_auto_create_config
-    
+
     try:
         # Fetch all active templates
         result = await db.execute(
             select(TableTemplate).where(TableTemplate.is_active == True)  # noqa: E712
         )
         templates = list(result.scalars())
-        
+
         template_count = 0
         tables_created = 0
         tables_missing = 0
         repairs_needed = 0
-        
+
         for template in templates:
             config_json = template.config_json or {}
             auto_create_dict = config_json.get("auto_create")
-            
+
             if not auto_create_dict:
                 continue
-            
+
             try:
                 auto_create_config = validate_auto_create_config(auto_create_dict)
             except ValueError:
                 continue
-            
+
             if not auto_create_config:
                 continue
-            
+
             template_count += 1
-            
+
             # Count existing tables
             existing_count = await get_existing_table_count(
                 db,
                 template.id,
                 lobby_persistent_only=True,
             )
-            
+
             min_tables = auto_create_config.min_tables
-            
+
             if existing_count >= min_tables:
                 tables_created += existing_count
             else:
@@ -1766,13 +1728,13 @@ async def health_check_auto_create(db: AsyncSession = Depends(get_db)):
                 missing = min_tables - existing_count
                 tables_missing += missing
                 repairs_needed += 1
-        
+
         # Determine overall status
         if tables_missing > 0:
             health_status = "degraded"
         else:
             health_status = "healthy"
-        
+
         return {
             "status": health_status,
             "template_count": template_count,
@@ -1780,7 +1742,7 @@ async def health_check_auto_create(db: AsyncSession = Depends(get_db)):
             "tables_missing": tables_missing,
             "repairs_needed": repairs_needed,
         }
-    
+
     except Exception as exc:
         logger.error(
             "Error in auto-create health check",
@@ -2450,9 +2412,7 @@ async def sit_at_table(
                 # Return waitlist status instead of error
                 from telegram_poker_bot.shared.services import waitlist_service
 
-                waitlist_count = await waitlist_service.get_waitlist_count(
-                    db, table_id
-                )
+                waitlist_count = await waitlist_service.get_waitlist_count(db, table_id)
                 return {
                     "success": False,
                     "status": "WAITLISTED",
@@ -2948,6 +2908,8 @@ async def start_next_hand(
 
     viewer_state = await get_pokerkit_runtime_manager().get_state(db, table_id, user.id)
     return await _attach_template_to_payload(db, table_id, viewer_state)
+
+
 @game_router.post("/tables/{table_id}/sng/force-start")
 async def force_start_sng_endpoint(
     table_id: int,
@@ -2957,16 +2919,16 @@ async def force_start_sng_endpoint(
     """Force-start an SNG table (admin/creator only)."""
     from telegram_poker_bot.shared.services import sng_manager
     from sqlalchemy.orm import joinedload
-    
+
     if not x_telegram_init_data:
         raise HTTPException(status_code=401, detail="Missing Telegram init data")
-    
+
     user_auth = verify_telegram_init_data(x_telegram_init_data)
     if not user_auth:
         raise HTTPException(status_code=401, detail="Invalid Telegram init data")
-    
+
     user = await ensure_user(db, user_auth)
-    
+
     # Load table to check permissions
     result = await db.execute(
         select(Table).options(joinedload(Table.template)).where(Table.id == table_id)
@@ -2974,23 +2936,28 @@ async def force_start_sng_endpoint(
     table = result.scalar_one_or_none()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
-    
+
     # Check if user is creator (simplified - in production, add admin check)
     if table.creator_user_id != user.id:
-        raise HTTPException(status_code=403, detail="Only table creator can force-start")
-    
+        raise HTTPException(
+            status_code=403, detail="Only table creator can force-start"
+        )
+
     try:
         table = await sng_manager.force_start_sng(db, table_id)
         await db.commit()
-        
+
         # Broadcast to all players
         runtime_mgr = get_pokerkit_runtime_manager()
         state = await runtime_mgr.get_state(db, table.id, viewer_user_id=None)
-        await manager.broadcast(table.id, {
-            "type": "sng_force_started",
-            "table": state,
-        })
-        
+        await manager.broadcast(
+            table.id,
+            {
+                "type": "sng_force_started",
+                "table": state,
+            },
+        )
+
         return {"success": True, "table_id": table.id}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -3197,7 +3164,9 @@ async def get_my_transactions(
             "reference_id": t.reference_id,
             "metadata": t.metadata_json or {},
             "currency_type": (
-                t.currency_type.value if hasattr(t.currency_type, "value") else str(t.currency_type)
+                t.currency_type.value
+                if hasattr(t.currency_type, "value")
+                else str(t.currency_type)
             ),
             "created_at": t.created_at.isoformat() if t.created_at else None,
         }
@@ -3313,9 +3282,7 @@ async def submit_action(
     try:
         if action_type == ActionType.READY:
             try:
-                ready_info = await runtime_mgr.mark_player_ready(
-                    db, table_id, user.id
-                )
+                ready_info = await runtime_mgr.mark_player_ready(db, table_id, user.id)
             except ValueError as exc:
                 message = str(exc)
                 if "Insufficient balance" in message:
@@ -3546,16 +3513,16 @@ async def get_table_snapshots(
     db: AsyncSession = Depends(get_db),
 ):
     """Get recent snapshots for a specific table.
-    
+
     Args:
         table_id: Table ID
         hours: Number of hours of snapshots to retrieve (1-168)
     """
     from telegram_poker_bot.shared.models import TableSnapshot
     from sqlalchemy import and_
-    
+
     cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
-    
+
     result = await db.execute(
         select(TableSnapshot)
         .where(
@@ -3567,13 +3534,15 @@ async def get_table_snapshots(
         .order_by(TableSnapshot.snapshot_time.desc())
     )
     snapshots = list(result.scalars())
-    
+
     return {
         "table_id": table_id,
         "snapshots": [
             {
                 "id": s.id,
-                "snapshot_time": s.snapshot_time.isoformat() if s.snapshot_time else None,
+                "snapshot_time": (
+                    s.snapshot_time.isoformat() if s.snapshot_time else None
+                ),
                 "player_count": s.player_count,
                 "is_active": s.is_active,
                 "metadata": s.metadata_json,
@@ -3591,16 +3560,16 @@ async def get_table_hourly_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Get hourly stats for a specific table.
-    
+
     Args:
         table_id: Table ID
         days: Number of days of stats to retrieve (1-30)
     """
     from telegram_poker_bot.shared.models import HourlyTableStats
     from sqlalchemy import and_
-    
+
     cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
-    
+
     result = await db.execute(
         select(HourlyTableStats)
         .where(
@@ -3612,7 +3581,7 @@ async def get_table_hourly_stats(
         .order_by(HourlyTableStats.hour_start.desc())
     )
     stats = list(result.scalars())
-    
+
     return {
         "table_id": table_id,
         "hourly_stats": [
@@ -3637,25 +3606,25 @@ async def get_recent_snapshots(
     db: AsyncSession = Depends(get_db),
 ):
     """Get recent snapshots across all tables.
-    
+
     Args:
         limit: Maximum number of snapshots to return (1-500)
     """
     from telegram_poker_bot.shared.models import TableSnapshot
-    
+
     result = await db.execute(
-        select(TableSnapshot)
-        .order_by(TableSnapshot.snapshot_time.desc())
-        .limit(limit)
+        select(TableSnapshot).order_by(TableSnapshot.snapshot_time.desc()).limit(limit)
     )
     snapshots = list(result.scalars())
-    
+
     return {
         "snapshots": [
             {
                 "id": s.id,
                 "table_id": s.table_id,
-                "snapshot_time": s.snapshot_time.isoformat() if s.snapshot_time else None,
+                "snapshot_time": (
+                    s.snapshot_time.isoformat() if s.snapshot_time else None
+                ),
                 "player_count": s.player_count,
                 "is_active": s.is_active,
                 "metadata": s.metadata_json,
@@ -3672,19 +3641,19 @@ async def get_recent_hourly_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Get recent hourly stats across all tables.
-    
+
     Args:
         limit: Maximum number of stats records to return (1-500)
     """
     from telegram_poker_bot.shared.models import HourlyTableStats
-    
+
     result = await db.execute(
         select(HourlyTableStats)
         .order_by(HourlyTableStats.hour_start.desc())
         .limit(limit)
     )
     stats = list(result.scalars())
-    
+
     return {
         "hourly_stats": [
             {
@@ -3733,13 +3702,15 @@ async def lobby_websocket_endpoint(websocket: WebSocket):
                 scope="public",
                 redis_client=None,
             )
-            
+
             # Send snapshot message matching frontend expectation
-            await websocket.send_json({
-                "type": "lobby_snapshot",
-                "tables": tables,
-            })
-            
+            await websocket.send_json(
+                {
+                    "type": "lobby_snapshot",
+                    "tables": tables,
+                }
+            )
+
             logger.info(
                 "Sent lobby snapshot on connect",
                 table_count=len(tables),
@@ -3750,10 +3721,12 @@ async def lobby_websocket_endpoint(websocket: WebSocket):
                 error=str(exc),
             )
             # Send empty snapshot to unblock frontend
-            await websocket.send_json({
-                "type": "lobby_snapshot",
-                "tables": [],
-            })
+            await websocket.send_json(
+                {
+                    "type": "lobby_snapshot",
+                    "tables": [],
+                }
+            )
 
     async def send_pings():
         try:
@@ -3774,7 +3747,9 @@ async def lobby_websocket_endpoint(websocket: WebSocket):
                 data = await websocket.receive_text()
                 try:
                     message = json.loads(data) if data else {}
-                    msg_type = message.get("type") if isinstance(message, dict) else None
+                    msg_type = (
+                        message.get("type") if isinstance(message, dict) else None
+                    )
 
                     if msg_type == "pong":
                         continue
@@ -3907,17 +3882,17 @@ async def websocket_endpoint(websocket: WebSocket, table_id: int):
 async def admin_analytics_websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for admin analytics feed.
-    
+
     Path: /api/ws/admin
     - Admin-only real-time analytics updates
     - Live table metrics, anomaly alerts, player indicators
     - Supports table/user subscriptions
     - Requires JWT authentication (access or ws_session token)
-    
+
     Authentication:
     - Send token in first message: {"type": "auth", "token": "..."}
     - Or send as query param: /api/ws/admin?token=...
-    
+
     Message types (client -> server):
     - auth: Authenticate with JWT token
     - subscribe_table: Subscribe to table metrics
@@ -3925,7 +3900,7 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
     - subscribe_user: Subscribe to user activity
     - unsubscribe_user: Unsubscribe from user
     - ping: Heartbeat
-    
+
     Message types (server -> client):
     - connected: Connection established
     - authenticated: Auth successful
@@ -3938,16 +3913,18 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
     - player_activity: Player activity indicator
     - pong: Heartbeat response
     """
-    from telegram_poker_bot.shared.services.admin_analytics_ws import get_admin_analytics_ws_manager
+    from telegram_poker_bot.shared.services.admin_analytics_ws import (
+        get_admin_analytics_ws_manager,
+    )
     from telegram_poker_bot.shared.services.rbac_middleware import get_admin_ws_auth
     from urllib.parse import parse_qs, urlparse
-    
+
     ws_manager = get_admin_analytics_ws_manager()
     ws_auth = get_admin_ws_auth()
-    
+
     # Accept connection first
     await websocket.accept()
-    
+
     # Check for token in query params
     token = None
     if hasattr(websocket, "query_params"):
@@ -3957,42 +3934,48 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
         params = parse_qs(query_string)
         if "token" in params:
             token = params["token"][0]
-    
+
     authenticated_user = None
-    
+
     # If token in query params, authenticate immediately
     if token:
         authenticated_user = await ws_auth.require_admin_ws(token)
         if authenticated_user:
-            await websocket.send_json({
-                "type": "authenticated",
-                "user_id": authenticated_user.user_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            await websocket.send_json(
+                {
+                    "type": "authenticated",
+                    "user_id": authenticated_user.user_id,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
             logger.info(
                 "Admin WS authenticated via query param",
                 user_id=authenticated_user.user_id,
             )
         else:
-            await websocket.send_json({
-                "type": "auth_error",
-                "message": "Invalid or expired token",
-            })
+            await websocket.send_json(
+                {
+                    "type": "auth_error",
+                    "message": "Invalid or expired token",
+                }
+            )
             await websocket.close(code=1008)  # Policy violation
             return
     else:
         # Wait for auth message
-        await websocket.send_json({
-            "type": "auth_required",
-            "message": "Send auth message with token",
-        })
-    
+        await websocket.send_json(
+            {
+                "type": "auth_required",
+                "message": "Send auth message with token",
+            }
+        )
+
     # Connect to manager
     await ws_manager.connect(websocket)
-    
+
     # Task for sending periodic pings
     ping_task = None
-    
+
     async def send_pings():
         """Send ping messages every 30 seconds to keep connection alive."""
         try:
@@ -4005,68 +3988,78 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
                     break
         except asyncio.CancelledError:
             pass
-    
+
     try:
         # Start ping task
         ping_task = asyncio.create_task(send_pings())
-        
+
         while True:
             try:
                 # Receive and handle messages
                 data = await websocket.receive_text()
-                
+
                 try:
                     message = json.loads(data) if data else {}
                     msg_type = message.get("type")
-                    
+
                     # Handle auth message
                     if msg_type == "auth" and not authenticated_user:
                         auth_token = message.get("token")
                         if not auth_token:
-                            await websocket.send_json({
-                                "type": "auth_error",
-                                "message": "Missing token",
-                            })
+                            await websocket.send_json(
+                                {
+                                    "type": "auth_error",
+                                    "message": "Missing token",
+                                }
+                            )
                             continue
-                        
+
                         authenticated_user = await ws_auth.require_admin_ws(auth_token)
                         if authenticated_user:
-                            await websocket.send_json({
-                                "type": "authenticated",
-                                "user_id": authenticated_user.user_id,
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
-                            })
+                            await websocket.send_json(
+                                {
+                                    "type": "authenticated",
+                                    "user_id": authenticated_user.user_id,
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                }
+                            )
                             logger.info(
                                 "Admin WS authenticated via message",
                                 user_id=authenticated_user.user_id,
                             )
                         else:
-                            await websocket.send_json({
-                                "type": "auth_error",
-                                "message": "Invalid or expired token",
-                            })
+                            await websocket.send_json(
+                                {
+                                    "type": "auth_error",
+                                    "message": "Invalid or expired token",
+                                }
+                            )
                             await websocket.close(code=1008)  # Policy violation
                             break
                         continue
-                    
+
                     # Require authentication for all other messages
                     if not authenticated_user:
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": "Not authenticated",
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": "Not authenticated",
+                            }
+                        )
                         continue
-                    
+
                     # Handle message via manager
                     await ws_manager.handle_message(websocket, message)
-                    
+
                 except json.JSONDecodeError:
                     logger.warning("Invalid JSON in analytics WebSocket message")
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "Invalid JSON",
-                    })
-            
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "message": "Invalid JSON",
+                        }
+                    )
+
             except WebSocketDisconnect:
                 logger.info("Admin analytics WebSocket disconnected normally")
                 break
@@ -4080,7 +4073,7 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
                 if isinstance(e, (ConnectionError, RuntimeError)):
                     break
                 await asyncio.sleep(0.1)
-    
+
     except Exception as e:
         logger.error("Admin analytics WebSocket fatal error", error=str(e))
     finally:
@@ -4091,7 +4084,7 @@ async def admin_analytics_websocket_endpoint(websocket: WebSocket):
                 await ping_task
             except asyncio.CancelledError:
                 pass
-        
+
         # Disconnect from manager
         ws_manager.disconnect(websocket)
         logger.info("Admin analytics WebSocket connection closed")
