@@ -57,7 +57,7 @@ async def retry_with_backoff(coro_func, max_retries=5, initial_delay=1, max_dela
     for attempt in range(max_retries + 1):
         try:
             return await coro_func()
-        except (NetworkError, OSError, Exception) as exc:
+        except Exception as exc:
             last_exception = exc
             if attempt < max_retries:
                 logger.warning(
