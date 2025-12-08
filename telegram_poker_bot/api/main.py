@@ -749,18 +749,9 @@ async def check_table_inactivity():
                     for table in tables:
                         try:
                             # --- STEP 1: IDENTIFY TABLE TYPE ---
-                            # A table is "Persistent" if it has the flag OR matches the template type
-                            is_persistent = (
-                                table.lobby_persistent
-                                or table.is_auto_generated
-                                or (
-                                    table.template
-                                    and table.template.table_type
-                                    in [
-                                        TableTemplateType.PERSISTENT,
-                                        TableTemplateType.CASH_GAME,
-                                    ]
-                                )
+                            # Use the canonical is_persistent_table function
+                            is_persistent = await table_lifecycle.is_persistent_table(
+                                table
                             )
 
                             # Count active players (seated and not left)
@@ -803,11 +794,8 @@ async def check_table_inactivity():
                             # --- STEP 3: HANDLE "ACTIVE" TABLES ---
                             if table.status == TableStatus.ACTIVE:
                                 # Check if a hand is currently running (don't kill mid-hand)
-                                from telegram_poker_bot.shared.models import (
-                                    Hand,
-                                    HandStatus,
-                                )
-
+                                # We exclude ENDED and SHOWDOWN because those states indicate
+                                # the hand is complete or transitioning to the next hand
                                 active_hand = await db.scalar(
                                     select(Hand).where(
                                         Hand.table_id == table.id,
@@ -826,7 +814,8 @@ async def check_table_inactivity():
                                     if is_persistent:
                                         # RULE: Persistent tables PAUSE, they do not END
                                         logger.info(
-                                            f"Pausing persistent table {table.id} (insufficient players)"
+                                            "Pausing persistent table (insufficient players)",
+                                            table_id=table.id,
                                         )
                                         table.status = TableStatus.WAITING
                                         table.last_action_at = now  # Refresh timestamp to prevent stale expiration
@@ -874,7 +863,9 @@ async def check_table_inactivity():
 
                         except Exception as e:
                             logger.error(
-                                f"Error checking inactivity for table {table.id}: {e}"
+                                "Error checking inactivity for table",
+                                table_id=table.id,
+                                error=str(e),
                             )
 
                     await db.commit()
