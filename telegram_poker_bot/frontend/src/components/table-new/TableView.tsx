@@ -5,7 +5,7 @@
  * Strictly backend-driven. No client-side logic.
  */
 
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useCallback, useMemo, useState } from 'react'
 import { useTableSync } from '../../hooks/useTableSync'
 import { useTelegram } from '../../hooks/useTelegram'
@@ -21,6 +21,7 @@ import { apiFetch } from '@/utils/apiClient'
 
 export function TableView() {
   const { tableId } = useParams<{ tableId: string }>()
+  const navigate = useNavigate()
   const { user, initData } = useTelegram()
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [buyInAmount, setBuyInAmount] = useState<number | null>(null)
@@ -179,6 +180,10 @@ export function TableView() {
   const handleLeave = useCallback(async () => {
     if (!tableId || !initData) return
 
+    // Show confirmation dialog
+    const confirmed = window.confirm('Leave table and cash out?')
+    if (!confirmed) return
+
     try {
       await apiFetch(`/tables/${tableId}/leave-seat`, {
         method: 'POST',
@@ -186,11 +191,13 @@ export function TableView() {
       })
 
       console.log('[TableView] Left seat')
-      requestSnapshot() // Refresh state
+      
+      // Redirect to lobby on success
+      navigate('/lobby')
     } catch (error) {
       console.error('[TableView] Failed to leave seat:', error)
     }
-  }, [tableId, initData, requestSnapshot])
+  }, [tableId, initData, navigate])
 
   // Hero detection: Find current user's seat by matching user_id
   const heroUserId = user?.id
@@ -200,18 +207,17 @@ export function TableView() {
   }, [state, heroUserId])
 
   // Handle sit out toggle
-  const handleSitOut = useCallback(async () => {
+  const handleSitOut = useCallback(async (sitOut: boolean) => {
     if (!tableId || !initData || !heroSeat) return
 
     try {
-      const newStatus = !heroSeat.is_sitting_out
       await apiFetch(`/tables/${tableId}/sitout`, {
         method: 'POST',
-        body: { sit_out: newStatus },
+        body: { sit_out: sitOut },
         initData,
       })
 
-      console.log('[TableView] Toggled sit out:', newStatus)
+      console.log('[TableView] Toggled sit out:', sitOut)
       // State will be updated via WebSocket
     } catch (error) {
       console.error('[TableView] Failed to toggle sit out:', error)
@@ -274,6 +280,19 @@ export function TableView() {
         </div>
       </div>
 
+      {/* Leave Table button in top-right corner (for seated players only) */}
+      {heroSeat && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={handleLeave}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center gap-2"
+            title="Leave table and cash out"
+          >
+            <span>Leave Table</span>
+          </button>
+        </div>
+      )}
+
       {/* Main table area */}
       <div className="table-container relative h-full flex flex-col items-center justify-center p-8">
         {/* Pot display */}
@@ -322,14 +341,17 @@ export function TableView() {
           })}
         </div>
 
-        {/* Action panel at bottom - only show if hero is seated and acting */}
-        {heroSeat && isHeroActing && legal_actions.length > 0 && (
+        {/* Action panel at bottom - show for seated players */}
+        {heroSeat && (
           <div className="action-panel-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4">
             <ActionPanel
-              legalActions={legal_actions}
+              legalActions={isHeroActing ? legal_actions : []}
               onAction={handleAction}
               currency={table_metadata.currency as 'REAL' | 'PLAY'}
               disabled={!isHeroActing}
+              isSittingOut={heroSeat.is_sitting_out}
+              onSitOutToggle={handleSitOut}
+              showSitOutToggle={true}
             />
           </div>
         )}
@@ -343,28 +365,6 @@ export function TableView() {
               className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isJoining ? 'Joining...' : 'Join Table'}
-            </button>
-          </div>
-        )}
-
-        {/* Leave button and Sit Out toggle for seated players */}
-        {heroSeat && (
-          <div className="leave-button-container fixed top-4 right-4 z-10 flex gap-2">
-            <button
-              onClick={handleSitOut}
-              className={`px-4 py-2 rounded-lg font-semibold ${
-                heroSeat.is_sitting_out
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-yellow-600 hover:bg-yellow-700 text-white'
-              }`}
-            >
-              {heroSeat.is_sitting_out ? "I'm Back" : 'Sit Out'}
-            </button>
-            <button
-              onClick={handleLeave}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold"
-            >
-              Leave Seat
             </button>
           </div>
         )}
