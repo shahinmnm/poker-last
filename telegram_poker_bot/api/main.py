@@ -725,6 +725,18 @@ async def check_table_inactivity():
 
                     for table in tables:
                         try:
+                            # Do not touch tables currently in the showdown/transition phase
+                            # This prevents the "Pausing persistent table" error from happening mid-showdown
+                            active_hand = await db.scalar(
+                                select(Hand).where(Hand.table_id == table.id, Hand.status == HandStatus.INTER_HAND_WAIT)
+                            )
+                            if active_hand:
+                                logger.debug(
+                                    "Skipping inactivity check for table in INTER_HAND_WAIT",
+                                    table_id=table.id,
+                                )
+                                continue
+
                             seats_result = await db.execute(
                                 select(Seat).where(
                                     Seat.table_id == table.id,

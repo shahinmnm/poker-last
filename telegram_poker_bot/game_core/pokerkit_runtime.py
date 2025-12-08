@@ -468,13 +468,10 @@ class PokerKitTableRuntime:
                     hand_no=self.hand_no,
                 )
 
-                # Step 3: Reset Players - Force all to sit out (they must vote "Ready")
-                for seat in self.seats:
-                    if seat.left_at is None:
-                        seat.is_sitting_out_next_hand = True
-
+                # Step 3: Keep Players Active (No Forced Sit Out)
+                # Players remain active by default - no voting required
                 logger.info(
-                    "All players set to sit out by default - must signal READY",
+                    "Players remain active - no ready signal required",
                     table_id=self.table.id,
                     hand_no=self.hand_no,
                 )
@@ -486,7 +483,7 @@ class PokerKitTableRuntime:
                 # Step 4: Build ONE unified hand_ended event for broadcast
                 # This is the ONLY broadcast message for hand completion
                 inter_hand_wait_deadline = self.inter_hand_wait_start + timedelta(
-                    seconds=settings.post_hand_delay_seconds
+                    seconds=settings.post_hand_delay_seconds  # Configurable countdown (default 5s)
                 )
 
                 hand_ended_event = {
@@ -502,12 +499,11 @@ class PokerKitTableRuntime:
                     "total_pot": hand_result.get(
                         "total_pot", 0
                     ),  # Total pot before rake
-                    "next_hand_in": settings.post_hand_delay_seconds,  # The countdown (20 seconds)
+                    "next_hand_in": settings.post_hand_delay_seconds,  # Configurable countdown (default 5s)
                     "status": "INTER_HAND_WAIT",
                     "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
-                    # CRITICAL: Include allowed_actions so frontend shows "Ready" button
-                    # All seated players can signal ready during inter-hand phase
-                    "allowed_actions": [{"action_type": "ready"}],
+                    # NO allowed_actions - no voting/ready button needed
+                    "allowed_actions": [],
                 }
 
                 # Step 5: Lifecycle Check - Should table self-destruct?
@@ -1768,7 +1764,15 @@ class PokerKitTableRuntimeManager:
     async def complete_inter_hand_phase(
         self, db: AsyncSession, table_id: int
     ) -> Dict[str, Any]:
-        """Resolve the inter-hand wait phase by starting or ending the table."""
+        """
+        Resolve the inter-hand wait phase by starting or ending the table.
+        
+        Auto-Proceed Logic (NO VOTING):
+        1. Wait 5 seconds (handled by monitor_inter_hand_timeouts)
+        2. Re-check active player count (must be >= 2)
+        3. If >= 2: Call runtime.start_new_hand(db)
+        4. If < 2: Pause the table (Set status to WAITING)
+        """
 
         lock = await self._get_distributed_lock(table_id)
         async with lock:
@@ -1781,10 +1785,9 @@ class PokerKitTableRuntimeManager:
                 return {"status": "no_inter_hand"}
 
             active_seats = [s for s in runtime.seats if s.left_at is None]
-            ready_ids = set(runtime.ready_players)
-
-            for seat in active_seats:
-                seat.is_sitting_out_next_hand = seat.user_id not in ready_ids
+            
+            # Players remain active by default - no ready voting
+            # No need to check ready_ids since we removed voting
 
             runtime.current_hand.status = HandStatus.ENDED
             runtime.inter_hand_wait_start = None
@@ -1800,6 +1803,7 @@ class PokerKitTableRuntimeManager:
             runtime.current_hand = None
             runtime.engine = None
 
+            # Count active players (not sitting out)
             playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
 
             if len(playing_seats) < 2:
@@ -1812,6 +1816,7 @@ class PokerKitTableRuntimeManager:
 
             runtime.table.last_action_at = datetime.now(timezone.utc)
 
+            # Auto-start the next hand
             state = await runtime.start_new_hand(db)
 
             runtime.ready_players = set()
