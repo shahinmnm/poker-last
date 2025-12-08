@@ -1282,7 +1282,9 @@ async def monitor_table_autostart():
                 tables = list(result.scalars())
                 
                 for table in tables:
+                    table_id = None
                     try:
+                        table_id = table.id
                         if not table.template or not table.template.config_json:
                             continue
                         
@@ -1370,7 +1372,7 @@ async def monitor_table_autostart():
                     except Exception as exc:
                         logger.error(
                             "Error processing table auto-start",
-                            table_id=table.id,
+                            table_id=table_id,
                             error=str(exc),
                         )
                         try:
@@ -1378,7 +1380,7 @@ async def monitor_table_autostart():
                         except Exception as rollback_err:
                             logger.warning(
                                 "Failed to rollback after error",
-                                table_id=table.id,
+                                table_id=table_id,
                                 error=str(rollback_err),
                             )
         
