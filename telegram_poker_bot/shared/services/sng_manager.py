@@ -98,7 +98,7 @@ async def check_auto_start_conditions(
     if is_persistent:
         # Standard Cash Game Logic: 2 players = Game On
         if active_count >= 2:
-            return True, "cash_game_min_players_met"
+            return True, "persistent_min_players_met"
         return False, None
     # ========================================================
 
