@@ -826,7 +826,7 @@ async def check_table_inactivity():
                                     
                                     # DELETE (Only for SNGs)
                                     await table_lifecycle.mark_table_completed_and_cleanup(
-                                        db, table, "lack of minimum players"
+                                        db, table, "insufficient players"
                                     )
                                     await manager.close_all_connections(table.id)
                                     continue
