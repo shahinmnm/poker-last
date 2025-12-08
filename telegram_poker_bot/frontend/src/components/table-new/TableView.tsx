@@ -192,6 +192,32 @@ export function TableView() {
     }
   }, [tableId, initData, requestSnapshot])
 
+  // Hero detection: Find current user's seat by matching user_id
+  const heroUserId = user?.id
+  const heroSeat = useMemo(() => {
+    if (!state || !heroUserId) return null
+    return state.seat_map.find((seat) => seat.user_id === heroUserId) || null
+  }, [state, heroUserId])
+
+  // Handle sit out toggle
+  const handleSitOut = useCallback(async () => {
+    if (!tableId || !initData || !heroSeat) return
+
+    try {
+      const newStatus = !heroSeat.is_sitting_out
+      await apiFetch(`/tables/${tableId}/sitout`, {
+        method: 'POST',
+        body: { sit_out: newStatus },
+        initData,
+      })
+
+      console.log('[TableView] Toggled sit out:', newStatus)
+      // State will be updated via WebSocket
+    } catch (error) {
+      console.error('[TableView] Failed to toggle sit out:', error)
+    }
+  }, [tableId, initData, heroSeat])
+
   // Loading state
   if (!state) {
     return (
@@ -227,35 +253,9 @@ export function TableView() {
     discard_limits,
     pots,
   } = state
-
-  // Hero detection: Find current user's seat by matching user_id
-  const heroUserId = user?.id
-  const heroSeat = useMemo(() => {
-    if (!heroUserId) return null
-    return seat_map.find((seat) => seat.user_id === heroUserId) || null
-  }, [seat_map, heroUserId])
   
   const heroSeatId = heroSeat?.seat_index ?? null
   const isHeroActing = state.acting_seat_id === heroSeatId
-
-  // Handle sit out toggle (defined after heroSeat)
-  const handleSitOut = useCallback(async () => {
-    if (!tableId || !initData || !heroSeat) return
-
-    try {
-      const newStatus = !heroSeat.is_sitting_out
-      await apiFetch(`/tables/${tableId}/sitout`, {
-        method: 'POST',
-        body: { sit_out: newStatus },
-        initData,
-      })
-
-      console.log('[TableView] Toggled sit out:', newStatus)
-      // State will be updated via WebSocket
-    } catch (error) {
-      console.error('[TableView] Failed to toggle sit out:', error)
-    }
-  }, [tableId, initData, heroSeat])
 
   return (
     <div className="table-view relative h-screen bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
