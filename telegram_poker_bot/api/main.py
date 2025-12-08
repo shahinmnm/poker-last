@@ -764,10 +764,7 @@ async def check_table_inactivity():
                             )
 
                             # Determine if table is persistent (Lobby/Cash Game)
-                            is_persistent = (
-                                table.lobby_persistent 
-                                or (table.template and table.template.table_type in [TableTemplateType.PERSISTENT, TableTemplateType.CASH_GAME])
-                            )
+                            is_persistent = await table_lifecycle.is_persistent_table(table)
 
                             if table.status == TableStatus.WAITING and not active_seats:
                                 # NEVER expire persistent tables

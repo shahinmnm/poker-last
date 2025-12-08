@@ -89,11 +89,7 @@ async def check_auto_start_conditions(
 
     # === LOGIC 1: PERSISTENT / CASH GAMES (Instant Start) ===
     # If the table is persistent (Lobby) or explicitly marked as PERSISTENT/CASH_GAME
-    is_persistent = (
-        table.lobby_persistent 
-        or table.template.table_type == TableTemplateType.PERSISTENT
-        or table.template.table_type == TableTemplateType.CASH_GAME
-    )
+    is_persistent = await table_lifecycle.is_persistent_table(table)
 
     if is_persistent:
         # Standard Cash Game Logic: 2 players = Game On

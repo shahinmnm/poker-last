@@ -1785,11 +1785,8 @@ class PokerKitTableRuntimeManager:
 
             if len(playing_seats) < 2:
                 # PAUSE LOGIC: Not enough players to deal next hand
-                # Check if table is persistent
-                is_persistent = (
-                    runtime.table.lobby_persistent 
-                    or (runtime.table.template and runtime.table.template.table_type in [TableTemplateType.PERSISTENT, TableTemplateType.CASH_GAME])
-                )
+                # Check if table is persistent using centralized helper
+                is_persistent = await table_lifecycle.is_persistent_table(runtime.table)
                 
                 if is_persistent:
                     # PAUSE persistent tables - return to WAITING status
