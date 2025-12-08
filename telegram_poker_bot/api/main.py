@@ -26,7 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.dialects.postgresql import insert
@@ -51,6 +51,7 @@ from telegram_poker_bot.shared.models import (
     HandStatus,
     SNGState,
     TableTemplateType,
+    TableTemplate,
 )
 from telegram_poker_bot.shared.types import (
     GameMode,
@@ -1262,12 +1263,19 @@ async def monitor_table_autostart():
             await asyncio.sleep(1)  # Check every second
             
             async with get_db_session() as db:
-                # Find all tables in WAITING state (includes both SNG and PERSISTENT)
+                # Find all tables in WAITING state that need auto-start monitoring
+                # Only include:
+                # 1. PERSISTENT tables (auto-start when min_players reached)
+                # 2. SNG tables (have sng_state set)
                 result = await db.execute(
                     select(Table)
                     .options(joinedload(Table.template))
                     .where(
                         Table.status == TableStatus.WAITING,
+                        or_(
+                            Table.template.has(TableTemplate.table_type == TableTemplateType.PERSISTENT),
+                            Table.sng_state.isnot(None),
+                        ),
                     )
                 )
                 tables = list(result.scalars())
@@ -1364,7 +1372,10 @@ async def monitor_table_autostart():
                             table_id=table.id,
                             error=str(exc),
                         )
-                        await db.rollback()
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass  # Ignore rollback errors
         
         except asyncio.CancelledError:
             logger.info("Table auto-start monitor cancelled")
