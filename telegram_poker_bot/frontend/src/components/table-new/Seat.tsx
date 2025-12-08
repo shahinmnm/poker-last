@@ -83,11 +83,10 @@ export function Seat({
       data-seat-index={seat_index}
       data-user-id={user_id}
       onClick={onClick}
-      style={{ opacity: is_sitting_out ? 0.5 : 1 }}
     >
       {/* Seat container */}
       <div className="seat-content flex flex-col items-center gap-2">
-        {/* Avatar with ring - apply opacity to container when sitting out */}
+        {/* Avatar with ring - apply opacity when sitting out */}
         <div className={`relative ${is_sitting_out ? 'opacity-50' : ''}`}>
           {/* Hero badge */}
           {isHero && (

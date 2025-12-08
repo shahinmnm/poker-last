@@ -16,6 +16,7 @@ import DrawRenderer from './DrawRenderer'
 import PotDisplay from './PotDisplay'
 import HandResultOverlay from './HandResultOverlay'
 import WinnerBanner from './WinnerBanner'
+import Modal from '../ui/Modal'
 import type { ActionType, CardCode, TableDeltaMessage } from '../../types/normalized'
 import { apiFetch } from '@/utils/apiClient'
 
@@ -28,6 +29,7 @@ export function TableView() {
   const [isJoining, setIsJoining] = useState(false)
   const [showHandResult, setShowHandResult] = useState(false)
   const [showWinnerBanner, setShowWinnerBanner] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
 
   // Handle schema version mismatch with hard reload
   const handleSchemaVersionMismatch = useCallback(() => {
@@ -180,10 +182,6 @@ export function TableView() {
   const handleLeave = useCallback(async () => {
     if (!tableId || !initData) return
 
-    // Show confirmation dialog
-    const confirmed = window.confirm('Leave table and cash out?')
-    if (!confirmed) return
-
     try {
       await apiFetch(`/tables/${tableId}/leave-seat`, {
         method: 'POST',
@@ -192,10 +190,12 @@ export function TableView() {
 
       console.log('[TableView] Left seat')
       
-      // Redirect to lobby on success
+      // Close modal and redirect to lobby on success
+      setShowLeaveConfirm(false)
       navigate('/lobby')
     } catch (error) {
       console.error('[TableView] Failed to leave seat:', error)
+      setShowLeaveConfirm(false)
     }
   }, [tableId, initData, navigate])
 
@@ -284,7 +284,7 @@ export function TableView() {
       {heroSeat && (
         <div className="absolute top-4 right-4 z-10">
           <button
-            onClick={handleLeave}
+            onClick={() => setShowLeaveConfirm(true)}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center gap-2"
             title="Leave table and cash out"
           >
@@ -449,6 +449,18 @@ export function TableView() {
           onClose={() => setShowHandResult(false)}
         />
       )}
+
+      {/* Leave table confirmation modal */}
+      <Modal
+        isOpen={showLeaveConfirm}
+        onClose={() => setShowLeaveConfirm(false)}
+        title="Leave Table?"
+        description="Are you sure you want to leave the table and cash out?"
+        confirmLabel="Leave Table"
+        cancelLabel="Stay"
+        confirmVariant="danger"
+        onConfirm={handleLeave}
+      />
     </div>
   )
 }
