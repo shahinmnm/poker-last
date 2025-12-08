@@ -1284,6 +1284,7 @@ async def monitor_table_autostart():
                             # 1. Update Status (System Action)
                             # Pass user_id=None to indicate system action
                             await table_service.start_table(db, table.id, user_id=None)
+                            await db.commit()
                             
                             # 2. Initialize Game Engine
                             runtime_mgr = get_pokerkit_runtime_manager()

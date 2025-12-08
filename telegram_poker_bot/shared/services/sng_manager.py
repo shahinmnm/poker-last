@@ -110,7 +110,11 @@ async def check_auto_start_conditions(
         return False, None
     # =========================================
 
-    config_json = table.template.config_json or {}
+    # For SNG tables, extract configuration
+    if not table.template.config_json:
+        return False, None
+    
+    config_json = table.template.config_json
     config = config_json.get("backend", config_json)
     sng_config = get_sng_config(config)
 
