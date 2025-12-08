@@ -89,7 +89,20 @@ async def check_auto_start_conditions(
     db: AsyncSession,
     table: Table,
 ) -> tuple[bool, Optional[str]]:
-    """Check if table meets conditions for auto-start."""
+    """Check if table meets conditions for auto-start.
+    
+    For PERSISTENT tables: auto-starts when >= 2 players seated (ignores SNG config).
+    For SNG tables: uses SNG configuration (join window, min/max players, etc.).
+    
+    Args:
+        db: Database session
+        table: Table instance to check
+        
+    Returns:
+        Tuple of (should_start: bool, reason: Optional[str])
+        - should_start: True if table should auto-start now
+        - reason: String describing why table should start (e.g., "persistent_min_players_met")
+    """
     if not table.template:
         return False, None
 

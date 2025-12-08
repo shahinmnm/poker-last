@@ -1249,7 +1249,7 @@ async def monitor_table_autostart():
     Checks ALL waiting tables (SNG and Persistent) for start conditions.
     """
     from telegram_poker_bot.shared.database import get_db_session
-    from telegram_poker_bot.shared.services import sng_manager
+    from telegram_poker_bot.shared.services import sng_manager, table_service
     from sqlalchemy.orm import joinedload
     
     logger.info("Table auto-start monitor started")
@@ -1284,17 +1284,19 @@ async def monitor_table_autostart():
                             # 1. Update Status (System Action)
                             # Pass user_id=None to indicate system action
                             await table_service.start_table(db, table.id, user_id=None)
-                            await db.commit()
                             
                             # 2. Initialize Game Engine
                             runtime_mgr = get_pokerkit_runtime_manager()
                             state = await runtime_mgr.start_game(db, table.id)
                             
-                            # 3. Broadcast Start Event
+                            # 3. Commit all changes
+                            await db.commit()
+                            
+                            # 4. Broadcast Start Event
                             state = await _attach_template_to_payload(db, table.id, state)
                             await manager.broadcast(table.id, state)
                             
-                            # 4. Invalidate Cache
+                            # 5. Invalidate Cache
                             try:
                                 pool = await get_matchmaking_pool()
                                 await table_service.invalidate_public_table_cache(pool.redis)
