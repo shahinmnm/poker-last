@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import FastAPI, Request, Response, Header, HTTPException, status
 from telegram import BotCommand, Update
 from telegram.ext import Application, CommandHandler
+from telegram.error import NetworkError
 
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.logging import configure_logging, get_logger
@@ -34,13 +35,66 @@ bot_application.add_handler(CommandHandler("startgroup", start_group_handler))
 # Register error handler
 bot_application.add_error_handler(error_handler)
 
+async def retry_with_backoff(coro_func, max_retries=5, initial_delay=1, max_delay=30, operation_name="operation"):
+    """Retry an async operation with exponential backoff.
+    
+    Args:
+        coro_func: Async function to retry
+        max_retries: Maximum number of retry attempts
+        initial_delay: Initial delay in seconds
+        max_delay: Maximum delay between retries in seconds
+        operation_name: Name of the operation for logging
+    
+    Returns:
+        Result of the coroutine function
+    
+    Raises:
+        The last exception encountered if all retries fail
+    """
+    delay = initial_delay
+    last_exception = None
+    
+    for attempt in range(max_retries + 1):
+        try:
+            return await coro_func()
+        except (NetworkError, OSError, Exception) as exc:
+            last_exception = exc
+            if attempt < max_retries:
+                logger.warning(
+                    f"Failed to {operation_name}, retrying",
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    delay=delay,
+                    error=str(exc),
+                )
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, max_delay)
+            else:
+                logger.error(
+                    f"Failed to {operation_name} after all retries",
+                    attempts=max_retries + 1,
+                    error=str(exc),
+                )
+                raise
+    
+    # This should never be reached, but for type safety
+    if last_exception:
+        raise last_exception
+
+
 # Create FastAPI app for webhook
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # pragma: no cover - exercised in integration/runtime
     """Manage startup and shutdown lifecycle for the FastAPI application."""
 
     try:
-        await bot_application.initialize()
+        await retry_with_backoff(
+            bot_application.initialize,
+            max_retries=5,
+            initial_delay=2,
+            max_delay=30,
+            operation_name="initialize Telegram bot",
+        )
         await bot_application.start()
         bot_ready.set()
         await configure_bot_commands()
@@ -49,7 +103,13 @@ async def lifespan(app: FastAPI):  # pragma: no cover - exercised in integration
         bot_ready.clear()
         raise
 
-    await configure_telegram_webhook()
+    await retry_with_backoff(
+        configure_telegram_webhook,
+        max_retries=3,
+        initial_delay=1,
+        max_delay=10,
+        operation_name="configure Telegram webhook",
+    )
 
     try:
         yield
