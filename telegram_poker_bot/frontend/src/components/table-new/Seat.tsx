@@ -83,6 +83,7 @@ export function Seat({
       data-seat-index={seat_index}
       data-user-id={user_id}
       onClick={onClick}
+      style={{ opacity: is_sitting_out ? 0.6 : 1 }}
     >
       {/* Seat container */}
       <div className="seat-content flex flex-col items-center gap-2">
@@ -92,6 +93,13 @@ export function Seat({
           {isHero && (
             <div className="absolute -top-2 -left-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold text-white z-10">
               YOU
+            </div>
+          )}
+          
+          {/* Sitting out badge */}
+          {is_sitting_out && (
+            <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-xs font-bold text-gray-900 z-10">
+              Zzz
             </div>
           )}
           
@@ -150,14 +158,14 @@ export function Seat({
             </div>
           )}
           {is_sitting_out && (
-            <div className="sitting-out-badge text-xs text-gray-500">
+            <div className="sitting-out-badge text-xs font-semibold text-yellow-500">
               Sitting Out
             </div>
           )}
         </div>
 
         {/* Hole cards */}
-        {hole_cards && hole_cards.length > 0 && (
+        {hole_cards && hole_cards.length > 0 && !is_sitting_out && (
           <div className="hole-cards flex gap-1 mt-1">
             {hole_cards.map((card, index) => (
               <CardRenderer

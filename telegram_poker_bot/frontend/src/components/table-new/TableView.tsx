@@ -192,6 +192,32 @@ export function TableView() {
     }
   }, [tableId, initData, requestSnapshot])
 
+  // Hero detection: Find current user's seat by matching user_id
+  const heroUserId = user?.id
+  const heroSeat = useMemo(() => {
+    if (!state || !heroUserId) return null
+    return state.seat_map.find((seat) => seat.user_id === heroUserId) || null
+  }, [state, heroUserId])
+
+  // Handle sit out toggle
+  const handleSitOut = useCallback(async () => {
+    if (!tableId || !initData || !heroSeat) return
+
+    try {
+      const newStatus = !heroSeat.is_sitting_out
+      await apiFetch(`/tables/${tableId}/sitout`, {
+        method: 'POST',
+        body: { sit_out: newStatus },
+        initData,
+      })
+
+      console.log('[TableView] Toggled sit out:', newStatus)
+      // State will be updated via WebSocket
+    } catch (error) {
+      console.error('[TableView] Failed to toggle sit out:', error)
+    }
+  }, [tableId, initData, heroSeat])
+
   // Loading state
   if (!state) {
     return (
@@ -227,35 +253,24 @@ export function TableView() {
     discard_limits,
     pots,
   } = state
-
-  // Hero detection: Find current user's seat by matching user_id
-  const heroUserId = user?.id
-  const heroSeat = useMemo(() => {
-    if (!heroUserId) return null
-    return seat_map.find((seat) => seat.user_id === heroUserId) || null
-  }, [seat_map, heroUserId])
   
   const heroSeatId = heroSeat?.seat_index ?? null
   const isHeroActing = state.acting_seat_id === heroSeatId
 
   return (
     <div className="table-view relative h-screen bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
-      {/* Connection status indicator */}
-      <div className="absolute top-4 right-4 z-10">
-        <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-          isLive ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
-        }`}>
-          {connectionState}
-        </div>
-      </div>
-
-      {/* Table metadata */}
-      <div className="absolute top-4 left-4 z-10">
+      {/* Table metadata and connection status */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         <div className="bg-gray-800 rounded-lg px-4 py-2 text-white">
           <div className="font-bold">{table_metadata.name}</div>
           <div className="text-sm text-gray-400">
             {table_metadata.variant} • {table_metadata.stakes}
           </div>
+        </div>
+        <div className={`px-3 py-1 rounded-full text-xs font-semibold text-center ${
+          isLive ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
+        }`}>
+          {connectionState}
         </div>
       </div>
 
@@ -332,9 +347,19 @@ export function TableView() {
           </div>
         )}
 
-        {/* Leave button for seated players */}
+        {/* Leave button and Sit Out toggle for seated players */}
         {heroSeat && (
-          <div className="leave-button-container fixed top-4 right-4 z-10">
+          <div className="leave-button-container fixed top-4 right-4 z-10 flex gap-2">
+            <button
+              onClick={handleSitOut}
+              className={`px-4 py-2 rounded-lg font-semibold ${
+                heroSeat.is_sitting_out
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-yellow-600 hover:bg-yellow-700 text-white'
+              }`}
+            >
+              {heroSeat.is_sitting_out ? "I'm Back" : 'Sit Out'}
+            </button>
             <button
               onClick={handleLeave}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold"
