@@ -1280,7 +1280,7 @@ async def monitor_table_autostart():
                                 reason=reason,
                             )
                             
-                            # 1. Update Status (System Action)
+                            # 1. Start Table (System Action)
                             # Pass user_id=None to indicate system action
                             await table_service.start_table(db, table.id, user_id=None)
                             

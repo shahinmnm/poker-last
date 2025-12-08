@@ -106,7 +106,7 @@ async def check_auto_start_conditions(
     if not table.template:
         return False, None
 
-    # === FORCE START FOR PERSISTENT TABLES ===
+    # === AUTO-START FOR PERSISTENT TABLES ===
     # Persistent tables (Cash Games) auto-start when 2 players are seated,
     # regardless of SNG configuration flags.
     if table.template.table_type == TableTemplateType.PERSISTENT:
