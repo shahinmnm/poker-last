@@ -24,6 +24,7 @@ from telegram_poker_bot.shared.models import (
     Seat,
 )
 from telegram_poker_bot.shared.logging import get_logger
+from telegram_poker_bot.shared.services import table_lifecycle
 
 if TYPE_CHECKING:  # pragma: no cover
     pass
