@@ -797,7 +797,7 @@ async def check_table_inactivity():
                                 # 1. Check if hand is running (Don't kill mid-hand)
                                 active_hand = await db.scalar(
                                     select(Hand).where(
-                                        Hand.table_id == table.id, 
+                                        Hand.table_id == table.id,
                                         Hand.status.notin_([HandStatus.ENDED, HandStatus.SHOWDOWN])
                                     )
                                 )
@@ -816,7 +816,7 @@ async def check_table_inactivity():
                                         table.status = TableStatus.WAITING
                                         table.last_action_at = now
                                         await db.commit()
-                                        
+
                                         await manager.broadcast(table.id, {
                                             "type": "table_paused",
                                             "status": "waiting",
