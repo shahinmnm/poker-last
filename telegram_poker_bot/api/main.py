@@ -806,13 +806,13 @@ async def check_table_inactivity():
 
                                 # 2. Check Player Count
                                 if playing_count < 2:
-                                    # 3. CHECK PERSISTENCE (The Missing Fix)
-                                    # Re-check persistence to ensure we catch is_auto_generated tables
-                                    is_persistent = await table_lifecycle.is_persistent_table(table)
-
+                                    # 3. Apply persistence-based lifecycle rules
                                     if is_persistent:
                                         # PAUSE instead of END
-                                        logger.info(f"Pausing persistent table {table.id} (insufficient players)")
+                                        logger.info(
+                                            "Pausing persistent table (insufficient players)",
+                                            table_id=table.id,
+                                        )
                                         table.status = TableStatus.WAITING
                                         table.last_action_at = now
                                         await db.commit()
@@ -826,7 +826,7 @@ async def check_table_inactivity():
                                     
                                     # DELETE (Only for SNGs)
                                     await table_lifecycle.mark_table_completed_and_cleanup(
-                                        db, table, "lack of minimum player"
+                                        db, table, "lack of minimum players"
                                     )
                                     await manager.close_all_connections(table.id)
                                     continue
