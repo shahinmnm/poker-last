@@ -564,6 +564,17 @@ async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> No
         await manager.close_all_connections(table_id)
         return
 
+    if result.get("table_paused"):
+        await manager.broadcast(
+            table_id,
+            {
+                "type": "table_paused",
+                "status": result.get("status", "waiting"),
+                "reason": result.get("reason", "Waiting for players..."),
+            },
+        )
+        return
+
     if result.get("state"):
         async with get_db_session() as session:
             state = await _attach_template_to_payload(
@@ -753,10 +764,7 @@ async def check_table_inactivity():
                             )
 
                             # Determine if table is persistent (Lobby/Cash Game)
-                            is_persistent = (
-                                table.lobby_persistent 
-                                or (table.template and table.template.table_type in [TableTemplateType.PERSISTENT, TableTemplateType.CASH_GAME])
-                            )
+                            is_persistent = await table_lifecycle.is_persistent_table(table)
 
                             if table.status == TableStatus.WAITING and not active_seats:
                                 # NEVER expire persistent tables

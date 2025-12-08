@@ -460,7 +460,6 @@ class PokerKitTableRuntime:
                 # Step 2: Set State to INTER_HAND_WAIT
                 self.current_hand.status = HandStatus.INTER_HAND_WAIT
                 self.inter_hand_wait_start = datetime.now(timezone.utc)
-                self.ready_players = set()
 
                 logger.info(
                     "Hand status set to INTER_HAND_WAIT",
@@ -468,10 +467,14 @@ class PokerKitTableRuntime:
                     hand_no=self.hand_no,
                 )
 
-                # Step 3: Keep Players Active (No Forced Sit Out)
-                # Players remain active by default - no voting required
+                # CRITICAL CHANGE: Do NOT force players to sit out.
+                # Previous behavior: After hand ended, all players were forced to sit out
+                # and had to vote "Ready" to continue playing.
+                # New behavior: Players remain seated and active by default. The next hand
+                # will auto-deal after the 5-second showdown countdown. No voting required.
+                # This creates a professional Sit & Go experience.
                 logger.info(
-                    "Players remain active - no ready signal required",
+                    "Players remain active - no ready voting required",
                     table_id=self.table.id,
                     hand_no=self.hand_no,
                 )
@@ -480,46 +483,23 @@ class PokerKitTableRuntime:
                 await self._log_hand_event(db, "showdown")
                 await self._log_hand_event(db, "hand_ended")
 
-                # Step 4: Build ONE unified hand_ended event for broadcast
-                # This is the ONLY broadcast message for hand completion
-                inter_hand_wait_deadline = self.inter_hand_wait_start + timedelta(
-                    seconds=settings.post_hand_delay_seconds  # Configurable countdown (default 5s)
-                )
+                # Step 3: Build hand_ended event
+                # 5 second delay for showdown animation
+                delay_seconds = settings.post_hand_delay_seconds
+                inter_hand_wait_deadline = self.inter_hand_wait_start + timedelta(seconds=delay_seconds)
 
                 hand_ended_event = {
                     "type": "hand_ended",
                     "table_id": self.table.id,
                     "hand_no": self.hand_no,
-                    "winners": hand_result[
-                        "winners"
-                    ],  # Full details: ID, Rank, Cards, Amount (post-rake)
-                    "rake_amount": hand_result.get(
-                        "rake_amount", 0
-                    ),  # Rake deducted from pot
-                    "total_pot": hand_result.get(
-                        "total_pot", 0
-                    ),  # Total pot before rake
-                    "next_hand_in": settings.post_hand_delay_seconds,  # Configurable countdown (default 5s)
+                    "winners": hand_result["winners"],
+                    "rake_amount": hand_result.get("rake_amount", 0),
+                    "total_pot": hand_result.get("total_pot", 0),
+                    "next_hand_in": delay_seconds,  # UI Countdown
                     "status": "INTER_HAND_WAIT",
                     "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
-                    # NO allowed_actions - no voting/ready button needed
-                    "allowed_actions": [],
+                    "allowed_actions": [],  # No actions needed, just wait
                 }
-
-                # Step 5: Lifecycle Check - Should table self-destruct?
-                # Note: We check but don't delete yet - give players the 20s wait period
-                should_end, reason = await table_lifecycle.compute_poststart_inactivity(
-                    db, self.table
-                )
-
-                if should_end:
-                    logger.warning(
-                        "Table will self-destruct after inter-hand wait",
-                        table_id=self.table.id,
-                        reason=reason,
-                    )
-                    hand_ended_event["table_will_end"] = True
-                    hand_ended_event["end_reason"] = reason
 
                 await db.flush()
 
@@ -1807,12 +1787,42 @@ class PokerKitTableRuntimeManager:
             playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
 
             if len(playing_seats) < 2:
-                runtime.table.status = TableStatus.ENDED
-                runtime.table.updated_at = datetime.now(timezone.utc)
-                runtime.ready_players = set()
-                await db.flush()
+                # PAUSE LOGIC: Not enough players (< 2) to deal next hand
+                # For persistent tables: Set status to WAITING (pause, don't delete)
+                # For non-persistent tables: Set status to ENDED (normal cleanup)
+                # Check if table is persistent using centralized helper
+                is_persistent = await table_lifecycle.is_persistent_table(runtime.table)
+                
+                if is_persistent:
+                    # PAUSE persistent tables - return to WAITING status
+                    logger.info(
+                        "Pausing persistent table - insufficient players",
+                        table_id=runtime.table.id,
+                        active_player_count=len(playing_seats),
+                    )
+                    runtime.table.status = TableStatus.WAITING
+                    runtime.table.updated_at = datetime.now(timezone.utc)
+                    runtime.ready_players = set()
+                    await db.flush()
+                    
+                    return {
+                        "table_paused": True,
+                        "status": "waiting",
+                        "reason": "Waiting for players..."
+                    }
+                else:
+                    # END non-persistent tables (SNG)
+                    logger.info(
+                        "Ending non-persistent table - insufficient players",
+                        table_id=runtime.table.id,
+                        active_player_count=len(playing_seats),
+                    )
+                    runtime.table.status = TableStatus.ENDED
+                    runtime.table.updated_at = datetime.now(timezone.utc)
+                    runtime.ready_players = set()
+                    await db.flush()
 
-                return {"table_ended": True, "reason": "Not enough players"}
+                    return {"table_ended": True, "reason": "Not enough players"}
 
             runtime.table.last_action_at = datetime.now(timezone.utc)
 
