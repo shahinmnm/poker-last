@@ -259,22 +259,18 @@ export function TableView() {
 
   return (
     <div className="table-view relative h-screen bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
-      {/* Connection status indicator */}
-      <div className="absolute top-4 right-4 z-10">
-        <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-          isLive ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
-        }`}>
-          {connectionState}
-        </div>
-      </div>
-
-      {/* Table metadata */}
-      <div className="absolute top-4 left-4 z-10">
+      {/* Table metadata and connection status */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         <div className="bg-gray-800 rounded-lg px-4 py-2 text-white">
           <div className="font-bold">{table_metadata.name}</div>
           <div className="text-sm text-gray-400">
             {table_metadata.variant} • {table_metadata.stakes}
           </div>
+        </div>
+        <div className={`px-3 py-1 rounded-full text-xs font-semibold text-center ${
+          isLive ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
+        }`}>
+          {connectionState}
         </div>
       </div>
 

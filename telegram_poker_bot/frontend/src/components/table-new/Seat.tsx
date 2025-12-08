@@ -98,7 +98,7 @@ export function Seat({
           
           {/* Sitting out badge */}
           {is_sitting_out && (
-            <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-xs font-bold text-black z-10">
+            <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-xs font-bold text-gray-900 z-10">
               Zzz
             </div>
           )}
