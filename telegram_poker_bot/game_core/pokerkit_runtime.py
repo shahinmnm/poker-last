@@ -483,7 +483,7 @@ class PokerKitTableRuntime:
                 # Step 4: Build ONE unified hand_ended event for broadcast
                 # This is the ONLY broadcast message for hand completion
                 inter_hand_wait_deadline = self.inter_hand_wait_start + timedelta(
-                    seconds=5  # 5-second countdown for smooth flow
+                    seconds=settings.post_hand_delay_seconds  # Configurable countdown (default 5s)
                 )
 
                 hand_ended_event = {
@@ -499,7 +499,7 @@ class PokerKitTableRuntime:
                     "total_pot": hand_result.get(
                         "total_pot", 0
                     ),  # Total pot before rake
-                    "next_hand_in": 5,  # 5-second countdown
+                    "next_hand_in": settings.post_hand_delay_seconds,  # Configurable countdown (default 5s)
                     "status": "INTER_HAND_WAIT",
                     "inter_hand_wait_deadline": inter_hand_wait_deadline.isoformat(),
                     # NO allowed_actions - no voting/ready button needed

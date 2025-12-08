@@ -305,4 +305,7 @@ async def test_hand_ended_event_contains_allowed_actions_with_ready():
             assert hand_ended_event["status"] == "INTER_HAND_WAIT"
             assert "winners" in hand_ended_event
             assert "inter_hand_wait_deadline" in hand_ended_event
-            assert hand_ended_event["next_hand_in"] == 5  # 5-second countdown
+            # Verify next_hand_in matches the configured value
+            from telegram_poker_bot.shared.config import get_settings
+            test_settings = get_settings()
+            assert hand_ended_event["next_hand_in"] == test_settings.post_hand_delay_seconds
