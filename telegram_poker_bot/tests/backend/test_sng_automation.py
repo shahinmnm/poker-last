@@ -334,3 +334,119 @@ async def test_persistent_table_ignores_sng_config(
     )
     assert should_start is True
     assert reason == "persistent_min_players_met"
+
+
+@pytest.mark.asyncio
+async def test_cash_game_table_auto_start(
+    db_session: AsyncSession, test_users: list
+):
+    """Test that CASH_GAME tables auto-start with 2 players."""
+    # Create a CASH_GAME template
+    template = TableTemplate(
+        name="Cash Game Template",
+        table_type=TableTemplateType.CASH_GAME,
+        has_waitlist=True,
+        config_json={
+            "backend": {
+                "small_blind": 10,
+                "big_blind": 20,
+                "starting_stack": 1000,
+                "max_players": 6,
+                "currency_type": "PLAY",
+                "game_variant": "no_limit_texas_holdem",
+                "table_name": "Test Cash Game",
+            }
+        },
+    )
+    db_session.add(template)
+    await db_session.flush()
+
+    # Create table
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.WAITING,
+        creator_user_id=test_users[0].id,
+        is_public=True,
+        template_id=template.id,
+    )
+    table.template = template
+    db_session.add(table)
+    await db_session.flush()
+
+    # Add 2 players
+    for i in range(2):
+        seat = Seat(
+            table_id=table.id,
+            user_id=test_users[i].id,
+            position=i,
+            chips=1000,
+            joined_at=datetime.now(timezone.utc),
+        )
+        db_session.add(seat)
+    await db_session.flush()
+
+    # Should auto-start with 2 players
+    should_start, reason = await sng_manager.check_auto_start_conditions(
+        db_session, table
+    )
+    assert should_start is True
+    assert reason == "persistent_min_players_met"
+
+
+@pytest.mark.asyncio
+async def test_lobby_persistent_table_auto_start(
+    db_session: AsyncSession, test_users: list
+):
+    """Test that lobby_persistent tables auto-start with 2 players."""
+    # Create a regular template
+    template = TableTemplate(
+        name="Regular Template",
+        table_type=TableTemplateType.EXPIRING,
+        has_waitlist=False,
+        config_json={
+            "backend": {
+                "small_blind": 10,
+                "big_blind": 20,
+                "starting_stack": 1000,
+                "max_players": 6,
+                "currency_type": "PLAY",
+                "game_variant": "no_limit_texas_holdem",
+                "table_name": "Test Table",
+                "expiration_minutes": 30,
+            }
+        },
+    )
+    db_session.add(template)
+    await db_session.flush()
+
+    # Create table with lobby_persistent=True
+    table = Table(
+        mode=GameMode.ANONYMOUS,
+        status=TableStatus.WAITING,
+        creator_user_id=test_users[0].id,
+        is_public=True,
+        template_id=template.id,
+        lobby_persistent=True,  # This makes it persistent
+    )
+    table.template = template
+    db_session.add(table)
+    await db_session.flush()
+
+    # Add 2 players
+    for i in range(2):
+        seat = Seat(
+            table_id=table.id,
+            user_id=test_users[i].id,
+            position=i,
+            chips=1000,
+            joined_at=datetime.now(timezone.utc),
+        )
+        db_session.add(seat)
+    await db_session.flush()
+
+    # Should auto-start with 2 players
+    should_start, reason = await sng_manager.check_auto_start_conditions(
+        db_session, table
+    )
+    assert should_start is True
+    assert reason == "persistent_min_players_met"

@@ -1587,10 +1587,9 @@ async def start_table(
     db: AsyncSession,
     table_id: int,
     *,
-    user_id: Optional[int],
+    user_id: Optional[int] = None,  # CHANGED: Optional
 ) -> Table:
-    """
-    Transition a table into the active state or start a new hand if already active.
+    """Transition a table into the active state.
     
     Args:
         db: Database session
@@ -1601,9 +1600,10 @@ async def start_table(
     table = await _load_table_with_template(db, table_id)
     creator_user_id = table.creator_user_id
     
-    # Skip permission check for system/auto-start (user_id is None)
-    if user_id is not None and (creator_user_id is None or creator_user_id != user_id):
-        raise PermissionError("Only the table creator can start the game")
+    # CHANGED: Only enforce permission if a specific user is trying to start it
+    if user_id is not None:
+        if creator_user_id is None or creator_user_id != user_id:
+            raise PermissionError("Only the table creator can start the game")
 
     if table.status not in (TableStatus.WAITING, TableStatus.ACTIVE):
         raise ValueError(f"Table cannot be started from {table.status.value} state")
