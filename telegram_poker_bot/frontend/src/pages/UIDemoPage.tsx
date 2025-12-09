@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import ConnectionStatus from '../components/ui/ConnectionStatus'
+import { ConnectionStatus } from '../components/ui/ConnectionStatus'
 import { Loader2 } from 'lucide-react'
 import type { ConnectionState } from '../types/normalized'
 
