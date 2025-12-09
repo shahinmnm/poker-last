@@ -20,6 +20,7 @@ import HandResultOverlay from './HandResultOverlay'
 import WinnerBanner from './WinnerBanner'
 import Modal from '../ui/Modal'
 import ConnectionStatus from '../ui/ConnectionStatus'
+import { getSeatLayout } from '../../config/tableLayout'
 import type { ActionType, CardCode, TableDeltaMessage } from '../../types/normalized'
 import { apiFetch } from '@/utils/apiClient'
 
@@ -215,6 +216,35 @@ export function TableView() {
     return state.seat_map.find((seat) => seat.user_id === heroUserId) || null
   }, [state, heroUserId])
 
+  // Calculate seat positions using elliptical layout with hero-centering
+  const seatPositions = useMemo(() => {
+    if (!state) return []
+    
+    const totalSeats = state.seat_map.length
+    const layoutSlots = getSeatLayout(totalSeats)
+    
+    // Find hero's seat index for rotation
+    const heroSeatIndex = heroSeat?.seat_index ?? null
+    
+    return state.seat_map.map((seat) => {
+      // Calculate visual index (rotate so hero is at position 0, which is bottom center)
+      let visualIndex = seat.seat_index
+      if (heroSeatIndex !== null) {
+        visualIndex = (seat.seat_index - heroSeatIndex + totalSeats) % totalSeats
+      }
+      
+      // Get layout position from config
+      const layoutSlot = layoutSlots[visualIndex] || layoutSlots[0]
+      
+      return {
+        seat,
+        xPercent: layoutSlot.xPercent,
+        yPercent: layoutSlot.yPercent,
+        isHero: seat.seat_index === heroSeatIndex,
+      }
+    })
+  }, [state, heroSeat])
+
   // Handle sit out toggle
   const handleSitOut = useCallback(async (sitOut: boolean) => {
     if (!tableId || !initData || !heroSeat) return
@@ -276,17 +306,18 @@ export function TableView() {
     <div className="table-view relative h-screen bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
       {/* Resync overlay - blocking UI during snapshot sync */}
       {connectionState === 'syncing_snapshot' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm transition-opacity duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30 transition-opacity duration-300">
           <div className="bg-black/40 backdrop-blur-md rounded-2xl px-8 py-6 flex flex-col items-center gap-4">
             <Loader2 className="w-12 h-12 text-amber-400 animate-spin" />
             <div className="text-white text-lg font-semibold">Syncing Table State...</div>
+            <div className="text-gray-400 text-sm">Please wait while we sync the latest data</div>
           </div>
         </div>
       )}
 
-      {/* Table metadata and connection status */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-        <div className="bg-gray-800 rounded-lg px-4 py-2 text-white">
+      {/* Table metadata and connection status - Z-Index: 50 */}
+      <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
+        <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
           <div className="font-bold">{table_metadata.name}</div>
           <div className="text-sm text-gray-400">
             {table_metadata.variant} • {table_metadata.stakes}
@@ -295,9 +326,9 @@ export function TableView() {
         <ConnectionStatus connectionState={connectionState} />
       </div>
 
-      {/* Leave Table button in top-right corner (for seated players only) */}
+      {/* Leave Table button in top-right corner (for seated players only) - Z-Index: 50 */}
       {heroSeat && (
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 right-4 z-50">
           <button
             onClick={() => setShowLeaveConfirm(true)}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center gap-2"
@@ -308,39 +339,31 @@ export function TableView() {
         </div>
       )}
 
-      {/* Main table area */}
-      <div className="table-container relative h-full flex flex-col items-center justify-center p-8">
-        {/* Pot display */}
-        <div ref={potRef} className="pot-display-container mb-4">
+      {/* Main table area with strict Z-Index layering */}
+      <div className="table-container relative h-full flex flex-col items-center justify-center">
+        {/* Pot display - Z-Index: 10 */}
+        <div ref={potRef} className="pot-display-container absolute top-[35%] left-1/2 -translate-x-1/2 z-10">
           <PotDisplay pots={pots} currency={table_metadata.currency as 'REAL' | 'PLAY'} />
         </div>
 
-        {/* Community cards */}
-        <div className="community-board-container mb-8">
+        {/* Community cards - Z-Index: 20 */}
+        <div className="community-board-container absolute top-[45%] left-1/2 -translate-x-1/2 z-20">
           <CommunityBoard
             communityCards={community_cards}
             street={current_street}
           />
         </div>
 
-        {/* Seats arranged in circle */}
-        <div className="seats-container relative w-full max-w-4xl h-96">
-          {seat_map.map((seat) => {
-            // Calculate position in circle (simple layout for now)
-            const angle = (seat.seat_index / seat_map.length) * 2 * Math.PI
-            const radius = 180
-            const x = Math.cos(angle) * radius
-            const y = Math.sin(angle) * radius
-            
-            const isHero = seat.seat_index === heroSeatId
-
+        {/* Seats arranged in ellipse with safe zone - Z-Index: 30 */}
+        <div className="seats-container absolute inset-0 pb-48 z-30">
+          {seatPositions.map(({ seat, xPercent, yPercent, isHero }) => {
             return (
               <div
                 key={seat.seat_index}
                 className="absolute"
                 style={{
-                  left: `calc(50% + ${x}px)`,
-                  top: `calc(50% + ${y}px)`,
+                  left: `${xPercent}%`,
+                  top: `${yPercent}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
               >
@@ -356,9 +379,9 @@ export function TableView() {
           })}
         </div>
 
-        {/* Action panel at bottom - show for seated players */}
+        {/* Action panel at bottom - Z-Index: 50 (Fixed Bottom) */}
         {heroSeat && (
-          <div className="action-panel-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4">
+          <div className="action-panel-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
             <ActionPanel
               legalActions={isHeroActing ? legal_actions : []}
               onAction={handleAction}
@@ -371,9 +394,9 @@ export function TableView() {
           </div>
         )}
 
-        {/* Join button for spectators */}
+        {/* Join button for spectators - Z-Index: 50 */}
         {!heroSeat && (
-          <div className="join-button-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4">
+          <div className="join-button-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
             <button
               onClick={handleJoin}
               disabled={isJoining}
@@ -384,9 +407,9 @@ export function TableView() {
           </div>
         )}
 
-        {/* Draw phase UI (overlays action panel when active) */}
+        {/* Draw phase UI (overlays action panel when active) - Z-Index: 50 */}
         {discard_phase_active && heroSeat && (
-          <div className="draw-phase-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4">
+          <div className="draw-phase-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
             <DrawRenderer
               holeCards={heroSeat.hole_cards}
               discardPhaseActive={discard_phase_active}
