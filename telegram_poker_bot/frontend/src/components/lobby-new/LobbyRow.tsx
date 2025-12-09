@@ -11,6 +11,7 @@ import { useTelegram } from '../../hooks/useTelegram'
 import { apiFetch } from '@/utils/apiClient'
 import type { LobbyEntry } from '../../types/normalized'
 import Badge from '../ui/Badge'
+import GameVariantBadge from '../ui/GameVariantBadge'
 
 interface LobbyRowProps {
   entry: LobbyEntry
@@ -165,8 +166,11 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
       <div className="flex items-center justify-between gap-4">
         {/* Table info */}
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-white">{entry.template_name}</h3>
+          <div className="flex items-center gap-3 mb-1">
+            <GameVariantBadge variant={entry.variant} size="sm" />
+            <h3 className="font-semibold text-white text-sm">
+              {entry.template_name}
+            </h3>
             <Badge color={tableTypeColor}>
               {entry.table_type}
             </Badge>
@@ -176,7 +180,6 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
           </div>
           
           <div className="flex items-center gap-3 text-sm text-gray-400">
-            <span className="font-mono">{entry.variant}</span>
             <span className="font-mono">{entry.stakes}</span>
             {entry.currency && (
               <>
