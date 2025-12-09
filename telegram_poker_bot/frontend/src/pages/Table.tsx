@@ -162,6 +162,11 @@ export default function TablePage() {
   const [showRecentHands, setShowRecentHands] = useState(false)
   const [turnProgress, setTurnProgress] = useState(1)
 
+  // Pre-action toggle states (Grinder UX)
+  const [sitOutNextHand, setSitOutNextHand] = useState(false)
+  const [autoPostBlinds, setAutoPostBlinds] = useState(true)
+  const [waitForBigBlind, setWaitForBigBlind] = useState(false)
+
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
   const [showTableMenu, setShowTableMenu] = useState(false)
@@ -1135,56 +1140,76 @@ export default function TablePage() {
     return lookup
   }, [heroCards, heroIdString, isInterHand, liveState?.hand_result, liveState?.players, normalizedStatus])
 
-  const heroSeatNumber = heroPlayer?.seat ?? heroPlayer?.position ?? null
-  const occupiedSeatNumbers = useMemo(() => {
-    const seats = new Set<number>()
-    liveState?.players?.forEach((player) => {
-      seats.add(player.seat ?? player.position ?? 0)
+  // --- SEATING ENGINE LOGIC ---
+  // Core principle: Hero-centric view where the current user always appears at the bottom-center.
+  // For spectators, we use server index 0 as the anchor position.
+  
+  const MAX_SEATS = tableMaxPlayers || 9 // Default to 9 if unknown
+  const heroServerIndex = heroPlayer?.seat ?? heroPlayer?.position ?? -1
+
+  // 1. Calculate Rotation Offset
+  // If Hero is seated, we rotate so Hero is at visual index 0 (Bottom).
+  // If Spectator, we stick to absolute index 0 at Bottom.
+  const rotationOffset = heroServerIndex !== -1 ? heroServerIndex : 0
+
+  // 2. Generate Normalized Seat List (Fixed Size Array)
+  // We create an array of exactly MAX_SEATS length to ensure visual stability.
+  // This prevents players from "jumping around" when someone joins/leaves.
+  interface NormalizedSeat {
+    visualIndex: number      // 0 is always bottom-center (Hero position)
+    serverIndex: number      // The actual server seat index
+    playerData: TablePlayerState | null
+    isHero: boolean
+    isEmpty: boolean
+  }
+
+  const normalizedSeats = useMemo((): NormalizedSeat[] => {
+    return Array.from({ length: MAX_SEATS }, (_, visualIndex) => {
+      // Calculate which Server Seat belongs in this Visual Slot
+      // Formula: ServerIndex = (VisualIndex + Offset) % Max
+      const serverIndex = (visualIndex + rotationOffset) % MAX_SEATS
+      
+      // Find the player at this server index
+      const player = liveState?.players?.find(
+        (p) => (p.seat ?? p.position) === serverIndex
+      ) ?? null
+      
+      return {
+        visualIndex,          // 0 is always bottom-center
+        serverIndex,          // The actual server seat
+        playerData: player,
+        isHero: serverIndex === heroServerIndex && heroServerIndex !== -1,
+        isEmpty: !player
+      }
     })
-    return Array.from(seats).sort((a, b) => a - b)
-  }, [liveState?.players])
+  }, [MAX_SEATS, rotationOffset, liveState?.players, heroServerIndex])
 
-  const suggestedSeatNumber = useMemo(() => {
-    if (viewerIsSeated || !canJoin) return null
-
-    const capacity = Math.min(tableMaxPlayers || occupiedSeatNumbers.length + 1, 8)
-    for (let i = 0; i < capacity; i += 1) {
-      if (!occupiedSeatNumbers.includes(i)) return i
+  // 3. Determine which seats to actually render
+  // For a cleaner UI, we only render occupied seats plus one empty seat for joining
+  const seatsToRender = useMemo(() => {
+    const occupiedSeats = normalizedSeats.filter(seat => !seat.isEmpty)
+    
+    // If viewer can join, find an empty seat to show as "take seat" option
+    if (!viewerIsSeated && canJoin) {
+      const emptySeat = normalizedSeats.find(seat => seat.isEmpty)
+      if (emptySeat) {
+        return [...occupiedSeats, emptySeat].sort((a, b) => a.visualIndex - b.visualIndex)
+      }
     }
+    
+    // At minimum, show at least one seat
+    if (occupiedSeats.length === 0) {
+      return [normalizedSeats[0]]
+    }
+    
+    return occupiedSeats
+  }, [normalizedSeats, viewerIsSeated, canJoin])
 
-    return null
-  }, [canJoin, occupiedSeatNumbers, tableMaxPlayers, viewerIsSeated])
-
-  const visibleSeatNumbers = useMemo(() => {
-    const seats = [...occupiedSeatNumbers]
-    if (suggestedSeatNumber !== null) seats.unshift(suggestedSeatNumber)
-
-    if (!seats.length) return [0]
-    return seats
-  }, [occupiedSeatNumbers, suggestedSeatNumber])
-
+  // 4. Get the seat layout configuration for the number of seats to render
   const seatLayout = useMemo(
-    () => getSeatLayout(visibleSeatNumbers.length),
-    [visibleSeatNumbers.length],
+    () => getSeatLayout(seatsToRender.length),
+    [seatsToRender.length],
   )
-  const seatOrder = useMemo(() => {
-    const seats = visibleSeatNumbers
-    if (heroSeatNumber === null || heroSeatNumber === undefined) return seats
-
-    const heroIndex = seats.indexOf(heroSeatNumber)
-    if (heroIndex === -1) return seats
-
-    return [...seats.slice(heroIndex), ...seats.slice(0, heroIndex)]
-  }, [heroSeatNumber, visibleSeatNumbers])
-
-  const playersBySeat = useMemo(() => {
-    const map = new Map<number, TablePlayerState>()
-    liveState?.players?.forEach((player) => {
-      const seatNo = player.seat ?? player.position ?? 0
-      map.set(seatNo, player)
-    })
-    return map
-  }, [liveState?.players])
 
   // Log inter-hand state only when isInterHand actually changes (not on every render)
   useEffect(() => {
@@ -1469,14 +1494,51 @@ export default function TablePage() {
         potSize: potDisplayAmount,
         heroStack: heroPlayer?.stack,
       })
+      
+      // Show pre-action toggles when NOT the hero's turn
+      const preActionToggles = !isMyTurn ? (
+        <div className="pointer-events-auto mb-3 flex flex-wrap justify-center gap-3 px-4">
+          <label className="flex items-center gap-2 cursor-pointer rounded-lg bg-black/40 px-3 py-2 text-xs text-white/80 backdrop-blur-sm border border-white/10 hover:bg-black/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={sitOutNextHand}
+              onChange={(e) => setSitOutNextHand(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
+            />
+            <span>{t('table.preAction.sitOutNextHand', { defaultValue: 'Sit Out Next Hand' })}</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer rounded-lg bg-black/40 px-3 py-2 text-xs text-white/80 backdrop-blur-sm border border-white/10 hover:bg-black/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={autoPostBlinds}
+              onChange={(e) => setAutoPostBlinds(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
+            />
+            <span>{t('table.preAction.autoPostBlinds', { defaultValue: 'Auto Post Blinds' })}</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer rounded-lg bg-black/40 px-3 py-2 text-xs text-white/80 backdrop-blur-sm border border-white/10 hover:bg-black/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={waitForBigBlind}
+              onChange={(e) => setWaitForBigBlind(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
+            />
+            <span>{t('table.preAction.waitForBigBlind', { defaultValue: 'Wait for Big Blind' })}</span>
+          </label>
+        </div>
+      ) : null
+      
       return (
-        <ActionBar
-          allowedActions={allowedActions}
-          onAction={handleGameAction}
-          myStack={heroPlayer?.stack ?? 0}
-          isProcessing={actionPending || loading}
-          isMyTurn={isMyTurn}
-        />
+        <>
+          {preActionToggles}
+          <ActionBar
+            allowedActions={allowedActions}
+            onAction={handleGameAction}
+            myStack={heroPlayer?.stack ?? 0}
+            isProcessing={actionPending || loading}
+            isMyTurn={isMyTurn}
+          />
+        </>
       )
     }
 
@@ -1696,8 +1758,11 @@ export default function TablePage() {
                   </div>
 
                   {seatLayout.map((slot, layoutIndex) => {
-                    const seatNumber = seatOrder[layoutIndex] ?? layoutIndex
-                    const player = playersBySeat.get(seatNumber)
+                    // Use the normalized seat data from seatsToRender
+                    const normalizedSeat = seatsToRender[layoutIndex]
+                    if (!normalizedSeat) return null
+                    
+                    const { serverIndex, playerData: player, isHero: isHeroSeat, isEmpty } = normalizedSeat
                     const playerKey = player?.user_id?.toString()
                     const isHeroPlayer = heroIdString !== null && playerKey === heroIdString
                     const isHeroSlot = slot.isHeroPosition
@@ -1722,8 +1787,8 @@ export default function TablePage() {
                     )
                     const hasFolded = Boolean(player && !player.in_hand && liveState?.hand_id)
                     const seatLabel = t('table.seat.label', {
-                      number: seatNumber + 1,
-                      defaultValue: `Seat ${seatNumber + 1}`,
+                      number: serverIndex + 1,
+                      defaultValue: `Seat ${serverIndex + 1}`,
                     })
                     const isSittingOut = Boolean(player?.is_sitting_out_next_hand)
                     const isAllIn = Boolean(player?.is_all_in || (player?.stack ?? 0) <= 0)
@@ -1748,9 +1813,9 @@ export default function TablePage() {
                     const showCardBacks = showOpponentBacks
 
                     return (
-                      <Fragment key={`seat-${seatNumber}-${layoutIndex}`}>
+                      <Fragment key={`seat-server-${serverIndex}`}>
                         <div
-                          className={`absolute ${player ? 'seat-enter' : ''}`}
+                          className={`absolute ${player ? 'seat-enter' : ''} ${isEmpty ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
                           style={{
                             left: `${slot.xPercent}%`,
                             top: `${slot.yPercent}%`,
@@ -1760,7 +1825,7 @@ export default function TablePage() {
                         >
                           <div
                             className="relative flex flex-col items-center gap-1.5"
-                            onClick={!player && canJoin && !viewerIsSeated ? handleSeat : undefined}
+                            onClick={isEmpty && canJoin && !viewerIsSeated ? handleSeat : undefined}
                           >
                             <PlayerSeat
                               ref={playerKey ? (el: HTMLElement | null) => {
@@ -1778,7 +1843,7 @@ export default function TablePage() {
                               chipCount={player?.stack ?? 0}
                               seatLabel={seatLabel}
                               positionLabel={positionLabel ?? null}
-                              isHero={isHeroPlayer}
+                              isHero={isHeroPlayer || isHeroSeat}
                               isActive={isActivePlayer}
                               hasFolded={hasFolded}
                               isSittingOut={isSittingOut}
@@ -1789,6 +1854,14 @@ export default function TablePage() {
                               holeCards={seatHoleCards}
                               showCardBacks={showCardBacks}
                             />
+
+                            {/* Sitting Out Badge - Shows "Away" or "Zzz" icon */}
+                            {player && isSittingOut && (
+                              <div className="absolute -top-2 -right-2 flex items-center gap-1 rounded-full bg-gray-800/90 px-2 py-0.5 text-[10px] font-semibold text-gray-300 shadow-lg">
+                                <span>💤</span>
+                                <span>Away</span>
+                              </div>
+                            )}
 
                             {lastActionText && player?.in_hand && (
                               <p
