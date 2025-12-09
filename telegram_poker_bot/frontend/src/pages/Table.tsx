@@ -1553,7 +1553,7 @@ export default function TablePage() {
                     >
                       <button
                         ref={tableMenuButtonRef}
-                        onClick={() => setShowTableMenu(!showTableMenu)}
+                        onClick={() => setShowTableMenu((prev) => !prev)}
                         className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-black/60 px-4 py-1.5 backdrop-blur-md shadow-xl transition active:scale-95 hover:bg-black/70"
                       >
                         {/* 1. Modern Pulse Dot (Radar Effect) */}
