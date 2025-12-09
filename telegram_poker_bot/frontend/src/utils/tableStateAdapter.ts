@@ -97,10 +97,9 @@ export function normalizeTableState(rawInput: TableState | any): NormalizedTable
   const actingUserId = raw.current_actor_user_id ?? raw.current_actor ?? null
   const maxSeats = Number.isFinite(raw.max_players) ? Number(raw.max_players) : Math.max(rawPlayers.length, 9)
 
-  const maxCardsPerPlayer =
-    raw.max_cards_per_player ??
-    rawPlayers.reduce((max, p) => Math.max(max, (p.cards?.length || p.hole_cards?.length || 0)), 0) ||
-    2
+  const derivedMaxCards =
+    rawPlayers.reduce((max, p) => Math.max(max, (p.cards?.length || p.hole_cards?.length || 0)), 0) || 0
+  const maxCardsPerPlayer = raw.max_cards_per_player ?? (derivedMaxCards || 2)
 
   const seat_map: Seat[] = []
   for (let i = 0; i < maxSeats; i++) {
