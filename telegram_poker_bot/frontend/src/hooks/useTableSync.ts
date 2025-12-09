@@ -86,6 +86,9 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
   useEffect(() => {
     if (!enabled) return
 
+    // Show loading immediately
+    setConnectionState('connecting')
+
     // 1. Fetch initial state immediately via REST to avoid waiting for WS snapshot
     const fetchInitialState = async () => {
       try {
@@ -96,6 +99,8 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
             : normalizeTableState(rawState)
         setState(normalized)
         setLastUpdate(Date.now())
+        // Force live to unblock UI even if WS snapshot is delayed
+        setConnectionState('live')
       } catch (e) {
         console.error('[useTableSync] Failed to fetch/normalize initial state:', e)
       }
@@ -112,6 +117,7 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
             : normalizeTableState(snapshot)
         setState(normalized)
         setLastUpdate(Date.now())
+        setConnectionState('live')
       },
       onDelta: (delta) => {
         console.log('[useTableSync] Delta received:', delta.type)
@@ -131,7 +137,12 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
       },
       onStateChange: (newState) => {
         console.log('[useTableSync] Connection state:', newState)
-        setConnectionState(newState)
+        setConnectionState((prev) => {
+          if (prev === 'live' && newState === 'syncing_snapshot') {
+            return 'live'
+          }
+          return newState
+        })
 
         // Handle schema version mismatch
         if (newState === 'version_mismatch') {
