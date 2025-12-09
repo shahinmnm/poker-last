@@ -13,7 +13,7 @@ import type {
   TableDeltaMessage,
 } from '../types/normalized'
 import { apiFetch } from '../utils/apiClient'
-import { normalizeTableState as normalizeLegacyTableState } from '../utils/tableStateAdapter'
+import { normalizeTableState } from '../utils/tableStateAdapter'
 
 interface UseTableSyncOptions {
   tableId: number | string
@@ -79,52 +79,45 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
   }, [onSchemaVersionMismatch])
 
   useEffect(() => {
-  onDeltaRef.current = onDelta
-}, [onDelta])
+    onDeltaRef.current = onDelta
+  }, [onDelta])
 
-// Inline adapter to guard against legacy payloads without creating new files.
-function adaptTableState(raw: any): NormalizedTableState | null {
-  if (!raw) return null
-  if (typeof raw === 'object' && 'seat_map' in raw) {
-    return raw as NormalizedTableState
-  }
-  return normalizeLegacyTableState(raw)
-}
+  // Initialize WebSocket manager
+  useEffect(() => {
+    if (!enabled) return
 
-// Initialize WebSocket manager
-useEffect(() => {
-  if (!enabled) return
+    // Show loading immediately
+    setConnectionState('connecting')
 
-  // Show loading immediately
-  setConnectionState('connecting')
-
-  // 1. Fetch initial state immediately via REST to avoid waiting for WS snapshot
-  const fetchInitialState = async () => {
-    try {
-      const rawState = await apiFetch(`/tables/${tableId}/state`)
-      const normalized = adaptTableState(rawState)
-      if (normalized) {
+    // 1. Fetch initial state immediately via REST to avoid waiting for WS snapshot
+    const fetchInitialState = async () => {
+      try {
+        const rawState = await apiFetch(`/tables/${tableId}/state`)
+        const normalized =
+          rawState && typeof rawState === 'object' && 'seat_map' in rawState
+            ? (rawState as NormalizedTableState)
+            : normalizeTableState(rawState)
         setState(normalized)
         setLastUpdate(Date.now())
         // Force live to unblock UI even if WS snapshot is delayed
         setConnectionState('live')
+      } catch (e) {
+        console.error('[useTableSync] Failed to fetch/normalize initial state:', e)
       }
-    } catch (e) {
-      console.error('[useTableSync] Failed to fetch/normalize initial state:', e)
     }
-  }
-  fetchInitialState()
+    fetchInitialState()
 
     // 2. WebSocket connection for live updates
     const wsManager = createTableWebSocket(tableId, {
       onSnapshot: (snapshot) => {
         console.log('[useTableSync] Snapshot received')
-        const normalized = adaptTableState(snapshot)
-        if (normalized) {
-          setState(normalized)
-          setLastUpdate(Date.now())
-          setConnectionState('live')
-        }
+        const normalized =
+          snapshot && typeof snapshot === 'object' && 'seat_map' in snapshot
+            ? (snapshot as NormalizedTableState)
+            : normalizeTableState(snapshot)
+        setState(normalized)
+        setLastUpdate(Date.now())
+        setConnectionState('live')
       },
       onDelta: (delta) => {
         console.log('[useTableSync] Delta received:', delta.type)
