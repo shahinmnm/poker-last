@@ -1,5 +1,6 @@
 """Lobby and table browsing handlers."""
 
+from typing import Optional, Any, Tuple
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
@@ -16,8 +17,17 @@ from telegram_poker_bot.bot.handlers.commands import _get_or_create_user
 logger = get_logger(__name__)
 
 
-async def _build_lobby_message(tables, lang):
-    """Build lobby message text and keyboard."""
+async def _build_lobby_message(tables: Optional[list], lang: str) -> Tuple[str, Any]:
+    """
+    Build lobby message text and keyboard.
+    
+    Args:
+        tables: List of table objects or None if fetch failed
+        lang: User's language code
+        
+    Returns:
+        Tuple of (message_text, keyboard_markup)
+    """
     if tables is None:
         text = "⚠️ Unable to fetch tables. Please try again later."
         keyboard = get_back_to_menu_keyboard(lang)

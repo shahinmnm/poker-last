@@ -103,7 +103,16 @@ async def _show_transaction_history(
     icon: str,
     error_context: str
 ):
-    """Helper function to display transaction history."""
+    """
+    Helper function to display transaction history.
+    
+    Args:
+        update: The Telegram update object
+        transaction_type: Type of transaction to filter ("deposit" or "withdrawal")
+        title_key: Localization key for the title text
+        icon: Emoji icon to display in the title
+        error_context: Context string for error logging
+    """
     try:
         user, lang = await _get_or_create_user(update)
         

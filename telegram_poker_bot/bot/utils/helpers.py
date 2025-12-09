@@ -119,10 +119,16 @@ async def safe_answer_callback_query(query, log=None, **kwargs):
 
 def handle_handler_errors(error_message: str = "An error occurred. Please try again."):
     """
-    Decorator to handle common errors in handler functions.
+    Decorator that wraps handler functions to provide consistent error handling.
+    
+    The decorator catches all exceptions, logs them with context, and sends
+    an error message to the user through either update.message or update.callback_query.
     
     Args:
-        error_message: Message to send to user on error
+        error_message: Message to send to user on error (default: "An error occurred. Please try again.")
+        
+    Returns:
+        A decorator function that wraps the handler with error handling logic
         
     Example:
         @handle_handler_errors("Failed to fetch profile")
@@ -133,7 +139,8 @@ def handle_handler_errors(error_message: str = "An error occurred. Please try ag
         @wraps(func)
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
-                return await func(update, context)
+                result = await func(update, context)
+                return result
             except Exception as e:
                 logger.error(
                     f"Error in {func.__name__}",
