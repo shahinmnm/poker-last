@@ -1762,7 +1762,7 @@ export default function TablePage() {
                     const normalizedSeat = seatsToRender[layoutIndex]
                     if (!normalizedSeat) return null
                     
-                    const { serverIndex, playerData: player, isHero: isHeroSeat, isEmpty } = normalizedSeat
+                    const { serverIndex, playerData: player, isEmpty } = normalizedSeat
                     const playerKey = player?.user_id?.toString()
                     const isHeroPlayer = heroIdString !== null && playerKey === heroIdString
                     const isHeroSlot = slot.isHeroPosition
@@ -1843,7 +1843,7 @@ export default function TablePage() {
                               chipCount={player?.stack ?? 0}
                               seatLabel={seatLabel}
                               positionLabel={positionLabel ?? null}
-                              isHero={isHeroPlayer || isHeroSeat}
+                              isHero={isHeroPlayer}
                               isActive={isActivePlayer}
                               hasFolded={hasFolded}
                               isSittingOut={isSittingOut}
