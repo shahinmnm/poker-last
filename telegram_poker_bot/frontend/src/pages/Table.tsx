@@ -1553,6 +1553,7 @@ export default function TablePage() {
                     >
                       <button
                         ref={tableMenuButtonRef}
+                        type="button"
                         onClick={() => setShowTableMenu((prev) => !prev)}
                         className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-black/60 px-4 py-1.5 backdrop-blur-md shadow-xl transition active:scale-95 hover:bg-black/70"
                       >
@@ -1573,7 +1574,7 @@ export default function TablePage() {
                         {/* 3. Table Info (Name & Stakes) - Replaces static "Table Menu" */}
                         <div className="flex flex-col items-start justify-center">
                           <div className="text-[11px] font-bold text-gray-100 leading-none max-w-[140px] truncate">
-                            {templateRules.tableName ?? tableDetails.table_name ?? 'Poker Table'}
+                            {templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.defaultName', { defaultValue: 'Poker Table' })}
                           </div>
                           <div className="text-[9px] font-medium text-gray-400 leading-none mt-0.5 font-mono">
                             {stakesDisplay}
