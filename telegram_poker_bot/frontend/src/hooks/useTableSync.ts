@@ -12,7 +12,6 @@ import type {
   NormalizedTableState,
   TableDeltaMessage,
 } from '../types/normalized'
-import { apiFetch } from '../utils/apiClient'
 
 interface UseTableSyncOptions {
   tableId: number | string
@@ -85,19 +84,6 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
   useEffect(() => {
     if (!enabled) return
 
-    // 1. Fetch initial state immediately via REST to avoid waiting for WS snapshot
-    const fetchInitialState = async () => {
-      try {
-        const initialState = await apiFetch<NormalizedTableState>(`/tables/${tableId}/state`)
-        setState(initialState)
-        setLastUpdate(Date.now())
-      } catch (e) {
-        console.error('[useTableSync] Failed to fetch initial state via REST:', e)
-      }
-    }
-    fetchInitialState()
-
-    // 2. WebSocket connection for live updates
     const wsManager = createTableWebSocket(tableId, {
       onSnapshot: (snapshot) => {
         console.log('[useTableSync] Snapshot received')
