@@ -1,35 +1,45 @@
 import { Loader2, WifiOff } from 'lucide-react'
+import type { ConnectionState } from '@/types/normalized'
 import { cn } from '@/utils/cn'
 
 interface ConnectionStatusProps {
-  state: 'live' | 'connecting' | 'disconnected' | 'syncing_snapshot' | 'version_mismatch'
+  state: ConnectionState
   className?: string
 }
 
-export const ConnectionStatus = ({ state, className }: ConnectionStatusProps) => {
+// Visual indicator for WebSocket health with mobile-friendly motion cues.
+export default function ConnectionStatus({ state, className }: ConnectionStatusProps) {
   if (state === 'live') {
     return (
       <div className={cn('flex items-center gap-2', className)}>
-        <div className="relative flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-        </div>
-        <span className="text-[10px] font-bold tracking-wider text-emerald-400">LIVE</span>
+        <span className="relative flex h-3.5 w-3.5">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/70 opacity-75 animate-ping" />
+          <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-emerald-500" />
+        </span>
+        <span className="text-[11px] font-extrabold tracking-[0.18em] text-emerald-400 uppercase">
+          LIVE
+        </span>
       </div>
     )
   }
+
   if (state === 'connecting' || state === 'syncing_snapshot') {
     return (
       <div className={cn('flex items-center gap-2', className)}>
-        <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
-        <span className="text-[10px] font-bold tracking-wider text-amber-400">SYNC</span>
+        <Loader2 className="h-4 w-4 text-amber-400 animate-spin" />
+        <span className="text-[11px] font-bold tracking-[0.14em] text-amber-400 uppercase">
+          SYNC
+        </span>
       </div>
     )
   }
+
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <WifiOff className="w-3 h-3 text-rose-500" />
-      <span className="text-[10px] font-bold tracking-wider text-rose-500">OFFLINE</span>
+      <WifiOff className="h-4 w-4 text-rose-500" />
+      <span className="text-[11px] font-bold tracking-[0.14em] text-rose-500 uppercase">
+        OFFLINE
+      </span>
     </div>
   )
 }
