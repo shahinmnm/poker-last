@@ -1,5 +1,6 @@
 """Lobby and table browsing handlers."""
 
+from typing import Optional, Any, Tuple
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
@@ -16,6 +17,33 @@ from telegram_poker_bot.bot.handlers.commands import _get_or_create_user
 logger = get_logger(__name__)
 
 
+async def _build_lobby_message(tables: Optional[list], lang: str) -> Tuple[str, Any]:
+    """
+    Build lobby message text and keyboard.
+    
+    Args:
+        tables: List of table objects or None if fetch failed
+        lang: User's language code
+        
+    Returns:
+        Tuple of (message_text, keyboard_markup)
+    """
+    if tables is None:
+        text = "⚠️ Unable to fetch tables. Please try again later."
+        keyboard = get_back_to_menu_keyboard(lang)
+    else:
+        title = "🎮 <b>Active Tables</b>\n\n"
+        if not tables:
+            title += get_text("no_tables", lang)
+        else:
+            title += f"Found {len(tables)} active table(s):"
+        
+        text = title
+        keyboard = get_lobby_keyboard(tables, lang)
+    
+    return text, keyboard
+
+
 async def lobby_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /lobby command - show active tables."""
     try:
@@ -24,23 +52,10 @@ async def lobby_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Fetch active tables from API
         tables = await api_client.get_tables_list(status="waiting", limit=10)
         
-        if tables is None:
-            await update.message.reply_text(
-                "⚠️ Unable to fetch tables. Please try again later.",
-                reply_markup=get_back_to_menu_keyboard(lang),
-            )
-            return
-        
-        title = "🎮 <b>Active Tables</b>\n\n"
-        if not tables:
-            title += get_text("no_tables", lang)
-        else:
-            title += f"Found {len(tables)} active table(s):"
-        
-        keyboard = get_lobby_keyboard(tables, lang)
+        text, keyboard = await _build_lobby_message(tables, lang)
         
         await update.message.reply_text(
-            title,
+            text,
             reply_markup=keyboard,
             parse_mode=ParseMode.HTML,
         )
@@ -58,18 +73,7 @@ async def show_lobby(update: Update, context: ContextTypes.DEFAULT_TYPE, query=N
         # Fetch active tables from API
         tables = await api_client.get_tables_list(status="waiting", limit=10)
         
-        if tables is None:
-            text = "⚠️ Unable to fetch tables. Please try again later."
-            keyboard = get_back_to_menu_keyboard(lang)
-        else:
-            title = "🎮 <b>Active Tables</b>\n\n"
-            if not tables:
-                title += get_text("no_tables", lang)
-            else:
-                title += f"Found {len(tables)} active table(s):"
-            
-            text = title
-            keyboard = get_lobby_keyboard(tables, lang)
+        text, keyboard = await _build_lobby_message(tables, lang)
         
         if query:
             # Edit existing message

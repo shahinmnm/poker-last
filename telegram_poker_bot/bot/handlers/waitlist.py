@@ -13,19 +13,30 @@ from telegram_poker_bot.bot.utils.helpers import safe_answer_callback_query
 logger = get_logger(__name__)
 
 
+async def _handle_waitlist_error(query, lang, error_context, user_id, table_id, error):
+    """Common error handling for waitlist operations."""
+    logger.error(
+        error_context,
+        user_id=user_id,
+        table_id=table_id,
+        error=str(error)
+    )
+    await query.edit_message_text(
+        get_text("error_generic", lang, default="❌ An error occurred. Please try again."),
+        reply_markup=get_back_to_menu_keyboard(lang)
+    )
+
+
 async def join_waitlist_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle joining a table waitlist."""
     query = update.callback_query
     await safe_answer_callback_query(query)
     
     # Extract table_id from callback_data (format: waitlist_join_<table_id>)
-    callback_data = query.data
-    table_id = int(callback_data.split("_")[-1])
-    
+    table_id = int(query.data.split("_")[-1])
     user, lang = await _get_or_create_user(update)
     
     try:
-        # Join waitlist via API
         result = await api_client.join_waitlist(table_id, user.tg_user_id)
         
         if result.get("success"):
@@ -59,15 +70,9 @@ async def join_waitlist_handler(update: Update, context: ContextTypes.DEFAULT_TY
             )
             
     except Exception as e:
-        logger.error(
-            "Failed to join waitlist",
-            user_id=user.tg_user_id,
-            table_id=table_id,
-            error=str(e)
-        )
-        await query.edit_message_text(
-            get_text("error_generic", lang, default="❌ An error occurred. Please try again."),
-            reply_markup=get_back_to_menu_keyboard(lang)
+        await _handle_waitlist_error(
+            query, lang, "Failed to join waitlist",
+            user.tg_user_id, table_id, e
         )
 
 
@@ -77,13 +82,10 @@ async def leave_waitlist_handler(update: Update, context: ContextTypes.DEFAULT_T
     await safe_answer_callback_query(query)
     
     # Extract table_id from callback_data (format: waitlist_leave_<table_id>)
-    callback_data = query.data
-    table_id = int(callback_data.split("_")[-1])
-    
+    table_id = int(query.data.split("_")[-1])
     user, lang = await _get_or_create_user(update)
     
     try:
-        # Leave waitlist via API
         result = await api_client.leave_waitlist(table_id, user.tg_user_id)
         
         if result.get("success"):
@@ -111,15 +113,9 @@ async def leave_waitlist_handler(update: Update, context: ContextTypes.DEFAULT_T
             )
             
     except Exception as e:
-        logger.error(
-            "Failed to leave waitlist",
-            user_id=user.tg_user_id,
-            table_id=table_id,
-            error=str(e)
-        )
-        await query.edit_message_text(
-            get_text("error_generic", lang, default="❌ An error occurred. Please try again."),
-            reply_markup=get_back_to_menu_keyboard(lang)
+        await _handle_waitlist_error(
+            query, lang, "Failed to leave waitlist",
+            user.tg_user_id, table_id, e
         )
 
 
@@ -129,13 +125,10 @@ async def check_waitlist_position_handler(update: Update, context: ContextTypes.
     await safe_answer_callback_query(query)
     
     # Extract table_id from callback_data (format: waitlist_position_<table_id>)
-    callback_data = query.data
-    table_id = int(callback_data.split("_")[-1])
-    
+    table_id = int(query.data.split("_")[-1])
     user, lang = await _get_or_create_user(update)
     
     try:
-        # Get waitlist info via API
         result = await api_client.get_waitlist(table_id, user.tg_user_id)
         
         if result:
@@ -162,7 +155,6 @@ async def check_waitlist_position_handler(update: Update, context: ContextTypes.
                 message,
                 reply_markup=get_waitlist_keyboard(table_id, lang, joined=(user_position is not None))
             )
-            
         else:
             await query.edit_message_text(
                 get_text("error_generic", lang, default="❌ Failed to get waitlist information."),
@@ -170,15 +162,9 @@ async def check_waitlist_position_handler(update: Update, context: ContextTypes.
             )
             
     except Exception as e:
-        logger.error(
-            "Failed to check waitlist position",
-            user_id=user.tg_user_id,
-            table_id=table_id,
-            error=str(e)
-        )
-        await query.edit_message_text(
-            get_text("error_generic", lang, default="❌ An error occurred. Please try again."),
-            reply_markup=get_back_to_menu_keyboard(lang)
+        await _handle_waitlist_error(
+            query, lang, "Failed to check waitlist position",
+            user.tg_user_id, table_id, e
         )
 
 

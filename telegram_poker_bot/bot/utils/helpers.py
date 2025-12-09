@@ -1,9 +1,12 @@
 """Utility functions for error handling and anti-flood."""
 
 import time
-from typing import Dict
+from functools import wraps
+from typing import Dict, Callable
 
+from telegram import Update
 from telegram.error import BadRequest
+from telegram.ext import ContextTypes
 
 from telegram_poker_bot.shared.logging import get_logger
 
@@ -112,3 +115,53 @@ async def safe_answer_callback_query(query, log=None, **kwargs):
             (log or logger).debug("Ignoring stale callback query", error=message)
             return
         raise
+
+
+def handle_handler_errors(error_message: str = "An error occurred. Please try again."):
+    """
+    Decorator that wraps handler functions to provide consistent error handling.
+    
+    The decorator catches all exceptions, logs them with context, and sends
+    an error message to the user through either update.message or update.callback_query.
+    
+    Args:
+        error_message: Message to send to user on error (default: "An error occurred. Please try again.")
+        
+    Returns:
+        A decorator function that wraps the handler with error handling logic
+        
+    Example:
+        @handle_handler_errors("Failed to fetch profile")
+        async def profile_command(update, context):
+            # handler code
+    """
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            try:
+                result = await func(update, context)
+                return result
+            except Exception as e:
+                logger.error(
+                    f"Error in {func.__name__}",
+                    error=str(e),
+                    exc_info=e
+                )
+                
+                # Try to send error message to user
+                try:
+                    if update.message:
+                        await update.message.reply_text(error_message)
+                    elif update.callback_query:
+                        await safe_answer_callback_query(
+                            update.callback_query,
+                            text=error_message
+                        )
+                except Exception as send_error:
+                    logger.error(
+                        "Failed to send error message to user",
+                        error=str(send_error)
+                    )
+        
+        return wrapper
+    return decorator

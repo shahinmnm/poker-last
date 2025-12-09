@@ -14,6 +14,7 @@ from telegram_poker_bot.bot.keyboards.menu import (
     get_language_keyboard,
     get_back_to_menu_keyboard,
 )
+from telegram_poker_bot.bot.utils.helpers import handle_handler_errors
 
 logger = get_logger(__name__)
 
@@ -60,78 +61,66 @@ async def _get_or_create_user(update: Update) -> tuple[User, str]:
         return user, lang
 
 
+@handle_handler_errors()
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command."""
-    try:
-        user, lang = await _get_or_create_user(update)
-        
-        chat = update.effective_chat
-        is_private = chat.type == "private" if chat else False
-        
-        welcome_text = get_text("welcome_back", lang, name=user.first_name or "Player")
-        menu_text = get_text("menu_title", lang)
-        
-        message = f"{welcome_text}\n\n{menu_text}"
-        
-        keyboard = get_main_menu_keyboard(lang, is_private)
-        
-        await update.message.reply_text(
-            message,
-            reply_markup=keyboard,
-            parse_mode=ParseMode.HTML,
-        )
-        
-    except Exception as e:
-        logger.error("Error in start command", error=str(e), exc_info=e)
-        await update.message.reply_text("An error occurred. Please try again.")
+    user, lang = await _get_or_create_user(update)
+    
+    chat = update.effective_chat
+    is_private = chat.type == "private" if chat else False
+    
+    welcome_text = get_text("welcome_back", lang, name=user.first_name or "Player")
+    menu_text = get_text("menu_title", lang)
+    
+    message = f"{welcome_text}\n\n{menu_text}"
+    
+    keyboard = get_main_menu_keyboard(lang, is_private)
+    
+    await update.message.reply_text(
+        message,
+        reply_markup=keyboard,
+        parse_mode=ParseMode.HTML,
+    )
 
 
+@handle_handler_errors()
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /menu command - show main menu."""
-    try:
-        user, lang = await _get_or_create_user(update)
-        
-        chat = update.effective_chat
-        is_private = chat.type == "private" if chat else False
-        
-        menu_text = get_text("menu_title", lang)
-        keyboard = get_main_menu_keyboard(lang, is_private)
-        
-        await update.message.reply_text(
-            menu_text,
-            reply_markup=keyboard,
-            parse_mode=ParseMode.HTML,
-        )
-        
-    except Exception as e:
-        logger.error("Error in menu command", error=str(e), exc_info=e)
-        await update.message.reply_text("An error occurred. Please try again.")
+    user, lang = await _get_or_create_user(update)
+    
+    chat = update.effective_chat
+    is_private = chat.type == "private" if chat else False
+    
+    menu_text = get_text("menu_title", lang)
+    keyboard = get_main_menu_keyboard(lang, is_private)
+    
+    await update.message.reply_text(
+        menu_text,
+        reply_markup=keyboard,
+        parse_mode=ParseMode.HTML,
+    )
 
 
+@handle_handler_errors()
 async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /language command."""
-    try:
-        user, lang = await _get_or_create_user(update)
-        
-        text = get_text("choose_language", lang)
-        keyboard = get_language_keyboard()
-        
-        await update.message.reply_text(
-            text,
-            reply_markup=keyboard,
-        )
-        
-    except Exception as e:
-        logger.error("Error in language command", error=str(e), exc_info=e)
-        await update.message.reply_text("An error occurred. Please try again.")
+    user, lang = await _get_or_create_user(update)
+    
+    text = get_text("choose_language", lang)
+    keyboard = get_language_keyboard()
+    
+    await update.message.reply_text(
+        text,
+        reply_markup=keyboard,
+    )
 
 
+@handle_handler_errors()
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command."""
-    try:
-        user, lang = await _get_or_create_user(update)
-        
-        help_text = """
+    user, lang = await _get_or_create_user(update)
+    
+    help_text = """
 📖 <b>Available Commands</b>
 
 /start - Show main menu
@@ -149,15 +138,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Good luck! 🍀
 """
-        
-        keyboard = get_back_to_menu_keyboard(lang)
-        
-        await update.message.reply_text(
-            help_text,
-            reply_markup=keyboard,
-            parse_mode=ParseMode.HTML,
-        )
-        
-    except Exception as e:
-        logger.error("Error in help command", error=str(e), exc_info=e)
-        await update.message.reply_text("An error occurred. Please try again.")
+    
+    keyboard = get_back_to_menu_keyboard(lang)
+    
+    await update.message.reply_text(
+        help_text,
+        reply_markup=keyboard,
+        parse_mode=ParseMode.HTML,
+    )
