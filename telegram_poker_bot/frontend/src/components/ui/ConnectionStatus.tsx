@@ -88,19 +88,19 @@ export default function ConnectionStatus({ connectionState, status, className = 
   }, [connectionState, status])
 
   return (
-    <div className={`inline-flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full ${bgColor} ${className} relative`}>
+    <div className={`inline-flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full ${bgColor} ${className} relative overflow-visible`}>
       {/* Pulse indicator for LIVE state */}
       {shouldPulse && pulseColor && (
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
           <span className={`absolute inline-flex h-3 w-3 rounded-full ${pulseColor} opacity-75 animate-ping`}></span>
           <span className={`relative inline-flex rounded-full h-2 w-2 ${pulseColor}`}></span>
         </div>
       )}
       
-      {/* Icon */}
+      {/* Icon - add left margin when pulse is visible to make room */}
       <Icon 
         size={16} 
-        className={`${iconColor} ${shouldSpin ? 'animate-spin' : ''} ${shouldPulse ? 'ml-2' : ''}`}
+        className={`${iconColor} ${shouldSpin ? 'animate-spin' : ''} ${shouldPulse ? 'ml-4' : ''}`}
       />
       
       {/* Status text */}

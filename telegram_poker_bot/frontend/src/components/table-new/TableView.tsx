@@ -221,6 +221,8 @@ export function TableView() {
     if (!state) return []
     
     const totalSeats = state.seat_map.length
+    if (totalSeats === 0) return []
+    
     const layoutSlots = getSeatLayout(totalSeats)
     
     // Find hero's seat index for rotation
@@ -233,8 +235,8 @@ export function TableView() {
         visualIndex = (seat.seat_index - heroSeatIndex + totalSeats) % totalSeats
       }
       
-      // Get layout position from config
-      const layoutSlot = layoutSlots[visualIndex] || layoutSlots[0]
+      // Get layout position from config (with bounds checking)
+      const layoutSlot = layoutSlots[visualIndex] || layoutSlots[0] || { xPercent: 50, yPercent: 50 }
       
       return {
         seat,
