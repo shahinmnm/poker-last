@@ -1547,27 +1547,50 @@ export default function TablePage() {
                   </div>
 
                   {tableDetails && (
-                    <div className="table-header-capsule pointer-events-none z-30">
+                    <div 
+                      className="table-header-capsule pointer-events-none z-30" 
+                      style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
+                    >
                       <button
                         ref={tableMenuButtonRef}
-                        type="button"
-                        onClick={() => setShowTableMenu((prev) => !prev)}
-                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-emerald-900/50 backdrop-blur-lg transition hover:bg-white/25 w-[50vw] max-w-[95%]"
-                        style={TABLE_CAPSULE_STYLE}
+                        onClick={() => setShowTableMenu(!showTableMenu)}
+                        className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-black/60 px-4 py-1.5 backdrop-blur-md shadow-xl transition active:scale-95 hover:bg-black/70"
                       >
-                        <span
-                          className={`h-2 w-2 rounded-full shadow-[0_0_0_6px_rgba(16,185,129,0.28)] ${
-                            wsStatus === 'connected'
-                              ? 'bg-emerald-300'
-                                              : wsStatus === 'connecting'
-                                                ? 'bg-amber-300 animate-pulse'
-                                                : 'bg-rose-400 animate-pulse'
-                                          }`}
-                                        />
-                        {t('table.meta.tableMenu', { defaultValue: 'Table Capsule' })}
-                        <GameVariantBadge variant={tableDetails.game_variant} size="sm" className="ml-2" />
+                        {/* 1. Modern Pulse Dot (Radar Effect) */}
+                        <div className="relative flex h-2.5 w-2.5">
+                          {wsStatus === 'connected' && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          )}
+                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                            wsStatus === 'connected' ? 'bg-emerald-500' : 
+                            wsStatus === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
+                          }`}></span>
+                        </div>
+
+                        {/* 2. Vertical Divider */}
+                        <div className="h-4 w-px bg-white/10"></div>
+
+                        {/* 3. Table Info (Name & Stakes) - Replaces static "Table Menu" */}
+                        <div className="flex flex-col items-start justify-center">
+                          <div className="text-[11px] font-bold text-gray-100 leading-none max-w-[140px] truncate">
+                            {templateRules.tableName ?? tableDetails.table_name ?? 'Poker Table'}
+                          </div>
+                          <div className="text-[9px] font-medium text-gray-400 leading-none mt-0.5 font-mono">
+                            {stakesDisplay}
+                          </div>
+                        </div>
+
+                        {/* 4. Minimal Menu Icon */}
+                        <div className="pl-1 text-gray-400">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                          </svg>
+                        </div>
                       </button>
 
+                      {/* Keep the existing {showTableMenu && ...} block exactly as it is below this button */}
                       {showTableMenu && (
                         <div
                           ref={tableMenuRef}
