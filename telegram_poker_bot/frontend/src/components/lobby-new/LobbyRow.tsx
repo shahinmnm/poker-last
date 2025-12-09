@@ -2,10 +2,11 @@
  * Phase 5: LobbyRow Component
  * 
  * Standardized lobby table row with all metadata from backend.
+ * Includes hot table pulse animation when player count changes.
  */
 
 import { useNavigate } from 'react-router-dom'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTelegram } from '../../hooks/useTelegram'
 import { apiFetch } from '@/utils/apiClient'
 import type { LobbyEntry } from '../../types/normalized'
@@ -20,6 +21,47 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
   const navigate = useNavigate()
   const { initData } = useTelegram()
   const [isJoining, setIsJoining] = useState(false)
+  
+  // Track previous values for detecting changes
+  const prevPlayerCountRef = useRef(entry.player_count)
+  const prevWaitlistCountRef = useRef(entry.waitlist_count || 0)
+  const rowRef = useRef<HTMLDivElement>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  
+  // Detect changes in player count or waitlist count
+  useEffect(() => {
+    const playerCountIncreased = entry.player_count > prevPlayerCountRef.current
+    const waitlistCountIncreased = (entry.waitlist_count || 0) > prevWaitlistCountRef.current
+    
+    if (playerCountIncreased || waitlistCountIncreased) {
+      // Trigger flash animation
+      if (rowRef.current) {
+        rowRef.current.classList.add('lobby-row-flash')
+        
+        // Clear existing timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+        }
+        
+        // Remove class after animation completes
+        timeoutRef.current = setTimeout(() => {
+          rowRef.current?.classList.remove('lobby-row-flash')
+          timeoutRef.current = null
+        }, 600)
+      }
+    }
+    
+    // Update refs
+    prevPlayerCountRef.current = entry.player_count
+    prevWaitlistCountRef.current = entry.waitlist_count || 0
+    
+    // Cleanup on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [entry.player_count, entry.waitlist_count])
 
   const handleClick = () => {
     if (onClick) {
@@ -116,6 +158,7 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
 
   return (
     <div
+      ref={rowRef}
       className="lobby-row bg-gray-800 hover:bg-gray-700 rounded-lg p-4 cursor-pointer transition-all"
       onClick={handleClick}
     >
