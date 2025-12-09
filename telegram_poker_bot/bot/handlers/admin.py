@@ -88,6 +88,16 @@ def _admin_menu_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def _admin_home_button() -> List[InlineKeyboardButton]:
+    """Create a standard Admin Menu button."""
+    return [InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")]
+
+
+def _back_button(callback_data: str) -> List[InlineKeyboardButton]:
+    """Create a standard Back button."""
+    return [InlineKeyboardButton("🔙 Back", callback_data=callback_data)]
+
+
 def _intel_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
@@ -106,7 +116,7 @@ def _intel_menu_keyboard() -> InlineKeyboardMarkup:
                     "📈 User Snapshot", callback_data="admin_intel_stats"
                 )
             ],
-            [InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")],
+            _admin_home_button(),
         ]
     )
 
@@ -124,7 +134,7 @@ def _treasury_operation_keyboard() -> InlineKeyboardMarkup:
                     "📤 Withdraw", callback_data="admin_operation_withdraw"
                 )
             ],
-            [InlineKeyboardButton("🔙 Back", callback_data="admin_operation_back")],
+            _back_button("admin_operation_back"),
         ]
     )
 
@@ -142,7 +152,7 @@ def _treasury_currency_keyboard() -> InlineKeyboardMarkup:
                     "🪙 Play Money", callback_data="admin_currency_play"
                 )
             ],
-            [InlineKeyboardButton("🔙 Back", callback_data="admin_currency_back")],
+            _back_button("admin_currency_back"),
         ]
     )
 
@@ -162,7 +172,7 @@ def _live_ops_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("🔄 Refresh", callback_data="admin_live_ops")],
-            [InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")],
+            _admin_home_button(),
         ]
     )
 
@@ -179,7 +189,7 @@ def _intel_result_keyboard(
             0,
             [InlineKeyboardButton("📈 Snapshot", callback_data="admin_intel_stats")],
         )
-    buttons.append([InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")])
+    buttons.append(_admin_home_button())
     return InlineKeyboardMarkup(buttons)
 
 
@@ -194,7 +204,7 @@ def _crm_keyboard(user_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("✏️ Edit Balance", callback_data=f"admin_crm_balance:{user_id}"),
             ],
             [InlineKeyboardButton("🛠 User Desk", callback_data="admin_intel_menu")],
-            [InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")],
+            _admin_home_button(),
         ]
     )
 
@@ -208,7 +218,32 @@ def _marketing_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton("📣 Broadcast", callback_data="admin_marketing_broadcast"),
             ],
-            [InlineKeyboardButton("🏠 Admin Menu", callback_data="admin_home")],
+            _admin_home_button(),
+        ]
+    )
+
+
+def _currency_selection_keyboard() -> InlineKeyboardMarkup:
+    """Create a keyboard for selecting currency (Real or Play)."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("💵 Real", callback_data="admin_balance_currency:REAL"),
+                InlineKeyboardButton("🪙 Play", callback_data="admin_balance_currency:PLAY"),
+            ],
+            _back_button("admin_home"),
+        ]
+    )
+
+
+def _promo_currency_keyboard() -> InlineKeyboardMarkup:
+    """Create a keyboard for selecting promo currency (Real or Play)."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("💵 Real", callback_data="promo_currency:REAL"),
+                InlineKeyboardButton("🪙 Play", callback_data="promo_currency:PLAY"),
+            ]
         ]
     )
 
@@ -859,16 +894,10 @@ async def handle_crm_action(
         return AdminState.USER_MESSAGE
 
     if action == "admin_crm_balance":
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("💵 Real", callback_data="admin_balance_currency:REAL"),
-                    InlineKeyboardButton("🪙 Play", callback_data="admin_balance_currency:PLAY"),
-                ],
-                [InlineKeyboardButton("🔙 Back", callback_data="admin_home")],
-            ]
+        await query.message.reply_text(
+            "Select currency to adjust:",
+            reply_markup=_currency_selection_keyboard()
         )
-        await query.message.reply_text("Select currency to adjust:", reply_markup=keyboard)
         return AdminState.USER_BALANCE_CURRENCY
 
     return AdminState.USER_CRM_ACTION
@@ -998,15 +1027,10 @@ async def handle_promo_amount_input(
         await update.effective_message.reply_text("Enter a numeric amount:")
         return AdminState.MARKETING_PROMO_AMOUNT
     ctx["amount"] = amount
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton("💵 Real", callback_data="promo_currency:REAL"),
-                InlineKeyboardButton("🪙 Play", callback_data="promo_currency:PLAY"),
-            ]
-        ]
+    await update.effective_message.reply_text(
+        "Select currency:",
+        reply_markup=_promo_currency_keyboard()
     )
-    await update.effective_message.reply_text("Select currency:", reply_markup=keyboard)
     return AdminState.MARKETING_PROMO_CURRENCY
 
 

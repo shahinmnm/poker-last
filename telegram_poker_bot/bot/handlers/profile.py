@@ -96,30 +96,36 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("An error occurred. Please try again.")
 
 
-async def history_deposits_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /history_deposits command."""
+async def _show_transaction_history(
+    update: Update,
+    transaction_type: str,
+    title_key: str,
+    icon: str,
+    error_context: str
+):
+    """Helper function to display transaction history."""
     try:
         user, lang = await _get_or_create_user(update)
         
-        # Fetch deposit history
+        # Fetch transaction history
         transactions = await api_client.get_user_transactions(user.tg_user_id, limit=10)
         
         if transactions is None:
             await update.message.reply_text(
-                "⚠️ Unable to fetch deposit history. Please try again later.",
+                f"⚠️ Unable to fetch {transaction_type} history. Please try again later.",
                 reply_markup=get_back_to_menu_keyboard(lang),
             )
             return
         
-        # Filter deposits
-        deposits = [t for t in transactions if t.get("type") == "deposit"]
+        # Filter transactions by type
+        filtered_txs = [t for t in transactions if t.get("type") == transaction_type]
         
-        history_text = f"📥 <b>{get_text('deposit_history', lang)}</b>\n\n"
+        history_text = f"{icon} <b>{get_text(title_key, lang)}</b>\n\n"
         
-        if not deposits:
+        if not filtered_txs:
             history_text += get_text("history_empty", lang)
         else:
-            for tx in deposits:
+            for tx in filtered_txs:
                 amount = tx.get("amount", 0) / 100
                 date = tx.get("created_at", "N/A")
                 status = tx.get("status", "unknown")
@@ -134,50 +140,22 @@ async def history_deposits_command(update: Update, context: ContextTypes.DEFAULT
         )
         
     except Exception as e:
-        logger.error("Error in deposit history command", error=str(e), exc_info=e)
+        logger.error(f"Error in {error_context}", error=str(e), exc_info=e)
         await update.message.reply_text("An error occurred. Please try again.")
+
+
+async def history_deposits_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /history_deposits command."""
+    await _show_transaction_history(
+        update, "deposit", "deposit_history", "📥", "deposit history command"
+    )
 
 
 async def history_withdrawals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /history_withdrawals command."""
-    try:
-        user, lang = await _get_or_create_user(update)
-        
-        # Fetch withdrawal history
-        transactions = await api_client.get_user_transactions(user.tg_user_id, limit=10)
-        
-        if transactions is None:
-            await update.message.reply_text(
-                "⚠️ Unable to fetch withdrawal history. Please try again later.",
-                reply_markup=get_back_to_menu_keyboard(lang),
-            )
-            return
-        
-        # Filter withdrawals
-        withdrawals = [t for t in transactions if t.get("type") == "withdrawal"]
-        
-        history_text = f"📤 <b>{get_text('withdraw_history', lang)}</b>\n\n"
-        
-        if not withdrawals:
-            history_text += get_text("history_empty", lang)
-        else:
-            for tx in withdrawals:
-                amount = tx.get("amount", 0) / 100
-                date = tx.get("created_at", "N/A")
-                status = tx.get("status", "unknown")
-                history_text += f"• {date}: ${amount:.2f} ({status})\n"
-        
-        keyboard = get_back_to_menu_keyboard(lang)
-        
-        await update.message.reply_text(
-            history_text,
-            reply_markup=keyboard,
-            parse_mode=ParseMode.HTML,
-        )
-        
-    except Exception as e:
-        logger.error("Error in withdrawal history command", error=str(e), exc_info=e)
-        await update.message.reply_text("An error occurred. Please try again.")
+    await _show_transaction_history(
+        update, "withdrawal", "withdraw_history", "📤", "withdrawal history command"
+    )
 
 
 async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
