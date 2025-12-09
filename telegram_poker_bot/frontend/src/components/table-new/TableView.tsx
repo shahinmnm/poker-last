@@ -8,7 +8,9 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCallback, useMemo, useState } from 'react'
 import { useTableSync } from '../../hooks/useTableSync'
+import { useTableAnimations } from '../../hooks/useTableAnimations'
 import { useTelegram } from '../../hooks/useTelegram'
+import { Loader2 } from 'lucide-react'
 import ActionPanel from './ActionPanel'
 import Seat from './Seat'
 import CommunityBoard from './CommunityBoard'
@@ -17,6 +19,7 @@ import PotDisplay from './PotDisplay'
 import HandResultOverlay from './HandResultOverlay'
 import WinnerBanner from './WinnerBanner'
 import Modal from '../ui/Modal'
+import ConnectionStatus from '../ui/ConnectionStatus'
 import type { ActionType, CardCode, TableDeltaMessage } from '../../types/normalized'
 import { apiFetch } from '@/utils/apiClient'
 
@@ -37,10 +40,14 @@ export function TableView() {
     window.location.reload()
   }, [])
 
+  // Initialize animation hook
+  const { potRef, onDelta: animationOnDelta } = useTableAnimations({ 
+    audioEnabled: false // Can be toggled via settings
+  })
+
   const {
     state,
     connectionState,
-    isLive,
     requestSnapshot,
     lastUpdate,
   } = useTableSync({
@@ -49,12 +56,14 @@ export function TableView() {
     onSchemaVersionMismatch: handleSchemaVersionMismatch,
     onDelta: useCallback((delta: TableDeltaMessage) => {
       // Trigger animations based on delta type
+      animationOnDelta(delta)
+      
       // Check if hand_result exists in payload
       if (delta.payload.hand_result) {
         setShowWinnerBanner(true)
         setShowHandResult(true)
       }
-    }, []),
+    }, [animationOnDelta]),
   })
 
   // Handle player action - now with JWT
@@ -265,6 +274,16 @@ export function TableView() {
 
   return (
     <div className="table-view relative h-screen bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
+      {/* Resync overlay - blocking UI during snapshot sync */}
+      {connectionState === 'syncing_snapshot' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm transition-opacity duration-300">
+          <div className="bg-black/40 backdrop-blur-md rounded-2xl px-8 py-6 flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-amber-400 animate-spin" />
+            <div className="text-white text-lg font-semibold">Syncing Table State...</div>
+          </div>
+        </div>
+      )}
+
       {/* Table metadata and connection status */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         <div className="bg-gray-800 rounded-lg px-4 py-2 text-white">
@@ -273,11 +292,7 @@ export function TableView() {
             {table_metadata.variant} • {table_metadata.stakes}
           </div>
         </div>
-        <div className={`px-3 py-1 rounded-full text-xs font-semibold text-center ${
-          isLive ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'
-        }`}>
-          {connectionState}
-        </div>
+        <ConnectionStatus connectionState={connectionState} />
       </div>
 
       {/* Leave Table button in top-right corner (for seated players only) */}
@@ -296,7 +311,7 @@ export function TableView() {
       {/* Main table area */}
       <div className="table-container relative h-full flex flex-col items-center justify-center p-8">
         {/* Pot display */}
-        <div className="pot-display-container mb-4">
+        <div ref={potRef} className="pot-display-container mb-4">
           <PotDisplay pots={pots} currency={table_metadata.currency as 'REAL' | 'PLAY'} />
         </div>
 

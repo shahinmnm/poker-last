@@ -37,7 +37,7 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
   const result = { ...target }
 
   for (const key in source) {
-    if (source.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
       const sourceValue = source[key]
       const targetValue = target[key]
 
