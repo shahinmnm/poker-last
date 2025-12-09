@@ -290,7 +290,6 @@ export function TableView() {
   }
 
   const {
-    seat_map,
     legal_actions,
     action_deadline,
     community_cards,
