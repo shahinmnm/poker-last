@@ -149,7 +149,7 @@ export function useTableAnimations(options: UseTableAnimationsOptions = {}): Use
         
       case 'table_update':
         // Check if hand_result exists in payload (winner declared)
-        if (delta.payload.hand_result) {
+        if (delta.payload?.hand_result) {
           triggerConfetti()
           playSound(523, 0.3) // C5 note, longer duration
         }

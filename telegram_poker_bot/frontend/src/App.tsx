@@ -21,6 +21,7 @@ import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminInsights from './pages/admin/AdminInsights'
 import AdminTables from './pages/admin/AdminTables'
 import AdminTableTemplates from './pages/admin/AdminTableTemplates'
+import UIDemoPage from './pages/UIDemoPage'
 import { useTelegram } from './hooks/useTelegram'
 
 function StartParamBridge() {
@@ -55,6 +56,7 @@ function App() {
                   <Route element={<MainLayout />}>
                     <Route index element={<HomePage />} />
                     <Route path="lobby" element={<LobbyNewPage />} />
+                    <Route path="ui-demo" element={<UIDemoPage />} />
                     <Route path="games">
                       <Route path="create" element={<CreateGamePage />} />
                       <Route path="join" element={<JoinGamePage />} />

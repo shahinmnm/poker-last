@@ -16,6 +16,52 @@ interface ConnectionStatusProps {
   className?: string
 }
 
+interface StatusConfig {
+  icon: typeof Wifi | typeof Loader2 | typeof WifiOff
+  text: string
+  iconColor: string
+  bgColor: string
+}
+
+/**
+ * Get status configuration based on connection state
+ */
+function getStatusConfig(state: ConnectionState | WebSocketStatus): StatusConfig {
+  switch (state) {
+    case 'live':
+    case 'connected':
+      return { 
+        icon: Wifi, 
+        text: 'LIVE', 
+        iconColor: 'text-emerald-400',
+        bgColor: 'bg-emerald-500/20'
+      }
+    case 'connecting':
+    case 'syncing_snapshot':
+      return { 
+        icon: Loader2, 
+        text: 'SYNCING', 
+        iconColor: 'text-amber-400',
+        bgColor: 'bg-amber-500/20'
+      }
+    case 'disconnected':
+    case 'version_mismatch':
+      return { 
+        icon: WifiOff, 
+        text: 'OFFLINE', 
+        iconColor: 'text-rose-500',
+        bgColor: 'bg-rose-500/20'
+      }
+    default:
+      return { 
+        icon: WifiOff, 
+        text: 'OFFLINE', 
+        iconColor: 'text-gray-500',
+        bgColor: 'bg-gray-500/20'
+      }
+  }
+}
+
 /**
  * Visual indicator for WebSocket connection status.
  * Glassmorphism pill shape with icon and status text.
@@ -24,39 +70,7 @@ export default function ConnectionStatus({ connectionState, status, className = 
   const { icon: Icon, text, iconColor, bgColor } = useMemo(() => {
     // Use new ConnectionState if provided, otherwise fall back to legacy status
     const state = connectionState || (status === 'connected' ? 'live' : status === 'connecting' ? 'connecting' : 'disconnected')
-    
-    switch (state) {
-      case 'live':
-        return { 
-          icon: Wifi, 
-          text: 'LIVE', 
-          iconColor: 'text-emerald-400',
-          bgColor: 'bg-emerald-500/20'
-        }
-      case 'connecting':
-      case 'syncing_snapshot':
-        return { 
-          icon: Loader2, 
-          text: 'SYNCING', 
-          iconColor: 'text-amber-400',
-          bgColor: 'bg-amber-500/20'
-        }
-      case 'disconnected':
-      case 'version_mismatch':
-        return { 
-          icon: WifiOff, 
-          text: 'OFFLINE', 
-          iconColor: 'text-rose-500',
-          bgColor: 'bg-rose-500/20'
-        }
-      default:
-        return { 
-          icon: WifiOff, 
-          text: 'OFFLINE', 
-          iconColor: 'text-gray-500',
-          bgColor: 'bg-gray-500/20'
-        }
-    }
+    return getStatusConfig(state)
   }, [connectionState, status])
 
   const isAnimating = connectionState === 'connecting' || connectionState === 'syncing_snapshot'

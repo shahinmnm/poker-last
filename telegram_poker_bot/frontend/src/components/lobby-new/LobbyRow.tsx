@@ -26,6 +26,7 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
   const prevPlayerCountRef = useRef(entry.player_count)
   const prevWaitlistCountRef = useRef(entry.waitlist_count || 0)
   const rowRef = useRef<HTMLDivElement>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   
   // Detect changes in player count or waitlist count
   useEffect(() => {
@@ -37,9 +38,15 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
       if (rowRef.current) {
         rowRef.current.classList.add('lobby-row-flash')
         
+        // Clear existing timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+        }
+        
         // Remove class after animation completes
-        setTimeout(() => {
+        timeoutRef.current = setTimeout(() => {
           rowRef.current?.classList.remove('lobby-row-flash')
+          timeoutRef.current = null
         }, 600)
       }
     }
@@ -47,6 +54,13 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
     // Update refs
     prevPlayerCountRef.current = entry.player_count
     prevWaitlistCountRef.current = entry.waitlist_count || 0
+    
+    // Cleanup on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
   }, [entry.player_count, entry.waitlist_count])
 
   const handleClick = () => {
