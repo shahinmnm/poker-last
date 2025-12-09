@@ -52,7 +52,7 @@ export default function UIDemoPage() {
             </div>
             
             <div className="p-4 bg-gray-900 rounded-lg">
-              <ConnectionStatus state={connectionState} />
+              <ConnectionStatus connectionState={connectionState} />
             </div>
           </div>
         </section>

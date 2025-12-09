@@ -18,8 +18,8 @@ import DrawRenderer from './DrawRenderer'
 import PotDisplay from './PotDisplay'
 import HandResultOverlay from './HandResultOverlay'
 import WinnerBanner from './WinnerBanner'
-import TableHeader from './TableHeader'
 import Modal from '../ui/Modal'
+import ConnectionStatus from '../ui/ConnectionStatus'
 import { getSeatLayout } from '../../config/tableLayout'
 import type { ActionType, CardCode, TableDeltaMessage } from '../../types/normalized'
 import { apiFetch } from '@/utils/apiClient'
@@ -316,11 +316,29 @@ export function TableView() {
         </div>
       )}
 
-      <TableHeader
-        metadata={table_metadata}
-        connectionState={connectionState}
-        onMenuOpen={() => setShowLeaveConfirm(true)}
-      />
+      {/* Table metadata and connection status - Z-Index: 50 */}
+      <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
+        <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
+          <div className="font-bold">{table_metadata.name}</div>
+          <div className="text-sm text-gray-400">
+            {table_metadata.variant} • {table_metadata.stakes}
+          </div>
+        </div>
+        <ConnectionStatus connectionState={connectionState} />
+      </div>
+
+      {/* Leave Table button in top-right corner (for seated players only) - Z-Index: 50 */}
+      {heroSeat && (
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            onClick={() => setShowLeaveConfirm(true)}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center gap-2"
+            title="Leave table and cash out"
+          >
+            <span>Leave Table</span>
+          </button>
+        </div>
+      )}
 
       {/* Main table area with strict Z-Index layering */}
       <div className="table-container relative h-full flex flex-col items-center justify-center">
