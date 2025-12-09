@@ -10,7 +10,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTableSync } from '../../hooks/useTableSync'
 import { useTableAnimations } from '../../hooks/useTableAnimations'
 import { useTelegram } from '../../hooks/useTelegram'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Menu } from 'lucide-react'
 import ActionPanel from './ActionPanel'
 import Seat from './Seat'
 import CommunityBoard from './CommunityBoard'
@@ -18,11 +18,83 @@ import DrawRenderer from './DrawRenderer'
 import PotDisplay from './PotDisplay'
 import HandResultOverlay from './HandResultOverlay'
 import WinnerBanner from './WinnerBanner'
-import { TableHeader } from './TableHeader'
 import Modal from '../ui/Modal'
 import { getSeatLayout } from '../../config/tableLayout'
-import type { ActionType, CardCode, TableDeltaMessage } from '../../types/normalized'
+import type { ActionType, CardCode, TableDeltaMessage, ConnectionState, TableMetadata } from '../../types/normalized'
 import { apiFetch } from '@/utils/apiClient'
+import { useGameVariant } from '@/utils/gameVariant'
+import { cn } from '@/utils/cn'
+
+// Inline ConnectionStatus for header ping UI
+const ConnectionStatus = ({ state }: { state: ConnectionState }) => {
+  if (state === 'live') {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </div>
+        <span className="text-[10px] font-bold tracking-wider text-emerald-400">LIVE</span>
+      </div>
+    )
+  }
+  if (state === 'connecting' || state === 'syncing_snapshot') {
+    return (
+      <div className="flex items-center gap-2">
+        <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
+        <span className="text-[10px] font-bold tracking-wider text-amber-400">SYNC</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] font-bold tracking-wider text-rose-500">OFFLINE</span>
+    </div>
+  )
+}
+
+// Inline TableHeader capsule
+const TableHeader = ({
+  metadata,
+  connectionState,
+  onMenuOpen,
+}: {
+  metadata: TableMetadata
+  connectionState: ConnectionState
+  onMenuOpen?: () => void
+}) => {
+  const { icon: VariantIcon, text: iconColor } = useGameVariant(metadata.variant)
+
+  return (
+    <div className="fixed top-0 left-0 w-full z-50 pointer-events-none">
+      <div className="pointer-events-auto mx-auto mt-[calc(env(safe-area-inset-top)+12px)] flex items-center justify-between gap-3 
+                      rounded-full border border-white/10 bg-black/80 backdrop-blur-md 
+                      pl-3 pr-2 py-1 shadow-2xl max-w-[90vw] w-auto">
+        <ConnectionStatus state={connectionState} />
+        <div className="h-4 w-px bg-white/10"></div>
+        <div className="flex items-center gap-2 px-1 min-w-0">
+          <div className={cn('p-1 rounded-full bg-white/5', iconColor)}>
+            <VariantIcon className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex flex-col text-left min-w-0">
+            <h1 className="text-[11px] font-bold text-gray-100 leading-none truncate">{metadata.name}</h1>
+            <div className="text-[9px] font-medium text-gray-400 leading-none mt-1 truncate">{metadata.stakes}</div>
+          </div>
+        </div>
+        <div className="border-l border-white/10 pl-2">
+          <button
+            type="button"
+            onClick={onMenuOpen}
+            className="p-1.5 rounded-full text-gray-400 hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors"
+            aria-label="Table menu"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function TableView() {
   const { tableId } = useParams<{ tableId: string }>()
