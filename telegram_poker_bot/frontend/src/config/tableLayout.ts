@@ -35,6 +35,9 @@ const ANGLES_BY_PLAYER_COUNT: Record<number, number[]> = {
   4: [HERO_ANGLE_DEG, 210, 270, 330],
   5: [HERO_ANGLE_DEG, 210, 270, 330, 150],
   6: [HERO_ANGLE_DEG, 210, 270, 330, 150, 30],
+  7: [HERO_ANGLE_DEG, 150, 210, 270, 330, 30, 90],
+  8: [HERO_ANGLE_DEG, 135, 180, 225, 270, 315, 0, 45],
+  9: [HERO_ANGLE_DEG, 130, 170, 210, 250, 290, 330, 10, 50],
 }
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -50,7 +53,7 @@ export const getSeatLayout = (playerCount: number): SeatLayoutSlot[] => {
   const angles: number[] =
     playerCount === 1
       ? [HERO_ANGLE_DEG]
-      : ANGLES_BY_PLAYER_COUNT[Math.min(playerCount, 6)]
+      : ANGLES_BY_PLAYER_COUNT[Math.min(playerCount, 9)]
 
   return angles.map((angleDeg, index) => {
     const angleRad = toRadians(angleDeg)
