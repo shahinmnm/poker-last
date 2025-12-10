@@ -390,7 +390,22 @@ export default function TablePage() {
     null
   const heroIdString = heroId !== null ? heroId.toString() : null
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
-  const heroCards = liveState?.hero?.cards ?? []
+  
+  // Robust hero cards extraction with fallback logic
+  const heroCards = useMemo(() => {
+    // 1. Try direct hero object
+    if (liveState?.hero?.cards?.length) return liveState.hero.cards;
+    
+    // 2. Try finding hero in players list (Robust ID match)
+    if (heroIdString) {
+      const me = liveState?.players.find(p => String(p.user_id) === String(heroIdString));
+      if (me?.cards?.length) return me.cards;
+      if ((me as any)?.hole_cards?.length) return (me as any).hole_cards;
+    }
+    
+    return [];
+  }, [liveState?.hero, liveState?.players, heroIdString]);
+  
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
     if (liveState?.phase) return liveState.phase
@@ -723,11 +738,6 @@ export default function TablePage() {
       setLoading(false)
     }
   }, [tableId, t])
-
-  // Handle player signaling ready for next hand
-  const handleReady = useCallback(async () => {
-    await handleGameAction('ready')
-  }, [handleGameAction])
 
   // Refresh table data once auth context (initData) becomes available so the
   // viewer-specific fields (like seat status and hero cards) are populated.
@@ -1470,34 +1480,6 @@ export default function TablePage() {
   }
 
   const renderActionDock = () => {
-    // 1. Define the Pre-Action Toggle UI (Stand Up Next Toggle)
-    // When checked, player will leave seat after the current hand ends
-    const renderStandUpToggle = () => {
-      if (!viewerIsSeated || !heroPlayer) return null
-      
-      const isChecked = heroPlayer.is_sitting_out_next_hand
-      
-      return (
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/80 px-4 py-2 backdrop-blur-md border border-white/10 shadow-xl mb-2">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <div className="relative">
-              <input
-                type="checkbox"
-                className="peer sr-only"
-                checked={isChecked}
-                onChange={(e) => handleSitOutToggle(e.target.checked)}
-              />
-              <div className="h-5 w-9 rounded-full bg-gray-600 peer-focus:ring-2 peer-focus:ring-amber-500/50 peer-checked:bg-amber-500 transition-colors"></div>
-              <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white transition-all peer-checked:translate-x-full"></div>
-            </div>
-            <span className={`text-xs font-bold uppercase tracking-wide ${isChecked ? 'text-amber-400' : 'text-gray-300'}`}>
-              Stand Up Next
-            </span>
-          </label>
-        </div>
-      )
-    }
-
     // Log rendering decision
     const isActiveGameplayCheck = ACTIVE_GAMEPLAY_STREETS.includes(tableStatus) || tableStatus === 'active'
     console.log('[Table ActionDock] Render decision:', {
@@ -1519,16 +1501,12 @@ export default function TablePage() {
       return null
     }
 
-    // 2. Logic for displaying the dock
-    // ALWAYS render the toggle if seated when table is active
+    // Logic for displaying the dock when table is active
     if (viewerIsSeated && tableStatus === 'active') {
       const isMyTurnNow = isPlaying && currentActorUserId?.toString() === heroIdString
       
       return (
         <div className="table-action-dock z-40 flex-col items-center gap-2">
-          {/* Always show toggle above the main controls */}
-          {renderStandUpToggle()}
-          
           {/* Show Action Bar only if it's my turn */}
           {isMyTurnNow && !isInterHand && (
             <div className="w-full">
@@ -1609,9 +1587,6 @@ export default function TablePage() {
       
       return (
         <div className="table-action-dock z-40 flex-col items-center gap-2">
-          {/* Always show toggle above the main controls */}
-          {renderStandUpToggle()}
-          
           {/* Show Action Bar only if it's my turn */}
           {isMyTurn && (
             <div className="w-full">
@@ -1676,52 +1651,31 @@ export default function TablePage() {
             <div className="relative flex-1">
               {/* Integrated Winner HUD & Next Hand Timer - On The Felt (no black overlay) */}
               {isInterHand && (
-                <div className="absolute top-[35%] left-1/2 -translate-x-1/2 w-full max-w-lg pointer-events-none z-30">
-                  {/* Sleek Winner HUD */}
+                <div className="absolute top-[38%] left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none z-20 flex flex-col items-center">
+                  {/* Winner Badge (Floating on Felt) */}
                   {lastHandResult && lastHandResult.winners && lastHandResult.winners.length > 0 && (
-                    <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
-                      <div className="bg-gradient-to-r from-amber-500/80 to-amber-600/80 px-6 py-2 rounded-full border border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)] backdrop-blur-md">
-                        <span className="text-white font-bold text-lg drop-shadow-md">
+                    <div className="animate-in fade-in zoom-in duration-300 mb-4">
+                      <div className="bg-gradient-to-r from-amber-500/90 to-amber-600/90 px-6 py-2 rounded-full border-2 border-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.5)] backdrop-blur-md flex flex-col items-center">
+                        <span className="text-white font-bold text-lg leading-none drop-shadow-md">
                           {(() => {
                             const winner = lastHandResult.winners[0]
-                            const winnerPlayer = liveState.players.find(p => p.user_id?.toString() === winner.user_id?.toString())
-                            const winnerName = winnerPlayer?.display_name || winnerPlayer?.username || `Player ${winner.user_id}`
-                            // Use winner's individual amount for accurate display (important for split pots)
-                            return `${winnerName} Wins ${formatByCurrency(winner.amount, currencyType)}`
+                            return `${formatByCurrency(winner.amount, currencyType)} Chips`
                           })()}
                         </span>
-                        <span className="block text-center text-xs text-amber-100 uppercase tracking-widest font-semibold">
-                          {/* Format hand rank: convert snake_case to Title Case */}
-                          {lastHandResult.winners[0].hand_rank 
-                            ? lastHandResult.winners[0].hand_rank.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-                            : 'Winner'}
+                        <span className="text-[10px] text-amber-100 uppercase tracking-widest font-semibold mt-1">
+                          Won by {liveState?.players.find(p => p.user_id?.toString() === lastHandResult?.winners[0].user_id?.toString())?.display_name || 'Player'}
                         </span>
                       </div>
                     </div>
                   )}
 
-                  {/* Integrated Next Hand Timer */}
-                  <div className="mt-4 flex flex-col items-center">
-                    <div className="text-[10px] text-emerald-300 uppercase tracking-widest mb-1">Next Hand</div>
-                    <div className="h-1 w-32 bg-gray-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-emerald-400 shadow-[0_0_10px_currentColor]" 
-                        style={{ width: `${interHandProgress * 100}%`, transition: 'width 100ms linear' }}
-                      />
-                    </div>
+                  {/* Next Hand Progress Bar */}
+                  <div className="w-48 bg-black/40 h-1.5 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
+                    <div 
+                      className="h-full bg-emerald-400 shadow-[0_0_10px_currentColor] transition-all ease-linear"
+                      style={{ width: `${interHandProgress * 100}%`, transitionDuration: '100ms' }}
+                    />
                   </div>
-                  
-                  {/* Ready Button for seated players */}
-                  {viewerIsSeated && heroIdString && !readyPlayerIds.includes(heroIdString) && (
-                    <div className="mt-3 flex justify-center pointer-events-auto">
-                      <button
-                        onClick={handleReady}
-                        className="px-4 py-1.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-white text-xs font-semibold uppercase tracking-wide shadow-lg transition-all active:scale-95"
-                      >
-                        I'm Ready
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1943,7 +1897,7 @@ export default function TablePage() {
                     return (
                       <Fragment key={`seat-server-${serverIndex}`}>
                         <div
-                          className={`absolute ${player ? 'seat-enter' : ''} ${isEmpty ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+                          className={`absolute ${player ? 'seat-enter' : ''}`}
                           style={{
                             left: `${slot.xPercent}%`,
                             top: `${slot.yPercent}%`,
@@ -1953,7 +1907,6 @@ export default function TablePage() {
                         >
                           <div
                             className="relative flex flex-col items-center gap-1.5"
-                            onClick={isEmpty && canJoin && !viewerIsSeated ? handleSeat : undefined}
                           >
                             <PlayerSeat
                               ref={playerKey ? (el: HTMLElement | null) => {
@@ -1981,6 +1934,8 @@ export default function TablePage() {
                               turnTotalSeconds={isActivePlayer ? liveState?.turn_timeout_seconds ?? null : null}
                               holeCards={seatHoleCards}
                               showCardBacks={showCardBacks}
+                              isEmpty={isEmpty}
+                              onClick={isEmpty && canJoin && !viewerIsSeated ? handleSeat : undefined}
                             />
 
                             {/* Sitting Out Badge - Shows "Away" or "Zzz" icon */}
@@ -2118,6 +2073,30 @@ export default function TablePage() {
           navigate('/lobby')
         }}
       />
+
+      {/* --- PROFESSIONAL CONTROL BAR (Bottom Left) --- */}
+      {viewerIsSeated && (
+        <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2">
+          <button
+            onClick={() => handleSitOutToggle(!heroPlayer?.is_sitting_out_next_hand)}
+            className={`group flex items-center gap-3 px-4 py-2.5 rounded-full backdrop-blur-xl border transition-all duration-200 shadow-lg active:scale-95 ${
+              heroPlayer?.is_sitting_out_next_hand
+                ? 'bg-amber-500/90 border-amber-400 text-black'
+                : 'bg-black/60 border-white/10 text-gray-300 hover:bg-black/80'
+            }`}
+          >
+            <div className={`w-2 h-2 rounded-full ${heroPlayer?.is_sitting_out_next_hand ? 'bg-black animate-pulse' : 'bg-gray-500'}`} />
+            <div className="flex flex-col items-start">
+              <span className="text-[10px] uppercase tracking-wider font-bold leading-none">
+                {heroPlayer?.is_sitting_out_next_hand ? 'Standing Up' : 'Stand Up'}
+              </span>
+              <span className="text-[9px] opacity-80 leading-none mt-0.5">
+                {heroPlayer?.is_sitting_out_next_hand ? 'After this hand' : 'Next Hand'}
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {renderActionDock()}
     </div>
