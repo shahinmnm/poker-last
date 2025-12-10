@@ -1809,10 +1809,8 @@ class PokerKitTableRuntimeManager:
                 runtime.seats = seats_result.scalars().all()
                 active_seats = [s for s in runtime.seats if s.left_at is None]
 
-                # === FIX START ===
                 # Critical: Refresh table to prevent greenlet error on template access
                 await db.refresh(runtime.table, attribute_names=["template"])
-                # === FIX END ===
 
             runtime.current_hand.status = HandStatus.ENDED
             runtime.inter_hand_wait_start = None
