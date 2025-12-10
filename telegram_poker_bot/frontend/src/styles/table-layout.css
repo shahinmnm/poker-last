@@ -90,25 +90,34 @@
 
 .table-action-button {
   flex: 1 1 0;
-  min-height: 44px;
-  border-radius: 999px;
+  min-height: 56px;
+  border-radius: 0.75rem;
   border: none;
-  font-size: 13px;
-  font-weight: 600;
+  border-bottom: 4px solid transparent;
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #f9fafb;
-  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  background: #10b981;
+  border-bottom-color: #047857;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: all 0.2s ease;
+}
+
+.table-action-button:active:not(:disabled) {
+  border-bottom-width: 0;
+  transform: translateY(4px);
 }
 
 .table-action-button--danger {
-  background: linear-gradient(135deg, #bb2d3b, #f97373);
+  background: #e11d48;
+  border-bottom-color: #9f1239;
 }
 
 .table-action-button--primary {
-  background: linear-gradient(135deg, #059669, #22c55e);
+  background: #f59e0b;
+  border-bottom-color: #b45309;
 }
 
 .table-action-button:disabled {
