@@ -163,7 +163,6 @@ export default function TablePage() {
   const [turnProgress, setTurnProgress] = useState(1)
 
   // Pre-action toggle states (Grinder UX)
-  const [sitOutNextHand, setSitOutNextHand] = useState(false)
   const [autoPostBlinds, setAutoPostBlinds] = useState(true)
   const [waitForBigBlind, setWaitForBigBlind] = useState(false)
 
@@ -1028,6 +1027,40 @@ export default function TablePage() {
     }
   }
 
+  // Handle sit out toggle - calls the sitout API endpoint
+  const handleSitOutToggle = async (sitOut: boolean) => {
+    if (!tableId || !initData) {
+      showToast(t('table.errors.unauthorized'))
+      return
+    }
+    try {
+      await apiFetch(`/tables/${tableId}/sitout`, {
+        method: 'POST',
+        initData,
+        body: { sit_out: sitOut },
+      })
+      showToast(
+        sitOut
+          ? t('table.toast.sittingOut', { defaultValue: 'You will sit out next hand' })
+          : t('table.toast.backInGame', { defaultValue: 'You will play next hand' })
+      )
+      // Refresh live state to get updated player data from server
+      // Server state (heroPlayer.is_sitting_out_next_hand) is the source of truth
+      fetchLiveState()
+    } catch (err) {
+      console.error('Error toggling sit out:', err)
+      if (err instanceof ApiError) {
+        const message =
+          (typeof err.data === 'object' && err.data && 'detail' in err.data
+            ? String((err.data as { detail?: unknown }).detail)
+            : null) || t('table.errors.actionFailed')
+        showToast(message)
+      } else {
+        showToast(t('table.errors.actionFailed'))
+      }
+    }
+  }
+
   const allowedActionsSource =
     liveState?.allowed_actions ?? liveState?.allowed_actions_legacy
   const allowedActions = normalizeAllowedActions(allowedActionsSource)
@@ -1501,8 +1534,8 @@ export default function TablePage() {
           <label className="flex items-center gap-2 cursor-pointer rounded-lg bg-black/40 px-3 py-2 text-xs text-white/80 backdrop-blur-sm border border-white/10 hover:bg-black/50 transition-colors">
             <input
               type="checkbox"
-              checked={sitOutNextHand}
-              onChange={(e) => setSitOutNextHand(e.target.checked)}
+              checked={heroPlayer?.is_sitting_out_next_hand ?? false}
+              onChange={(e) => handleSitOutToggle(e.target.checked)}
               className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
             />
             <span>{t('table.preAction.sitOutNextHand', { defaultValue: 'Sit Out Next Hand' })}</span>
