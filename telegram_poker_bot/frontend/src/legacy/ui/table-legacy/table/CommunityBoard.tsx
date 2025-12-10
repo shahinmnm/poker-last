@@ -51,8 +51,8 @@ export default function CommunityBoard({
         </div>
       </div>
 
-      <div className="flex w-full justify-center px-2 sm:px-4">
-        <div className="flex items-start justify-center gap-1">
+      <div className="flex w-full items-center justify-center px-2 sm:px-4">
+        <div className="flex items-center justify-center gap-1">
           {slots.map((card, index) => {
             const offset = Math.abs(2 - index)
 

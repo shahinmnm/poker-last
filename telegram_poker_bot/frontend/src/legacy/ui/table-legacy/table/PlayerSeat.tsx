@@ -195,11 +195,11 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         </div>
 
         {/* Compact Info Pill */}
-        <div className="bg-black/70 backdrop-blur-md rounded-full px-3 py-0.5 min-w-[80px] text-center border border-white/10 mt-1">
-          <div className="text-[10px] font-bold text-white/90 truncate leading-tight">
+        <div className="bg-black/80 backdrop-blur-md rounded-md px-2 py-0.5 min-w-[80px] text-center border border-white/10 mt-1">
+          <div className="text-[9px] font-bold text-white/90 truncate leading-tight">
             {playerName || seatLabel}
           </div>
-          <div className="flex items-center justify-center gap-1 text-[10px] font-mono font-bold text-emerald-400 leading-tight">
+          <div className="flex items-center justify-center gap-1 text-xs font-mono font-bold text-emerald-400 leading-tight">
             <FontAwesomeIcon icon={faCoins} className="h-2.5 w-2.5" />
             <span className="tabular-nums">{formatChips(chipCount)}</span>
           </div>

@@ -1675,7 +1675,7 @@ export default function TablePage() {
 
       <div className="table-screen">
         {/* Back to Lobby Button (Top-Left) */}
-        <div className="absolute top-16 left-4 z-50">
+        <div className="absolute top-14 left-4 z-50">
           <button 
             onClick={() => navigate('/lobby')}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white hover:bg-white/10 backdrop-blur-md border border-white/10 shadow-lg transition-all active:scale-95"
@@ -1688,7 +1688,7 @@ export default function TablePage() {
 
         {/* Stand Up Toggle (Top-Right) */}
         {viewerIsSeated && (
-          <div className="absolute top-16 right-4 z-50">
+          <div className="absolute top-14 right-4 z-50">
             <button
               onClick={() => handleSitOutToggle(!heroPlayer?.is_sitting_out_next_hand)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border transition-all shadow-lg ${

@@ -189,37 +189,33 @@ export default function ActionBar({
   return (
     <>
       {shouldShowSlider && activeBetAction && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 sm:px-6" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)' }}>
-          <div className="relative w-full max-w-[520px]">
-            <div className="relative flex flex-col items-center gap-4 pointer-events-auto">
-              <div className="w-full max-w-[520px] animate-[fadeInScale_0.18s_ease-out]">
-                <div className="relative w-full px-4">
-                  <div
-                    className="pointer-events-none absolute -top-9"
-                    style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}
-                  >
-                    <div className="rounded-full border border-white/15 bg-[rgba(12,19,38,0.7)] px-3 py-1 text-[12px] font-semibold text-white shadow-[0_0_12px_rgba(74,222,128,0.45)] backdrop-blur-xl">
-                      {t('table.actionBar.currentBet', {
-                        amount: formatChips(betAmount ?? 0),
-                        defaultValue: `${formatChips(betAmount ?? 0)} chips`,
-                      })}
-                    </div>
-                  </div>
-
-                  <input
-                    type="range"
-                    min={minAmount}
-                    max={maxAmount || minAmount || 1}
-                    value={betAmount}
-                    onChange={(event) => setBetAmount(Number(event.target.value))}
-                    disabled={isDisabled}
-                    className="action-range"
-                    style={{
-                      background: `linear-gradient(90deg, rgba(74,222,128,0.9) ${sliderPercent}%, rgba(12,19,38,0.65) ${sliderPercent}%)`,
-                    }}
-                  />
+        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}>
+          <div className="relative w-full max-w-[520px] pointer-events-auto">
+            <div className="relative w-full">
+              <div
+                className="pointer-events-none absolute -top-9"
+                style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}
+              >
+                <div className="rounded-full border border-white/15 bg-[rgba(12,19,38,0.7)] px-3 py-1 text-[12px] font-semibold text-white shadow-[0_0_12px_rgba(74,222,128,0.45)] backdrop-blur-xl">
+                  {t('table.actionBar.currentBet', {
+                    amount: formatChips(betAmount ?? 0),
+                    defaultValue: `${formatChips(betAmount ?? 0)} chips`,
+                  })}
                 </div>
               </div>
+
+              <input
+                type="range"
+                min={minAmount}
+                max={maxAmount || minAmount || 1}
+                value={betAmount}
+                onChange={(event) => setBetAmount(Number(event.target.value))}
+                disabled={isDisabled}
+                className="action-range"
+                style={{
+                  background: `linear-gradient(90deg, rgba(74,222,128,0.9) ${sliderPercent}%, rgba(12,19,38,0.65) ${sliderPercent}%)`,
+                }}
+              />
             </div>
           </div>
         </div>
