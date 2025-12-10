@@ -1498,7 +1498,7 @@ export default function TablePage() {
     }
 
     // 2. Logic for displaying the dock
-    // ALWAYS render the toggle if seated, regardless of turn
+    // ALWAYS render the toggle if seated when table is active
     if (viewerIsSeated && tableStatus === 'active') {
       const isMyTurnNow = isPlaying && currentActorUserId?.toString() === heroIdString
       
@@ -1528,17 +1528,6 @@ export default function TablePage() {
           )}
         </div>
       )
-    }
-
-    // Waiting for players state
-    if (tableStatus === 'waiting' && viewerIsCreator) {
-       return (
-          <div className="table-action-dock z-40 justify-center">
-             <button onClick={handleStart} disabled={isStarting || !canStart} className="table-action-button table-action-button--primary px-8">
-               {isStarting ? 'Starting...' : 'Start Game'}
-             </button>
-          </div>
-       )
     }
 
     // Waiting state - show start/join buttons
@@ -1580,6 +1569,7 @@ export default function TablePage() {
     }
 
     // Active hand - show action controls when seated and hand is active
+    // This handles gameplay streets (preflop, flop, turn, river)
     const hasActiveHand = liveState?.hand_id !== null && !isInterHand
     if (
       isActiveGameplayCheck &&
