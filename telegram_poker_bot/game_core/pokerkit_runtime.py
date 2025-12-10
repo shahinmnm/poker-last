@@ -727,6 +727,12 @@ class PokerKitTableRuntime:
             bring_in=rules.bring_in,
         )
 
+        # CRITICAL: Set the TRUE initial stacks BEFORE blinds are deducted.
+        # The engine constructor posts blinds immediately via automations,
+        # so we must store the original stacks here for accurate pot integrity checks.
+        # This is the "True Initial State" used for end-of-hand auditing.
+        self.engine._true_initial_stacks = list(starting_stacks)
+
         # Deal hole cards
         self.engine.deal_new_hand()
 
@@ -826,6 +832,9 @@ class PokerKitTableRuntime:
             min_bet=rules.min_bet,
             bring_in=rules.bring_in,
         )
+
+        # CRITICAL: Set the TRUE initial stacks BEFORE blinds are deducted.
+        self.engine._true_initial_stacks = list(starting_stacks)
 
         # Deal hole cards
         self.engine.deal_new_hand()

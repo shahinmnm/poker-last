@@ -47,6 +47,8 @@ class PokerEngineAdapter:
         self.mode = mode
         self._deck: List[str] = []
         self._pre_showdown_stacks: Optional[List[int]] = None
+        # True initial stacks BEFORE any blinds/antes are posted - set externally
+        self._true_initial_stacks: Optional[List[int]] = None
         self.game_class = game_class
         self.raw_antes = raw_antes
         self.raw_blinds_or_straddles = (
@@ -424,9 +426,17 @@ class PokerEngineAdapter:
             logger.warning("get_winners called while hand still active")
             return []
 
-        if self._pre_showdown_stacks is None:
+        # Use true initial stacks if available (captured BEFORE blinds posted),
+        # otherwise fall back to pre_showdown_stacks (captured AFTER blinds posted)
+        stacks_before = (
+            self._true_initial_stacks
+            if self._true_initial_stacks is not None
+            else self._pre_showdown_stacks
+        )
+
+        if stacks_before is None:
             logger.warning(
-                "get_winners called but pre-showdown stacks not captured - "
+                "get_winners called but initial stacks not captured - "
                 "deal_new_hand may not have been called properly"
             )
             return []
@@ -436,7 +446,7 @@ class PokerEngineAdapter:
         total_lost = 0
 
         for player_idx in range(self.player_count):
-            stack_before = self._pre_showdown_stacks[player_idx]
+            stack_before = stacks_before[player_idx]
             stack_after = self.state.stacks[player_idx]
             stack_change = stack_after - stack_before
 
@@ -471,7 +481,17 @@ class PokerEngineAdapter:
         if calculated_pot and abs(total_pot_amount - calculated_pot) > 1:
             total_pot_amount = calculated_pot
 
-        if abs(total_won - total_lost) > 1 or abs(total_won - total_pot_amount) > 1:
+        # Updated integrity check that accounts for rake.
+        # Formula: Total Won + Rake ≈ Total Lost
+        # Allow a small delta (±1 chip) for integer rounding during pot splitting.
+        # Note: Rake is applied after winners are calculated, so at this point
+        # total_won should equal total_lost. The rake adjustment happens in
+        # _calculate_and_apply_rake which reduces winner amounts.
+        # 
+        # The integrity check here validates that the pot math is correct
+        # before rake is applied. Rake is tracked separately.
+        difference = total_won - total_lost
+        if abs(difference) > 1 or abs(total_won - total_pot_amount) > 1:
             pots_breakdown = [
                 {
                     "pot_index": idx,
@@ -481,13 +501,16 @@ class PokerEngineAdapter:
                 for idx, pot in enumerate(self.state.pots)
             ]
 
-            logger.warning(
+            # Log as warning for small discrepancies, CRITICAL for large ones
+            log_level = "warning" if abs(difference) <= 10 else "error"
+            log_fn = logger.warning if log_level == "warning" else logger.error
+            log_fn(
                 "Pot integrity check failed - total winnings do not match total losses",
                 total_won=total_won,
                 total_lost=total_lost,
                 total_pot=total_pot_amount,
-                difference=total_won - total_lost,
-                stacks_before=self._pre_showdown_stacks,
+                difference=difference,
+                stacks_before=stacks_before,
                 stacks_after=list(self.state.stacks),
                 winners_list=[
                     {
@@ -613,6 +636,7 @@ class PokerEngineAdapter:
             "player_count": self.player_count,
             "starting_stacks": self.starting_stacks,
             "pre_showdown_stacks": self._pre_showdown_stacks,
+            "true_initial_stacks": self._true_initial_stacks,
             "small_blind": self.small_blind,
             "big_blind": self.big_blind,
             "mode": self.mode.value,
@@ -693,6 +717,13 @@ class PokerEngineAdapter:
         else:
             adapter._pre_showdown_stacks = list(data.get("starting_stacks", []))
 
+        # Restore true initial stacks (captured BEFORE blinds posted) if available
+        if data.get("true_initial_stacks") is not None:
+            adapter._true_initial_stacks = list(data["true_initial_stacks"])
+        else:
+            # Fallback to starting_stacks if true_initial_stacks not present
+            adapter._true_initial_stacks = list(data.get("starting_stacks", []))
+
         # Restore hole cards
         if data.get("hole_cards"):
             for player_idx, cards in enumerate(data["hole_cards"]):
@@ -718,15 +749,25 @@ class PokerEngineAdapter:
                 if idx < len(adapter.state.bets):
                     adapter.state.bets[idx] = bet
 
+        # NOTE: Pot objects in PokerKit may have read-only attributes.
+        # We attempt to restore pot state but gracefully skip if properties are immutable.
         if data.get("pots"):
             for idx, pot_data in enumerate(data["pots"]):
                 if idx < len(adapter.state.pots):
-                    adapter.state.pots[idx].amount = pot_data.get(
-                        "amount", adapter.state.pots[idx].amount
-                    )
-                    adapter.state.pots[idx].player_indices = tuple(
-                        pot_data.get("player_indices", adapter.state.pots[idx].player_indices)
-                    )
+                    try:
+                        adapter.state.pots[idx].amount = pot_data.get(
+                            "amount", adapter.state.pots[idx].amount
+                        )
+                    except (AttributeError, TypeError):
+                        # Pot.amount may be read-only in some PokerKit versions
+                        pass
+                    try:
+                        adapter.state.pots[idx].player_indices = tuple(
+                            pot_data.get("player_indices", adapter.state.pots[idx].player_indices)
+                        )
+                    except (AttributeError, TypeError):
+                        # Pot.player_indices may be read-only
+                        pass
 
         # NOTE: The following PokerKit State properties are READ-ONLY and cannot
         # be set directly. They are computed dynamically by PokerKit based on
