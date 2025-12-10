@@ -1767,6 +1767,13 @@ class PokerKitTableRuntimeManager:
         async with lock:
             runtime = await self.ensure_table(db, table_id)
 
+            # === FIX: Pre-fetch persistence status ===
+            # We fetch this NOW before any transaction commits expire the table object.
+            # Accessing table.template lazily after a commit causes a greenlet_spawn
+            # async/sync mismatch crash.
+            is_table_persistent = await table_lifecycle.is_persistent_table(runtime.table)
+            # === END FIX ===
+
             if (
                 not runtime.current_hand
                 or runtime.current_hand.status != HandStatus.INTER_HAND_WAIT
@@ -1834,10 +1841,8 @@ class PokerKitTableRuntimeManager:
                 # PAUSE LOGIC: Not enough players (< 2) to deal next hand
                 # For persistent tables: Set status to WAITING (pause, don't delete)
                 # For non-persistent tables: Set status to ENDED (normal cleanup)
-                # Check if table is persistent using centralized helper
-                is_persistent = await table_lifecycle.is_persistent_table(runtime.table)
-                
-                if is_persistent:
+                # Use pre-fetched persistence status to avoid greenlet_spawn async/sync mismatch
+                if is_table_persistent:
                     # PAUSE persistent tables - return to WAITING status
                     logger.info(
                         "Pausing persistent table - insufficient players",
