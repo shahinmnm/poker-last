@@ -878,17 +878,19 @@ export default function TablePage() {
 
         // Handle player_left with optimistic update to fix "Ghost Seat" bug
         if (payload?.type === 'player_left') {
-          // 1. Optimistic Update: Remove player from liveState immediately
-          setLiveState((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              players: prev.players.filter(p => p.user_id !== payload.user_id)
-            };
-          });
+          // Validate that user_id exists in the payload
+          if (payload.user_id != null) {
+            // 1. Optimistic Update: Remove player from liveState immediately
+            setLiveState((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                players: prev.players.filter(p => p.user_id !== payload.user_id)
+              };
+            });
+          }
           
-          // 2. Then fetch full data
-          fetchTable();
+          // 2. Refresh full state from server
           fetchLiveState();
           return;
         }
