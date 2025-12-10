@@ -17,8 +17,6 @@ import HandResultPanel from '../legacy/ui/lobby-legacy/tables/HandResultPanel'
 import RecentHandsModal from '../legacy/ui/lobby-legacy/tables/RecentHandsModal'
 import TableExpiredModal from '../legacy/ui/lobby-legacy/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../legacy/ui/lobby-legacy/tables/ChipFly'
-import InterHandVoting from '../legacy/ui/lobby-legacy/tables/InterHandVoting'
-import WinnerShowcase from '../legacy/ui/lobby-legacy/tables/WinnerShowcase'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import GameVariantBadge from '../components/ui/GameVariantBadge'
 import CommunityBoard from '@/legacy/ui/table-legacy/table/CommunityBoard'
@@ -161,6 +159,7 @@ export default function TablePage() {
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
   const [turnProgress, setTurnProgress] = useState(1)
+  const [interHandProgress, setInterHandProgress] = useState(1) // Progress for inter-hand countdown
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
@@ -1023,7 +1022,8 @@ export default function TablePage() {
     }
   }
 
-  // Handle sit out toggle - calls the sitout API endpoint
+  // Handle stand up toggle - calls the sitout API endpoint
+  // When toggled on, player will leave their seat after the current hand ends
   const handleSitOutToggle = async (sitOut: boolean) => {
     if (!tableId || !initData) {
       showToast(t('table.errors.unauthorized'))
@@ -1037,14 +1037,14 @@ export default function TablePage() {
       })
       showToast(
         sitOut
-          ? t('table.toast.sittingOut', { defaultValue: 'You will sit out next hand' })
-          : t('table.toast.backInGame', { defaultValue: 'You will play next hand' })
+          ? t('table.toast.standingUp', { defaultValue: 'You will stand up after this hand' })
+          : t('table.toast.stayingSeated', { defaultValue: 'You will stay seated' })
       )
       // Refresh live state to get updated player data from server
       // Server state (heroPlayer.is_sitting_out_next_hand) is the source of truth
       fetchLiveState()
     } catch (err) {
-      console.error('Error toggling sit out:', err)
+      console.error('Error toggling stand up:', err)
       if (err instanceof ApiError) {
         const message =
           (typeof err.data === 'object' && err.data && 'detail' in err.data
@@ -1353,6 +1353,27 @@ export default function TablePage() {
     return () => window.clearInterval(interval)
   }, [liveState?.action_deadline, liveState?.turn_timeout_seconds])
 
+  // Calculate inter-hand countdown progress
+  useEffect(() => {
+    if (!isInterHand || !liveState?.inter_hand_wait_deadline) {
+      setInterHandProgress(1)
+      return
+    }
+
+    const deadlineMs = new Date(liveState.inter_hand_wait_deadline).getTime()
+    const totalMs = Math.max(1000, (liveState?.inter_hand_wait_seconds ?? 5) * 1000)
+
+    const updateInterHandProgress = () => {
+      const remaining = Math.max(0, deadlineMs - Date.now())
+      const pct = Math.max(0, Math.min(1, remaining / totalMs))
+      setInterHandProgress(pct)
+    }
+
+    updateInterHandProgress()
+    const interval = window.setInterval(updateInterHandProgress, 100)
+    return () => window.clearInterval(interval)
+  }, [isInterHand, liveState?.inter_hand_wait_deadline, liveState?.inter_hand_wait_seconds])
+
   // Control bottom navigation visibility based on seated status
   useEffect(() => {
     // Hide bottom nav when seated and playing, show it when spectating
@@ -1449,8 +1470,9 @@ export default function TablePage() {
   }
 
   const renderActionDock = () => {
-    // 1. Define the Pre-Action Toggle UI (Sit Out Toggle)
-    const renderSitOutToggle = () => {
+    // 1. Define the Pre-Action Toggle UI (Stand Up Next Toggle)
+    // When checked, player will leave seat after the current hand ends
+    const renderStandUpToggle = () => {
       if (!viewerIsSeated || !heroPlayer) return null
       
       const isChecked = heroPlayer.is_sitting_out_next_hand
@@ -1465,11 +1487,11 @@ export default function TablePage() {
                 checked={isChecked}
                 onChange={(e) => handleSitOutToggle(e.target.checked)}
               />
-              <div className="h-5 w-9 rounded-full bg-gray-600 peer-focus:ring-2 peer-focus:ring-emerald-500/50 peer-checked:bg-emerald-500 transition-colors"></div>
+              <div className="h-5 w-9 rounded-full bg-gray-600 peer-focus:ring-2 peer-focus:ring-amber-500/50 peer-checked:bg-amber-500 transition-colors"></div>
               <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white transition-all peer-checked:translate-x-full"></div>
             </div>
-            <span className={`text-xs font-bold uppercase tracking-wide ${isChecked ? 'text-emerald-400' : 'text-gray-300'}`}>
-              Sit Out Next
+            <span className={`text-xs font-bold uppercase tracking-wide ${isChecked ? 'text-amber-400' : 'text-gray-300'}`}>
+              Stand Up Next
             </span>
           </label>
         </div>
@@ -1505,7 +1527,7 @@ export default function TablePage() {
       return (
         <div className="table-action-dock z-40 flex-col items-center gap-2">
           {/* Always show toggle above the main controls */}
-          {renderSitOutToggle()}
+          {renderStandUpToggle()}
           
           {/* Show Action Bar only if it's my turn */}
           {isMyTurnNow && !isInterHand && (
@@ -1588,7 +1610,7 @@ export default function TablePage() {
       return (
         <div className="table-action-dock z-40 flex-col items-center gap-2">
           {/* Always show toggle above the main controls */}
-          {renderSitOutToggle()}
+          {renderStandUpToggle()}
           
           {/* Show Action Bar only if it's my turn */}
           {isMyTurn && (
@@ -1652,21 +1674,56 @@ export default function TablePage() {
         {liveState ? (
           <div className="flex flex-1 flex-col gap-3">
             <div className="relative flex-1">
-              {isInterHand ? (
-                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-                  <WinnerShowcase handResult={lastHandResult} players={liveState.players} currencyType={currencyType} />
-                  <div className="mt-6">
-                    <InterHandVoting
-                      players={liveState.players}
-                      readyPlayerIds={readyPlayerIds}
-                      deadline={liveState.inter_hand_wait_deadline}
-                      durationSeconds={liveState.inter_hand_wait_seconds ?? 20}
-                      onReady={handleReady}
-                      isReady={heroIdString !== null && readyPlayerIds.includes(heroIdString)}
-                    />
+              {/* Integrated Winner HUD & Next Hand Timer - On The Felt (no black overlay) */}
+              {isInterHand && (
+                <div className="absolute top-[35%] left-1/2 -translate-x-1/2 w-full max-w-lg pointer-events-none z-30">
+                  {/* Sleek Winner HUD */}
+                  {lastHandResult && lastHandResult.winners && lastHandResult.winners.length > 0 && (
+                    <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
+                      <div className="bg-gradient-to-r from-amber-500/80 to-amber-600/80 px-6 py-2 rounded-full border border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)] backdrop-blur-md">
+                        <span className="text-white font-bold text-lg drop-shadow-md">
+                          {(() => {
+                            const winner = lastHandResult.winners[0]
+                            const winnerPlayer = liveState.players.find(p => p.user_id?.toString() === winner.user_id?.toString())
+                            const winnerName = winnerPlayer?.display_name || winnerPlayer?.username || `Player ${winner.user_id}`
+                            // Use winner's individual amount for accurate display (important for split pots)
+                            return `${winnerName} Wins ${formatByCurrency(winner.amount, currencyType)}`
+                          })()}
+                        </span>
+                        <span className="block text-center text-xs text-amber-100 uppercase tracking-widest font-semibold">
+                          {/* Format hand rank: convert snake_case to Title Case */}
+                          {lastHandResult.winners[0].hand_rank 
+                            ? lastHandResult.winners[0].hand_rank.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+                            : 'Winner'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Integrated Next Hand Timer */}
+                  <div className="mt-4 flex flex-col items-center">
+                    <div className="text-[10px] text-emerald-300 uppercase tracking-widest mb-1">Next Hand</div>
+                    <div className="h-1 w-32 bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-400 shadow-[0_0_10px_currentColor]" 
+                        style={{ width: `${interHandProgress * 100}%`, transition: 'width 100ms linear' }}
+                      />
+                    </div>
                   </div>
+                  
+                  {/* Ready Button for seated players */}
+                  {viewerIsSeated && heroIdString && !readyPlayerIds.includes(heroIdString) && (
+                    <div className="mt-3 flex justify-center pointer-events-auto">
+                      <button
+                        onClick={handleReady}
+                        className="px-4 py-1.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-white text-xs font-semibold uppercase tracking-wide shadow-lg transition-all active:scale-95"
+                      >
+                        I'm Ready
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ) : null}
+              )}
 
               <div className="table-wrapper">
                 <div

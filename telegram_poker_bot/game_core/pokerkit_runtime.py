@@ -1749,9 +1749,10 @@ class PokerKitTableRuntimeManager:
         
         Auto-Proceed Logic (NO VOTING):
         1. Wait 5 seconds (handled by monitor_inter_hand_timeouts)
-        2. Re-check active player count (must be >= 2)
-        3. If >= 2: Call runtime.start_new_hand(db)
-        4. If < 2: Pause the table (Set status to WAITING)
+        2. Auto-remove players who have "Stand Up Next" flag set
+        3. Re-check active player count (must be >= 2)
+        4. If >= 2: Call runtime.start_new_hand(db)
+        5. If < 2: Pause the table (Set status to WAITING)
         """
 
         lock = await self._get_distributed_lock(table_id)
@@ -1766,8 +1767,39 @@ class PokerKitTableRuntimeManager:
 
             active_seats = [s for s in runtime.seats if s.left_at is None]
             
-            # Players remain active by default - no ready voting
-            # No need to check ready_ids since we removed voting
+            # NEW: Auto-remove players who have "Stand Up Next" flag set
+            # This implements the "Play or Watch" policy: if you don't play, you don't hold a seat
+            table_service = _get_table_service()
+            stood_up_user_ids = []
+            for seat in active_seats:
+                if seat.is_sitting_out_next_hand:
+                    logger.info(
+                        "Auto-removing player with Stand Up Next flag",
+                        table_id=table_id,
+                        user_id=seat.user_id,
+                        seat_position=seat.position,
+                    )
+                    try:
+                        await table_service.leave_table(db, table_id, seat.user_id)
+                        stood_up_user_ids.append(seat.user_id)
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to auto-remove player from table",
+                            table_id=table_id,
+                            user_id=seat.user_id,
+                            error=str(e),
+                        )
+            
+            # Refresh seats after removals
+            if stood_up_user_ids:
+                seats_result = await db.execute(
+                    select(Seat)
+                    .options(selectinload(Seat.user))
+                    .where(Seat.table_id == table_id, Seat.left_at.is_(None))
+                    .order_by(Seat.position)
+                )
+                runtime.seats = seats_result.scalars().all()
+                active_seats = [s for s in runtime.seats if s.left_at is None]
 
             runtime.current_hand.status = HandStatus.ENDED
             runtime.inter_hand_wait_start = None
@@ -1783,8 +1815,9 @@ class PokerKitTableRuntimeManager:
             runtime.current_hand = None
             runtime.engine = None
 
-            # Count active players (not sitting out)
-            playing_seats = [s for s in active_seats if not s.is_sitting_out_next_hand]
+            # Count active players (no longer need to filter by is_sitting_out_next_hand
+            # since those players were removed above).
+            playing_seats = active_seats
 
             if len(playing_seats) < 2:
                 # PAUSE LOGIC: Not enough players (< 2) to deal next hand
@@ -1805,11 +1838,14 @@ class PokerKitTableRuntimeManager:
                     runtime.ready_players = set()
                     await db.flush()
                     
-                    return {
+                    result = {
                         "table_paused": True,
                         "status": "waiting",
                         "reason": "Waiting for players..."
                     }
+                    if stood_up_user_ids:
+                        result["stood_up_user_ids"] = stood_up_user_ids
+                    return result
                 else:
                     # END non-persistent tables (SNG)
                     logger.info(
@@ -1822,7 +1858,10 @@ class PokerKitTableRuntimeManager:
                     runtime.ready_players = set()
                     await db.flush()
 
-                    return {"table_ended": True, "reason": "Not enough players"}
+                    result = {"table_ended": True, "reason": "Not enough players"}
+                    if stood_up_user_ids:
+                        result["stood_up_user_ids"] = stood_up_user_ids
+                    return result
 
             runtime.table.last_action_at = datetime.now(timezone.utc)
 
@@ -1831,7 +1870,10 @@ class PokerKitTableRuntimeManager:
 
             runtime.ready_players = set()
 
-            return {"state": state}
+            result = {"state": state}
+            if stood_up_user_ids:
+                result["stood_up_user_ids"] = stood_up_user_ids
+            return result
 
     async def start_game(self, db: AsyncSession, table_id: int) -> Dict:
         lock = await self._get_distributed_lock(table_id)
