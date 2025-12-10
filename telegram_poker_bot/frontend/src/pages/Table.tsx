@@ -1686,11 +1686,15 @@ export default function TablePage() {
                             const winner = lastHandResult.winners[0]
                             const winnerPlayer = liveState.players.find(p => p.user_id?.toString() === winner.user_id?.toString())
                             const winnerName = winnerPlayer?.display_name || winnerPlayer?.username || `Player ${winner.user_id}`
-                            return `${winnerName} Wins ${formatByCurrency(lastHandResult.total_pot ?? winner.amount, currencyType)}`
+                            // Use winner's individual amount for accurate display (important for split pots)
+                            return `${winnerName} Wins ${formatByCurrency(winner.amount, currencyType)}`
                           })()}
                         </span>
                         <span className="block text-center text-xs text-amber-100 uppercase tracking-widest font-semibold">
-                          {lastHandResult.winners[0].hand_rank?.replace(/_/g, ' ') || 'Winner'}
+                          {/* Format hand rank: convert snake_case to Title Case */}
+                          {lastHandResult.winners[0].hand_rank 
+                            ? lastHandResult.winners[0].hand_rank.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+                            : 'Winner'}
                         </span>
                       </div>
                     </div>

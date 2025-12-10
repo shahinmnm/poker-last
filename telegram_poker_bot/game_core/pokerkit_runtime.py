@@ -1816,7 +1816,7 @@ class PokerKitTableRuntimeManager:
             runtime.engine = None
 
             # Count active players (no longer need to filter by is_sitting_out_next_hand
-            # since those players were removed above)
+            # since those players were removed above).
             playing_seats = active_seats
 
             if len(playing_seats) < 2:
