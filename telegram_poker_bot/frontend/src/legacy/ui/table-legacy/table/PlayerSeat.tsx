@@ -1,7 +1,5 @@
 import { forwardRef, useMemo } from 'react'
 import clsx from 'clsx'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCoins } from '@fortawesome/free-solid-svg-icons'
 import { Plus } from 'lucide-react'
 import PlayerCircularTimer from './PlayerCircularTimer'
 import PlayingCard from '../../../../components/ui/PlayingCard'
@@ -103,10 +101,8 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     const showTimer =
       isActive && Boolean(turnDeadline) && totalTime !== null && totalTime > 0
     
-    // Note: Default fallback to 2 cards for backwards compatibility
-    // In future, variant info should be passed to this component for proper fallback
-    // (e.g., 4 cards for Omaha, 5 cards for Draw)
-    const safeCards = showFaces ? holeCards : Array(2).fill('XX')
+    const fallbackCardCount = holeCards.length > 0 ? holeCards.length : 2
+    const safeCards = showFaces ? holeCards : Array(fallbackCardCount).fill('XX')
     const cardsHidden = !showFaces
 
     const mutedState = hasFolded || isSittingOut
@@ -115,95 +111,83 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       <div
         ref={ref}
         className={clsx(
-          'relative inline-flex w-[180px] flex-col items-center -space-y-2',
+          'relative flex w-20 flex-col items-center justify-center transition-all duration-300',
           mutedState && 'grayscale opacity-50',
+          className,
         )}
+        style={{ zIndex: isActive ? 30 : 20 }}
         aria-label={seatLabel}
       >
-        {/* Avatar + card fan row */}
-        <div className="flex items-center justify-center gap-1 -ml-2">
-          <div className="relative flex items-center justify-center">
-            <div className="relative h-16 w-16 flex items-center justify-center z-20">
-              {showTimer && turnDeadline && totalTime !== null && (
-                <PlayerCircularTimer
-                  deadline={turnDeadline}
-                  totalSeconds={totalTime}
-                  size={66}
-                  strokeWidth={3}
-                  className="z-0 h-[66px] w-[66px]"
-                />
+        {/* Avatar */}
+        <div className="relative z-10 flex items-center justify-center">
+          <div className="relative flex h-[66px] w-[66px] items-center justify-center">
+            {showTimer && turnDeadline && totalTime !== null && (
+              <PlayerCircularTimer
+                deadline={turnDeadline}
+                totalSeconds={totalTime}
+                size={66}
+                strokeWidth={3}
+                className="absolute inset-0"
+              />
+            )}
+
+            <div
+              className={clsx(
+                'relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-[2.5px] ring-white/20',
+                isHero && 'ring-2 ring-amber-200/80',
+              )}
+            >
+              <span>{initial}</span>
+
+              {isAllIn && (
+                <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
+                  ALL-IN
+                </span>
               )}
 
-              <div
-                className={clsx(
-                  'relative z-20 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-[2.5px] ring-white/20',
-                  isHero && 'ring-2 ring-amber-200/80',
-                )}
-              >
-                <span>{initial}</span>
+              {positionLabel && (
+                <span className="absolute -right-1 -top-1 z-20 flex h-4 min-w-[18px] items-center justify-center rounded-full bg-white/90 px-1 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow">
+                  {positionLabel}
+                </span>
+              )}
 
-                {isAllIn && (
-                  <span className="absolute -bottom-3 right-0 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
-                    ALL-IN
-                  </span>
-                )}
-
-                {positionLabel && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[18px] items-center justify-center rounded-full bg-white/90 px-1 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow">
-                    {positionLabel}
-                  </span>
-                )}
-
-                {/* Zzz Badge for Sitting Out players */}
-                {isSittingOut && (
-                  <div className="absolute top-0 right-0 z-20 translate-x-1/4 -translate-y-1/4">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500 shadow-lg ring-2 ring-black">
-                      <span className="text-[10px] font-bold text-black">Zzz</span>
-                    </div>
+              {/* Zzz Badge for Sitting Out players */}
+              {isSittingOut && (
+                <div className="absolute -top-2 -right-2 z-20">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500 shadow-lg ring-2 ring-black">
+                    <span className="text-[10px] font-bold text-black">Zzz</span>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="pointer-events-none relative flex h-18 w-[120px] items-center justify-center z-10 -ml-2">
-            {safeCards.map((card, index) => {
-              // Calculate rotation and position based on card count
-              const cardCount = safeCards.length
-              const baseRotation = cardCount === 2 ? 8 : cardCount === 4 ? 6 : 5
-              const spreadFactor = cardCount === 2 ? 15 : cardCount === 4 ? 12 : 10
-              
-              // Center the cards and spread them evenly
-              const centerOffset = (cardCount - 1) / 2
-              const rotationAngle = (index - centerOffset) * baseRotation
-              const xOffset = (index - centerOffset) * spreadFactor
-              
-              return (
-                <div
-                  key={`${card}-${index}`}
-                  className="absolute origin-bottom"
-                  style={{
-                    transform: `translateX(${xOffset}px) rotate(${rotationAngle}deg)`,
-                    zIndex: 10 + index,
-                  }}
-                >
-                  <PlayingCard card={cardsHidden ? 'XX' : card} hidden={cardsHidden} size="sm" />
                 </div>
-              )
-            })}
+              )}
+            </div>
           </div>
         </div>
 
         {/* Compact Info Pill */}
-        <div className="bg-black/80 backdrop-blur-md rounded-md px-2 py-0.5 min-w-[80px] text-center border border-white/10 mt-1">
-          <div className="text-[9px] font-bold text-white/90 truncate leading-tight">
+        <div className="-mt-3 z-20 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 shadow-lg text-center min-w-[70px]">
+          <div className="text-[9px] font-bold text-gray-200 truncate leading-none mb-0.5">
             {playerName || seatLabel}
           </div>
-          <div className="flex items-center justify-center gap-1 text-xs font-mono font-bold text-emerald-400 leading-tight">
-            <FontAwesomeIcon icon={faCoins} className="h-2.5 w-2.5" />
-            <span className="tabular-nums">{formatChips(chipCount)}</span>
+          <div className="text-[10px] font-mono font-bold text-emerald-400 leading-none">
+            {formatChips(chipCount)}
           </div>
         </div>
+
+        {/* Hole Cards */}
+        {safeCards.length > 0 && (
+          <div className="-mt-2 z-30 transform scale-75 origin-top hover:scale-90 transition-transform pointer-events-none">
+            <div className="flex gap-1 justify-center">
+              {safeCards.map((card, index) => (
+                <PlayingCard
+                  key={`${card}-${index}`}
+                  card={cardsHidden ? 'XX' : card}
+                  hidden={cardsHidden}
+                  size="sm"
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     )
   },
