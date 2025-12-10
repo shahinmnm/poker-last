@@ -159,6 +159,7 @@ export default function TablePage() {
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
   const [turnProgress, setTurnProgress] = useState(1)
+  const [interHandProgress, setInterHandProgress] = useState(1) // Progress for inter-hand countdown
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
@@ -1352,6 +1353,27 @@ export default function TablePage() {
     return () => window.clearInterval(interval)
   }, [liveState?.action_deadline, liveState?.turn_timeout_seconds])
 
+  // Calculate inter-hand countdown progress
+  useEffect(() => {
+    if (!isInterHand || !liveState?.inter_hand_wait_deadline) {
+      setInterHandProgress(1)
+      return
+    }
+
+    const deadlineMs = new Date(liveState.inter_hand_wait_deadline).getTime()
+    const totalMs = Math.max(1000, (liveState?.inter_hand_wait_seconds ?? 5) * 1000)
+
+    const updateInterHandProgress = () => {
+      const remaining = Math.max(0, deadlineMs - Date.now())
+      const pct = Math.max(0, Math.min(1, remaining / totalMs))
+      setInterHandProgress(pct)
+    }
+
+    updateInterHandProgress()
+    const interval = window.setInterval(updateInterHandProgress, 100)
+    return () => window.clearInterval(interval)
+  }, [isInterHand, liveState?.inter_hand_wait_deadline, liveState?.inter_hand_wait_seconds])
+
   // Control bottom navigation visibility based on seated status
   useEffect(() => {
     // Hide bottom nav when seated and playing, show it when spectating
@@ -1680,12 +1702,12 @@ export default function TablePage() {
                     <div className="h-1 w-32 bg-gray-700 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-emerald-400 shadow-[0_0_10px_currentColor]" 
-                        style={{ width: `${(turnProgress) * 100}%`, transition: 'width 1s linear' }}
+                        style={{ width: `${interHandProgress * 100}%`, transition: 'width 100ms linear' }}
                       />
                     </div>
                   </div>
                   
-                  {/* Ready Button for spectators or seated players */}
+                  {/* Ready Button for seated players */}
                   {viewerIsSeated && heroIdString && !readyPlayerIds.includes(heroIdString) && (
                     <div className="mt-3 flex justify-center pointer-events-auto">
                       <button
