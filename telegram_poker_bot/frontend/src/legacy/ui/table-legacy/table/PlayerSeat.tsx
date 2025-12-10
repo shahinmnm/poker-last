@@ -112,6 +112,15 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
                     {positionLabel}
                   </span>
                 )}
+
+                {/* Zzz Badge for Sitting Out players */}
+                {isSittingOut && (
+                  <div className="absolute top-0 right-0 z-20 translate-x-1/4 -translate-y-1/4">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500 shadow-lg ring-2 ring-black">
+                      <span className="text-[10px] font-bold text-black">Zzz</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
