@@ -481,15 +481,10 @@ class PokerEngineAdapter:
         if calculated_pot and abs(total_pot_amount - calculated_pot) > 1:
             total_pot_amount = calculated_pot
 
-        # Updated integrity check that accounts for rake.
-        # Formula: Total Won + Rake ≈ Total Lost
+        # Integrity check: verify that total winnings equal total losses.
         # Allow a small delta (±1 chip) for integer rounding during pot splitting.
-        # Note: Rake is applied after winners are calculated, so at this point
-        # total_won should equal total_lost. The rake adjustment happens in
-        # _calculate_and_apply_rake which reduces winner amounts.
-        # 
-        # The integrity check here validates that the pot math is correct
-        # before rake is applied. Rake is tracked separately.
+        # Note: Rake is applied separately in _calculate_and_apply_rake after
+        # this method returns. This check validates pre-rake pot distribution.
         difference = total_won - total_lost
         if abs(difference) > 1 or abs(total_won - total_pot_amount) > 1:
             pots_breakdown = [
@@ -501,7 +496,7 @@ class PokerEngineAdapter:
                 for idx, pot in enumerate(self.state.pots)
             ]
 
-            # Log as warning for small discrepancies, CRITICAL for large ones
+            # Log as warning for small discrepancies, error for large ones
             log_level = "warning" if abs(difference) <= 10 else "error"
             log_fn = logger.warning if log_level == "warning" else logger.error
             log_fn(

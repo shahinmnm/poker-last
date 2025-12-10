@@ -197,6 +197,11 @@ def test_true_initial_stacks_persistence():
     This tests the fix for the financial integrity timing bug where
     _pre_showdown_stacks was captured AFTER blinds were posted, leading to
     incorrect pot integrity calculations.
+    
+    Expected behavior:
+    - true_initial_stacks maintains original stack values (before blinds)
+    - pre_showdown_stacks reflects post-blind values
+    - Both are correctly persisted and restored from state
     """
     adapter = PokerEngineAdapter(
         player_count=2,
