@@ -162,10 +162,6 @@ export default function TablePage() {
   const [showRecentHands, setShowRecentHands] = useState(false)
   const [turnProgress, setTurnProgress] = useState(1)
 
-  // Pre-action toggle states (Grinder UX)
-  const [autoPostBlinds, setAutoPostBlinds] = useState(true)
-  const [waitForBigBlind, setWaitForBigBlind] = useState(false)
-
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
   const [showTableMenu, setShowTableMenu] = useState(false)
@@ -1453,6 +1449,33 @@ export default function TablePage() {
   }
 
   const renderActionDock = () => {
+    // 1. Define the Pre-Action Toggle UI (Sit Out Toggle)
+    const renderSitOutToggle = () => {
+      if (!viewerIsSeated || !heroPlayer) return null
+      
+      const isChecked = heroPlayer.is_sitting_out_next_hand
+      
+      return (
+        <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/80 px-4 py-2 backdrop-blur-md border border-white/10 shadow-xl mb-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="relative">
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={isChecked}
+                onChange={(e) => handleSitOutToggle(e.target.checked)}
+              />
+              <div className="h-5 w-9 rounded-full bg-gray-600 peer-focus:ring-2 peer-focus:ring-emerald-500/50 peer-checked:bg-emerald-500 transition-colors"></div>
+              <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white transition-all peer-checked:translate-x-full"></div>
+            </div>
+            <span className={`text-xs font-bold uppercase tracking-wide ${isChecked ? 'text-emerald-400' : 'text-gray-300'}`}>
+              Sit Out Next
+            </span>
+          </label>
+        </div>
+      )
+    }
+
     // Log rendering decision
     const isActiveGameplayCheck = ACTIVE_GAMEPLAY_STREETS.includes(tableStatus) || tableStatus === 'active'
     console.log('[Table ActionDock] Render decision:', {
@@ -1472,6 +1495,39 @@ export default function TablePage() {
     if (isInterHand) {
       console.log('[Table ActionDock] Hidden: inter-hand phase')
       return null
+    }
+
+    // 2. Logic for displaying the dock
+    // ALWAYS render the toggle if seated when table is active
+    if (viewerIsSeated && tableStatus === 'active') {
+      const isMyTurnNow = isPlaying && currentActorUserId?.toString() === heroIdString
+      
+      return (
+        <div className="table-action-dock z-40 flex-col items-center gap-2">
+          {/* Always show toggle above the main controls */}
+          {renderSitOutToggle()}
+          
+          {/* Show Action Bar only if it's my turn */}
+          {isMyTurnNow && !isInterHand && (
+            <div className="w-full">
+              <ActionBar
+                allowedActions={allowedActions}
+                onAction={handleGameAction}
+                myStack={heroPlayer?.stack ?? 0}
+                isProcessing={actionPending || loading}
+                isMyTurn={isMyTurnNow}
+              />
+            </div>
+          )}
+          
+          {/* Show 'Wait' message if not my turn */}
+          {!isMyTurnNow && !isInterHand && (
+             <div className="pointer-events-auto px-4 py-2 rounded-full bg-black/40 text-white/50 text-xs font-medium backdrop-blur-sm">
+               Waiting for action...
+             </div>
+          )}
+        </div>
+      )
     }
 
     // Waiting state - show start/join buttons
@@ -1513,6 +1569,7 @@ export default function TablePage() {
     }
 
     // Active hand - show action controls when seated and hand is active
+    // This handles gameplay streets (preflop, flop, turn, river)
     const hasActiveHand = liveState?.hand_id !== null && !isInterHand
     if (
       isActiveGameplayCheck &&
@@ -1528,50 +1585,31 @@ export default function TablePage() {
         heroStack: heroPlayer?.stack,
       })
       
-      // Show pre-action toggles when NOT the hero's turn
-      const preActionToggles = !isMyTurn ? (
-        <div className="pointer-events-auto mb-3 flex flex-wrap justify-center gap-3 px-4">
-          <label className="flex items-center gap-2 cursor-pointer rounded-lg bg-black/40 px-3 py-2 text-xs text-white/80 backdrop-blur-sm border border-white/10 hover:bg-black/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={heroPlayer?.is_sitting_out_next_hand ?? false}
-              onChange={(e) => handleSitOutToggle(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
-            />
-            <span>{t('table.preAction.sitOutNextHand', { defaultValue: 'Sit Out Next Hand' })}</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer rounded-lg bg-black/40 px-3 py-2 text-xs text-white/80 backdrop-blur-sm border border-white/10 hover:bg-black/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={autoPostBlinds}
-              onChange={(e) => setAutoPostBlinds(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
-            />
-            <span>{t('table.preAction.autoPostBlinds', { defaultValue: 'Auto Post Blinds' })}</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer rounded-lg bg-black/40 px-3 py-2 text-xs text-white/80 backdrop-blur-sm border border-white/10 hover:bg-black/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={waitForBigBlind}
-              onChange={(e) => setWaitForBigBlind(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
-            />
-            <span>{t('table.preAction.waitForBigBlind', { defaultValue: 'Wait for Big Blind' })}</span>
-          </label>
-        </div>
-      ) : null
-      
       return (
-        <>
-          {preActionToggles}
-          <ActionBar
-            allowedActions={allowedActions}
-            onAction={handleGameAction}
-            myStack={heroPlayer?.stack ?? 0}
-            isProcessing={actionPending || loading}
-            isMyTurn={isMyTurn}
-          />
-        </>
+        <div className="table-action-dock z-40 flex-col items-center gap-2">
+          {/* Always show toggle above the main controls */}
+          {renderSitOutToggle()}
+          
+          {/* Show Action Bar only if it's my turn */}
+          {isMyTurn && (
+            <div className="w-full">
+              <ActionBar
+                allowedActions={allowedActions}
+                onAction={handleGameAction}
+                myStack={heroPlayer?.stack ?? 0}
+                isProcessing={actionPending || loading}
+                isMyTurn={isMyTurn}
+              />
+            </div>
+          )}
+          
+          {/* Show 'Wait' message if not my turn */}
+          {!isMyTurn && (
+             <div className="pointer-events-auto px-4 py-2 rounded-full bg-black/40 text-white/50 text-xs font-medium backdrop-blur-sm">
+               Waiting for action...
+             </div>
+          )}
+        </div>
       )
     }
 
