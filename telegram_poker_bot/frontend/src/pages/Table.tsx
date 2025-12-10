@@ -876,11 +876,29 @@ export default function TablePage() {
           return
         }
 
+        // Handle player_left with optimistic update to fix "Ghost Seat" bug
+        if (payload?.type === 'player_left') {
+          // Validate that user_id exists in the payload
+          if (payload.user_id != null) {
+            // 1. Optimistic Update: Remove player from liveState immediately
+            setLiveState((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                players: prev.players.filter(p => p.user_id !== payload.user_id)
+              };
+            });
+          }
+          
+          // 2. Refresh full state from server
+          fetchLiveState();
+          return;
+        }
+
         if (
           payload?.type === 'action' ||
           payload?.type === 'table_started' ||
-          payload?.type === 'player_joined' ||
-          payload?.type === 'player_left'
+          payload?.type === 'player_joined'
         ) {
           fetchTable()
         }
@@ -1656,6 +1674,37 @@ export default function TablePage() {
       )}
 
       <div className="table-screen">
+        {/* Back to Lobby Button (Top-Left) */}
+        <div className="absolute top-4 left-4 z-50">
+          <button 
+            onClick={() => navigate('/lobby')}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white hover:bg-white/10 backdrop-blur-md border border-white/10 shadow-lg transition-all active:scale-95"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Stand Up Toggle (Top-Right) */}
+        {viewerIsSeated && (
+          <div className="absolute top-4 right-4 z-50">
+            <button
+              onClick={() => handleSitOutToggle(!heroPlayer?.is_sitting_out_next_hand)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border transition-all shadow-lg ${
+                heroPlayer?.is_sitting_out_next_hand
+                  ? 'bg-amber-500/90 border-amber-400 text-black'
+                  : 'bg-black/40 border-white/10 text-white/70 hover:bg-black/60'
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${heroPlayer?.is_sitting_out_next_hand ? 'bg-black animate-pulse' : 'bg-gray-400'}`} />
+              <span className="text-[10px] font-bold uppercase tracking-wide">
+                {heroPlayer?.is_sitting_out_next_hand ? 'Standing Up' : 'Stand Up'}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* Arena - Game Content */}
         {liveState ? (
           <div className="flex flex-1 flex-col gap-3">
@@ -2082,30 +2131,6 @@ export default function TablePage() {
           navigate('/lobby')
         }}
       />
-
-      {/* --- PROFESSIONAL CONTROL BAR (Bottom Left) --- */}
-      {viewerIsSeated && (
-        <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2">
-          <button
-            onClick={() => handleSitOutToggle(!heroPlayer?.is_sitting_out_next_hand)}
-            className={`group flex items-center gap-3 px-4 py-2.5 rounded-full backdrop-blur-xl border transition-all duration-200 shadow-lg active:scale-95 ${
-              heroPlayer?.is_sitting_out_next_hand
-                ? 'bg-amber-500/90 border-amber-400 text-black'
-                : 'bg-black/60 border-white/10 text-gray-300 hover:bg-black/80'
-            }`}
-          >
-            <div className={`w-2 h-2 rounded-full ${heroPlayer?.is_sitting_out_next_hand ? 'bg-black animate-pulse' : 'bg-gray-500'}`} />
-            <div className="flex flex-col items-start">
-              <span className="text-[10px] uppercase tracking-wider font-bold leading-none">
-                {heroPlayer?.is_sitting_out_next_hand ? 'Standing Up' : 'Stand Up'}
-              </span>
-              <span className="text-[9px] opacity-80 leading-none mt-0.5">
-                {heroPlayer?.is_sitting_out_next_hand ? 'After this hand' : 'Next Hand'}
-              </span>
-            </div>
-          </button>
-        </div>
-      )}
 
       {renderActionDock()}
     </div>
