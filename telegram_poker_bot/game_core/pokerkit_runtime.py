@@ -1757,7 +1757,7 @@ class PokerKitTableRuntimeManager:
         lock = await self._get_distributed_lock(table_id)
         async with lock:
             runtime = await self.ensure_table(db, table_id)
-            # Cache persistence status before any commits to avoid accessing expired objects later
+            # Fetch this safely at the start before any commits
             is_persistent = await table_lifecycle.is_persistent_table(runtime.table)
 
             if (
@@ -1793,7 +1793,7 @@ class PokerKitTableRuntimeManager:
                 # For persistent tables: Set status to WAITING (pause, don't delete)
                 # For non-persistent tables: Set status to ENDED (normal cleanup)
                 # Check if table is persistent using centralized helper
-                if is_persistent:
+                if is_persistent:  # Use the cached boolean
                     # PAUSE persistent tables - return to WAITING status
                     logger.info(
                         "Pausing persistent table - insufficient players",
