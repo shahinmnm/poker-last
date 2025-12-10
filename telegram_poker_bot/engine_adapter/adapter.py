@@ -726,17 +726,35 @@ class PokerEngineAdapter:
                         pot_data.get("player_indices", adapter.state.pots[idx].player_indices)
                     )
 
+        # NOTE: The following PokerKit State properties are READ-ONLY and cannot
+        # be set directly. They are computed dynamically by PokerKit based on
+        # the game state. Attempting to set them causes:
+        #   "property 'player_indices' ... has no setter" crash
+        #
+        # Read-only properties that MUST be ignored during restore:
+        #   - player_indices: Calculated from active players
+        #   - actor_index: Calculated from actor_indices deque
+        #   - hand_type_indices, street_indices, board_indices
+        #   - pot_amounts, total_pot_amount, pot_count
+        #   - street (the string name, not street_index)
+        #   - can_act, can_check_or_call, can_fold
+        #
+        # Settable properties that CAN be restored:
+        #   - street_index, actor_indices, status, stacks, bets
+
         if data.get("street_index") is not None:
             adapter.state.street_index = data["street_index"]
 
-        if data.get("player_indices") is not None:
-            adapter.state.player_indices = tuple(data["player_indices"])
+        # SKIP: player_indices is a read-only property calculated by PokerKit
+        # if data.get("player_indices") is not None:
+        #     adapter.state.player_indices = tuple(data["player_indices"])
 
         if data.get("actor_indices") is not None:
             adapter.state.actor_indices = deque(data["actor_indices"])
 
-        if data.get("actor_index") is not None:
-            adapter.state.actor_index = data["actor_index"]
+        # SKIP: actor_index is a read-only property (derived from actor_indices)
+        # if data.get("actor_index") is not None:
+        #     adapter.state.actor_index = data["actor_index"]
 
         if data.get("status") is not None:
             adapter.state.status = data["status"]

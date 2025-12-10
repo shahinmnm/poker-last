@@ -1219,8 +1219,9 @@ export default function TablePage() {
       const serverIndex = (visualIndex + rotationOffset) % MAX_SEATS
       
       // Find the player at this server index
+      // Use Number() conversion to prevent string vs number mismatches from API
       const player = liveState?.players?.find(
-        (p) => (p.seat ?? p.position) === serverIndex
+        (p) => Number(p.seat ?? p.position) === serverIndex
       ) ?? null
       
       return {
@@ -1852,7 +1853,8 @@ export default function TablePage() {
                     if (!normalizedSeat) return null
                     
                     const { serverIndex, playerData: player, isEmpty } = normalizedSeat
-                    const playerKey = player?.user_id?.toString()
+                    // Use String() conversion to prevent number vs string mismatches
+                    const playerKey = player?.user_id != null ? String(player.user_id) : null
                     const isHeroPlayer = heroIdString !== null && playerKey === heroIdString
                     const isHeroSlot = slot.isHeroPosition
                     const displayName = player?.display_name || player?.username || (isHeroSlot && !player
