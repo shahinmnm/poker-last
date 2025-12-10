@@ -2,6 +2,7 @@ import { forwardRef, useMemo } from 'react'
 import clsx from 'clsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCoins } from '@fortawesome/free-solid-svg-icons'
+import { Plus } from 'lucide-react'
 import PlayerCircularTimer from './PlayerCircularTimer'
 import PlayingCard from '../../../../components/ui/PlayingCard'
 
@@ -22,6 +23,9 @@ export interface PlayerSeatProps {
   turnTotalSeconds?: number | null
   holeCards?: string[]
   showCardBacks?: boolean
+  isEmpty?: boolean
+  onClick?: () => void
+  className?: string
 }
 
 const formatChips = (value: number): string => {
@@ -47,13 +51,50 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       turnTotalSeconds = null,
       holeCards = [],
       showCardBacks = false,
+      isEmpty = false,
+      onClick,
+      className,
     },
     ref,
   ) => {
+    // All hooks must be called unconditionally (before the isEmpty early return below)
     const initial = useMemo(
       () => (playerName?.charAt(0)?.toUpperCase() || '?'),
       [playerName],
     )
+
+    // If empty seat, render a professional Plus icon seat
+    if (isEmpty) {
+      const seatClasses = 'relative inline-flex flex-col items-center'
+      return (
+        <div
+          ref={ref}
+          className={clsx(seatClasses, className, 'group cursor-pointer')}
+          onClick={onClick}
+          role="button"
+          tabIndex={0}
+          aria-label={seatLabel}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onClick?.()
+            }
+          }}
+        >
+          {/* Dashed Ring with Plus Icon */}
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-white/5 transition-all duration-300 group-hover:border-emerald-400 group-hover:bg-emerald-500/20 group-hover:scale-105 shadow-inner">
+            <Plus className="w-6 h-6 text-white/40 group-hover:text-emerald-400 transition-colors" strokeWidth={3} />
+          </div>
+          
+          {/* "Open" Label */}
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 bg-black/80 px-2 py-0.5 rounded-full backdrop-blur-md">
+              Sit Here
+            </span>
+          </div>
+        </div>
+      )
+    }
 
     // Support variable number of hole cards for different variants
     // Hold'em: 2, Omaha: 4, Draw games: 5
