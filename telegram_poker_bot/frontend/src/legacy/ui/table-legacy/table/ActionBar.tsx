@@ -230,7 +230,7 @@ export default function ActionBar({
           type="button"
           onClick={handleFold}
           disabled={foldDisabled}
-          className="table-action-button table-action-button--danger"
+          className="flex-1 h-14 rounded-xl bg-rose-600 border-b-4 border-rose-800 text-white font-bold text-lg active:border-b-0 active:translate-y-1 transition-all shadow-lg"
         >
           {foldLabel}
         </button>
@@ -238,7 +238,7 @@ export default function ActionBar({
           type="button"
           onClick={handleCenter}
           disabled={centerDisabled}
-          className="table-action-button"
+          className="flex-1 h-14 rounded-xl bg-emerald-600 border-b-4 border-emerald-800 text-white font-bold text-lg active:border-b-0 active:translate-y-1 transition-all shadow-lg"
         >
           {centerLabel}
         </button>
@@ -246,7 +246,7 @@ export default function ActionBar({
           type="button"
           onClick={handleRaise}
           disabled={raiseDisabled}
-          className="table-action-button table-action-button--primary"
+          className="flex-1 h-14 rounded-xl bg-amber-500 border-b-4 border-amber-700 text-white font-bold text-lg active:border-b-0 active:translate-y-1 transition-all shadow-lg"
         >
           {sliderLabelText}
         </button>
