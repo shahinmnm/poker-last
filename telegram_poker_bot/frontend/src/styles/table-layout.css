@@ -99,8 +99,9 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #ffffff;
-  background: #64748b;
-  border-bottom-color: #475569;
+  /* Check/Call button: Emerald solid style */
+  background: #059669; /* emerald-600 */
+  border-bottom-color: #065f46; /* emerald-800 */
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
   transition: all 0.2s ease;
 }
@@ -110,14 +111,16 @@
   transform: translateY(4px);
 }
 
+/* Fold button: Rose solid style */
 .table-action-button--danger {
-  background: #e11d48;
-  border-bottom-color: #9f1239;
+  background: #e11d48; /* rose-600 */
+  border-bottom-color: #9f1239; /* rose-800 */
 }
 
+/* Bet/Raise button: Amber solid style */
 .table-action-button--primary {
-  background: #f59e0b;
-  border-bottom-color: #b45309;
+  background: #f59e0b; /* amber-500 */
+  border-bottom-color: #b45309; /* amber-700 */
 }
 
 .table-action-button:disabled {

@@ -727,6 +727,11 @@ class PokerKitTableRuntime:
             bring_in=rules.bring_in,
         )
 
+        # Store original stacks before blind posting for pot integrity calculations.
+        # The engine constructor posts blinds immediately via automations, so we
+        # capture stacks here to enable accurate end-of-hand balance verification.
+        self.engine._true_initial_stacks = list(starting_stacks)
+
         # Deal hole cards
         self.engine.deal_new_hand()
 
@@ -826,6 +831,9 @@ class PokerKitTableRuntime:
             min_bet=rules.min_bet,
             bring_in=rules.bring_in,
         )
+
+        # Store original stacks before blind posting for pot integrity calculations.
+        self.engine._true_initial_stacks = list(starting_stacks)
 
         # Deal hole cards
         self.engine.deal_new_hand()
