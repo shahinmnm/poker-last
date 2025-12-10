@@ -1854,7 +1854,7 @@ export default function TablePage() {
                     
                     const { serverIndex, playerData: player, isEmpty } = normalizedSeat
                     // Use String() conversion to prevent number vs string mismatches
-                    const playerKey = player?.user_id != null ? String(player.user_id) : null
+                    const playerKey = player?.user_id?.toString() ?? null
                     const isHeroPlayer = heroIdString !== null && playerKey === heroIdString
                     const isHeroSlot = slot.isHeroPosition
                     const displayName = player?.display_name || player?.username || (isHeroSlot && !player

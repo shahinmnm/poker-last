@@ -628,6 +628,8 @@ class PokerEngineAdapter:
             "pots": serialized_pots,
             "button_index": self.button_index,  # Use our tracked button_index
             "street_index": self.state.street_index,
+            # NOTE: player_indices and actor_index are included for debugging/logging
+            # but are SKIPPED during restoration (they are read-only PokerKit properties)
             "player_indices": (
                 list(self.state.player_indices)
                 if hasattr(self.state, "player_indices")
