@@ -52,16 +52,14 @@ export default function CommunityBoard({
       </div>
 
       <div className="flex w-full justify-center px-2 sm:px-4">
-        <div className="flex items-start justify-center">
+        <div className="flex items-start justify-center gap-1">
           {slots.map((card, index) => {
             const offset = Math.abs(2 - index)
-            const spacingClass =
-              index === 0 || index === 4 ? 'mx-1.5 sm:mx-2.5' : index === 1 || index === 3 ? 'mx-1.5 sm:mx-2' : 'mx-1.5'
 
             return (
               <div
                 key={`board-card-slot-${index}`}
-                className={`relative ${spacingClass}`}
+                className="relative"
                 style={{ transform: `translateY(${offset * 2}px)` }}
               >
                 <div
