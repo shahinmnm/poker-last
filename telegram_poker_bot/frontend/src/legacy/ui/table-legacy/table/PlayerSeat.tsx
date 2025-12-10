@@ -57,7 +57,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     },
     ref,
   ) => {
-    // Hooks must be called unconditionally - move useMemo before any early returns
+    // All hooks must be called unconditionally (before the isEmpty early return below)
     const initial = useMemo(
       () => (playerName?.charAt(0)?.toUpperCase() || '?'),
       [playerName],

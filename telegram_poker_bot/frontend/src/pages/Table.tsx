@@ -400,7 +400,7 @@ export default function TablePage() {
     if (heroIdString) {
       const me = liveState?.players.find(p => String(p.user_id) === String(heroIdString));
       if (me?.cards?.length) return me.cards;
-      if ((me as any)?.hole_cards?.length) return (me as any).hole_cards;
+      if (me?.hole_cards?.length) return me.hole_cards;
     }
     
     return [];
@@ -1137,6 +1137,16 @@ export default function TablePage() {
     () => formatByCurrency(potDisplayAmount, currencyType, { withDecimals: currencyType === 'REAL' }),
     [potDisplayAmount, currencyType],
   )
+  // Memoize winner display info to avoid find() on every render
+  const winnerDisplayInfo = useMemo(() => {
+    if (!lastHandResult?.winners?.length) return null
+    const winner = lastHandResult.winners[0]
+    const winnerPlayer = liveState?.players.find(p => p.user_id?.toString() === winner.user_id?.toString())
+    return {
+      amount: winner.amount,
+      displayName: winnerPlayer?.display_name || winnerPlayer?.username || 'Player',
+    }
+  }, [lastHandResult?.winners, liveState?.players])
   const winningBoardCards = useMemo(
     () =>
       liveState?.hand_result?.winners?.flatMap((winner) => winner.best_hand_cards ?? []) ?? [],
@@ -1653,17 +1663,14 @@ export default function TablePage() {
               {isInterHand && (
                 <div className="absolute top-[38%] left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none z-20 flex flex-col items-center">
                   {/* Winner Badge (Floating on Felt) */}
-                  {lastHandResult && lastHandResult.winners && lastHandResult.winners.length > 0 && (
+                  {winnerDisplayInfo && (
                     <div className="animate-in fade-in zoom-in duration-300 mb-4">
                       <div className="bg-gradient-to-r from-amber-500/90 to-amber-600/90 px-6 py-2 rounded-full border-2 border-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.5)] backdrop-blur-md flex flex-col items-center">
                         <span className="text-white font-bold text-lg leading-none drop-shadow-md">
-                          {(() => {
-                            const winner = lastHandResult.winners[0]
-                            return `${formatByCurrency(winner.amount, currencyType)} Chips`
-                          })()}
+                          {formatByCurrency(winnerDisplayInfo.amount, currencyType)} Chips
                         </span>
                         <span className="text-[10px] text-amber-100 uppercase tracking-widest font-semibold mt-1">
-                          Won by {liveState?.players.find(p => p.user_id?.toString() === lastHandResult?.winners[0].user_id?.toString())?.display_name || 'Player'}
+                          Won by {winnerDisplayInfo.displayName}
                         </span>
                       </div>
                     </div>
