@@ -99,8 +99,8 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #ffffff;
-  background: #10b981;
-  border-bottom-color: #047857;
+  background: #64748b;
+  border-bottom-color: #475569;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
   transition: all 0.2s ease;
 }

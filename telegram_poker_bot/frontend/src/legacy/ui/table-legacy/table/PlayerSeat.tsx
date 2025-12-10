@@ -196,7 +196,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
         {/* Compact Info Pill */}
         <div className="bg-black/70 backdrop-blur-md rounded-full px-3 py-0.5 min-w-[80px] text-center border border-white/10 mt-1">
-          <div className="text-[10px] font-bold text-white/90 truncate max-w-[80px] leading-tight">
+          <div className="text-[10px] font-bold text-white/90 truncate leading-tight">
             {playerName || seatLabel}
           </div>
           <div className="flex items-center justify-center gap-1 text-[10px] font-mono font-bold text-emerald-400 leading-tight">
