@@ -98,12 +98,15 @@ async def _ensure_admin_role(tg_user_id: int) -> None:
                     UserRole.ADMIN,
                     granted_by=None,  # System-granted
                 )
-                await session.commit()
                 logger.info(
                     "Admin role assigned to user",
                     user_id=user.id,
                     tg_user_id=tg_user_id,
                 )
+
+            # Commit only if we made changes
+            if not has_admin:
+                await session.commit()
 
         except Exception as exc:
             await session.rollback()
