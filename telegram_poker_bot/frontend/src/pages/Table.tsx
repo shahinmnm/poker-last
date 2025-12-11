@@ -109,6 +109,20 @@ interface TableDetails {
 type LastAction = NonNullable<TableState['last_action']>
 
 const TABLE_CENTER_Y_APPROX = 56
+const TABLE_CENTER_X_APPROX = 50
+const TABLE_SIDE_THRESHOLD = 15  // X distance from center to classify as left/right side
+
+/** Compute 4-directional side based on seat position relative to table center */
+const getSeatSide = (xPercent: number, yPercent: number): 'top' | 'bottom' | 'left' | 'right' => {
+  const isBottom = yPercent >= TABLE_CENTER_Y_APPROX
+  const isLeft = xPercent < TABLE_CENTER_X_APPROX - TABLE_SIDE_THRESHOLD
+  const isRight = xPercent > TABLE_CENTER_X_APPROX + TABLE_SIDE_THRESHOLD
+
+  // Prioritize left/right for extreme positions, otherwise top/bottom
+  if (isLeft) return 'left'
+  if (isRight) return 'right'
+  return isBottom ? 'bottom' : 'top'
+}
 
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
@@ -158,7 +172,6 @@ export default function TablePage() {
   const [actionPending, setActionPending] = useState(false)
   const [chipAnimations, setChipAnimations] = useState<ChipAnimation[]>([])
   const [showRecentHands, setShowRecentHands] = useState(false)
-  const [turnProgress, setTurnProgress] = useState(1)
   const [interHandProgress, setInterHandProgress] = useState(1) // Progress for inter-hand countdown
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
@@ -1372,26 +1385,6 @@ export default function TablePage() {
     liveState?.hand_id,
   ])
 
-  useEffect(() => {
-    if (!liveState?.action_deadline) {
-      setTurnProgress(1)
-      return
-    }
-
-    const deadlineMs = new Date(liveState.action_deadline).getTime()
-    const totalMs = Math.max(2000, (liveState?.turn_timeout_seconds ?? 12) * 1000)
-
-    const updateProgress = () => {
-      const remaining = Math.max(0, deadlineMs - Date.now())
-      const pct = Math.max(0, Math.min(1, remaining / totalMs))
-      setTurnProgress(pct)
-    }
-
-    updateProgress()
-    const interval = window.setInterval(updateProgress, 120)
-    return () => window.clearInterval(interval)
-  }, [liveState?.action_deadline, liveState?.turn_timeout_seconds])
-
   // Calculate inter-hand countdown progress
   useEffect(() => {
     if (!isInterHand || !liveState?.inter_hand_wait_deadline) {
@@ -1943,7 +1936,8 @@ export default function TablePage() {
                     const showOpponentBacks =
                       !isHeroPlayer &&
                       Boolean(player?.in_hand && liveState?.hand_id && !hasFolded && !showShowdownCards)
-                    const isBottomSeat = slot.yPercent >= TABLE_CENTER_Y_APPROX
+                    const seatSide = getSeatSide(slot.xPercent, slot.yPercent)
+                    const isBottomSeat = seatSide === 'bottom'
                     const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
                     const seatHoleCards = showHeroCards
                       ? heroCards
@@ -1987,14 +1981,13 @@ export default function TablePage() {
                               hasFolded={hasFolded}
                               isSittingOut={isSittingOut}
                               isAllIn={isAllIn}
-                              turnProgress={isActivePlayer ? turnProgress : null}
                               turnDeadline={isActivePlayer ? liveState?.action_deadline ?? null : null}
                               turnTotalSeconds={isActivePlayer ? liveState?.turn_timeout_seconds ?? null : null}
                               holeCards={seatHoleCards}
                               showCardBacks={showCardBacks}
                               isEmpty={isEmpty}
                               onClick={isEmpty && canJoin && !viewerIsSeated ? handleSeat : undefined}
-                              side={isBottomSeat ? 'bottom' : 'top'}
+                              side={seatSide}
                             />
 
                             {/* Sitting Out Badge - Shows "Away" or "Zzz" icon */}
