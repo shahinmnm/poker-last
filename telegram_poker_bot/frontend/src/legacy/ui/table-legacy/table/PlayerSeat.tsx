@@ -131,10 +131,11 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
           >
             <div className="flex items-center justify-center">
               {safeCards.map((card, index) => {
-                // Fan effect: alternate rotation and translation
-                const isFirstHalf = index < safeCards.length / 2
-                const rotation = isFirstHalf ? -6 : 6
-                const translateX = isFirstHalf ? 1 : -1
+                // Fan effect: first card rotates left, second rotates right
+                const totalCards = safeCards.length
+                const midpoint = totalCards / 2
+                const rotation = index < midpoint ? -6 : 6
+                const translateX = index < midpoint ? 1 : -1
                 return (
                   <div
                     key={`${card}-${index}`}
