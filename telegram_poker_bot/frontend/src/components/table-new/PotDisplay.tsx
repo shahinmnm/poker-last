@@ -1,7 +1,8 @@
 /**
  * PotDisplay Component
  * 
- * Displays the pot amount(s) in a clean, centered display.
+ * Displays the pot amount(s) in a floating pill with golden-orange gradient.
+ * Modern, minimalist design inspired by GGPoker/PokerBros.
  */
 
 import { formatByCurrency, type CurrencyType } from '@/utils/currency'
@@ -18,40 +19,36 @@ export function PotDisplay({ pots, currency = 'PLAY', className = '' }: PotDispl
 
   const totalPot = pots.reduce((sum, pot) => sum + pot.amount, 0)
 
-  // Single pot display
+  // Single pot display - sleek golden-orange pill
   if (pots.length === 1) {
     return (
       <div className={`pot-display ${className}`}>
-        <div className="bg-gray-900 bg-opacity-90 rounded-lg px-6 py-3 border border-yellow-600">
-          <div className="text-xs text-gray-400 uppercase tracking-wide text-center mb-1">
-            Pot
-          </div>
-          <div className="text-2xl font-bold text-yellow-400 font-mono text-center">
-            {formatByCurrency(pots[0].amount, currency)}
+        <div className="bg-gradient-to-b from-orange-400 to-orange-600 shadow-lg border border-orange-300/50 rounded-full px-4 py-1">
+          <div className="text-white font-bold text-sm tracking-wide whitespace-nowrap">
+            POT: {formatByCurrency(pots[0].amount, currency)}
           </div>
         </div>
       </div>
     )
   }
 
-  // Multiple pots display
+  // Multiple pots display - main pot with side pots below
   return (
-    <div className={`pot-display ${className}`}>
-      <div className="bg-gray-900 bg-opacity-90 rounded-lg px-6 py-3 border border-yellow-600">
-        <div className="text-xs text-gray-400 uppercase tracking-wide text-center mb-1">
-          Total Pot
+    <div className={`pot-display flex flex-col items-center gap-1 ${className}`}>
+      <div className="bg-gradient-to-b from-orange-400 to-orange-600 shadow-lg border border-orange-300/50 rounded-full px-4 py-1">
+        <div className="text-white font-bold text-sm tracking-wide whitespace-nowrap">
+          POT: {formatByCurrency(totalPot, currency)}
         </div>
-        <div className="text-2xl font-bold text-yellow-400 font-mono text-center">
-          {formatByCurrency(totalPot, currency)}
-        </div>
-        <div className="mt-2 flex gap-2 justify-center">
-          {pots.map((pot, index) => (
-            <div key={pot.pot_index} className="text-xs text-gray-400">
-              {index > 0 && <span className="mx-1">•</span>}
-              <span className="font-mono">{formatByCurrency(pot.amount, currency)}</span>
-            </div>
-          ))}
-        </div>
+      </div>
+      <div className="flex gap-2">
+        {pots.map((pot, index) => (
+          <div 
+            key={pot.pot_index} 
+            className="bg-black/40 backdrop-blur-sm rounded-full px-2 py-0.5 text-[10px] text-gray-200 font-medium"
+          >
+            {index === 0 ? 'Main' : `Side ${index}`}: {formatByCurrency(pot.amount, currency)}
+          </div>
+        ))}
       </div>
     </div>
   )

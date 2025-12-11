@@ -1,12 +1,12 @@
 /**
  * Phase 5: Seat Component
  * 
- * Renders a player seat with:
- * - Avatar + ring
- * - Button indicator
- * - Info pill (stack, bet)
- * - Cards (hole cards with visibility control)
- * - Timer
+ * Renders a player seat with compact, peripheral design:
+ * - Small avatar (w-10 h-10 to w-12 h-12) with ring border
+ * - Pill overlay at bottom of avatar (overlapping 30%)
+ * - Badges positioned close to avatar border
+ * - Cards displayed compactly below
+ * - Timer integrated with avatar
  */
 
 import { useMemo } from 'react'
@@ -62,7 +62,7 @@ export function Seat({
     return classes.join(' ')
   }, [is_acting, isActing, is_winner, is_sitting_out, isEmpty, isHero, onClick])
 
-  // Empty seat
+  // Empty seat - minimal placeholder
   if (isEmpty) {
     return (
       <div
@@ -70,7 +70,7 @@ export function Seat({
         data-seat-index={seat_index}
         onClick={onClick}
       >
-        <div className="seat-empty-placeholder w-16 h-16 rounded-full border-2 border-dashed border-gray-600 flex items-center justify-center text-gray-500">
+        <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-600/50 flex items-center justify-center text-gray-500 text-xs">
           {seat_index + 1}
         </div>
       </div>
@@ -84,88 +84,85 @@ export function Seat({
       data-user-id={user_id}
       onClick={onClick}
     >
-      {/* Seat container */}
-      <div className="seat-content flex flex-col items-center gap-2">
-        {/* Avatar with ring - apply opacity when sitting out */}
+      {/* Seat container - compact vertical layout */}
+      <div className="seat-content flex flex-col items-center">
+        {/* Avatar container with overlapping pill */}
         <div className={`relative ${is_sitting_out ? 'opacity-50' : ''}`}>
-          {/* Hero badge */}
-          {isHero && (
-            <div className="absolute -top-2 -left-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold text-white z-10">
-              YOU
-            </div>
-          )}
-          
-          {/* Sitting out badge */}
-          {is_sitting_out && (
-            <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-xs font-bold text-gray-900 z-10">
-              Zzz
-            </div>
-          )}
-          
-          {/* Acting ring */}
-          {is_acting && isActing && (
-            <div className="absolute inset-0 rounded-full border-4 border-yellow-400 animate-pulse" />
-          )}
-          
-          {/* Winner highlight */}
-          {is_winner && (
-            <div className="absolute inset-0 rounded-full border-4 border-green-400 animate-win-highlight" />
-          )}
-          
-          {/* Button indicator */}
+          {/* Dealer button badge - positioned at top-right of avatar */}
           {is_button && (
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-xs font-bold text-black">
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center text-[8px] font-bold text-black z-20 shadow-md">
               D
             </div>
           )}
           
-          {/* Avatar */}
-          <div className="avatar w-16 h-16 rounded-full overflow-hidden bg-gray-700 border-2 border-gray-600">
+          {/* Acting ring with animation */}
+          {is_acting && isActing && (
+            <div className="absolute inset-0 rounded-full ring-2 ring-yellow-400 animate-pulse" />
+          )}
+          
+          {/* Winner highlight */}
+          {is_winner && (
+            <div className="absolute inset-0 rounded-full ring-2 ring-green-400 animate-pulse" />
+          )}
+          
+          {/* Avatar - compact size w-10 h-10 */}
+          <div className="avatar w-10 h-10 rounded-full overflow-hidden bg-gray-700 ring-2 ring-white/10">
             {avatar_url ? (
               <img src={avatar_url} alt={display_name || 'Player'} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-gray-400">
+              <div className="w-full h-full flex items-center justify-center text-lg font-bold text-gray-400">
                 {display_name?.[0]?.toUpperCase() || '?'}
               </div>
             )}
           </div>
           
-          {/* Timer (only when acting) */}
+          {/* Timer (only when acting) - positioned around avatar */}
           {is_acting && actionDeadline && (
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
-              <CircularTimer deadline={actionDeadline} size={40} strokeWidth={3} />
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
+              <CircularTimer deadline={actionDeadline} size={24} strokeWidth={2} />
             </div>
           )}
+          
+          {/* Info pill - overlapping bottom 30% of avatar */}
+          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-full px-2 py-0.5 border border-white/10 shadow-md whitespace-nowrap">
+            <div className="flex flex-col items-center">
+              <div className="text-[10px] text-gray-300 truncate max-w-[60px] leading-tight">
+                {display_name || 'Anon'}
+              </div>
+              <div className="text-[10px] text-emerald-400 font-bold leading-tight">
+                {formatByCurrency(stack_amount, currency)}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Info pill */}
-        <div className="info-pill bg-gray-800 rounded-full px-3 py-1 min-w-[100px] text-center">
-          <div className="display-name text-xs font-semibold text-white truncate max-w-[120px]">
-            {display_name || 'Anonymous'}
-          </div>
-          <div className="stack text-xs font-mono text-green-400">
-            {formatByCurrency(stack_amount, currency)}
-          </div>
+        {/* Status badges below avatar - compact */}
+        <div className="mt-4 flex flex-col items-center gap-0.5">
           {current_bet > 0 && (
-            <div className="current-bet text-xs font-mono text-yellow-400">
-              Bet: {formatByCurrency(current_bet, currency)}
+            <div className="bg-yellow-500/20 text-yellow-400 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+              {formatByCurrency(current_bet, currency)}
             </div>
           )}
           {is_all_in && (
-            <div className="all-in-badge text-xs font-bold text-red-400">
+            <div className="bg-red-500/20 text-red-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
               ALL IN
             </div>
           )}
           {is_sitting_out && (
-            <div className="sitting-out-badge text-xs font-semibold text-yellow-500">
-              Sitting Out
+            <div className="bg-yellow-500/20 text-yellow-500 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+              Zzz
+            </div>
+          )}
+          {isHero && (
+            <div className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              YOU
             </div>
           )}
         </div>
 
-        {/* Hole cards */}
+        {/* Hole cards - compact display */}
         {hole_cards && hole_cards.length > 0 && !is_sitting_out && (
-          <div className="hole-cards flex gap-1 mt-1">
+          <div className="hole-cards flex gap-0.5 mt-1">
             {hole_cards.map((card, index) => (
               <CardRenderer
                 key={index}

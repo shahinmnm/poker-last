@@ -1,13 +1,14 @@
 /**
  * Phase 5: ActionPanel Component (Backend-Driven)
  * 
+ * Modern floating pill buttons inspired by GGPoker/PokerBros.
+ * No full-width background bar - centered floating pills.
  * Renders action buttons based ONLY on backend legal_actions[].
- * No client-side calculations. No variant heuristics.
  */
 
 import { useState, useMemo } from 'react'
+import { Minus, Plus } from 'lucide-react'
 import type { LegalAction, ActionType } from '../../types/normalized'
-import Button from '../ui/Button'
 import Toggle from '../ui/Toggle'
 import { formatByCurrency, type CurrencyType } from '@/utils/currency'
 
@@ -31,7 +32,7 @@ export function ActionPanel({
   showSitOutToggle = false,
 }: ActionPanelProps) {
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null)
-  const [showRaiseSlider, setShowRaiseSlider] = useState(false)
+  const [showRaiseControl, setShowRaiseControl] = useState(false)
 
   // Find raise/bet action for slider
   const raiseAction = useMemo(() => {
@@ -48,21 +49,31 @@ export function ActionPanel({
   const handleAction = (action: ActionType, amount?: number) => {
     if (disabled) return
     onAction(action, amount)
-    setShowRaiseSlider(false)
+    setShowRaiseControl(false)
   }
 
   const handleRaiseClick = () => {
     if (!raiseAction) return
-    
-    if (!showRaiseSlider) {
-      setShowRaiseSlider(true)
-    } else {
-      handleAction(raiseAction.action, raiseAmount || raiseAction.min_amount)
-    }
+    setShowRaiseControl(true)
   }
 
-  const handlePreset = (amount: number) => {
-    setRaiseAmount(amount)
+  const handleRaiseConfirm = () => {
+    if (!raiseAction) return
+    handleAction(raiseAction.action, raiseAmount || raiseAction.min_amount)
+  }
+
+  const incrementRaise = () => {
+    if (!raiseAction || raiseAmount === null) return
+    const step = Math.max(1, Math.floor((raiseAction.max_amount || 0) / 10))
+    const newAmount = Math.min(raiseAmount + step, raiseAction.max_amount || raiseAmount)
+    setRaiseAmount(newAmount)
+  }
+
+  const decrementRaise = () => {
+    if (!raiseAction || raiseAmount === null) return
+    const step = Math.max(1, Math.floor((raiseAction.max_amount || 0) / 10))
+    const newAmount = Math.max(raiseAmount - step, raiseAction.min_amount || 0)
+    setRaiseAmount(newAmount)
   }
 
   // Don't render if no legal actions AND sit out toggle is not shown
@@ -70,172 +81,20 @@ export function ActionPanel({
     return null
   }
 
+  // Check which actions are available
+  const hasFold = legalActions.some(a => a.action === 'fold')
+  const hasCheck = legalActions.some(a => a.action === 'check')
+  const callAction = legalActions.find(a => a.action === 'call')
+  const hasAllIn = legalActions.some(a => a.action === 'all_in')
+  const hasReady = legalActions.some(a => a.action === 'ready')
+
   return (
-    <div className="action-panel bg-gray-800 rounded-lg p-4 space-y-3">
-      {/* Main action buttons */}
-      {legalActions.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-        {legalActions.map((action) => {
-          if (action.action === 'raise' || action.action === 'bet') {
-            // Raise/Bet button with slider
-            return (
-              <Button
-                key={action.action}
-                onClick={handleRaiseClick}
-                variant="primary"
-                disabled={disabled}
-                className="flex-1 min-w-[100px]"
-              >
-                {action.action === 'raise' ? 'Raise' : 'Bet'}
-                {showRaiseSlider && raiseAmount !== null && (
-                  <span className="ml-2 font-mono">
-                    {formatByCurrency(raiseAmount, currency)}
-                  </span>
-                )}
-              </Button>
-            )
-          }
-
-          if (action.action === 'call') {
-            return (
-              <Button
-                key={action.action}
-                onClick={() => handleAction('call')}
-                variant="primary"
-                disabled={disabled}
-                className="flex-1 min-w-[100px]"
-              >
-                Call{' '}
-                {action.call_amount !== undefined && (
-                  <span className="font-mono ml-1">
-                    {formatByCurrency(action.call_amount, currency)}
-                  </span>
-                )}
-              </Button>
-            )
-          }
-
-          if (action.action === 'check') {
-            return (
-              <Button
-                key={action.action}
-                onClick={() => handleAction('check')}
-                variant="primary"
-                disabled={disabled}
-                className="flex-1 min-w-[100px]"
-              >
-                Check
-              </Button>
-            )
-          }
-
-          if (action.action === 'fold') {
-            return (
-              <Button
-                key={action.action}
-                onClick={() => handleAction('fold')}
-                variant="danger"
-                disabled={disabled}
-                className="flex-1 min-w-[100px]"
-              >
-                Fold
-              </Button>
-            )
-          }
-
-          if (action.action === 'all_in') {
-            return (
-              <Button
-                key={action.action}
-                onClick={() => handleAction('all_in')}
-                variant="danger"
-                disabled={disabled}
-                className="flex-1 min-w-[100px]"
-              >
-                All In
-              </Button>
-            )
-          }
-
-          if (action.action === 'ready') {
-            return (
-              <Button
-                key={action.action}
-                onClick={() => handleAction('ready')}
-                variant="primary"
-                disabled={disabled}
-                className="flex-1 min-w-[100px]"
-              >
-                Ready
-              </Button>
-            )
-          }
-
-          // Generic action button
-          return (
-            <Button
-              key={action.action}
-              onClick={() => handleAction(action.action)}
-              disabled={disabled}
-              className="flex-1 min-w-[100px]"
-            >
-              {action.action}
-            </Button>
-          )
-        })}
-      </div>
-      )}
-
-      {/* Raise/Bet slider */}
-      {showRaiseSlider && raiseAction && (
-        <div className="raise-slider space-y-2">
-          <div className="flex justify-between text-sm text-gray-400">
-            <span>
-              Min: {formatByCurrency(raiseAction.min_amount || 0, currency)}
-            </span>
-            <span>
-              Max: {formatByCurrency(raiseAction.max_amount || 0, currency)}
-            </span>
-          </div>
-
-          <input
-            type="range"
-            min={raiseAction.min_amount || 0}
-            max={raiseAction.max_amount || 0}
-            value={raiseAmount || raiseAction.min_amount || 0}
-            onChange={(e) => setRaiseAmount(Number(e.target.value))}
-            className="w-full"
-            disabled={disabled}
-          />
-
-          <div className="text-center text-lg font-mono text-white">
-            {formatByCurrency(raiseAmount || raiseAction.min_amount || 0, currency)}
-          </div>
-
-          {/* Presets */}
-          {raiseAction.presets && raiseAction.presets.length > 0 && (
-            <div className="flex gap-2 justify-center">
-              {raiseAction.presets.map((preset, index) => (
-                <Button
-                  key={index}
-                  onClick={() => handlePreset(preset.amount)}
-                  size="sm"
-                  variant="secondary"
-                  disabled={disabled}
-                >
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Sit Out Toggle */}
+    <div className="action-panel flex flex-col items-center gap-3">
+      {/* Sit Out Toggle - glassmorphism pill at top */}
       {showSitOutToggle && onSitOutToggle && (
-        <div className="sit-out-toggle flex items-center justify-between px-2 py-2 bg-gray-700 rounded-lg">
-          <label htmlFor="sit-out-toggle" className="text-sm font-medium text-gray-200 cursor-pointer">
-            Sit Out Next Hand
+        <div className="sit-out-toggle bg-black/40 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-3">
+          <label htmlFor="sit-out-toggle" className="text-xs font-medium text-gray-200 cursor-pointer">
+            Sit Out
           </label>
           <Toggle
             id="sit-out-toggle"
@@ -243,6 +102,145 @@ export function ActionPanel({
             onChange={onSitOutToggle}
             disabled={disabled}
           />
+        </div>
+      )}
+
+      {/* Main action buttons - floating pills */}
+      {legalActions.length > 0 && (
+        <div className="flex gap-3 items-end">
+          {/* Fold button - rose gradient pill */}
+          {hasFold && (
+            <button
+              onClick={() => handleAction('fold')}
+              disabled={disabled}
+              className="bg-gradient-to-b from-rose-500 to-rose-700 shadow-lg shadow-rose-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Fold
+            </button>
+          )}
+
+          {/* Check button - emerald gradient pill */}
+          {hasCheck && (
+            <button
+              onClick={() => handleAction('check')}
+              disabled={disabled}
+              className="bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Check
+            </button>
+          )}
+
+          {/* Call button - emerald gradient pill */}
+          {callAction && (
+            <button
+              onClick={() => handleAction('call')}
+              disabled={disabled}
+              className="bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Call{' '}
+              {callAction.call_amount !== undefined && (
+                <span className="font-mono ml-1">
+                  {formatByCurrency(callAction.call_amount, currency)}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Raise/Bet Control - composite pill UI */}
+          {raiseAction && !showRaiseControl && (
+            <button
+              onClick={handleRaiseClick}
+              disabled={disabled}
+              className="bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {raiseAction.action === 'raise' ? 'Raise' : 'Bet'}
+            </button>
+          )}
+
+          {/* Expanded Raise Control - composite pill */}
+          {raiseAction && showRaiseControl && (
+            <div className="bg-black/60 backdrop-blur-md rounded-full p-1 flex items-center gap-1">
+              {/* Minus button */}
+              <button
+                onClick={decrementRaise}
+                disabled={disabled}
+                className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-white transition-colors disabled:opacity-50"
+              >
+                <Minus size={14} />
+              </button>
+              
+              {/* Amount display */}
+              <div className="px-3 min-w-[80px] text-center">
+                <span className="text-emerald-400 font-bold text-sm">
+                  {formatByCurrency(raiseAmount || raiseAction.min_amount || 0, currency)}
+                </span>
+              </div>
+              
+              {/* Plus button */}
+              <button
+                onClick={incrementRaise}
+                disabled={disabled}
+                className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-white transition-colors disabled:opacity-50"
+              >
+                <Plus size={14} />
+              </button>
+              
+              {/* Confirm button */}
+              <button
+                onClick={handleRaiseConfirm}
+                disabled={disabled}
+                className="bg-emerald-500 hover:bg-emerald-600 rounded-full px-4 py-1 text-sm font-bold text-white transition-colors disabled:opacity-50"
+              >
+                {raiseAction.action === 'raise' ? 'Raise' : 'Bet'}
+              </button>
+              
+              {/* Cancel button */}
+              <button
+                onClick={() => setShowRaiseControl(false)}
+                className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-300 transition-colors text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* All In button - danger pill */}
+          {hasAllIn && (
+            <button
+              onClick={() => handleAction('all_in')}
+              disabled={disabled}
+              className="bg-gradient-to-b from-red-500 to-red-700 shadow-lg shadow-red-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              All In
+            </button>
+          )}
+
+          {/* Ready button - primary pill */}
+          {hasReady && (
+            <button
+              onClick={() => handleAction('ready')}
+              disabled={disabled}
+              className="bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Ready
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Presets - shown when raise control is open */}
+      {showRaiseControl && raiseAction && raiseAction.presets && raiseAction.presets.length > 0 && (
+        <div className="flex gap-2 justify-center">
+          {raiseAction.presets.map((preset, index) => (
+            <button
+              key={index}
+              onClick={() => setRaiseAmount(preset.amount)}
+              disabled={disabled}
+              className="bg-black/40 backdrop-blur-sm text-gray-200 text-xs font-medium px-3 py-1 rounded-full hover:bg-black/60 transition-colors disabled:opacity-50"
+            >
+              {preset.label}
+            </button>
+          ))}
         </div>
       )}
     </div>
