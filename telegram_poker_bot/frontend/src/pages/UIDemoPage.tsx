@@ -22,13 +22,13 @@ export default function UIDemoPage() {
 
         {/* PlayerSeat Demo - NEW */}
         <section className="mb-12 p-6 bg-gray-800 rounded-xl">
-          <h2 className="text-xl font-semibold text-white mb-4">PlayerSeat - Modern Integrated Design</h2>
-          <p className="text-gray-400 mb-4">Compact, overlap-free design with avatar, cards, and info pill</p>
+          <h2 className="text-xl font-semibold text-white mb-4">PlayerSeat - 4-Directional Layout</h2>
+          <p className="text-gray-400 mb-4">Direction-aware Flexbox layout with gravity towards table center</p>
           
           <div className="grid grid-cols-2 gap-8">
             <div className="flex flex-col items-center gap-4">
               <h3 className="text-sm text-gray-300">Bottom Seat (Hero)</h3>
-              <div className="p-8 bg-emerald-900/30 rounded-xl relative min-h-[140px] flex items-center justify-center">
+              <div className="p-8 bg-emerald-900/30 rounded-xl relative min-h-[160px] flex items-center justify-center">
                 <PlayerSeat
                   playerName="Hero Player"
                   chipCount={15000}
@@ -47,7 +47,7 @@ export default function UIDemoPage() {
             
             <div className="flex flex-col items-center gap-4">
               <h3 className="text-sm text-gray-300">Top Seat (Villain)</h3>
-              <div className="p-8 bg-rose-900/30 rounded-xl relative min-h-[140px] flex items-center justify-center">
+              <div className="p-8 bg-rose-900/30 rounded-xl relative min-h-[160px] flex items-center justify-center">
                 <PlayerSeat
                   playerName="Villain"
                   chipCount={8500}
@@ -61,6 +61,45 @@ export default function UIDemoPage() {
                   showCardBacks={true}
                   holeCards={['XX', 'XX']}
                   side="top"
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-center gap-4">
+              <h3 className="text-sm text-gray-300">Left Seat (Side Villain)</h3>
+              <div className="p-8 bg-blue-900/30 rounded-xl relative min-h-[160px] min-w-[200px] flex items-center justify-center">
+                <PlayerSeat
+                  playerName="LeftPlayer"
+                  chipCount={12000}
+                  seatLabel="Seat 2"
+                  positionLabel="BB"
+                  isHero={false}
+                  isActive={false}
+                  hasFolded={false}
+                  isSittingOut={false}
+                  isAllIn={false}
+                  showCardBacks={true}
+                  holeCards={['XX', 'XX']}
+                  side="left"
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-center gap-4">
+              <h3 className="text-sm text-gray-300">Right Seat (Side Villain)</h3>
+              <div className="p-8 bg-purple-900/30 rounded-xl relative min-h-[160px] min-w-[200px] flex items-center justify-center">
+                <PlayerSeat
+                  playerName="RightPlayer"
+                  chipCount={9500}
+                  seatLabel="Seat 5"
+                  isHero={false}
+                  isActive={true}
+                  hasFolded={false}
+                  isSittingOut={false}
+                  isAllIn={false}
+                  showCardBacks={true}
+                  holeCards={['XX', 'XX']}
+                  side="right"
                 />
               </div>
             </div>
