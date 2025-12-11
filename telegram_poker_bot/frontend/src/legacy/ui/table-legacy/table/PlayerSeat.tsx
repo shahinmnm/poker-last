@@ -24,6 +24,8 @@ export interface PlayerSeatProps {
   isEmpty?: boolean
   onClick?: () => void
   className?: string
+  /** Seat direction for card/info pill positioning */
+  side?: 'top' | 'bottom'
 }
 
 const formatChips = (value: number): string => {
@@ -52,6 +54,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       isEmpty = false,
       onClick,
       className,
+      side = 'bottom',
     },
     ref,
   ) => {
@@ -111,21 +114,55 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       <div
         ref={ref}
         className={clsx(
-          'relative flex w-20 flex-col items-center justify-center transition-all duration-300',
+          'relative flex w-[90px] flex-col items-center justify-center transition-all duration-300',
           mutedState && 'grayscale opacity-50',
           className,
         )}
         style={{ zIndex: isActive ? 30 : 20 }}
         aria-label={seatLabel}
       >
-        {/* Avatar */}
+        {/* Hole Cards (Z-Index 5) - Positioned behind avatar */}
+        {safeCards.length > 0 && (
+          <div
+            className={clsx(
+              'absolute z-[5] scale-75 pointer-events-none',
+              side === 'bottom' ? 'top-[-20px]' : 'bottom-[-20px]',
+            )}
+          >
+            <div className="flex items-center justify-center">
+              {safeCards.map((card, index) => {
+                // Fan effect: first card rotates left, second rotates right
+                const totalCards = safeCards.length
+                const midpoint = totalCards / 2
+                const rotation = index < midpoint ? -6 : 6
+                const translateX = index < midpoint ? 1 : -1
+                return (
+                  <div
+                    key={`${card}-${index}`}
+                    style={{
+                      transform: `rotate(${rotation}deg) translateX(${translateX}px)`,
+                    }}
+                  >
+                    <PlayingCard
+                      card={cardsHidden ? 'XX' : card}
+                      hidden={cardsHidden}
+                      size="sm"
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Avatar Group (Z-Index 10) */}
         <div className="relative z-10 flex items-center justify-center">
-          <div className="relative flex h-[66px] w-[66px] items-center justify-center">
+          <div className="relative flex h-14 w-14 items-center justify-center">
             {showTimer && turnDeadline && totalTime !== null && (
               <PlayerCircularTimer
                 deadline={turnDeadline}
                 totalSeconds={totalTime}
-                size={66}
+                size={56}
                 strokeWidth={3}
                 className="absolute inset-0"
               />
@@ -133,19 +170,28 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
             <div
               className={clsx(
-                'relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-[2.5px] ring-white/20',
-                isHero && 'ring-2 ring-amber-200/80',
+                'relative flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white border-2 border-white/10 shadow-2xl',
+                isActive && 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-black',
+                isHero && !isActive && 'ring-2 ring-amber-200/80',
               )}
             >
               <span>{initial}</span>
 
               {isAllIn && (
-                <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">
+                <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg z-20">
                   ALL-IN
                 </span>
               )}
 
-              {positionLabel && (
+              {/* Dealer Badge (BTN) - Floating at top-right edge */}
+              {positionLabel === 'BTN' && (
+                <span className="absolute -right-1 -top-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[9px] font-black text-slate-900 shadow">
+                  D
+                </span>
+              )}
+
+              {/* Other position labels (SB, BB) */}
+              {positionLabel && positionLabel !== 'BTN' && (
                 <span className="absolute -right-1 -top-1 z-20 flex h-4 min-w-[18px] items-center justify-center rounded-full bg-white/90 px-1 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow">
                   {positionLabel}
                 </span>
@@ -163,31 +209,20 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
           </div>
         </div>
 
-        {/* Compact Info Pill */}
-        <div className="-mt-3 z-20 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 shadow-lg text-center min-w-[70px]">
-          <div className="text-[9px] font-bold text-gray-200 truncate leading-none mb-0.5">
+        {/* Info Pill (Z-Index 20) - Black Capsule Style */}
+        <div
+          className={clsx(
+            'absolute z-20 bg-black/90 px-3 py-0.5 rounded-full border border-white/5 shadow-lg text-center',
+            side === 'bottom' ? '-bottom-3' : '-top-3',
+          )}
+        >
+          <div className="text-[9px] font-bold text-gray-300 truncate max-w-[70px] leading-none">
             {playerName || seatLabel}
           </div>
           <div className="text-[10px] font-mono font-bold text-emerald-400 leading-none">
             {formatChips(chipCount)}
           </div>
         </div>
-
-        {/* Hole Cards */}
-        {safeCards.length > 0 && (
-          <div className="-mt-2 z-30 transform scale-75 origin-top hover:scale-90 transition-transform pointer-events-none">
-            <div className="flex gap-1 justify-center">
-              {safeCards.map((card, index) => (
-                <PlayingCard
-                  key={`${card}-${index}`}
-                  card={cardsHidden ? 'XX' : card}
-                  hidden={cardsHidden}
-                  size="sm"
-                />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     )
   },

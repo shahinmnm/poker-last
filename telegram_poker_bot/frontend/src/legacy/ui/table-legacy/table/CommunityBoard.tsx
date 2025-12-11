@@ -31,8 +31,8 @@ export default function CommunityBoard({
     return () => window.clearTimeout(timer)
   }, [potAmount])
 
-  const cardHeight = 'clamp(50px, 10vw, 76px)'
-  const cardWidth = 'clamp(36px, 7.6vw, 54px)'
+  const cardHeight = 'clamp(56px, 12vw, 84px)'
+  const cardWidth = 'clamp(40px, 9vw, 60px)'
   const safePotAmount = Number.isFinite(potAmount) ? potAmount : 0
   const displayPot = formatByCurrency(safePotAmount, currencyType, { withDecimals: currencyType === 'REAL' })
 
@@ -52,24 +52,24 @@ export default function CommunityBoard({
       </div>
 
       <div className="flex w-full items-center justify-center px-2 sm:px-4">
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex gap-1 items-center justify-center bg-black/20 px-4 py-2 rounded-2xl backdrop-blur-sm border border-white/5">
           {slots.map((card, index) => {
-            const offset = Math.abs(2 - index)
-
             return (
               <div
                 key={`board-card-slot-${index}`}
                 className="relative"
-                style={{ transform: `translateY(${offset * 2}px)` }}
               >
                 <div
-                  className="flex items-center justify-center rounded-lg border border-white/20 bg-white/10 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+                  className="flex items-center justify-center"
                   style={{ height: cardHeight, width: cardWidth }}
                 >
                   {card ? (
                     <PlayingCard card={card} size="md" highlighted={highlightedCards.includes(card)} />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center">
+                    <div 
+                      className="flex items-center justify-center rounded-lg border border-white/20 bg-white/10"
+                      style={{ height: cardHeight, width: cardWidth }}
+                    >
                       <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
                     </div>
                   )}
