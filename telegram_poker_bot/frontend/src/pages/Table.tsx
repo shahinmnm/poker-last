@@ -1994,6 +1994,7 @@ export default function TablePage() {
                               showCardBacks={showCardBacks}
                               isEmpty={isEmpty}
                               onClick={isEmpty && canJoin && !viewerIsSeated ? handleSeat : undefined}
+                              side={isBottomSeat ? 'bottom' : 'top'}
                             />
 
                             {/* Sitting Out Badge - Shows "Away" or "Zzz" icon */}

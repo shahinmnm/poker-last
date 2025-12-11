@@ -6,6 +6,8 @@ import { useState } from 'react'
 import ConnectionStatus from '../components/ui/ConnectionStatus'
 import { Loader2 } from 'lucide-react'
 import type { ConnectionState } from '../types/normalized'
+import PlayerSeat from '../legacy/ui/table-legacy/table/PlayerSeat'
+import CommunityBoard from '../legacy/ui/table-legacy/table/CommunityBoard'
 
 export default function UIDemoPage() {
   const [connectionState, setConnectionState] = useState<ConnectionState>('live')
@@ -17,6 +19,130 @@ export default function UIDemoPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-8">UI/UX Enhancement Demo</h1>
+
+        {/* PlayerSeat Demo - NEW */}
+        <section className="mb-12 p-6 bg-gray-800 rounded-xl">
+          <h2 className="text-xl font-semibold text-white mb-4">PlayerSeat - Modern Integrated Design</h2>
+          <p className="text-gray-400 mb-4">Compact, overlap-free design with avatar, cards, and info pill</p>
+          
+          <div className="grid grid-cols-2 gap-8">
+            <div className="flex flex-col items-center gap-4">
+              <h3 className="text-sm text-gray-300">Bottom Seat (Hero)</h3>
+              <div className="p-8 bg-emerald-900/30 rounded-xl relative min-h-[140px] flex items-center justify-center">
+                <PlayerSeat
+                  playerName="Hero Player"
+                  chipCount={15000}
+                  seatLabel="Seat 1"
+                  positionLabel="BTN"
+                  isHero={true}
+                  isActive={true}
+                  hasFolded={false}
+                  isSittingOut={false}
+                  isAllIn={false}
+                  holeCards={['Ah', 'Kh']}
+                  side="bottom"
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-center gap-4">
+              <h3 className="text-sm text-gray-300">Top Seat (Villain)</h3>
+              <div className="p-8 bg-rose-900/30 rounded-xl relative min-h-[140px] flex items-center justify-center">
+                <PlayerSeat
+                  playerName="Villain"
+                  chipCount={8500}
+                  seatLabel="Seat 4"
+                  positionLabel="SB"
+                  isHero={false}
+                  isActive={false}
+                  hasFolded={false}
+                  isSittingOut={false}
+                  isAllIn={false}
+                  showCardBacks={true}
+                  holeCards={['XX', 'XX']}
+                  side="top"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mt-8">
+            <div className="flex flex-col items-center gap-2">
+              <h3 className="text-xs text-gray-400">Folded</h3>
+              <div className="p-4 bg-gray-700/50 rounded-lg">
+                <PlayerSeat
+                  playerName="FoldedPlayer"
+                  chipCount={5000}
+                  seatLabel="Seat 2"
+                  isHero={false}
+                  isActive={false}
+                  hasFolded={true}
+                  isSittingOut={false}
+                  isAllIn={false}
+                  side="bottom"
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-center gap-2">
+              <h3 className="text-xs text-gray-400">All-In</h3>
+              <div className="p-4 bg-gray-700/50 rounded-lg">
+                <PlayerSeat
+                  playerName="AllInPlayer"
+                  chipCount={0}
+                  seatLabel="Seat 3"
+                  isHero={false}
+                  isActive={false}
+                  hasFolded={false}
+                  isSittingOut={false}
+                  isAllIn={true}
+                  holeCards={['Qd', 'Jd']}
+                  side="bottom"
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-center gap-2">
+              <h3 className="text-xs text-gray-400">Empty Seat</h3>
+              <div className="p-4 bg-gray-700/50 rounded-lg">
+                <PlayerSeat
+                  playerName=""
+                  chipCount={0}
+                  seatLabel="Seat 5"
+                  isHero={false}
+                  isActive={false}
+                  hasFolded={false}
+                  isSittingOut={false}
+                  isAllIn={false}
+                  isEmpty={true}
+                  side="bottom"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CommunityBoard Demo - NEW */}
+        <section className="mb-12 p-6 bg-gray-800 rounded-xl">
+          <h2 className="text-xl font-semibold text-white mb-4">CommunityBoard - Cinematic Design</h2>
+          <p className="text-gray-400 mb-4">Tight board line with black/20 bg and backdrop blur</p>
+          
+          <div className="p-6 bg-emerald-900/20 rounded-xl">
+            <CommunityBoard
+              potAmount={2500}
+              cards={['Ah', 'Kd', 'Qc', 'Jh', 'Ts']}
+              highlightedCards={['Ah', 'Kd']}
+            />
+          </div>
+          
+          <div className="mt-4 p-6 bg-emerald-900/20 rounded-xl">
+            <h3 className="text-sm text-gray-300 mb-2">Flop Only</h3>
+            <CommunityBoard
+              potAmount={500}
+              cards={['7s', '2h', '9d']}
+            />
+          </div>
+        </section>
         
         {/* ConnectionStatus Demo */}
         <section className="mb-12 p-6 bg-gray-800 rounded-xl">
