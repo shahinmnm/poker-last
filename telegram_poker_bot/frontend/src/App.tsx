@@ -23,6 +23,7 @@ import AdminTables from './pages/admin/AdminTables'
 import AdminTableTemplates from './pages/admin/AdminTableTemplates'
 import UIDemoPage from './pages/UIDemoPage'
 import { useTelegram } from './hooks/useTelegram'
+import OrientationGuard from './components/ui/OrientationGuard'
 
 function StartParamBridge() {
   const { startParam } = useTelegram()
@@ -50,41 +51,43 @@ function App() {
         <ThemeProvider>
           <UserDataProvider>
             <LayoutProvider>
-              <BrowserRouter>
-                <StartParamBridge />
-                <Routes>
-                  <Route element={<MainLayout />}>
-                    <Route index element={<HomePage />} />
-                    <Route path="lobby" element={<LobbyNewPage />} />
-                    <Route path="ui-demo" element={<UIDemoPage />} />
-                    <Route path="games">
-                      <Route path="create" element={<CreateGamePage />} />
-                      <Route path="join" element={<JoinGamePage />} />
-                    </Route>
-                    <Route path="group">
-                      <Route path="invite" element={<GroupInvitePage />} />
-                      <Route path="join">
-                        <Route index element={<GroupJoinPage />} />
-                        <Route path=":gameId" element={<GroupJoinPage />} />
+              <OrientationGuard>
+                <BrowserRouter>
+                  <StartParamBridge />
+                  <Routes>
+                    <Route element={<MainLayout />}>
+                      <Route index element={<HomePage />} />
+                      <Route path="lobby" element={<LobbyNewPage />} />
+                      <Route path="ui-demo" element={<UIDemoPage />} />
+                      <Route path="games">
+                        <Route path="create" element={<CreateGamePage />} />
+                        <Route path="join" element={<JoinGamePage />} />
                       </Route>
+                      <Route path="group">
+                        <Route path="invite" element={<GroupInvitePage />} />
+                        <Route path="join">
+                          <Route index element={<GroupJoinPage />} />
+                          <Route path=":gameId" element={<GroupJoinPage />} />
+                        </Route>
+                      </Route>
+                      <Route path="profile">
+                        <Route index element={<ProfilePage />} />
+                        <Route path="stats" element={<StatsPage />} />
+                      </Route>
+                      <Route path="wallet" element={<WalletPage />} />
+                      <Route path="table/:tableId" element={<TablePage />} />
                     </Route>
-                    <Route path="profile">
-                      <Route index element={<ProfilePage />} />
-                      <Route path="stats" element={<StatsPage />} />
+                    <Route path="admin" element={<AdminDashboard />}>
+                      <Route index element={<Navigate to="/admin/analytics" replace />} />
+                      <Route path="analytics" element={<AdminAnalytics />} />
+                      <Route path="insights" element={<AdminInsights />} />
+                      <Route path="tables" element={<AdminTables />} />
+                      <Route path="table-templates" element={<AdminTableTemplates />} />
                     </Route>
-                    <Route path="wallet" element={<WalletPage />} />
-                    <Route path="table/:tableId" element={<TablePage />} />
-                  </Route>
-                  <Route path="admin" element={<AdminDashboard />}>
-                    <Route index element={<Navigate to="/admin/analytics" replace />} />
-                    <Route path="analytics" element={<AdminAnalytics />} />
-                    <Route path="insights" element={<AdminInsights />} />
-                    <Route path="tables" element={<AdminTables />} />
-                    <Route path="table-templates" element={<AdminTableTemplates />} />
-                  </Route>
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </BrowserRouter>
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </BrowserRouter>
+              </OrientationGuard>
             </LayoutProvider>
           </UserDataProvider>
         </ThemeProvider>
