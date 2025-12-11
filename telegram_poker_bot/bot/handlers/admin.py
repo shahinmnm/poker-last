@@ -42,7 +42,6 @@ from telegram_poker_bot.shared.services.table_service import (
 )
 from telegram_poker_bot.shared.services import (
     promo_service,
-    referral_service,
     user_service,
     wallet_service,
 )
@@ -79,18 +78,18 @@ async def _ensure_admin_role(tg_user_id: int) -> None:
                 select(User).where(User.tg_user_id == tg_user_id)
             )
             user = result.scalar_one_or_none()
-            
+
             if not user:
                 logger.warning(
                     "Admin user not found in database",
                     tg_user_id=tg_user_id,
                 )
                 return
-            
+
             # Check if user already has ADMIN role
             jwt_service = get_jwt_auth_service()
             has_admin = await jwt_service.has_role(session, user.id, UserRole.ADMIN)
-            
+
             if not has_admin:
                 # Assign ADMIN role
                 await jwt_service.assign_role(
@@ -105,7 +104,7 @@ async def _ensure_admin_role(tg_user_id: int) -> None:
                     user_id=user.id,
                     tg_user_id=tg_user_id,
                 )
-            
+
         except Exception as exc:
             await session.rollback()
             logger.error(
@@ -118,7 +117,7 @@ async def _ensure_admin_role(tg_user_id: int) -> None:
 def _admin_menu_keyboard() -> InlineKeyboardMarkup:
     """Build admin menu keyboard with web access button."""
     admin_web_url = f"{settings.mini_app_url}/admin"
-    
+
     return InlineKeyboardMarkup(
         [
             [
@@ -129,7 +128,9 @@ def _admin_menu_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🛠 User Desk", callback_data="admin_intel"),
             ],
             [
-                InlineKeyboardButton("👀 Active Tables", callback_data="admin_live_ops"),
+                InlineKeyboardButton(
+                    "👀 Active Tables", callback_data="admin_live_ops"
+                ),
                 InlineKeyboardButton("📊 Snapshot", callback_data="admin_intel_stats"),
             ],
             [
@@ -250,11 +251,17 @@ def _crm_keyboard(user_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("🚫 Ban/Unban", callback_data=f"admin_crm_ban:{user_id}"),
-                InlineKeyboardButton("✉️ Send Message", callback_data=f"admin_crm_message:{user_id}"),
+                InlineKeyboardButton(
+                    "🚫 Ban/Unban", callback_data=f"admin_crm_ban:{user_id}"
+                ),
+                InlineKeyboardButton(
+                    "✉️ Send Message", callback_data=f"admin_crm_message:{user_id}"
+                ),
             ],
             [
-                InlineKeyboardButton("✏️ Edit Balance", callback_data=f"admin_crm_balance:{user_id}"),
+                InlineKeyboardButton(
+                    "✏️ Edit Balance", callback_data=f"admin_crm_balance:{user_id}"
+                ),
             ],
             [InlineKeyboardButton("🛠 User Desk", callback_data="admin_intel_menu")],
             _admin_home_button(),
@@ -266,10 +273,14 @@ def _marketing_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("➕ Create Promo Code", callback_data="admin_marketing_promo"),
+                InlineKeyboardButton(
+                    "➕ Create Promo Code", callback_data="admin_marketing_promo"
+                ),
             ],
             [
-                InlineKeyboardButton("📣 Broadcast", callback_data="admin_marketing_broadcast"),
+                InlineKeyboardButton(
+                    "📣 Broadcast", callback_data="admin_marketing_broadcast"
+                ),
             ],
             _admin_home_button(),
         ]
@@ -281,8 +292,12 @@ def _currency_selection_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("💵 Real", callback_data="admin_balance_currency:REAL"),
-                InlineKeyboardButton("🪙 Play", callback_data="admin_balance_currency:PLAY"),
+                InlineKeyboardButton(
+                    "💵 Real", callback_data="admin_balance_currency:REAL"
+                ),
+                InlineKeyboardButton(
+                    "🪙 Play", callback_data="admin_balance_currency:PLAY"
+                ),
             ],
             _back_button("admin_home"),
         ]
@@ -346,9 +361,7 @@ async def _handle_unauthorized(update: Update) -> int:
     return ConversationHandler.END
 
 
-async def show_intel_menu(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def show_intel_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Show user intelligence tools menu."""
     if not _is_admin(update):
         return await _handle_unauthorized(update)
@@ -359,7 +372,9 @@ async def show_intel_menu(
     else:
         target = update.effective_message
     if target:
-        await target.reply_text("🛠 User Intelligence Desk", reply_markup=_intel_menu_keyboard())
+        await target.reply_text(
+            "🛠 User Intelligence Desk", reply_markup=_intel_menu_keyboard()
+        )
     return AdminState.INTEL_MENU
 
 
@@ -581,9 +596,7 @@ async def handle_currency_selection(
     return AdminState.WAITING_FOR_USER_ID
 
 
-async def handle_user_id(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def handle_user_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Capture and validate target user id."""
     if not _is_admin(update):
         return await _handle_unauthorized(update)
@@ -614,9 +627,7 @@ async def handle_user_id(
     return AdminState.WAITING_FOR_AMOUNT
 
 
-async def handle_amount(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Capture and validate amount."""
     if not _is_admin(update):
         return await _handle_unauthorized(update)
@@ -636,7 +647,11 @@ async def handle_amount(
         return AdminState.WAITING_FOR_AMOUNT
 
     admin_ctx = _get_admin_context(context)
-    if "user" not in admin_ctx or "currency" not in admin_ctx or "operation" not in admin_ctx:
+    if (
+        "user" not in admin_ctx
+        or "currency" not in admin_ctx
+        or "operation" not in admin_ctx
+    ):
         await message.reply_text("Session expired. Returning to admin menu.")
         _reset_admin_context(context)
         await message.reply_text(
@@ -751,7 +766,11 @@ async def show_live_ops(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await _handle_unauthorized(update)
         return
 
-    target = update.callback_query.message if update.callback_query else update.effective_message
+    target = (
+        update.callback_query.message
+        if update.callback_query
+        else update.effective_message
+    )
 
     async with AsyncSessionLocal() as session:
         tables_info = await _fetch_active_tables(session)
@@ -850,9 +869,7 @@ def _variant_label(variant_value: str) -> str:
     return "NLH Texas Hold'em"
 
 
-async def handle_crm_entry(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def handle_crm_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Prompt for a user lookup in CRM."""
     if not _is_admin(update):
         return await _handle_unauthorized(update)
@@ -861,13 +878,13 @@ async def handle_crm_entry(
         await safe_answer_callback_query(query)
     target = query.message if query else update.effective_message
     if target:
-        await target.reply_text("Enter User ID or @username:", reply_markup=_intel_menu_keyboard())
+        await target.reply_text(
+            "Enter User ID or @username:", reply_markup=_intel_menu_keyboard()
+        )
     return AdminState.USER_CRM
 
 
-async def handle_crm_lookup(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def handle_crm_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Resolve user and present CRM actions."""
     if not _is_admin(update):
         return await _handle_unauthorized(update)
@@ -896,12 +913,18 @@ async def handle_crm_lookup(
         f"TG: {user.tg_user_id}",
         f"Username: @{user.username}" if user.username else "Username: -",
         f"Language: {user.language}",
-        f"Referrer: @{referrer.username}" if referrer and referrer.username else f"Referrer ID: {referrer.id}" if referrer else "Referrer: -",
+        (
+            f"Referrer: @{referrer.username}"
+            if referrer and referrer.username
+            else f"Referrer ID: {referrer.id}" if referrer else "Referrer: -"
+        ),
         f"Real: {balances.get('balance_real',0):,} | Play: {balances.get('balance_play',0):,}",
         f"Hands: {stats.get('hands_played',0):,}",
     ]
     context.user_data["crm_user_id"] = user.id
-    await message.reply_text("\n".join(lines), reply_markup=_crm_keyboard(user.id), parse_mode="Markdown")
+    await message.reply_text(
+        "\n".join(lines), reply_markup=_crm_keyboard(user.id), parse_mode="Markdown"
+    )
     return AdminState.USER_CRM_ACTION
 
 
@@ -915,9 +938,7 @@ async def _toggle_ban(session, user: User) -> bool:
     return not banned
 
 
-async def handle_crm_action(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def handle_crm_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle CRM action buttons."""
     if not _is_admin(update):
         return await _handle_unauthorized(update)
@@ -953,8 +974,7 @@ async def handle_crm_action(
 
     if action == "admin_crm_balance":
         await query.message.reply_text(
-            "Select currency to adjust:",
-            reply_markup=_currency_selection_keyboard()
+            "Select currency to adjust:", reply_markup=_currency_selection_keyboard()
         )
         return AdminState.USER_BALANCE_CURRENCY
 
@@ -977,7 +997,9 @@ async def handle_crm_message_input(
             await update.get_bot().send_message(chat_id=user.tg_user_id, text=text)
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("Failed to message user", error=str(exc))
-    await update.effective_message.reply_text("Message dispatched.", reply_markup=_crm_keyboard(target_id))
+    await update.effective_message.reply_text(
+        "Message dispatched.", reply_markup=_crm_keyboard(target_id)
+    )
     return AdminState.USER_CRM_ACTION
 
 
@@ -992,8 +1014,12 @@ async def handle_crm_balance_currency(
     data = query.data if query else ""
     if ":" in data:
         _, currency_code = data.split(":", 1)
-        context.user_data["crm_balance_currency"] = CurrencyType.REAL if currency_code == "REAL" else CurrencyType.PLAY
-        await query.message.reply_text("Enter amount (positive to credit, negative to debit):")
+        context.user_data["crm_balance_currency"] = (
+            CurrencyType.REAL if currency_code == "REAL" else CurrencyType.PLAY
+        )
+        await query.message.reply_text(
+            "Enter amount (positive to credit, negative to debit):"
+        )
         return AdminState.USER_BALANCE_ADJUST
     return AdminState.USER_CRM_ACTION
 
@@ -1027,7 +1053,9 @@ async def handle_crm_balance_adjust(
             await session.rollback()
             await update.effective_message.reply_text(f"Failed: {exc}")
             return AdminState.USER_CRM_ACTION
-    await update.effective_message.reply_text("Balance updated.", reply_markup=_crm_keyboard(target_id))
+    await update.effective_message.reply_text(
+        "Balance updated.", reply_markup=_crm_keyboard(target_id)
+    )
     return AdminState.USER_CRM_ACTION
 
 
@@ -1041,7 +1069,9 @@ async def handle_marketing_menu(
         await safe_answer_callback_query(query)
     target = query.message if query else update.effective_message
     if target:
-        await target.reply_text("Marketing console:", reply_markup=_marketing_keyboard())
+        await target.reply_text(
+            "Marketing console:", reply_markup=_marketing_keyboard()
+        )
     return AdminState.MARKETING_MENU
 
 
@@ -1086,8 +1116,7 @@ async def handle_promo_amount_input(
         return AdminState.MARKETING_PROMO_AMOUNT
     ctx["amount"] = amount
     await update.effective_message.reply_text(
-        "Select currency:",
-        reply_markup=_promo_currency_keyboard()
+        "Select currency:", reply_markup=_promo_currency_keyboard()
     )
     return AdminState.MARKETING_PROMO_CURRENCY
 
@@ -1118,7 +1147,9 @@ async def handle_promo_limit_input(
         await update.effective_message.reply_text("Enter an integer for max uses:")
         return AdminState.MARKETING_PROMO_LIMIT
     ctx["max_uses"] = max_uses
-    await update.effective_message.reply_text("Enter expiry datetime (YYYY-MM-DD or leave blank for none):")
+    await update.effective_message.reply_text(
+        "Enter expiry datetime (YYYY-MM-DD or leave blank for none):"
+    )
     return AdminState.MARKETING_PROMO_EXPIRY
 
 
@@ -1134,7 +1165,9 @@ async def handle_promo_expiry_input(
         try:
             expiry = datetime.fromisoformat(text)
         except Exception:
-            await update.effective_message.reply_text("Invalid date format. Use YYYY-MM-DD or leave empty.")
+            await update.effective_message.reply_text(
+                "Invalid date format. Use YYYY-MM-DD or leave empty."
+            )
             return AdminState.MARKETING_PROMO_EXPIRY
     async with AsyncSessionLocal() as session:
         try:
@@ -1152,7 +1185,9 @@ async def handle_promo_expiry_input(
             await update.effective_message.reply_text(f"Failed to create promo: {exc}")
             return AdminState.MARKETING_MENU
     context.user_data.pop("promo_ctx", None)
-    await update.effective_message.reply_text("Promo code created.", reply_markup=_marketing_keyboard())
+    await update.effective_message.reply_text(
+        "Promo code created.", reply_markup=_marketing_keyboard()
+    )
     return AdminState.MARKETING_MENU
 
 
@@ -1317,9 +1352,7 @@ async def handle_balance_input(
     return AdminState.USER_BALANCE
 
 
-async def handle_stats_input(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def handle_stats_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Show stats + balances for a user."""
     if not _is_admin(update):
         return await _handle_unauthorized(update)
@@ -1366,7 +1399,8 @@ def build_admin_handler() -> ConversationHandler:
             ],
             AdminState.INTEL_MENU: [
                 CallbackQueryHandler(
-                    go_home, pattern="^admin_home$",
+                    go_home,
+                    pattern="^admin_home$",
                 ),
                 CallbackQueryHandler(
                     handle_intel_menu_selection,
@@ -1378,13 +1412,14 @@ def build_admin_handler() -> ConversationHandler:
                 CallbackQueryHandler(
                     handle_operation_selection,
                     pattern="^admin_operation_(deposit|withdraw|back)$",
-                )
+                ),
             ],
             AdminState.TREASURY_CURRENCY: [
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
                 CallbackQueryHandler(
-                    handle_currency_selection, pattern="^admin_currency_(real|play|back)$"
-                )
+                    handle_currency_selection,
+                    pattern="^admin_currency_(real|play|back)$",
+                ),
             ],
             AdminState.WAITING_FOR_USER_ID: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_id),
@@ -1429,47 +1464,71 @@ def build_admin_handler() -> ConversationHandler:
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.USER_CRM_ACTION: [
-                CallbackQueryHandler(handle_crm_action, pattern="^admin_crm_(ban|message|balance):"),
+                CallbackQueryHandler(
+                    handle_crm_action, pattern="^admin_crm_(ban|message|balance):"
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.USER_MESSAGE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crm_message_input),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, handle_crm_message_input
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.USER_BALANCE_CURRENCY: [
-                CallbackQueryHandler(handle_crm_balance_currency, pattern="^admin_balance_currency:(REAL|PLAY)$"),
+                CallbackQueryHandler(
+                    handle_crm_balance_currency,
+                    pattern="^admin_balance_currency:(REAL|PLAY)$",
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.USER_BALANCE_ADJUST: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crm_balance_adjust),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, handle_crm_balance_adjust
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.MARKETING_MENU: [
-                CallbackQueryHandler(handle_marketing_selection, pattern="^admin_marketing_(promo|broadcast)$"),
+                CallbackQueryHandler(
+                    handle_marketing_selection,
+                    pattern="^admin_marketing_(promo|broadcast)$",
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.MARKETING_PROMO_CODE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_promo_code_input),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, handle_promo_code_input
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.MARKETING_PROMO_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_promo_amount_input),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, handle_promo_amount_input
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.MARKETING_PROMO_CURRENCY: [
-                CallbackQueryHandler(handle_promo_currency, pattern="^promo_currency:(REAL|PLAY)$"),
+                CallbackQueryHandler(
+                    handle_promo_currency, pattern="^promo_currency:(REAL|PLAY)$"
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.MARKETING_PROMO_LIMIT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_promo_limit_input),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, handle_promo_limit_input
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.MARKETING_PROMO_EXPIRY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_promo_expiry_input),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, handle_promo_expiry_input
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
             AdminState.MARKETING_BROADCAST: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast_message),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, handle_broadcast_message
+                ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
             ],
         },
