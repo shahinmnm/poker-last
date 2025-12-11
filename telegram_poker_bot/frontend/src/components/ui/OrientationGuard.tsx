@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState, useCallback } from 'react'
+import { type ReactNode, useEffect, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 interface OrientationGuardProps {
@@ -19,6 +19,7 @@ interface OrientationGuardProps {
  */
 export function OrientationGuard({ children }: OrientationGuardProps) {
   const [isPortrait, setIsPortrait] = useState(false)
+  const hasAttemptedNativeLock = useRef(false)
 
   const checkOrientation = useCallback(() => {
     // Consider portrait if height > width
@@ -34,8 +35,11 @@ export function OrientationGuard({ children }: OrientationGuardProps) {
     window.addEventListener('resize', checkOrientation)
     window.addEventListener('orientationchange', checkOrientation)
 
-    // Attempt native orientation lock APIs (will fail silently on most devices)
-    tryNativeOrientationLock()
+    // Attempt native orientation lock APIs only once per session
+    if (!hasAttemptedNativeLock.current) {
+      hasAttemptedNativeLock.current = true
+      tryNativeOrientationLock()
+    }
 
     return () => {
       window.removeEventListener('resize', checkOrientation)
@@ -58,8 +62,8 @@ export function OrientationGuard({ children }: OrientationGuardProps) {
 function tryNativeOrientationLock() {
   // Try Telegram WebApp fullscreen API
   try {
-    const tg = window.Telegram?.WebApp as TelegramWebAppExtended | undefined
-    if (tg?.requestFullscreen) {
+    const tg = window.Telegram?.WebApp
+    if (tg && 'requestFullscreen' in tg && typeof tg.requestFullscreen === 'function') {
       tg.requestFullscreen()
     }
   } catch {
@@ -68,11 +72,13 @@ function tryNativeOrientationLock() {
 
   // Try native Screen Orientation API
   try {
-    const orientation = screen.orientation as ScreenOrientationExtended | undefined
-    if (orientation?.lock) {
-      orientation.lock('landscape').catch(() => {
-        // Silently ignore - orientation lock not supported or not in fullscreen
-      })
+    if ('orientation' in screen && screen.orientation && 'lock' in screen.orientation) {
+      const orientation = screen.orientation as ScreenOrientation & { lock?: (type: string) => Promise<void> }
+      if (typeof orientation.lock === 'function') {
+        orientation.lock('landscape').catch(() => {
+          // Silently ignore - orientation lock not supported or not in fullscreen
+        })
+      }
     }
   } catch {
     // Silently ignore - API not available
@@ -159,46 +165,6 @@ function RotateArrowIcon() {
       />
     </svg>
   )
-}
-
-// CSS keyframe animation styles - these will be added via a style tag
-const rotatePhoneStyles = `
-@keyframes rotate-phone {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(15deg);
-  }
-  75% {
-    transform: rotate(-15deg);
-  }
-}
-
-.animate-rotate-phone {
-  animation: rotate-phone 2s ease-in-out infinite;
-}
-`
-
-// Inject animation styles on module load
-if (typeof document !== 'undefined') {
-  const styleId = 'orientation-guard-styles'
-  if (!document.getElementById(styleId)) {
-    const styleSheet = document.createElement('style')
-    styleSheet.id = styleId
-    styleSheet.textContent = rotatePhoneStyles
-    document.head.appendChild(styleSheet)
-  }
-}
-
-// Extended Telegram WebApp interface for fullscreen support
-interface TelegramWebAppExtended {
-  requestFullscreen?: () => void
-}
-
-// Extended ScreenOrientation interface for lock support (not in all TypeScript definitions)
-interface ScreenOrientationExtended {
-  lock?: (orientation: 'landscape' | 'portrait' | 'landscape-primary' | 'landscape-secondary' | 'portrait-primary' | 'portrait-secondary') => Promise<void>
 }
 
 export default OrientationGuard
