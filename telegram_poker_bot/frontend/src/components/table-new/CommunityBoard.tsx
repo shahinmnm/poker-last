@@ -2,6 +2,7 @@
  * Phase 5: CommunityBoard Component
  * 
  * Renders community cards from normalized state.
+ * Modern, minimalist design - empty felt when no cards (no dotted outlines).
  * Supports:
  * - Standard community cards (Hold'em, Omaha)
  * - Face-up vs face-down cards (Stud games)
@@ -13,29 +14,23 @@ import CardRenderer from './CardRenderer'
 
 interface CommunityBoardProps {
   communityCards: Card[]
-  street?: string | null
+  street?: string | null // Kept for API compatibility
   className?: string
 }
 
 export function CommunityBoard({
   communityCards,
-  street,
+  // street prop kept for API compatibility but not displayed
   className = '',
 }: CommunityBoardProps) {
+  // Don't render anything if no community cards - show empty felt
   if (!communityCards || communityCards.length === 0) {
     return null
   }
 
-  const streetLabel = street ? ` - ${street.charAt(0).toUpperCase() + street.slice(1)}` : ''
-
   return (
     <div className={`community-board ${className}`}>
       <div className="flex flex-col items-center gap-2">
-        {streetLabel && (
-          <div className="text-sm font-semibold text-gray-400">
-            {streetLabel}
-          </div>
-        )}
         <div className="flex gap-2 flex-wrap justify-center">
           {communityCards.map((card, index) => (
             <CardRenderer key={index} card={card} size="md" />

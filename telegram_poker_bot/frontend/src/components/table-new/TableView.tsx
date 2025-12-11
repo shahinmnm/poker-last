@@ -2,7 +2,8 @@
  * Phase 5: TableView Component (NEW)
  * 
  * Main table view that uses normalized state from useTableSync.
- * Strictly backend-driven. No client-side logic.
+ * Modern minimalist UI with floating glassmorphism elements.
+ * The table felt is the hero - elements float over the felt.
  */
 
 import { useParams, useNavigate } from 'react-router-dom'
@@ -10,7 +11,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTableSync } from '../../hooks/useTableSync'
 import { useTableAnimations } from '../../hooks/useTableAnimations'
 import { useTelegram } from '../../hooks/useTelegram'
-import { Loader2 } from 'lucide-react'
+import { Loader2, X, LogOut, MoreVertical } from 'lucide-react'
 import ActionPanel from './ActionPanel'
 import Seat from './Seat'
 import CommunityBoard from './CommunityBoard'
@@ -34,6 +35,7 @@ export function TableView() {
   const [showHandResult, setShowHandResult] = useState(false)
   const [showWinnerBanner, setShowWinnerBanner] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
 
   // Handle schema version mismatch with hard reload
   const handleSchemaVersionMismatch = useCallback(() => {
@@ -209,6 +211,11 @@ export function TableView() {
     }
   }, [tableId, initData, navigate])
 
+  // Handle close table (navigate back)
+  const handleClose = useCallback(() => {
+    navigate('/lobby')
+  }, [navigate])
+
   // Hero detection: Find current user's seat by matching user_id
   const heroUserId = user?.id
   const heroSeat = useMemo(() => {
@@ -268,8 +275,9 @@ export function TableView() {
   // Loading state
   if (!state) {
     return (
-      <div className="table-view-loading flex items-center justify-center h-screen">
+      <div className="table-view-loading flex items-center justify-center h-screen bg-gradient-to-br from-gray-900 to-gray-800">
         <div className="text-center">
+          <Loader2 className="w-12 h-12 text-amber-400 animate-spin mx-auto mb-4" />
           <div className="text-xl font-semibold text-white mb-2">
             {connectionState === 'connecting' && 'Connecting to table...'}
             {connectionState === 'syncing_snapshot' && 'Loading table state...'}
@@ -279,7 +287,7 @@ export function TableView() {
           {connectionState === 'disconnected' && (
             <button
               onClick={requestSnapshot}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-semibold"
             >
               Reconnect
             </button>
@@ -307,7 +315,7 @@ export function TableView() {
     <div className="table-view relative h-screen bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
       {/* Resync overlay - blocking UI during snapshot sync */}
       {connectionState === 'syncing_snapshot' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30 transition-opacity duration-300">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-black/30 transition-opacity duration-300">
           <div className="bg-black/40 backdrop-blur-md rounded-2xl px-8 py-6 flex flex-col items-center gap-4">
             <Loader2 className="w-12 h-12 text-amber-400 animate-spin" />
             <div className="text-white text-lg font-semibold">Syncing Table State...</div>
@@ -316,52 +324,102 @@ export function TableView() {
         </div>
       )}
 
-      {/* Table metadata and connection status - Z-Index: 50 */}
-      <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
-        <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
-          <div className="font-bold">{table_metadata.name}</div>
-          <div className="text-sm text-gray-400">
-            {table_metadata.variant} • {table_metadata.stakes}
-          </div>
-        </div>
-        <ConnectionStatus connectionState={connectionState} />
-      </div>
-
-      {/* Leave Table button in top-right corner (for seated players only) - Z-Index: 50 */}
-      {heroSeat && (
-        <div className="absolute top-4 right-4 z-50">
+      {/* Floating HUD Header - Z-Index: 50 */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-50 pointer-events-none">
+        {/* Left Group */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Close Button - glassmorphism circle */}
           <button
-            onClick={() => setShowLeaveConfirm(true)}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex items-center gap-2"
-            title="Leave table and cash out"
+            onClick={handleClose}
+            className="bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-md transition-colors"
+            title="Back to lobby"
           >
-            <span>Leave Table</span>
+            <X size={18} />
+          </button>
+          
+          {/* Table Info Pill */}
+          <div className="bg-black/40 px-3 py-1 rounded-full backdrop-blur-md">
+            <span className="text-xs font-medium text-gray-200">
+              {table_metadata.stakes}
+            </span>
+          </div>
+          
+          {/* Connection Status */}
+          <ConnectionStatus connectionState={connectionState} />
+        </div>
+
+        {/* Right Group */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Stand Up / Leave Seat Button (for seated players only) */}
+          {heroSeat && (
+            <button
+              onClick={() => setShowLeaveConfirm(true)}
+              className="bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-md transition-colors"
+              title="Leave table"
+            >
+              <LogOut size={18} />
+            </button>
+          )}
+          
+          {/* Menu Button */}
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="bg-black/40 hover:bg-black/60 text-white rounded-full p-2 backdrop-blur-md transition-colors"
+            title="Menu"
+          >
+            <MoreVertical size={18} />
           </button>
         </div>
+      </div>
+
+      {/* Menu Dropdown */}
+      {showMenu && (
+        <div className="absolute top-16 right-4 z-50 bg-black/80 backdrop-blur-md rounded-lg shadow-xl border border-white/10 overflow-hidden">
+          <button
+            onClick={() => { setShowMenu(false); /* Add settings action */ }}
+            className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10 transition-colors"
+          >
+            Settings
+          </button>
+          <button
+            onClick={() => { setShowMenu(false); /* Add help action */ }}
+            className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-white/10 transition-colors"
+          >
+            Help
+          </button>
+        </div>
+      )}
+
+      {/* Click outside to close menu */}
+      {showMenu && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={() => setShowMenu(false)}
+        />
       )}
 
       {/* Main table area with strict Z-Index layering */}
       <div className="table-container relative h-full flex flex-col items-center justify-center">
         {/* Pot display - Z-Index: 10 */}
-        <div ref={potRef} className="pot-display-container absolute top-[35%] left-1/2 -translate-x-1/2 z-10">
+        <div ref={potRef} className="pot-display-container absolute top-[30%] left-1/2 -translate-x-1/2 z-10">
           <PotDisplay pots={pots} currency={table_metadata.currency as 'REAL' | 'PLAY'} />
         </div>
 
         {/* Community cards - Z-Index: 20 */}
-        <div className="community-board-container absolute top-[45%] left-1/2 -translate-x-1/2 z-20">
+        <div className="community-board-container absolute top-[42%] left-1/2 -translate-x-1/2 z-20">
           <CommunityBoard
             communityCards={community_cards}
             street={current_street}
           />
         </div>
 
-        {/* Seats arranged in ellipse with safe zone - Z-Index: 30 */}
-        <div className="seats-container absolute inset-0 pb-48 z-30">
+        {/* Seats arranged in ellipse with tight spacing - Z-Index: 30 */}
+        <div className="seats-container absolute inset-0 pb-36 z-30">
           {seatPositions.map(({ seat, xPercent, yPercent, isHero }) => {
             return (
               <div
                 key={seat.seat_index}
-                className="absolute"
+                className="absolute m-1"
                 style={{
                   left: `${xPercent}%`,
                   top: `${yPercent}%`,
@@ -382,7 +440,7 @@ export function TableView() {
 
         {/* Action panel at bottom - Z-Index: 50 (Fixed Bottom) */}
         {heroSeat && (
-          <div className="action-panel-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
+          <div className="action-panel-container fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
             <ActionPanel
               legalActions={isHeroActing ? legal_actions : []}
               onAction={handleAction}
@@ -397,11 +455,11 @@ export function TableView() {
 
         {/* Join button for spectators - Z-Index: 50 */}
         {!heroSeat && (
-          <div className="join-button-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
+          <div className="join-button-container fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
             <button
               onClick={handleJoin}
               disabled={isJoining}
-              className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-8 h-12 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isJoining ? 'Joining...' : 'Join Table'}
             </button>
@@ -410,7 +468,7 @@ export function TableView() {
 
         {/* Draw phase UI (overlays action panel when active) - Z-Index: 50 */}
         {discard_phase_active && heroSeat && (
-          <div className="draw-phase-container fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
+          <div className="draw-phase-container fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
             <DrawRenderer
               holeCards={heroSeat.hole_cards}
               discardPhaseActive={discard_phase_active}
@@ -424,8 +482,8 @@ export function TableView() {
 
       {/* Buy-in modal */}
       {showJoinModal && table_metadata.buyin_limits && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-800/90 backdrop-blur-md rounded-2xl p-6 max-w-md w-full mx-4 border border-white/10">
             <h2 className="text-xl font-bold text-white mb-4">Buy-in Required</h2>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -437,23 +495,23 @@ export function TableView() {
                 max={table_metadata.buyin_limits.max}
                 value={buyInAmount ?? table_metadata.buyin_limits.min}
                 onChange={(e) => setBuyInAmount(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg"
+                className="w-full px-4 py-3 bg-black/40 text-white rounded-full border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-gray-400 mt-2 px-2">
                 Min: {table_metadata.buyin_limits.min} | Max: {table_metadata.buyin_limits.max}
               </div>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowJoinModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+                className="flex-1 px-4 py-3 bg-black/40 hover:bg-black/60 text-white rounded-full font-semibold transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBuyIn}
                 disabled={isJoining}
-                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-gradient-to-b from-emerald-500 to-emerald-700 text-white rounded-full font-semibold disabled:opacity-50 transition-all hover:scale-105"
               >
                 {isJoining ? 'Joining...' : 'Join'}
               </button>
@@ -464,7 +522,7 @@ export function TableView() {
 
       {/* Debug info (development only) */}
       {import.meta.env.DEV && (
-        <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-2 rounded max-w-xs">
+        <div className="absolute bottom-20 left-4 bg-black/60 backdrop-blur-sm text-white text-xs p-2 rounded-lg max-w-xs z-40">
           <div>Street: {current_street || 'N/A'}</div>
           <div>Actions: {legal_actions.length}</div>
           <div>Last update: {lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : 'N/A'}</div>
