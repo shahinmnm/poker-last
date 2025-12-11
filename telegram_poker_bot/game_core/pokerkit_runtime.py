@@ -100,6 +100,9 @@ class PokerKitTableRuntime:
         self.table = table
         self.seats = sorted(seats, key=lambda s: s.position)
         self.rules = _get_table_rules(table)
+        # Cache currency type to avoid lazy loading table.template in async context
+        # This prevents greenlet_spawn errors when to_payload() is called after db.flush()
+        self.currency_type = _get_table_currency_type(table)
         self.hand_no = 0
         self.engine: Optional[PokerEngineAdapter] = None
         self.user_id_to_player_index: Dict[int, int] = {}
@@ -332,7 +335,8 @@ class PokerKitTableRuntime:
             raise ValueError("Cannot apply hand result without active hand/engine")
 
         hand_ended_event: Dict[str, Any] = {}
-        currency_type = _get_table_currency_type(self.table)
+        # Use cached currency_type to avoid lazy loading table.template in async context
+        currency_type = self.currency_type
 
         try:
             async with db.begin_nested():
@@ -1173,7 +1177,9 @@ class PokerKitTableRuntime:
         Returns:
             State dictionary matching frontend expectations
         """
-        currency_type = _get_table_currency_type(self.table)
+        # Use cached currency_type to avoid lazy loading table.template in async context
+        # This prevents greenlet_spawn errors when called after db.flush()
+        currency_type = self.currency_type
 
         if not self.engine:
             # No active hand
@@ -1608,6 +1614,8 @@ class PokerKitTableRuntimeManager:
             runtime.table = table
             runtime.seats = sorted(seats, key=lambda s: s.position)
             runtime.rules = _get_table_rules(table)
+            # Refresh cached currency_type to avoid lazy loading in async context
+            runtime.currency_type = _get_table_currency_type(table)
         else:
             # Create new runtime
             runtime = PokerKitTableRuntime(table, seats)
