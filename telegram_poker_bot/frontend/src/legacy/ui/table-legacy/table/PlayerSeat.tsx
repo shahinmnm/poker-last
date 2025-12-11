@@ -43,52 +43,78 @@ const layoutConfig: Record<SideDirection, {
   infoPill: string
 }> = {
   bottom: {
-    container: 'flex-col justify-end',
-    cardWrapper: '-mb-8 z-0',
+    // Hero: Cards stick out from the TOP of the avatar
+    container: 'flex-col-reverse justify-end',
+    cardWrapper: '-mb-6 -translate-y-6 z-0',
     badge: '-top-1 -right-1',
     infoPill: '-bottom-6 left-1/2 -translate-x-1/2',
   },
   top: {
+    // Villain Opposite: Cards stick out from the BOTTOM
     container: 'flex-col justify-start',
-    cardWrapper: '-mt-8 z-0',
+    cardWrapper: '-mt-6 translate-y-6 z-0',
     badge: '-bottom-1 -right-1',
     infoPill: '-top-6 left-1/2 -translate-x-1/2',
   },
   left: {
+    // Villain Left: Cards stick out to the RIGHT
     container: 'flex-row items-center',
-    cardWrapper: '-ml-6 z-0',
+    cardWrapper: '-ml-6 translate-x-6 z-0',
     badge: '-top-1 -right-1',
     infoPill: '-left-2 top-1/2 -translate-y-1/2 -translate-x-full',
   },
   right: {
+    // Villain Right: Cards stick out to the LEFT
     container: 'flex-row-reverse items-center',
-    cardWrapper: '-mr-6 z-0',
+    cardWrapper: '-mr-6 -translate-x-6 z-0',
     badge: '-top-1 -left-1',
     infoPill: '-right-2 top-1/2 -translate-y-1/2 translate-x-full',
   },
 }
 
-/** Calculate card rotation based on side direction */
-const getCardRotation = (side: SideDirection, index: number, totalCards: number): { rotation: number; translateX: number } => {
-  const midpoint = totalCards / 2
-  const isFirstHalf = index < midpoint
+/** Translate offset for card fanning (equivalent to Tailwind's translate-1) */
+const CARD_FAN_OFFSET = 4
+
+/** Calculate card rotation based on side direction - Perspective Fix */
+const getCardRotation = (side: SideDirection, index: number): { rotation: number; translateX: number; translateY: number } => {
+  const isFirstCard = index === 0
 
   switch (side) {
-    case 'top':
     case 'bottom':
+      // Hero: Fan Upwards
+      // Left Card: rotate-[-12deg] -translate-y-1
+      // Right Card: rotate-[12deg] -translate-y-1
       return {
-        rotation: isFirstHalf ? -6 : 6,
-        translateX: isFirstHalf ? 1 : -1,
+        rotation: isFirstCard ? -12 : 12,
+        translateX: 0,
+        translateY: -CARD_FAN_OFFSET,
+      }
+    case 'top':
+      // Villain Opposite: Fan Downwards
+      // Left Card: rotate-[12deg] translate-y-1
+      // Right Card: rotate-[-12deg] translate-y-1
+      return {
+        rotation: isFirstCard ? 12 : -12,
+        translateX: 0,
+        translateY: CARD_FAN_OFFSET,
       }
     case 'left':
+      // Villain Left: Fan Rightwards
+      // Top Card: rotate-[12deg] translate-x-1
+      // Bottom Card: rotate-[-12deg] translate-x-1
       return {
-        rotation: isFirstHalf ? 0 : 10,
-        translateX: 0,
+        rotation: isFirstCard ? 12 : -12,
+        translateX: CARD_FAN_OFFSET,
+        translateY: 0,
       }
     case 'right':
+      // Villain Right: Fan Leftwards
+      // Top Card: rotate-[-12deg] -translate-x-1
+      // Bottom Card: rotate-[12deg] -translate-x-1
       return {
-        rotation: isFirstHalf ? 0 : -10,
-        translateX: 0,
+        rotation: isFirstCard ? -12 : 12,
+        translateX: -CARD_FAN_OFFSET,
+        translateY: 0,
       }
   }
 }
@@ -248,12 +274,12 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
           <div className={clsx('relative z-10 transform scale-90 pointer-events-none', layout.cardWrapper)}>
             <div className={clsx('flex items-center justify-center', isHorizontal && 'flex-col')}>
               {safeCards.map((card, index) => {
-                const { rotation, translateX } = getCardRotation(side, index, safeCards.length)
+                const { rotation, translateX, translateY } = getCardRotation(side, index)
                 return (
                   <div
                     key={`${card}-${index}`}
                     style={{
-                      transform: `rotate(${rotation}deg) translateX(${translateX}px)`,
+                      transform: `rotate(${rotation}deg) translateX(${translateX}px) translateY(${translateY}px)`,
                     }}
                   >
                     <PlayingCard
