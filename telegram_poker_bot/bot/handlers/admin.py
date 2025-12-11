@@ -34,6 +34,8 @@ from telegram_poker_bot.shared.models import (
     TransactionType,
     User,
 )
+from telegram_poker_bot.shared.auth_models import UserRole
+from telegram_poker_bot.shared.services.jwt_auth_service import get_jwt_auth_service
 from telegram_poker_bot.shared.services.table_service import (
     get_table_game_variant,
     get_template_config,
@@ -68,9 +70,60 @@ def _is_admin(update: Update) -> bool:
     return bool(admin_id and user and user.id == admin_id)
 
 
+async def _ensure_admin_role(tg_user_id: int) -> None:
+    """Ensure the admin user has ADMIN role in the database for web access."""
+    async with AsyncSessionLocal() as session:
+        try:
+            # Find user by Telegram user ID
+            result = await session.execute(
+                select(User).where(User.tg_user_id == tg_user_id)
+            )
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                logger.warning(
+                    "Admin user not found in database",
+                    tg_user_id=tg_user_id,
+                )
+                return
+            
+            # Check if user already has ADMIN role
+            jwt_service = get_jwt_auth_service()
+            has_admin = await jwt_service.has_role(session, user.id, UserRole.ADMIN)
+            
+            if not has_admin:
+                # Assign ADMIN role
+                await jwt_service.assign_role(
+                    session,
+                    user.id,
+                    UserRole.ADMIN,
+                    granted_by=None,  # System-granted
+                )
+                await session.commit()
+                logger.info(
+                    "Admin role assigned to user",
+                    user_id=user.id,
+                    tg_user_id=tg_user_id,
+                )
+            
+        except Exception as exc:
+            await session.rollback()
+            logger.error(
+                "Failed to ensure admin role",
+                tg_user_id=tg_user_id,
+                error=str(exc),
+            )
+
+
 def _admin_menu_keyboard() -> InlineKeyboardMarkup:
+    """Build admin menu keyboard with web access button."""
+    admin_web_url = f"{settings.mini_app_url}/admin"
+    
     return InlineKeyboardMarkup(
         [
+            [
+                InlineKeyboardButton("🌐 Web Admin Panel", url=admin_web_url),
+            ],
             [
                 InlineKeyboardButton("🏦 Treasury", callback_data="admin_treasury"),
                 InlineKeyboardButton("🛠 User Desk", callback_data="admin_intel"),
@@ -404,6 +457,11 @@ async def start_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     message = update.effective_message
     if not message:
         return ConversationHandler.END
+
+    # Ensure admin user has ADMIN role in database for web access
+    user = update.effective_user
+    if user:
+        await _ensure_admin_role(user.id)
 
     await message.reply_text(
         "♠️ Poker Admin Control Room\nPick a console below.",
