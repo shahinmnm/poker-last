@@ -139,22 +139,22 @@ export function Seat({
         {/* Status badges below avatar - compact */}
         <div className="mt-4 flex flex-col items-center gap-0.5">
           {current_bet > 0 && (
-            <div className="bg-yellow-500/20 text-yellow-400 text-[9px] font-medium px-1.5 py-0.5 rounded-full">
+            <div className="bg-yellow-500/20 text-yellow-400 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
               {formatByCurrency(current_bet, currency)}
             </div>
           )}
           {is_all_in && (
-            <div className="bg-red-500/20 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            <div className="bg-red-500/20 text-red-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
               ALL IN
             </div>
           )}
           {is_sitting_out && (
-            <div className="bg-yellow-500/20 text-yellow-500 text-[9px] font-medium px-1.5 py-0.5 rounded-full">
+            <div className="bg-yellow-500/20 text-yellow-500 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
               Zzz
             </div>
           )}
           {isHero && (
-            <div className="bg-blue-500/20 text-blue-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            <div className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
               YOU
             </div>
           )}
