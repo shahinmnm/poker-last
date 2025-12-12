@@ -441,7 +441,7 @@ export default function TablePage() {
     }
 
     return []
-  }, [heroIdString, heroPlayer, liveState?.hero, liveState?.players, viewerSeatPlayer])
+  }, [heroIdString, heroPlayer, liveState?.hero, liveState?.players])
   
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
