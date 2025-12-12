@@ -1781,6 +1781,7 @@ class PokerKitTableRuntimeManager:
             # We fetch this NOW before any transaction commits expire the table object.
             # Accessing table.template lazily after a commit causes a greenlet_spawn
             # async/sync mismatch crash.
+            await db.refresh(runtime.table, attribute_names=["template"])
             is_table_persistent = await table_lifecycle.is_persistent_table(runtime.table)
             # === END FIX ===
 
