@@ -398,11 +398,11 @@ export default function TablePage() {
   }, [applyIncomingState, tableId])
 
   // Fallback hero ID to tableDetails.viewer when liveState.hero is missing (WS is unauthenticated)
-  // Hero identity is strictly the authenticated user; fall back to server-provided hero/viewer only if user.id is absent
+  // Hero identity: trust server-provided hero/viewer first to stay aligned with PokerKit actor IDs; fall back to user.id only if absent.
   const heroId =
-    user?.id ??
     liveState?.hero?.user_id ??
     tableDetails?.viewer?.user_id ??
+    user?.id ??
     null
   const heroIdString = heroId !== null ? heroId.toString() : null
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString) ?? null
