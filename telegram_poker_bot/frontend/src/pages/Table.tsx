@@ -398,40 +398,14 @@ export default function TablePage() {
   }, [applyIncomingState, tableId])
 
   // Fallback hero ID to tableDetails.viewer when liveState.hero is missing (WS is unauthenticated)
-  const viewerSeatPositionRaw = tableDetails?.viewer?.seat_position
-  const viewerSeatPosition =
-    viewerSeatPositionRaw !== undefined && viewerSeatPositionRaw !== null
-      ? Number(viewerSeatPositionRaw)
-      : null
-  const viewerUserId = tableDetails?.viewer?.user_id ?? null
-  const matchesSeatPosition = (player: TablePlayerState | null | undefined, target: number | null) => {
-    if (!player || target === null) return false
-    const seats = [player.seat, player.position].map((value) =>
-      value === undefined || value === null ? null : Number(value),
-    )
-    // Some payloads are 0-based, some 1-based; allow off-by-one alignment
-    return seats.some(
-      (seatValue) =>
-        seatValue !== null &&
-        (seatValue === target || seatValue === target - 1 || seatValue === target + 1),
-    )
-  }
-  const viewerSeatPlayer =
-    viewerSeatPosition !== null
-      ? liveState?.players.find((p) => matchesSeatPosition(p, viewerSeatPosition))
-      : null
-
+  // Hero identity is strictly the authenticated user; fall back to server-provided hero/viewer only if user.id is absent
   const heroId =
-    liveState?.hero?.user_id ??
-    viewerUserId ??
-    viewerSeatPlayer?.user_id ??
     user?.id ??
+    liveState?.hero?.user_id ??
+    tableDetails?.viewer?.user_id ??
     null
   const heroIdString = heroId !== null ? heroId.toString() : null
-  const heroPlayer =
-    liveState?.players.find((p) => p.user_id?.toString() === heroIdString) ??
-    viewerSeatPlayer ??
-    null
+  const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString) ?? null
   const heroIsStandingUp = pendingSitOut ?? Boolean(heroPlayer?.is_sitting_out_next_hand)
 
   useEffect(() => {
@@ -456,12 +430,8 @@ export default function TablePage() {
     const sources: Array<any> = [
       liveState?.hero,
       heroPlayer,
-      viewerSeatPlayer,
       heroIdString
         ? liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
-        : null,
-      viewerSeatPosition !== null
-        ? liveState?.players.find((p) => matchesSeatPosition(p, viewerSeatPosition))
         : null,
     ]
 
@@ -1947,9 +1917,7 @@ export default function TablePage() {
                     const { serverIndex, playerData: player, isEmpty } = normalizedSeat
                     // Use String() conversion to prevent number vs string mismatches
                     const playerKey = player?.user_id?.toString() ?? null
-                    const isHeroPlayer =
-                      (heroIdString !== null && playerKey === heroIdString) ||
-                      matchesSeatPosition(player, viewerSeatPosition)
+                    const isHeroPlayer = heroIdString !== null && playerKey === heroIdString
                     const isHeroSlot = slot.isHeroPosition
                     const displayName = player?.display_name || player?.username || (isHeroSlot && !player
                       ? t('table.actions.takeSeat', { defaultValue: 'Take your seat' })
@@ -1985,9 +1953,9 @@ export default function TablePage() {
                     const heroSeatCards =
                       heroCards.length > 0
                         ? heroCards
-                        : player?.hole_cards?.length
-                          ? player.hole_cards
-                          : player?.cards ?? []
+                        : heroPlayer?.hole_cards?.length
+                          ? heroPlayer.hole_cards
+                          : heroPlayer?.cards ?? []
                     const seatSide = getSeatSide(slot.xPercent, slot.yPercent)
                     const isBottomSeat = seatSide === 'bottom'
                     const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
