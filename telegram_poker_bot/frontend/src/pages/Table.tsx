@@ -178,6 +178,8 @@ export default function TablePage() {
   const [tableExpiredReason, setTableExpiredReason] = useState('')
   const [showTableMenu, setShowTableMenu] = useState(false)
   const [showVariantRules, setShowVariantRules] = useState(false)
+  const [isTogglingSitOut, setIsTogglingSitOut] = useState(false)
+  const [pendingSitOut, setPendingSitOut] = useState<boolean | null>(null)
   const variantConfig = useGameVariant(tableDetails?.game_variant)
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
@@ -403,6 +405,14 @@ export default function TablePage() {
     null
   const heroIdString = heroId !== null ? heroId.toString() : null
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
+  const heroIsStandingUp = pendingSitOut ?? Boolean(heroPlayer?.is_sitting_out_next_hand)
+
+  useEffect(() => {
+    if (pendingSitOut === null) return
+    if (typeof heroPlayer?.is_sitting_out_next_hand === 'boolean' && heroPlayer.is_sitting_out_next_hand === pendingSitOut) {
+      setPendingSitOut(null)
+    }
+  }, [heroPlayer?.is_sitting_out_next_hand, pendingSitOut])
   
   // Robust hero cards extraction with fallback logic
   const heroCards = useMemo(() => {
@@ -1070,6 +1080,8 @@ export default function TablePage() {
       showToast(t('table.errors.unauthorized'))
       return
     }
+    setPendingSitOut(sitOut)
+    setIsTogglingSitOut(true)
     try {
       await apiFetch(`/tables/${tableId}/sitout`, {
         method: 'POST',
@@ -1095,7 +1107,9 @@ export default function TablePage() {
       } else {
         showToast(t('table.errors.actionFailed'))
       }
+      setPendingSitOut(null)
     }
+    setIsTogglingSitOut(false)
   }
 
   const allowedActionsSource =
@@ -1110,6 +1124,11 @@ export default function TablePage() {
   const viewerIsSeated =
     tableDetails?.viewer?.is_seated ??
     Boolean(heroId && liveState?.players?.some((p) => p.user_id?.toString() === heroId.toString()))
+  useEffect(() => {
+    if (!viewerIsSeated && pendingSitOut !== null) {
+      setPendingSitOut(null)
+    }
+  }, [viewerIsSeated, pendingSitOut])
 
   // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
   const livePlayerCount = liveState?.players?.length ?? tableDetails?.player_count ?? 0
@@ -1521,6 +1540,24 @@ export default function TablePage() {
 
     // Never show during inter-hand voting phase
     if (isInterHand) {
+      if (viewerIsSeated) {
+        return (
+          <div className={dockBaseClass} style={dockStyle}>
+            <div className="w-full pointer-events-auto">
+              <ActionBar
+                allowedActions={allowedActions}
+                onAction={handleGameAction}
+                myStack={heroPlayer?.stack ?? 0}
+                isProcessing={loading || isTogglingSitOut}
+                isMyTurn={false}
+                onToggleStandUp={(next) => handleSitOutToggle(next)}
+                isStandingUp={heroIsStandingUp}
+                standUpProcessing={isTogglingSitOut}
+              />
+            </div>
+          </div>
+        )
+      }
       console.log('[Table ActionDock] Hidden: inter-hand phase')
       return null
     }
@@ -1531,25 +1568,18 @@ export default function TablePage() {
       
       return (
         <div className={dockBaseClass} style={dockStyle}>
-          {/* Show Action Bar only if it's my turn */}
-          {isMyTurnNow && !isInterHand && (
-            <div className="w-full pointer-events-auto">
-              <ActionBar
-                allowedActions={allowedActions}
-                onAction={handleGameAction}
-                myStack={heroPlayer?.stack ?? 0}
-                isProcessing={actionPending || loading}
-                isMyTurn={isMyTurnNow}
-              />
-            </div>
-          )}
-          
-          {/* Show 'Wait' message if not my turn */}
-          {!isMyTurnNow && !isInterHand && (
-             <div className="pointer-events-auto rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs font-medium text-white/70 shadow-lg backdrop-blur-md">
-               Waiting for action...
-             </div>
-          )}
+          <div className="w-full pointer-events-auto">
+            <ActionBar
+              allowedActions={allowedActions}
+              onAction={handleGameAction}
+              myStack={heroPlayer?.stack ?? 0}
+              isProcessing={actionPending || loading || isTogglingSitOut}
+              isMyTurn={isMyTurnNow && !isInterHand}
+              onToggleStandUp={(next) => handleSitOutToggle(next)}
+              isStandingUp={heroIsStandingUp}
+              standUpProcessing={isTogglingSitOut}
+            />
+          </div>
         </div>
       )
     }
@@ -1611,25 +1641,18 @@ export default function TablePage() {
       
       return (
         <div className={dockBaseClass} style={dockStyle}>
-          {/* Show Action Bar only if it's my turn */}
-          {isMyTurn && (
-            <div className="w-full pointer-events-auto">
-              <ActionBar
-                allowedActions={allowedActions}
-                onAction={handleGameAction}
-                myStack={heroPlayer?.stack ?? 0}
-                isProcessing={actionPending || loading}
-                isMyTurn={isMyTurn}
-              />
-            </div>
-          )}
-          
-          {/* Show 'Wait' message if not my turn */}
-          {!isMyTurn && (
-             <div className="pointer-events-auto rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs font-medium text-white/70 shadow-lg backdrop-blur-md">
-               Waiting for action...
-             </div>
-          )}
+          <div className="w-full pointer-events-auto">
+            <ActionBar
+              allowedActions={allowedActions}
+              onAction={handleGameAction}
+              myStack={heroPlayer?.stack ?? 0}
+              isProcessing={actionPending || loading || isTogglingSitOut}
+              isMyTurn={isMyTurn}
+              onToggleStandUp={(next) => handleSitOutToggle(next)}
+              isStandingUp={heroIsStandingUp}
+              standUpProcessing={isTogglingSitOut}
+            />
+          </div>
         </div>
       )
     }
@@ -1680,25 +1703,6 @@ export default function TablePage() {
             </svg>
           </button>
         </div>
-
-        {/* Stand Up Toggle (Top-Right) */}
-        {viewerIsSeated && (
-          <div className="absolute top-14 right-4 z-50">
-            <button
-              onClick={() => handleSitOutToggle(!heroPlayer?.is_sitting_out_next_hand)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border transition-all shadow-lg ${
-                heroPlayer?.is_sitting_out_next_hand
-                  ? 'bg-amber-500/90 border-amber-400 text-black'
-                  : 'bg-black/40 border-white/10 text-white/70 hover:bg-black/60'
-              }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${heroPlayer?.is_sitting_out_next_hand ? 'bg-black animate-pulse' : 'bg-gray-400'}`} />
-              <span className="text-[10px] font-bold uppercase tracking-wide">
-                {heroPlayer?.is_sitting_out_next_hand ? 'Standing Up' : 'Stand Up'}
-              </span>
-            </button>
-          </div>
-        )}
 
         {/* Arena - Game Content */}
         {liveState ? (
