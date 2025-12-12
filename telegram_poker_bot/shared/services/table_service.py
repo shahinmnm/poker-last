@@ -544,7 +544,7 @@ async def create_default_template(
         "expiration_minutes": 10,
         "currency_type": CurrencyType.REAL.value,
         "game_variant": GameVariant.NO_LIMIT_TEXAS_HOLDEM.value,
-        "turn_timeout_seconds": 25,
+        "turn_timeout_seconds": 10,
     }
     if config_overrides:
         backend_config.update(config_overrides)

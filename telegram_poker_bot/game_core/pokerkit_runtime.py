@@ -1359,7 +1359,10 @@ class PokerKitTableRuntime:
         hand_status_value = poker_state.get("status")
 
         # Build payload
-        timeout_seconds = self.rules.turn_timeout_seconds
+        timeout_seconds = self.rules.turn_timeout_seconds or 10
+        # Use a stable deadline anchored to the last action time so it cannot be
+        # reset by repeated state fetches.
+        base_time = self.table.last_action_at or datetime.now(timezone.utc)
 
         payload = {
             "type": "table_state",
@@ -1371,13 +1374,12 @@ class PokerKitTableRuntime:
             "pot": poker_state["total_pot"],
             "pots": pots_with_user_ids,
             "current_bet": max(self.engine.state.bets) if self.engine.state.bets else 0,
+            "big_blind": self.rules.big_blind,
             "min_raise": min_raise,
             "current_actor": current_actor_user_id,
             "current_actor_user_id": current_actor_user_id,
             "action_deadline": (
-                (
-                    datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds)
-                ).isoformat()
+                (base_time + timedelta(seconds=timeout_seconds)).isoformat()
                 if current_actor_user_id and timeout_seconds
                 else None
             ),

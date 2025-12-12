@@ -685,6 +685,43 @@ async def monitor_inter_hand_timeouts():
                                     hand_no=hand.hand_no,
                                 )
 
+                        except ValueError as e:
+                            await db.rollback()
+                            if "unraked amount" in str(e).lower():
+                                logger.error(
+                                    "Auto-fold failed due to invalid pot state; sitting player out",
+                                    table_id=table.id,
+                                    user_id=current_actor_user_id,
+                                    error=str(e),
+                                )
+                                # Refresh table/seat and mark sit-out to prevent repeated failures
+                                table_row = await db.get(Table, table.id)
+                                if table_row:
+                                    table_row.last_action_at = now
+                                seat_row_result = await db.execute(
+                                    select(Seat).where(
+                                        Seat.table_id == table.id,
+                                        Seat.user_id == current_actor_user_id,
+                                        Seat.left_at.is_(None),
+                                    )
+                                )
+                                seat_row = seat_row_result.scalar_one_or_none()
+                                if seat_row:
+                                    seat_row.is_sitting_out_next_hand = True
+                                await db.commit()
+                                await manager.broadcast(
+                                    table.id,
+                                    {
+                                        "type": "player_sitout_changed",
+                                        "user_id": current_actor_user_id,
+                                        "is_sitting_out": True,
+                                        "reason": "invalid_pot_state",
+                                    },
+                                )
+                                continue
+                            # Re-raise for generic handler
+                            raise
+
                         except Exception as e:
                             logger.error(
                                 "Error processing inter-hand timeout for table",
@@ -878,6 +915,7 @@ async def auto_fold_expired_actions():
     Runs every 2 seconds to check all active tables with pending actions.
     """
     from telegram_poker_bot.shared.database import get_db_session
+    from telegram_poker_bot.shared.services import table_service
 
     LOCK_KEY = "background:auto_fold"
     LOCK_TTL = 5
@@ -919,13 +957,9 @@ async def auto_fold_expired_actions():
                                 continue
 
                             try:
-                                if deadline_str.endswith("Z"):
-                                    deadline = datetime.fromisoformat(
-                                        deadline_str.replace("Z", "+00:00")
-                                    )
-                                else:
-                                    deadline = datetime.fromisoformat(deadline_str)
-
+                                deadline = datetime.fromisoformat(
+                                    deadline_str.replace("Z", "+00:00")
+                                )
                                 if deadline.tzinfo is None:
                                     deadline = deadline.replace(tzinfo=timezone.utc)
                             except (ValueError, AttributeError) as e:
@@ -938,6 +972,32 @@ async def auto_fold_expired_actions():
                                 continue
 
                             if now < deadline:
+                                continue
+
+                            # Turn timeout configuration (default to 10s if missing)
+                            try:
+                                rules = table_service.parse_template_rules(
+                                    table_service.get_template_config(table)
+                                )
+                                turn_timeout_seconds = rules.turn_timeout_seconds or 10
+                                big_blind_value = rules.big_blind
+                            except Exception:
+                                # Fallbacks if template is not available
+                                turn_timeout_seconds = 10
+                                big_blind_value = state.get("big_blind") or 0
+
+                            # If deadline is missing or stale, recompute from last_action_at
+                            if not table.last_action_at:
+                                continue
+                            last_action_at = table.last_action_at
+                            if last_action_at.tzinfo is None:
+                                last_action_at = last_action_at.replace(
+                                    tzinfo=timezone.utc
+                                )
+                            recomputed_deadline = last_action_at + timedelta(
+                                seconds=turn_timeout_seconds
+                            )
+                            if now < recomputed_deadline:
                                 continue
 
                             current_actor_user_id = state["current_actor"]
@@ -1022,13 +1082,18 @@ async def auto_fold_expired_actions():
                                 continue
 
                             # Determine action based on timeout count and allowed actions
-                            # Rule C & Rule 2 (Zombie Cleanup):
-                            # - First timeout: check if legal, otherwise fold
-                            # - Second+ consecutive timeout: always fold AND set to sit out
+                            # Revised Rules:
+                            # - If a raise is present in the round: fold immediately and sit out
+                            # - Otherwise: first timeout -> auto-call if possible (else check), second -> fold + sit out
                             auto_action = ActionType.FOLD  # Default
+                            action_amount = None
+                            sit_out_after = False
+                            sit_out_reason = "consecutive_timeouts"
 
                             allowed_actions_raw = fresh_state.get("allowed_actions", [])
                             allowed_action_types = set()
+                            call_amount = None
+                            check_allowed = False
                             if isinstance(allowed_actions_raw, list):
                                 for entry in allowed_actions_raw:
                                     if not isinstance(entry, dict):
@@ -1036,16 +1101,66 @@ async def auto_fold_expired_actions():
                                     action_value = entry.get("action_type")
                                     if action_value:
                                         allowed_action_types.add(action_value.lower())
+                                    if (
+                                        entry.get("action_type") == "call"
+                                        and entry.get("amount") is not None
+                                    ):
+                                        try:
+                                            call_amount = int(entry.get("amount"))
+                                        except (TypeError, ValueError):
+                                            call_amount = None
+                                    if entry.get("action_type") == "check":
+                                        check_allowed = True
                             elif isinstance(allowed_actions_raw, dict):
                                 action_value = allowed_actions_raw.get("action_type")
                                 if action_value:
                                     allowed_action_types.add(action_value.lower())
+                                if action_value == "call":
+                                    try:
+                                        call_amount = int(allowed_actions_raw.get("amount"))
+                                    except (TypeError, ValueError):
+                                        call_amount = None
+                                if action_value == "check":
+                                    check_allowed = True
                             elif isinstance(allowed_actions_raw, str):
                                 allowed_action_types.add(allowed_actions_raw.lower())
+                            if call_amount is not None and call_amount < 0:
+                                call_amount = None
 
-                            if timeout_count == 0:
-                                # First timeout - check if CHECK is legal
-                                if "check" in allowed_action_types:
+                            current_bet = fresh_state.get("current_bet") or 0
+                            street = (fresh_state.get("street") or "").lower()
+
+                            is_raised_round = False
+                            if street == "preflop":
+                                is_raised_round = current_bet > big_blind_value
+                            elif street in {"flop", "turn", "river"}:
+                                is_raised_round = current_bet > 0
+
+                            if is_raised_round:
+                                # Any raise/bet in the round -> immediate fold and sit out
+                                auto_action = ActionType.FOLD
+                                sit_out_after = True
+                                sit_out_reason = "timeout_vs_raise"
+                                logger.info(
+                                    "Auto-folding player (timeout facing raise/bet)",
+                                    table_id=table.id,
+                                    user_id=current_actor_user_id,
+                                    deadline=deadline_str,
+                                    current_bet=current_bet,
+                                )
+                            elif timeout_count == 0:
+                                # First timeout without a raise
+                                if "call" in allowed_action_types and call_amount is not None:
+                                    auto_action = ActionType.CALL
+                                    action_amount = call_amount
+                                    logger.info(
+                                        "Auto-calling player (first timeout, no raise in round)",
+                                        table_id=table.id,
+                                        user_id=current_actor_user_id,
+                                        deadline=deadline_str,
+                                        call_amount=call_amount,
+                                    )
+                                elif "check" in allowed_action_types or check_allowed:
                                     auto_action = ActionType.CHECK
                                     logger.info(
                                         "Auto-checking player (first timeout, check is legal)",
@@ -1054,14 +1169,16 @@ async def auto_fold_expired_actions():
                                         deadline=deadline_str,
                                     )
                                 else:
+                                    sit_out_after = False
                                     logger.info(
-                                        "Auto-folding player (first timeout, check not legal)",
+                                        "Auto-folding player (first timeout, cannot call/check)",
                                         table_id=table.id,
                                         user_id=current_actor_user_id,
                                         deadline=deadline_str,
                                     )
                             else:
-                                # Consecutive timeout - always fold
+                                # Consecutive timeout - always fold and sit out
+                                sit_out_after = True
                                 logger.info(
                                     "Auto-folding player (consecutive timeout)",
                                     table_id=table.id,
@@ -1076,7 +1193,7 @@ async def auto_fold_expired_actions():
                                 table_id=table.id,
                                 user_id=current_actor_user_id,
                                 action=auto_action,
-                                amount=None,
+                                amount=action_amount,
                             )
 
                             # Update timeout tracking
@@ -1092,8 +1209,8 @@ async def auto_fold_expired_actions():
                             ] = now.isoformat()
                             current_hand.timeout_tracking = timeout_tracking
 
-                            # Rule 2: After 2nd consecutive timeout, set player to sit out
-                            if timeout_count + 1 >= 2:
+                            # Rule 2: Set player to sit out based on policy
+                            if sit_out_after or timeout_count + 1 >= 2:
                                 actor_seat.is_sitting_out_next_hand = True
                                 logger.info(
                                     "Player set to sit out after consecutive timeouts",
@@ -1108,7 +1225,7 @@ async def auto_fold_expired_actions():
                                         "type": "player_sitout_changed",
                                         "user_id": current_actor_user_id,
                                         "is_sitting_out": True,
-                                        "reason": "consecutive_timeouts",
+                                        "reason": sit_out_reason,
                                     },
                                 )
 
