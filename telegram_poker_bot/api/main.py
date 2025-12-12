@@ -686,42 +686,6 @@ async def monitor_inter_hand_timeouts():
                                 )
 
                         except ValueError as e:
-                            await db.rollback()
-                            if "unraked amount" in str(e).lower():
-                                logger.error(
-                                    "Auto-fold failed due to invalid pot state; sitting player out",
-                                    table_id=table.id,
-                                    user_id=current_actor_user_id,
-                                    error=str(e),
-                                )
-                                # Refresh table/seat and mark sit-out to prevent repeated failures
-                                table_row = await db.get(Table, table.id)
-                                if table_row:
-                                    table_row.last_action_at = now
-                                seat_row_result = await db.execute(
-                                    select(Seat).where(
-                                        Seat.table_id == table.id,
-                                        Seat.user_id == current_actor_user_id,
-                                        Seat.left_at.is_(None),
-                                    )
-                                )
-                                seat_row = seat_row_result.scalar_one_or_none()
-                                if seat_row:
-                                    seat_row.is_sitting_out_next_hand = True
-                                await db.commit()
-                                await manager.broadcast(
-                                    table.id,
-                                    {
-                                        "type": "player_sitout_changed",
-                                        "user_id": current_actor_user_id,
-                                        "is_sitting_out": True,
-                                        "reason": "invalid_pot_state",
-                                    },
-                                )
-                                continue
-                            # Re-raise for generic handler
-                            raise
-
                         except Exception as e:
                             logger.error(
                                 "Error processing inter-hand timeout for table",
