@@ -1931,26 +1931,26 @@ export default function TablePage() {
                     })
                     const isSittingOut = Boolean(player?.is_sitting_out_next_hand)
                     const isAllIn = Boolean(player?.is_all_in || (player?.stack ?? 0) <= 0)
-                    const showHeroCards =
-                      isHeroPlayer &&
-                      heroCards.length > 0 &&
-                      liveState.hand_id &&
-                      liveState.status !== 'ended' &&
-                      liveState.status !== 'waiting'
                     const showShowdownCards =
                       playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown')
                     const showOpponentBacks =
                       !isHeroPlayer &&
                       Boolean(player?.in_hand && liveState?.hand_id && !hasFolded && !showShowdownCards)
+                    const heroSeatCards =
+                      heroCards.length > 0
+                        ? heroCards
+                        : player?.hole_cards?.length
+                          ? player.hole_cards
+                          : player?.cards ?? []
                     const seatSide = getSeatSide(slot.xPercent, slot.yPercent)
                     const isBottomSeat = seatSide === 'bottom'
                     const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
-                    const seatHoleCards = showHeroCards
-                      ? heroCards
+                    const seatHoleCards = isHeroPlayer
+                      ? heroSeatCards
                       : showShowdownCards
                         ? playerCards
                         : []
-                    const showCardBacks = showOpponentBacks
+                    const showCardBacks = isHeroPlayer ? false : showOpponentBacks
 
                     return (
                       <Fragment key={`seat-server-${serverIndex}`}>
