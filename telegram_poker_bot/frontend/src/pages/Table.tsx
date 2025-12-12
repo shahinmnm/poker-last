@@ -774,7 +774,7 @@ export default function TablePage() {
   }, [tableId]) // Only depend on tableId, not the fetch functions (which are stable via useCallback)
 
   // WebSocket connection with stable hook
-  const { waitForConnection } = useTableWebSocket({
+  const { waitForConnection, status: wsStatus } = useTableWebSocket({
     tableId: tableId || '',
     enabled: !!tableId,
     onMessage: useCallback(
@@ -1741,7 +1741,9 @@ export default function TablePage() {
                           <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-200">
                             {t('table.meta.stakes', { defaultValue: 'Stakes' })}
                           </span>
-                          <span className="text-xs font-bold text-white">{stakesDisplay}</span>
+                          <span className="text-xs font-bold text-white">
+                            {stakesDisplay}
+                          </span>
                         </div>
                       </div>
 
@@ -1776,65 +1778,58 @@ export default function TablePage() {
                             <div className="mb-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-[1fr_auto] sm:items-center sm:text-left">
                               <div className="space-y-1">
                                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
-                                <p className="text-base font-semibold leading-tight">
-                                  {templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}
-                                </p>
+                                <p className="text-base font-semibold leading-tight">{templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
                               </div>
                               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                                 <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
-                                  {tableDetails.visibility === 'private' || tableDetails.is_private
-                                    ? t('table.meta.private', { defaultValue: 'Private' })
-                                    : t('table.meta.public', { defaultValue: 'Public' })}
+                                  {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
                                 </div>
-                                <GameVariantBadge variant={tableDetails.game_variant} size="lg" />
-                              </div>
-                            </div>
-
-                            <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
-                              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                                <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stakes', { defaultValue: 'Stakes' })}</p>
-                                <p className="text-sm font-semibold leading-snug">{stakesDisplay}</p>
-                              </div>
-                              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                                <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
-                                <p className="text-sm font-semibold leading-snug">
-                                  {tableDetails.player_count} / {tableMaxPlayers}
-                                </p>
-                              </div>
-                              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                                <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
-                                <p className="text-sm font-semibold leading-snug">{startingStackDisplay ?? '—'}</p>
-                              </div>
-                              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                                <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
-                                <p className="text-sm font-semibold leading-snug">{formattedPot}</p>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                block
-                                onClick={() => setShowRecentHands(true)}
-                              >
-                                {t('table.actions.recentHands', { defaultValue: 'Recent hands' })}
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                block
-                                onClick={handleLeave}
-                                disabled={!canLeave || isLeaving}
-                              >
-                                {isLeaving
-                                  ? t('table.actions.leaving')
-                                  : t('table.actions.leave', { defaultValue: 'Leave table' })}
-                              </Button>
+                              <GameVariantBadge variant={tableDetails.game_variant} size="lg" />
                             </div>
                           </div>
-                        )}
-                      </div>
+
+                          <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stakes', { defaultValue: 'Stakes' })}</p>
+                              <p className="text-sm font-semibold leading-snug">{stakesDisplay}</p>
+                            </div>
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
+                              <p className="text-sm font-semibold leading-snug">{tableDetails.player_count} / {tableMaxPlayers}</p>
+                            </div>
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
+                              <p className="text-sm font-semibold leading-snug">
+                                {startingStackDisplay ?? '—'}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
+                              <p className="text-sm font-semibold leading-snug">{formattedPot}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              block
+                              onClick={() => setShowRecentHands(true)}
+                            >
+                              {t('table.actions.recentHands', { defaultValue: 'Recent hands' })}
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              block
+                              onClick={handleLeave}
+                              disabled={!canLeave || isLeaving}
+                            >
+                              {isLeaving ? t('table.actions.leaving') : t('table.actions.leave', { defaultValue: 'Leave table' })}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
