@@ -398,13 +398,28 @@ export default function TablePage() {
   }, [applyIncomingState, tableId])
 
   // Fallback hero ID to tableDetails.viewer when liveState.hero is missing (WS is unauthenticated)
+  const viewerSeatIndex = tableDetails?.viewer?.seat_position ?? tableDetails?.viewer?.seat_position
+  const viewerUserId = tableDetails?.viewer?.user_id ?? null
+  const viewerSeatPlayer =
+    viewerSeatIndex !== undefined && viewerSeatIndex !== null
+      ? liveState?.players.find(
+          (p) =>
+            p.seat === viewerSeatIndex ||
+            p.position === viewerSeatIndex,
+        )
+      : null
+
   const heroId =
     liveState?.hero?.user_id ??
-    tableDetails?.viewer?.user_id ??
+    viewerUserId ??
+    viewerSeatPlayer?.user_id ??
     user?.id ??
     null
   const heroIdString = heroId !== null ? heroId.toString() : null
-  const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
+  const heroPlayer =
+    liveState?.players.find((p) => p.user_id?.toString() === heroIdString) ??
+    viewerSeatPlayer ??
+    null
   const heroIsStandingUp = pendingSitOut ?? Boolean(heroPlayer?.is_sitting_out_next_hand)
 
   useEffect(() => {
@@ -416,18 +431,32 @@ export default function TablePage() {
   
   // Robust hero cards extraction with fallback logic
   const heroCards = useMemo(() => {
-    // 1. Try direct hero object
-    if (liveState?.hero?.cards?.length) return liveState.hero.cards;
-    
-    // 2. Try finding hero in players list (Robust ID match)
-    if (heroIdString) {
-      const me = liveState?.players.find(p => String(p.user_id) === String(heroIdString));
-      if (me?.cards?.length) return me.cards;
-      if (me?.hole_cards?.length) return me.hole_cards;
+    const tryExtract = (source: any): string[] | null => {
+      if (!source) return null
+      const candidateFields = ['cards', 'hole_cards', 'hand_cards', 'hand', 'private_cards']
+      for (const field of candidateFields) {
+        const value = (source as any)[field]
+        if (Array.isArray(value) && value.length) return value
+      }
+      return null
     }
-    
-    return [];
-  }, [liveState?.hero, liveState?.players, heroIdString]);
+
+    const sources: Array<any> = [
+      liveState?.hero,
+      heroPlayer,
+      viewerSeatPlayer,
+      heroIdString
+        ? liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
+        : null,
+    ]
+
+    for (const src of sources) {
+      const cards = tryExtract(src)
+      if (cards) return cards
+    }
+
+    return []
+  }, [heroIdString, heroPlayer, liveState?.hero, liveState?.players, viewerSeatPlayer])
   
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
@@ -1903,7 +1932,11 @@ export default function TablePage() {
                     const { serverIndex, playerData: player, isEmpty } = normalizedSeat
                     // Use String() conversion to prevent number vs string mismatches
                     const playerKey = player?.user_id?.toString() ?? null
-                    const isHeroPlayer = heroIdString !== null && playerKey === heroIdString
+                    const isHeroPlayer =
+                      (heroIdString !== null && playerKey === heroIdString) ||
+                      (viewerSeatIndex !== undefined &&
+                        viewerSeatIndex !== null &&
+                        (player?.seat === viewerSeatIndex || player?.position === viewerSeatIndex))
                     const isHeroSlot = slot.isHeroPosition
                     const displayName = player?.display_name || player?.username || (isHeroSlot && !player
                       ? t('table.actions.takeSeat', { defaultValue: 'Take your seat' })
