@@ -287,12 +287,12 @@ export default function ActionBar({
       )}
 
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-5 sm:px-4"
+        className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-start px-3 sm:bottom-5 sm:px-4"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
       >
-        <div className="pointer-events-auto w-full max-w-[1080px] text-white font-['Inter',_sans-serif]">
-          <div className="flex w-full flex-wrap items-end justify-between gap-2 sm:gap-3">
-            <div className="flex min-w-[190px] flex-1 flex-wrap items-center justify-start gap-1.5 rounded-full border border-white/10 bg-black/60 px-1.5 py-1 shadow-xl backdrop-blur-lg">
+        <div className="pointer-events-auto max-w-[820px] text-white font-['Inter',_sans-serif]">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-emerald-200/25 bg-white/10 px-2 py-1.5 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={handleFold}
@@ -312,46 +312,39 @@ export default function ActionBar({
               </button>
             </div>
 
-            <div
-              className="pointer-events-none h-12 w-[72px] shrink-0 sm:h-14 sm:w-[96px]"
-              aria-hidden="true"
-            />
-
-            <div className="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:flex-wrap sm:gap-2">
-              {sliderLabelAction && (
-                <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-1.5 py-1 shadow-lg backdrop-blur-md">
-                  <button
-                    type="button"
-                    onClick={() => adjustBet(-1, sliderLabelAction)}
-                    disabled={raiseDisabled}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <div className="min-w-[64px] px-2 text-center text-[12px] font-semibold text-emerald-300 tabular-nums">
-                    {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => adjustBet(1, sliderLabelAction)}
-                    disabled={raiseDisabled}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <Plus size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRaise}
-                    disabled={raiseDisabled}
-                    className="ml-1 h-9 rounded-full bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
-                  >
-                    {confirmLabel}
-                  </button>
+            {sliderLabelAction && (
+              <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/15 px-1.5 py-1 shadow-lg backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => adjustBet(-1, sliderLabelAction)}
+                  disabled={raiseDisabled}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Minus size={14} />
+                </button>
+                <div className="min-w-[64px] px-2 text-center text-[12px] font-semibold text-emerald-300 tabular-nums">
+                  {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
                 </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => adjustBet(1, sliderLabelAction)}
+                  disabled={raiseDisabled}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Plus size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRaise}
+                  disabled={raiseDisabled}
+                  className="ml-1 h-9 rounded-full bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+                >
+                  {confirmLabel}
+                </button>
+              </div>
+            )}
 
-              {renderStandUpButton()}
-            </div>
+            {renderStandUpButton()}
           </div>
         </div>
       </div>
