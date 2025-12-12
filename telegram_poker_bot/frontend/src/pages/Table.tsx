@@ -149,6 +149,56 @@ const notifyLobbyTableRemoved = (tableId?: number | string | null) => {
   )
 }
 
+const CARD_FIELD_KEYS = ['cards', 'hole_cards', 'hand_cards', 'hand', 'private_cards'] as const
+type CardFieldKey = (typeof CARD_FIELD_KEYS)[number]
+type CardCarrier = Partial<Record<CardFieldKey, string[]>>
+
+const extractCardArray = (source: CardCarrier | null | undefined): string[] | null => {
+  if (!source) return null
+  for (const key of CARD_FIELD_KEYS) {
+    const value = source[key]
+    if (Array.isArray(value) && value.length) {
+      return value
+    }
+  }
+  return null
+}
+
+const mergeCardData = <T extends CardCarrier>(
+  incoming: T | null | undefined,
+  previous: CardCarrier | null | undefined,
+  shouldPreserveCards: boolean,
+  cachedCards?: string[] | null,
+): T | null => {
+  if (!incoming && !previous) return null
+
+  const base = shouldPreserveCards
+    ? { ...(previous ?? {}), ...(incoming ?? {}) }
+    : incoming ?? null
+
+  if (!base) return null
+
+  const incomingCards = extractCardArray(incoming)
+  const previousCards = extractCardArray(previous)
+  const cardsToKeep = shouldPreserveCards
+    ? incomingCards?.length
+      ? incomingCards
+      : previousCards?.length
+        ? previousCards
+        : cachedCards ?? null
+    : incomingCards ?? null
+
+  if (cardsToKeep?.length) {
+    const keyToUse = CARD_FIELD_KEYS.find((key) => (base as CardCarrier)[key] !== undefined) ?? 'cards'
+    return {
+      ...(base as T),
+      [keyToUse]: cardsToKeep,
+    }
+  }
+
+  return base as T
+}
+
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
@@ -194,6 +244,8 @@ export default function TablePage() {
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
   const lastCompletedHandIdRef = useRef<number | null>(null)
   const lastHandResultHandIdRef = useRef<number | null>(null)
+  const heroCardsCacheRef = useRef<Map<number, string[]>>(new Map())
+  const lastCachedHandIdRef = useRef<number | null>(null)
   
   // Track inter-hand state for logging only when it changes
   const prevIsInterHandRef = useRef<boolean | null>(null)
@@ -286,16 +338,48 @@ export default function TablePage() {
         }
 
         const isSameHand = incoming.hand_id !== null && previous?.hand_id === incoming.hand_id
-        const mergedHero = incoming.hero ?? (isSameHand ? previous?.hero ?? null : null)
+        const cardCacheHandId = incomingHandId ?? previousHandId
+
+        if (!isSameHand) {
+          heroCardsCacheRef.current.clear()
+        }
+
+        const mergedHero = mergeCardData<NonNullable<TableState['hero']>>(
+          incoming.hero ?? null,
+          previous?.hero ?? null,
+          isSameHand,
+          cardCacheHandId !== null ? heroCardsCacheRef.current.get(cardCacheHandId) : null,
+        )
         const mergedHandResult = incoming.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
         const mergedReadyPlayers =
           incoming.ready_players ?? (isSameHand ? previous?.ready_players ?? [] : [])
-        const mergedPlayers: TablePlayerState[] =
-          incoming.players?.length
-            ? incoming.players
-            : previous?.players?.length
-              ? previous.players
-              : []
+        const previousPlayers: TablePlayerState[] = previous?.players ?? []
+        const incomingPlayers: TablePlayerState[] = incoming.players ?? []
+        const mergedPlayers: TablePlayerState[] = incomingPlayers.length
+          ? incomingPlayers.map((player) => {
+              const previousMatch = isSameHand
+                ? previousPlayers.find((p) => p.user_id?.toString() === player.user_id?.toString())
+                : undefined
+              return (
+                mergeCardData<TablePlayerState>(
+                  player,
+                  previousMatch ?? null,
+                  isSameHand,
+                ) ?? player
+              )
+            })
+          : previousPlayers.length
+            ? previousPlayers.map((player) => {
+                if (isSameHand) return player
+                const sanitized = { ...player }
+                CARD_FIELD_KEYS.forEach((key) => {
+                  if (key in sanitized) {
+                    delete (sanitized as Record<string, unknown>)[key]
+                  }
+                })
+                return sanitized
+              })
+            : []
         const mergedBoard = incoming.board?.length
           ? incoming.board
           : isSameHand
@@ -365,6 +449,18 @@ export default function TablePage() {
             (isSameHand ? previous?.allowed_actions_legacy : undefined),
         }
 
+        const mergedHeroCards = extractCardArray(mergedHero)
+        const cacheKey = nextState.hand_id ?? null
+        if (cacheKey !== null) {
+          if (mergedHeroCards?.length) {
+            heroCardsCacheRef.current.set(cacheKey, mergedHeroCards)
+          } else if (!isSameHand) {
+            heroCardsCacheRef.current.delete(cacheKey)
+          }
+        } else {
+          heroCardsCacheRef.current.clear()
+        }
+
         if (source === 'ws') {
           hasWsStateRef.current = true
         }
@@ -415,33 +511,41 @@ export default function TablePage() {
     }
   }, [heroPlayer?.is_sitting_out_next_hand, pendingSitOut])
   
-  // Robust hero cards extraction with fallback logic
+  // Robust hero cards extraction with cached fallback to avoid losing visibility mid-hand
   const heroCards = useMemo(() => {
-    const tryExtract = (source: any): string[] | null => {
-      if (!source) return null
-      const candidateFields = ['cards', 'hole_cards', 'hand_cards', 'hand', 'private_cards']
-      for (const field of candidateFields) {
-        const value = (source as any)[field]
-        if (Array.isArray(value) && value.length) return value
-      }
-      return null
-    }
-
-    const sources: Array<any> = [
-      liveState?.hero,
+    const sources: Array<CardCarrier | null> = [
+      liveState?.hero ?? null,
       heroPlayer,
       heroIdString
-        ? liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
+        ? liveState?.players.find((p) => p.user_id?.toString() === heroIdString) ?? null
         : null,
     ]
 
     for (const src of sources) {
-      const cards = tryExtract(src)
+      const cards = extractCardArray(src)
       if (cards) return cards
     }
 
+    const handId = liveState?.hand_id ?? null
+    if (handId !== null) {
+      const cached = heroCardsCacheRef.current.get(handId)
+      if (cached?.length) return cached
+    }
+
     return []
-  }, [heroIdString, heroPlayer, liveState?.hero, liveState?.players])
+  }, [heroIdString, heroPlayer, liveState?.hand_id, liveState?.hero, liveState?.players])
+  useEffect(() => {
+    const currentHandId = liveState?.hand_id ?? null
+
+    if (currentHandId !== lastCachedHandIdRef.current) {
+      heroCardsCacheRef.current.clear()
+      lastCachedHandIdRef.current = currentHandId
+    }
+
+    if (currentHandId !== null && heroCards.length) {
+      heroCardsCacheRef.current.set(currentHandId, heroCards)
+    }
+  }, [heroCards, liveState?.hand_id])
   
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
