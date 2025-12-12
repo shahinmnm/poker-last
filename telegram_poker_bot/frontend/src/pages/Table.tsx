@@ -1502,6 +1502,8 @@ export default function TablePage() {
   }
 
   const renderActionDock = () => {
+    const dockBaseClass = 'pointer-events-none fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-4'
+    const dockStyle = { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }
     // Log rendering decision
     const isActiveGameplayCheck = ACTIVE_GAMEPLAY_STREETS.includes(tableStatus) || tableStatus === 'active'
     console.log('[Table ActionDock] Render decision:', {
@@ -1528,10 +1530,10 @@ export default function TablePage() {
       const isMyTurnNow = isPlaying && currentActorUserId?.toString() === heroIdString
       
       return (
-        <div className="table-action-dock z-40 flex-col items-center gap-2">
+        <div className={dockBaseClass} style={dockStyle}>
           {/* Show Action Bar only if it's my turn */}
           {isMyTurnNow && !isInterHand && (
-            <div className="w-full">
+            <div className="w-full pointer-events-auto">
               <ActionBar
                 allowedActions={allowedActions}
                 onAction={handleGameAction}
@@ -1544,7 +1546,7 @@ export default function TablePage() {
           
           {/* Show 'Wait' message if not my turn */}
           {!isMyTurnNow && !isInterHand && (
-             <div className="pointer-events-auto px-4 py-2 rounded-full bg-black/40 text-white/50 text-xs font-medium backdrop-blur-sm">
+             <div className="pointer-events-auto rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs font-medium text-white/70 shadow-lg backdrop-blur-md">
                Waiting for action...
              </div>
           )}
@@ -1562,13 +1564,13 @@ export default function TablePage() {
       })
       if (viewerIsCreator) {
         return (
-          <div className="table-action-dock z-40">
-            <div className="pointer-events-auto flex flex-col items-center gap-4">
+          <div className={dockBaseClass} style={dockStyle}>
+            <div className="pointer-events-auto flex flex-col items-center gap-3">
               <button
                 type="button"
                 onClick={handleStart}
                 disabled={isStarting || !canStart}
-                className="min-h-[52px] px-8 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 text-black font-bold text-lg shadow-2xl shadow-emerald-500/40 hover:from-emerald-400 hover:to-emerald-300 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed animate-pulse"
+                className="min-h-[48px] px-7 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 text-black font-bold text-base shadow-xl shadow-emerald-500/40 hover:from-emerald-400 hover:to-emerald-300 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isStarting ? t('table.actions.starting') : t('table.actions.start', { defaultValue: 'START GAME' })}
               </button>
@@ -1579,8 +1581,8 @@ export default function TablePage() {
 
       if (viewerIsSeated) {
         return (
-          <div className="table-action-dock z-40">
-            <div className="pointer-events-auto px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
+          <div className={dockBaseClass} style={dockStyle}>
+            <div className="pointer-events-auto rounded-full border border-white/10 bg-black/60 px-4 py-2 text-sm font-medium text-white/80 shadow-lg backdrop-blur-md">
               {t('table.messages.waitingForHost')}
             </div>
           </div>
@@ -1608,10 +1610,10 @@ export default function TablePage() {
       })
       
       return (
-        <div className="table-action-dock z-40 flex-col items-center gap-2">
+        <div className={dockBaseClass} style={dockStyle}>
           {/* Show Action Bar only if it's my turn */}
           {isMyTurn && (
-            <div className="w-full">
+            <div className="w-full pointer-events-auto">
               <ActionBar
                 allowedActions={allowedActions}
                 onAction={handleGameAction}
@@ -1624,7 +1626,7 @@ export default function TablePage() {
           
           {/* Show 'Wait' message if not my turn */}
           {!isMyTurn && (
-             <div className="pointer-events-auto px-4 py-2 rounded-full bg-black/40 text-white/50 text-xs font-medium backdrop-blur-sm">
+             <div className="pointer-events-auto rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs font-medium text-white/70 shadow-lg backdrop-blur-md">
                Waiting for action...
              </div>
           )}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { LogOut, MoreVertical, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 interface PlayerHeaderProps {
@@ -18,38 +18,53 @@ export default function PlayerHeader({
   isMyTurn = false,
 }: PlayerHeaderProps) {
   const { t } = useTranslation()
-  const initial = useMemo(() => playerName.charAt(0)?.toUpperCase() || '?', [playerName])
+  const chipDisplay = formatNumber(chipCount)
 
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0b3a20]/70 px-4 py-3 shadow-lg backdrop-blur-md">
-      <div
-        className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-400/40 text-lg font-bold text-white shadow-inner ${
-          isMyTurn ? 'ring-2 ring-emerald-300 shadow-emerald-500/40' : 'ring-1 ring-white/10'
-        }`}
-        aria-label={playerName}
-      >
-        {initial}
+    <div className="pointer-events-none absolute left-4 right-4 top-4 z-50 flex items-start justify-between text-white font-['Inter',_sans-serif]">
+      <div className="pointer-events-auto flex items-center gap-2">
+        <button
+          type="button"
+          aria-label={t('table.actions.close', { defaultValue: 'Close table' })}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/60 active:scale-95"
+        >
+          <X size={18} />
+        </button>
+
+        <div
+          className={`flex items-center gap-2 rounded-full border px-3 py-1 shadow-lg backdrop-blur-md ${
+            isMyTurn
+              ? 'border-emerald-300/60 bg-black/50'
+              : 'border-white/10 bg-black/40'
+          }`}
+          title={playerName}
+        >
+          <span className="text-[11px] font-medium text-gray-200">{tableLabel}</span>
+          <span className="text-[10px] font-semibold text-emerald-300">
+            {t('table.actionBar.currentChips', {
+              amount: chipDisplay,
+              defaultValue: `${chipDisplay} chips`,
+            })}
+          </span>
+          <span className="sr-only">{playerName}</span>
+        </div>
       </div>
 
-      <div className="flex flex-col text-white">
-        <span className="text-sm font-semibold leading-tight">{playerName}</span>
-        <span className="text-xs font-semibold text-emerald-100/90">
-          {t('table.actionBar.currentChips', {
-            amount: formatNumber(chipCount),
-            defaultValue: `${formatNumber(chipCount)} chips`,
-          })}
-        </span>
-      </div>
-
-      <div
-        className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-50 ${
-          isMyTurn
-            ? 'border-emerald-300/70 bg-emerald-900/60 shadow-[0_0_12px_rgba(0,201,141,0.35)]'
-            : 'border-white/10 bg-white/5'
-        }`}
-      >
-        <span className={`h-2 w-2 rounded-full ${isMyTurn ? 'bg-emerald-300' : 'bg-amber-300'}`} aria-hidden />
-        <span>{tableLabel}</span>
+      <div className="pointer-events-auto flex items-center gap-2">
+        <button
+          type="button"
+          aria-label={t('table.actions.leaveSeat', { defaultValue: 'Leave seat' })}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/60 active:scale-95"
+        >
+          <LogOut size={18} />
+        </button>
+        <button
+          type="button"
+          aria-label={t('table.menu.open', { defaultValue: 'Table menu' })}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/60 active:scale-95"
+        >
+          <MoreVertical size={18} />
+        </button>
       </div>
     </div>
   )

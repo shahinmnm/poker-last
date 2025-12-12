@@ -43,32 +43,28 @@ const layoutConfig: Record<SideDirection, {
   infoPill: string
 }> = {
   bottom: {
-    // Hero: Cards stick out from the TOP of the avatar
-    container: 'flex-col-reverse justify-end',
-    cardWrapper: '-mb-6 -translate-y-6 z-0',
+    container: 'flex-col-reverse items-center justify-end',
+    cardWrapper: '-mb-3 -translate-y-4 z-0',
     badge: '-top-1 -right-1',
-    infoPill: '-bottom-6 left-1/2 -translate-x-1/2',
+    infoPill: 'left-1/2 top-full -translate-y-2',
   },
   top: {
-    // Villain Opposite: Cards stick out from the BOTTOM
-    container: 'flex-col justify-start',
-    cardWrapper: '-mt-6 translate-y-6 z-0',
+    container: 'flex-col items-center justify-start',
+    cardWrapper: '-mt-3 translate-y-4 z-0',
     badge: '-bottom-1 -right-1',
-    infoPill: '-top-6 left-1/2 -translate-x-1/2',
+    infoPill: 'left-1/2 top-full -translate-y-2',
   },
   left: {
-    // Villain Left: Cards stick out to the RIGHT
     container: 'flex-row items-center',
-    cardWrapper: '-ml-6 translate-x-6 z-0',
+    cardWrapper: '-ml-3 translate-x-3 z-0',
     badge: '-top-1 -right-1',
-    infoPill: '-left-2 top-1/2 -translate-y-1/2 -translate-x-full',
+    infoPill: 'left-1/2 -translate-x-1/2 top-full -translate-y-2',
   },
   right: {
-    // Villain Right: Cards stick out to the LEFT
     container: 'flex-row-reverse items-center',
-    cardWrapper: '-mr-6 -translate-x-6 z-0',
+    cardWrapper: '-mr-3 -translate-x-3 z-0',
     badge: '-top-1 -left-1',
-    infoPill: '-right-2 top-1/2 -translate-y-1/2 translate-x-full',
+    infoPill: 'left-1/2 -translate-x-1/2 top-full -translate-y-2',
   },
 }
 
@@ -153,7 +149,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       return (
         <div
           ref={ref}
-          className={clsx('relative inline-flex flex-col items-center group cursor-pointer', className)}
+          className={clsx('relative inline-flex flex-col items-center group cursor-pointer m-1.5', className)}
           onClick={onClick}
           role="button"
           tabIndex={0}
@@ -165,11 +161,11 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             }
           }}
         >
-          <div className="w-16 h-16 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-white/5 transition-all duration-300 group-hover:border-emerald-400 group-hover:bg-emerald-500/20 group-hover:scale-105 shadow-inner">
-            <Plus className="w-6 h-6 text-white/40 group-hover:text-emerald-400 transition-colors" strokeWidth={3} />
+          <div className="h-12 w-12 rounded-full border border-dashed border-white/30 flex items-center justify-center bg-white/5 transition-all duration-300 group-hover:border-emerald-400 group-hover:bg-emerald-500/20 group-hover:scale-105 shadow-inner">
+            <Plus className="w-5 h-5 text-white/50 group-hover:text-emerald-300 transition-colors" strokeWidth={3} />
           </div>
-          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 bg-black/80 px-2 py-0.5 rounded-full backdrop-blur-md">
+          <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-300 bg-black/80 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
               Sit Here
             </span>
           </div>
@@ -190,57 +186,42 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       <div
         ref={ref}
         className={clsx(
-          'relative flex items-center transition-all duration-300',
+          'relative flex items-center transition-all duration-300 m-1',
           layout.container,
           mutedState && 'grayscale opacity-50',
           className,
         )}
         style={{
-          width: isHorizontal ? '120px' : '90px',
-          height: isHorizontal ? '90px' : '120px',
+          width: isHorizontal ? '100px' : '86px',
+          height: isHorizontal ? '86px' : '104px',
           zIndex: isActive ? 30 : 20,
         }}
         aria-label={seatLabel}
       >
-        {/* INFO PILL (Floating Badge) */}
-        <div
-          className={clsx(
-            'absolute z-30 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded border border-white/10 shadow-lg text-center whitespace-nowrap',
-            layout.infoPill,
-          )}
-        >
-          <div className="text-[9px] font-bold text-gray-300 truncate max-w-[70px] leading-none">
-            {playerName || seatLabel}
-          </div>
-          <div className="text-[10px] font-mono font-bold text-emerald-400 leading-none">
-            {formatChips(chipCount)}
-          </div>
-        </div>
-
         {/* AVATAR (The Centerpiece) */}
-        <div className="relative z-20">
-          <div className="relative flex h-14 w-14 items-center justify-center">
+        <div className="relative z-20 flex items-center justify-center">
+          <div className="relative flex h-12 w-12 items-center justify-center">
             {showTimer && turnDeadline && totalTime !== null && (
               <PlayerCircularTimer
                 deadline={turnDeadline}
                 totalSeconds={totalTime}
-                size={56}
+                size={48}
                 strokeWidth={3}
-                className="absolute inset-0"
+                className="absolute inset-0 drop-shadow-[0_0_10px_rgba(16,185,129,0.55)]"
               />
             )}
 
             <div
               className={clsx(
-                'relative flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-base font-bold text-white border-2 border-white/10 shadow-2xl',
-                isActive && 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-black',
-                isHero && !isActive && 'ring-2 ring-amber-200/80',
+                'relative flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/90 text-sm font-bold text-white ring-2 ring-white/15 shadow-xl',
+                isActive && 'ring-emerald-400/90 shadow-emerald-500/30',
+                isHero && !isActive && 'ring-amber-200/70',
               )}
             >
               <span>{initial}</span>
 
               {isAllIn && (
-                <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg z-20">
+                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg z-20">
                   ALL-IN
                 </span>
               )}
@@ -248,31 +229,48 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
             {/* Dealer/Blind Badge (Dynamic Position) */}
             {positionLabel === 'BTN' && (
-              <span className={clsx('absolute z-30 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[9px] font-black text-slate-900 shadow', layout.badge)}>
+              <span className={clsx('absolute z-30 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-black text-slate-900 shadow', layout.badge)}>
                 D
               </span>
             )}
 
             {positionLabel && positionLabel !== 'BTN' && (
-              <span className={clsx('absolute z-30 flex h-4 min-w-[18px] items-center justify-center rounded-full bg-white/90 px-1 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow', layout.badge)}>
+              <span className={clsx('absolute z-30 flex h-4 min-w-[18px] items-center justify-center rounded-full bg-white/90 px-1 text-[8px] font-black uppercase tracking-wide text-slate-900 shadow', layout.badge)}>
                 {positionLabel}
               </span>
             )}
 
             {isSittingOut && (
-              <div className="absolute -top-2 -right-2 z-30">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500 shadow-lg ring-2 ring-black">
-                  <span className="text-[10px] font-bold text-black">Zzz</span>
+              <div className="absolute -top-1.5 -right-1.5 z-30">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 shadow-lg ring ring-black/60">
+                  <span className="text-[8px] font-bold text-black">Zz</span>
                 </div>
               </div>
             )}
+          </div>
+
+          {/* INFO PILL (Floating Badge) */}
+          <div
+            className={clsx(
+              'pointer-events-none absolute z-30 flex -translate-x-1/2 items-center justify-center',
+              layout.infoPill,
+            )}
+          >
+            <div className="flex flex-col items-center rounded-full border border-white/10 bg-black/80 px-2.5 py-1 shadow-lg backdrop-blur-sm">
+              <div className="text-[10px] font-semibold text-gray-200 truncate max-w-[70px] leading-none">
+                {playerName || seatLabel}
+              </div>
+              <div className="text-[10px] font-bold text-emerald-400 leading-tight">
+                {formatChips(chipCount)}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* CARDS (The Dynamic Layer) */}
         {safeCards.length > 0 && (
-          <div className={clsx('relative z-10 transform scale-90 pointer-events-none', layout.cardWrapper)}>
-            <div className={clsx('flex items-center justify-center', isHorizontal && 'flex-col')}>
+          <div className={clsx('relative z-10 transform scale-90 pointer-events-none drop-shadow-md', layout.cardWrapper)}>
+            <div className={clsx('flex items-center justify-center gap-1.5', isHorizontal && 'flex-col')}>
               {safeCards.map((card, index) => {
                 const { rotation, translateX, translateY } = getCardRotation(side, index)
                 return (
