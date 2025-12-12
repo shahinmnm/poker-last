@@ -685,7 +685,6 @@ async def monitor_inter_hand_timeouts():
                                     hand_no=hand.hand_no,
                                 )
 
-                        except ValueError as e:
                         except Exception as e:
                             logger.error(
                                 "Error processing inter-hand timeout for table",
