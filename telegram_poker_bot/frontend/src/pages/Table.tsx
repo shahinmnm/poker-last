@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { LogOut, MoreVertical, X } from 'lucide-react'
 
 import { useTelegram } from '../hooks/useTelegram'
 import { useTableWebSocket } from '../legacy/hooks/useTableWebSocket'
@@ -1682,24 +1683,6 @@ export default function TablePage() {
         </div>
 
         {/* Stand Up Toggle (Top-Right) */}
-        {viewerIsSeated && (
-          <div className="absolute top-14 right-4 z-50">
-            <button
-              onClick={() => handleSitOutToggle(!heroPlayer?.is_sitting_out_next_hand)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border transition-all shadow-lg ${
-                heroPlayer?.is_sitting_out_next_hand
-                  ? 'bg-amber-500/90 border-amber-400 text-black'
-                  : 'bg-black/40 border-white/10 text-white/70 hover:bg-black/60'
-              }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${heroPlayer?.is_sitting_out_next_hand ? 'bg-black animate-pulse' : 'bg-gray-400'}`} />
-              <span className="text-[10px] font-bold uppercase tracking-wide">
-                {heroPlayer?.is_sitting_out_next_hand ? 'Standing Up' : 'Stand Up'}
-              </span>
-            </button>
-          </div>
-        )}
-
         {/* Arena - Game Content */}
         {liveState ? (
           <div className="flex flex-1 flex-col gap-3">
@@ -1743,66 +1726,64 @@ export default function TablePage() {
                   </div>
 
                   {tableDetails && (
-                    <div 
-                      className="table-header-capsule pointer-events-none z-30" 
-                      style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
-                    >
-                      <button
-                        ref={tableMenuButtonRef}
-                        type="button"
-                        onClick={() => setShowTableMenu((prev) => !prev)}
-                        className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-black/60 px-4 py-1.5 backdrop-blur-md shadow-xl transition active:scale-95 hover:bg-black/70"
-                      >
-                        {/* 1. Modern Pulse Dot (Radar Effect) */}
-                        <div className="relative flex h-2.5 w-2.5">
-                          {wsStatus === 'connected' && (
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          )}
-                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                            wsStatus === 'connected' ? 'bg-emerald-500' : 
-                            wsStatus === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
-                          }`}></span>
-                        </div>
-
-                        {/* 2. Vertical Divider */}
-                        <div className="h-4 w-px bg-white/10"></div>
-
-                        {/* 3. Table Info (Name & Stakes) - Replaces static "Table Menu" */}
-                        <div className="flex flex-col items-start justify-center">
-                          <div className="text-[11px] font-bold text-gray-100 leading-none max-w-[140px] truncate">
-                            {templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.defaultName', { defaultValue: 'Poker Table' })}
-                          </div>
-                          <div className="text-[9px] font-medium text-gray-400 leading-none mt-0.5 font-mono">
-                            {stakesDisplay}
-                          </div>
-                        </div>
-
-                        {/* 4. Minimal Menu Icon */}
-                        <div className="pl-1 text-gray-400">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                          </svg>
-                        </div>
-                      </button>
-
-                      {/* Keep the existing {showTableMenu && ...} block exactly as it is below this button */}
-                      {showTableMenu && (
-                        <div
-                          ref={tableMenuRef}
-                          className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-3 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[50vw] max-w-[95%] text-sm"
-                          style={TABLE_CAPSULE_STYLE}
+                    <div className="pointer-events-none absolute left-4 right-4 top-4 z-40 flex items-start justify-between text-white font-['Inter',_sans-serif]">
+                      <div className="pointer-events-auto flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigate(-1)}
+                          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/60 active:scale-95"
+                          aria-label={t('table.actions.close', { defaultValue: 'Close table' })}
                         >
-                          <div className="mb-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-[1fr_auto] sm:items-center sm:text-left">
-                            <div className="space-y-1">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
-                              <p className="text-base font-semibold leading-tight">{templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
-                            </div>
-                            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
-                              <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
-                                {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
+                          <X size={18} />
+                        </button>
+
+                        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1 shadow-lg backdrop-blur-md">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-200">
+                            {t('table.meta.stakes', { defaultValue: 'Stakes' })}
+                          </span>
+                          <span className="text-xs font-bold text-white">
+                            {stakesDisplay}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pointer-events-auto relative flex items-center gap-2">
+                        {viewerIsSeated && (
+                          <button
+                            type="button"
+                            onClick={() => handleSitOutToggle(!heroPlayer?.is_sitting_out_next_hand)}
+                            className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white shadow-lg backdrop-blur-md transition active:scale-95 hover:bg-black/60 ${heroPlayer?.is_sitting_out_next_hand ? 'ring-2 ring-amber-300/80' : ''}`}
+                            aria-label={heroPlayer?.is_sitting_out_next_hand ? t('table.actions.cancelStandUp', { defaultValue: 'Cancel stand up' }) : t('table.actions.standUp', { defaultValue: 'Stand up' })}
+                          >
+                            <LogOut size={18} />
+                          </button>
+                        )}
+
+                        <button
+                          ref={tableMenuButtonRef}
+                          type="button"
+                          onClick={() => setShowTableMenu((prev) => !prev)}
+                          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/60 active:scale-95"
+                          aria-label={t('table.menu.open', { defaultValue: 'Table menu' })}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+
+                        {showTableMenu && (
+                          <div
+                            ref={tableMenuRef}
+                            className="absolute right-0 top-12 w-[50vw] max-w-[95%] pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-3 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl text-sm"
+                            style={TABLE_CAPSULE_STYLE}
+                          >
+                            <div className="mb-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-[1fr_auto] sm:items-center sm:text-left">
+                              <div className="space-y-1">
+                                <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
+                                <p className="text-base font-semibold leading-tight">{templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
                               </div>
+                              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+                                <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
+                                  {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
+                                </div>
                               <GameVariantBadge variant={tableDetails.game_variant} size="lg" />
                             </div>
                           </div>
