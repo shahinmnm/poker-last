@@ -1,13 +1,13 @@
 :root {
   /* Safe-area tokens: tweak to nudge board/seat bands without touching colors */
-  --header-top-offset: calc(env(safe-area-inset-top, 0px) + 3vh); /* raise/lower the header cluster */
-  --table-top-offset: 10vh; /* move felt oval up/down to keep the center stable */
-  --streets-row-offset: 20vh; /* safe-top band (pot & board); move this up/down if board touches header */
+  --header-top-offset: calc(env(safe-area-inset-top, 0px) + 10px); /* raise/lower the header cluster */
+  --table-top-offset: 5vh; /* move felt oval up/down to keep the center stable */
+  --streets-row-offset: 18vh; /* safe-top band (pot & board); move this up/down if board touches header */
   --seat-row-offset: 68vh; /* safe-bottom band (seat ring); move this up/down if seats touch action dock */
   --start-button-bottom-offset: calc(env(safe-area-inset-bottom, 0px) + 4vh); /* adjust action dock height */
-  --table-horizontal-padding: 4vw; /* tighten/loosen horizontal breathing room */
-  --table-vertical-gap: 2vh; /* vertical rhythm between clusters */
-  --table-min-height: 86vh;
+  --table-horizontal-padding: max(1.25vw, 10px); /* tighten/loosen horizontal breathing room */
+  --table-vertical-gap: 1vh; /* vertical rhythm between clusters */
+  --table-min-height: 94vh;
 }
 
 @media (max-width: 400px) {
@@ -35,23 +35,23 @@
   display: flex;
   justify-content: center;
   width: 100%;
-  padding-inline: 2vw;
+  padding-inline: 0;
 }
 
 .table-area {
   position: relative;
   width: 100%;
-  max-width: 1380px;
+  max-width: none;
   min-height: var(--table-min-height);
-  padding-inline: var(--table-horizontal-padding);
+  padding-inline: 0;
   /* percentage positions inside this container map directly to the seat layout API */
 }
 
 .table-oval {
   position: absolute;
-  left: 1%;
-  right: 1%;
-  bottom: 1%;
+  left: 0;
+  right: 0;
+  bottom: 0;
   top: var(--table-top-offset);
 }
 

@@ -1,9 +1,8 @@
-import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
+import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 
-import Button from '@/components/ui/Button'
-import Badge from '@/components/ui/Badge'
+import { LogOut, Minus, Plus } from 'lucide-react'
 import type { AllowedAction } from '@/types/game'
 import { formatChips } from '@/utils/formatChips'
 
@@ -13,6 +12,9 @@ interface ActionBarProps {
   isProcessing: boolean
   myStack: number
   isMyTurn?: boolean
+  onToggleStandUp?: (standUp: boolean) => void
+  isStandingUp?: boolean
+  standUpProcessing?: boolean
 }
 
 const clampAmount = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
@@ -24,6 +26,9 @@ export default function ActionBar({
   isProcessing,
   myStack,
   isMyTurn = false,
+  onToggleStandUp,
+  isStandingUp = false,
+  standUpProcessing = false,
 }: ActionBarProps) {
   const { t } = useTranslation()
 
@@ -124,11 +129,14 @@ export default function ActionBar({
       ? betAmount
       : sliderLabelAction.min_amount ?? sliderLabelAction.amount ?? betAmount
     : 0
-  const sliderLabelText = sliderLabelAction
-    ? sliderLabelAction.action_type === 'all_in'
-      ? `ALL-IN ${formatChips(sliderLabelAmount ?? 0)}`
-      : `RAISE ${formatChips(sliderLabelAmount ?? 0)}`
-    : t('table.actionBar.raise', { defaultValue: 'RAISE' }).toUpperCase()
+  const confirmLabelAmount = formatChips(
+    isAdjustingBet ? betAmount ?? sliderLabelAmount ?? 0 : sliderLabelAmount ?? 0,
+  )
+  const confirmLabel = (
+    sliderLabelAction?.action_type === 'all_in'
+      ? t('table.actions.allIn', { defaultValue: 'ALL-IN' })
+      : t('table.actionBar.raise', { defaultValue: 'Raise {amount}', amount: confirmLabelAmount })
+  ).toUpperCase()
 
   const handleFold = () => {
     if (!foldAction || !isMyTurn) return
@@ -166,21 +174,78 @@ export default function ActionBar({
 
   const foldLabel = t('table.actionBar.fold', { defaultValue: 'Fold' }).toUpperCase()
   const foldDisabled = !isMyTurn || !foldAction
-  const centerDisabled = isDisabled || (!checkAction && !callAction)
+  const centerDisabled = isDisabled || !centerAction
   const raiseDisabled = isDisabled || !sliderLabelAction
 
-  if (!isMyTurn) {
-    // Root cause note: disabled fold/raise states were confusing when it wasn't the hero's turn.
-    // Render a neutral waiting panel instead of disabled betting controls.
+  const renderStandUpButton = () => {
+    if (!onToggleStandUp) return null
+    const nextState = !isStandingUp
+    const activeClasses = isStandingUp
+      ? 'bg-amber-400 text-black shadow-amber-500/50 border-amber-300 ring-2 ring-amber-300/70 animate-[pulse_1.6s_ease-in-out_infinite]'
+      : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'
+    const statusDot = (
+      <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+        {isStandingUp && (
+          <span className="absolute inline-flex h-4 w-4 rounded-full bg-amber-500/50 animate-ping" />
+        )}
+        <span
+          className={clsx(
+            'relative h-2.5 w-2.5 rounded-full',
+            isStandingUp ? 'bg-amber-700' : 'bg-amber-300',
+          )}
+        />
+      </span>
+    )
+
     return (
-      <div className="table-action-dock z-40">
-        <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/60 px-4 py-3 text-white/80 backdrop-blur-md">
-          <Badge variant="info" size="sm">
+      <button
+        type="button"
+        onClick={() => onToggleStandUp(nextState)}
+        disabled={standUpProcessing}
+        aria-pressed={isStandingUp}
+        className={clsx(
+          'flex h-9 items-center gap-1.5 rounded-full px-3 text-[10px] font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60',
+          activeClasses,
+        )}
+        title={isStandingUp ? t('table.actions.standingUp', { defaultValue: 'Standing Up' }) : t('table.actions.standUp', { defaultValue: 'Stand Up' })}
+      >
+        {statusDot}
+        <LogOut size={16} className={isStandingUp ? 'text-black' : 'text-white'} />
+        <span>{isStandingUp ? t('table.actions.standingUp', { defaultValue: 'Standing Up' }) : t('table.actions.standUp', { defaultValue: 'Stand Up' })}</span>
+      </button>
+    )
+  }
+
+  const adjustBet = (direction: 1 | -1, actionOverride?: AllowedAction | null) => {
+    const baseAction = actionOverride ?? activeBetAction ?? sliderLabelAction ?? primarySliderAction
+    if (!baseAction) return
+    const min = baseAction.min_amount ?? 0
+    const max = baseAction.max_amount ?? myStack
+    const span = Math.max(1, max - min)
+    const step = Math.max(1, Math.round(span / 12))
+
+    setActiveBetAction(baseAction)
+    setBetAmount((previous) => clampAmount((previous || min) + direction * step, min, max || myStack))
+    setIsAdjustingBet(true)
+  }
+
+  if (!isMyTurn) {
+    const standUpButton = renderStandUpButton()
+    return (
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center px-3 sm:bottom-5 sm:px-4"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+      >
+        <div
+          className={clsx(
+            'pointer-events-auto flex w-full max-w-[780px] items-center gap-3',
+            standUpButton ? 'justify-between' : 'justify-center',
+          )}
+        >
+          <div className="rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs font-medium text-white/80 shadow-lg backdrop-blur-md">
             {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent…' })}
-          </Badge>
-          <Button variant="ghost" size="sm" disabled block>
-            {t('table.actions.notYourTurn', { defaultValue: 'Not your turn' })}
-          </Button>
+          </div>
+          {standUpButton}
         </div>
       </div>
     )
@@ -189,21 +254,21 @@ export default function ActionBar({
   return (
     <>
       {shouldShowSlider && activeBetAction && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}>
-          <div className="relative w-full max-w-[520px] pointer-events-auto">
-            <div className="relative w-full">
-              <div
-                className="pointer-events-none absolute -top-9"
-                style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}
-              >
-                <div className="rounded-full border border-white/15 bg-[rgba(12,19,38,0.7)] px-3 py-1 text-[12px] font-semibold text-white shadow-[0_0_12px_rgba(74,222,128,0.45)] backdrop-blur-xl">
-                  {t('table.actionBar.currentBet', {
-                    amount: formatChips(betAmount ?? 0),
-                    defaultValue: `${formatChips(betAmount ?? 0)} chips`,
-                  })}
-                </div>
+        <div
+        className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-3 sm:bottom-24 sm:px-4"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+        >
+          <div className="pointer-events-auto relative w-full max-w-[520px]">
+            <div className="pointer-events-none absolute -top-10" style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}>
+              <div className="rounded-full border border-emerald-300/50 bg-emerald-600/90 px-3 py-1 text-[11px] font-semibold text-white shadow-lg shadow-emerald-900/40 backdrop-blur-lg">
+                {t('table.actionBar.currentBet', {
+                  amount: formatChips(betAmount ?? 0),
+                  defaultValue: `${formatChips(betAmount ?? 0)} chips`,
+                })}
               </div>
+            </div>
 
+            <div className="rounded-full border border-white/10 bg-black/60 px-3 py-2 shadow-xl backdrop-blur-lg">
               <input
                 type="range"
                 min={minAmount}
@@ -211,9 +276,9 @@ export default function ActionBar({
                 value={betAmount}
                 onChange={(event) => setBetAmount(Number(event.target.value))}
                 disabled={isDisabled}
-                className="action-range"
+                className="action-range h-2"
                 style={{
-                  background: `linear-gradient(90deg, rgba(74,222,128,0.9) ${sliderPercent}%, rgba(12,19,38,0.65) ${sliderPercent}%)`,
+                  background: `linear-gradient(90deg, rgba(74,222,128,0.95) ${sliderPercent}%, rgba(255,255,255,0.12) ${sliderPercent}%)`,
                 }}
               />
             </div>
@@ -221,31 +286,67 @@ export default function ActionBar({
         </div>
       )}
 
-      <div className={clsx('table-action-dock', { 'pointer-events-none opacity-50': !isMyTurn })}>
-        <button
-          type="button"
-          onClick={handleFold}
-          disabled={foldDisabled}
-          className="table-action-button table-action-button--danger"
-        >
-          {foldLabel}
-        </button>
-        <button
-          type="button"
-          onClick={handleCenter}
-          disabled={centerDisabled}
-          className="table-action-button"
-        >
-          {centerLabel}
-        </button>
-        <button
-          type="button"
-          onClick={handleRaise}
-          disabled={raiseDisabled}
-          className="table-action-button table-action-button--primary"
-        >
-          {sliderLabelText}
-        </button>
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-start px-3 sm:bottom-5 sm:px-4"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+      >
+        <div className="pointer-events-auto max-w-[820px] text-white font-['Inter',_sans-serif]">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-emerald-200/25 bg-white/10 px-2 py-1.5 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleFold}
+                disabled={foldDisabled}
+                className="h-10 rounded-full bg-gradient-to-b from-rose-500 to-rose-700 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-900/50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {foldLabel}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCenter}
+                disabled={centerDisabled}
+                className="h-10 rounded-full bg-gradient-to-b from-emerald-500 to-emerald-700 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {centerLabel}
+              </button>
+            </div>
+
+            {sliderLabelAction && (
+              <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/15 px-1.5 py-1 shadow-lg backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => adjustBet(-1, sliderLabelAction)}
+                  disabled={raiseDisabled}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Minus size={14} />
+                </button>
+                <div className="min-w-[64px] px-2 text-center text-[12px] font-semibold text-emerald-300 tabular-nums">
+                  {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => adjustBet(1, sliderLabelAction)}
+                  disabled={raiseDisabled}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Plus size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRaise}
+                  disabled={raiseDisabled}
+                  className="ml-1 h-9 rounded-full bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+                >
+                  {confirmLabel}
+                </button>
+              </div>
+            )}
+
+            {renderStandUpButton()}
+          </div>
+        </div>
       </div>
     </>
   )

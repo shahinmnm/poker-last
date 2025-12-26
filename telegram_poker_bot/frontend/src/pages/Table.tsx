@@ -149,6 +149,56 @@ const notifyLobbyTableRemoved = (tableId?: number | string | null) => {
   )
 }
 
+const CARD_FIELD_KEYS = ['cards', 'hole_cards', 'hand_cards', 'hand', 'private_cards'] as const
+type CardFieldKey = (typeof CARD_FIELD_KEYS)[number]
+type CardCarrier = Partial<Record<CardFieldKey, string[]>>
+
+const extractCardArray = (source: CardCarrier | null | undefined): string[] | null => {
+  if (!source) return null
+  for (const key of CARD_FIELD_KEYS) {
+    const value = source[key]
+    if (Array.isArray(value) && value.length) {
+      return value
+    }
+  }
+  return null
+}
+
+const mergeCardData = <T extends CardCarrier>(
+  incoming: T | null | undefined,
+  previous: CardCarrier | null | undefined,
+  shouldPreserveCards: boolean,
+  cachedCards?: string[] | null,
+): T | null => {
+  if (!incoming && !previous) return null
+
+  const base = shouldPreserveCards
+    ? { ...(previous ?? {}), ...(incoming ?? {}) }
+    : incoming ?? null
+
+  if (!base) return null
+
+  const incomingCards = extractCardArray(incoming)
+  const previousCards = extractCardArray(previous)
+  const cardsToKeep = shouldPreserveCards
+    ? incomingCards?.length
+      ? incomingCards
+      : previousCards?.length
+        ? previousCards
+        : cachedCards ?? null
+    : incomingCards ?? null
+
+  if (cardsToKeep?.length) {
+    const keyToUse = CARD_FIELD_KEYS.find((key) => (base as CardCarrier)[key] !== undefined) ?? 'cards'
+    return {
+      ...(base as T),
+      [keyToUse]: cardsToKeep,
+    }
+  }
+
+  return base as T
+}
+
 export default function TablePage() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
@@ -178,6 +228,8 @@ export default function TablePage() {
   const [tableExpiredReason, setTableExpiredReason] = useState('')
   const [showTableMenu, setShowTableMenu] = useState(false)
   const [showVariantRules, setShowVariantRules] = useState(false)
+  const [isTogglingSitOut, setIsTogglingSitOut] = useState(false)
+  const [pendingSitOut, setPendingSitOut] = useState<boolean | null>(null)
   const variantConfig = useGameVariant(tableDetails?.game_variant)
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
@@ -192,6 +244,8 @@ export default function TablePage() {
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
   const lastCompletedHandIdRef = useRef<number | null>(null)
   const lastHandResultHandIdRef = useRef<number | null>(null)
+  const heroCardsCacheRef = useRef<Map<number, string[]>>(new Map())
+  const lastCachedHandIdRef = useRef<number | null>(null)
   
   // Track inter-hand state for logging only when it changes
   const prevIsInterHandRef = useRef<boolean | null>(null)
@@ -284,16 +338,48 @@ export default function TablePage() {
         }
 
         const isSameHand = incoming.hand_id !== null && previous?.hand_id === incoming.hand_id
-        const mergedHero = incoming.hero ?? (isSameHand ? previous?.hero ?? null : null)
+        const cardCacheHandId = incomingHandId ?? previousHandId
+
+        if (!isSameHand) {
+          heroCardsCacheRef.current.clear()
+        }
+
+        const mergedHero = mergeCardData<NonNullable<TableState['hero']>>(
+          incoming.hero ?? null,
+          previous?.hero ?? null,
+          isSameHand,
+          cardCacheHandId !== null ? heroCardsCacheRef.current.get(cardCacheHandId) : null,
+        )
         const mergedHandResult = incoming.hand_result ?? (isSameHand ? previous?.hand_result ?? null : null)
         const mergedReadyPlayers =
           incoming.ready_players ?? (isSameHand ? previous?.ready_players ?? [] : [])
-        const mergedPlayers: TablePlayerState[] =
-          incoming.players?.length
-            ? incoming.players
-            : previous?.players?.length
-              ? previous.players
-              : []
+        const previousPlayers: TablePlayerState[] = previous?.players ?? []
+        const incomingPlayers: TablePlayerState[] = incoming.players ?? []
+        const mergedPlayers: TablePlayerState[] = incomingPlayers.length
+          ? incomingPlayers.map((player) => {
+              const previousMatch = isSameHand
+                ? previousPlayers.find((p) => p.user_id?.toString() === player.user_id?.toString())
+                : undefined
+              return (
+                mergeCardData<TablePlayerState>(
+                  player,
+                  previousMatch ?? null,
+                  isSameHand,
+                ) ?? player
+              )
+            })
+          : previousPlayers.length
+            ? previousPlayers.map((player) => {
+                if (isSameHand) return player
+                const sanitized = { ...player }
+                CARD_FIELD_KEYS.forEach((key) => {
+                  if (key in sanitized) {
+                    delete (sanitized as Record<string, unknown>)[key]
+                  }
+                })
+                return sanitized
+              })
+            : []
         const mergedBoard = incoming.board?.length
           ? incoming.board
           : isSameHand
@@ -363,6 +449,18 @@ export default function TablePage() {
             (isSameHand ? previous?.allowed_actions_legacy : undefined),
         }
 
+        const mergedHeroCards = extractCardArray(mergedHero)
+        const cacheKey = nextState.hand_id ?? null
+        if (cacheKey !== null) {
+          if (mergedHeroCards?.length) {
+            heroCardsCacheRef.current.set(cacheKey, mergedHeroCards)
+          } else if (!isSameHand) {
+            heroCardsCacheRef.current.delete(cacheKey)
+          }
+        } else {
+          heroCardsCacheRef.current.clear()
+        }
+
         if (source === 'ws') {
           hasWsStateRef.current = true
         }
@@ -396,28 +494,58 @@ export default function TablePage() {
   }, [applyIncomingState, tableId])
 
   // Fallback hero ID to tableDetails.viewer when liveState.hero is missing (WS is unauthenticated)
+  // Hero identity: trust server-provided hero/viewer first to stay aligned with PokerKit actor IDs; fall back to user.id only if absent.
   const heroId =
     liveState?.hero?.user_id ??
     tableDetails?.viewer?.user_id ??
     user?.id ??
     null
   const heroIdString = heroId !== null ? heroId.toString() : null
-  const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString)
-  
-  // Robust hero cards extraction with fallback logic
-  const heroCards = useMemo(() => {
-    // 1. Try direct hero object
-    if (liveState?.hero?.cards?.length) return liveState.hero.cards;
-    
-    // 2. Try finding hero in players list (Robust ID match)
-    if (heroIdString) {
-      const me = liveState?.players.find(p => String(p.user_id) === String(heroIdString));
-      if (me?.cards?.length) return me.cards;
-      if (me?.hole_cards?.length) return me.hole_cards;
+  const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString) ?? null
+  const heroIsStandingUp = pendingSitOut ?? Boolean(heroPlayer?.is_sitting_out_next_hand)
+
+  useEffect(() => {
+    if (pendingSitOut === null) return
+    if (typeof heroPlayer?.is_sitting_out_next_hand === 'boolean' && heroPlayer.is_sitting_out_next_hand === pendingSitOut) {
+      setPendingSitOut(null)
     }
-    
-    return [];
-  }, [liveState?.hero, liveState?.players, heroIdString]);
+  }, [heroPlayer?.is_sitting_out_next_hand, pendingSitOut])
+  
+  // Robust hero cards extraction with cached fallback to avoid losing visibility mid-hand
+  const heroCards = useMemo(() => {
+    const sources: Array<CardCarrier | null> = [
+      liveState?.hero ?? null,
+      heroPlayer,
+      heroIdString
+        ? liveState?.players.find((p) => p.user_id?.toString() === heroIdString) ?? null
+        : null,
+    ]
+
+    for (const src of sources) {
+      const cards = extractCardArray(src)
+      if (cards) return cards
+    }
+
+    const handId = liveState?.hand_id ?? null
+    if (handId !== null) {
+      const cached = heroCardsCacheRef.current.get(handId)
+      if (cached?.length) return cached
+    }
+
+    return []
+  }, [heroIdString, heroPlayer, liveState?.hand_id, liveState?.hero, liveState?.players])
+  useEffect(() => {
+    const currentHandId = liveState?.hand_id ?? null
+
+    if (currentHandId !== lastCachedHandIdRef.current) {
+      heroCardsCacheRef.current.clear()
+      lastCachedHandIdRef.current = currentHandId
+    }
+
+    if (currentHandId !== null && heroCards.length) {
+      heroCardsCacheRef.current.set(currentHandId, heroCards)
+    }
+  }, [heroCards, liveState?.hand_id])
   
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
@@ -1082,6 +1210,8 @@ export default function TablePage() {
       showToast(t('table.errors.unauthorized'))
       return
     }
+    setPendingSitOut(sitOut)
+    setIsTogglingSitOut(true)
     try {
       await apiFetch(`/tables/${tableId}/sitout`, {
         method: 'POST',
@@ -1107,7 +1237,9 @@ export default function TablePage() {
       } else {
         showToast(t('table.errors.actionFailed'))
       }
+      setPendingSitOut(null)
     }
+    setIsTogglingSitOut(false)
   }
 
   const allowedActionsSource =
@@ -1122,6 +1254,11 @@ export default function TablePage() {
   const viewerIsSeated =
     tableDetails?.viewer?.is_seated ??
     Boolean(heroId && liveState?.players?.some((p) => p.user_id?.toString() === heroId.toString()))
+  useEffect(() => {
+    if (!viewerIsSeated && pendingSitOut !== null) {
+      setPendingSitOut(null)
+    }
+  }, [viewerIsSeated, pendingSitOut])
 
   // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
   const livePlayerCount = liveState?.players?.length ?? tableDetails?.player_count ?? 0
@@ -1514,6 +1651,8 @@ export default function TablePage() {
   }
 
   const renderActionDock = () => {
+    const dockBaseClass = 'pointer-events-none fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-4'
+    const dockStyle = { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }
     // Log rendering decision
     const isActiveGameplayCheck = ACTIVE_GAMEPLAY_STREETS.includes(tableStatus) || tableStatus === 'active'
     console.log('[Table ActionDock] Render decision:', {
@@ -1531,6 +1670,24 @@ export default function TablePage() {
 
     // Never show during inter-hand voting phase
     if (isInterHand) {
+      if (viewerIsSeated) {
+        return (
+          <div className={dockBaseClass} style={dockStyle}>
+            <div className="w-full pointer-events-auto">
+              <ActionBar
+                allowedActions={allowedActions}
+                onAction={handleGameAction}
+                myStack={heroPlayer?.stack ?? 0}
+                isProcessing={loading || isTogglingSitOut}
+                isMyTurn={false}
+                onToggleStandUp={(next) => handleSitOutToggle(next)}
+                isStandingUp={heroIsStandingUp}
+                standUpProcessing={isTogglingSitOut}
+              />
+            </div>
+          </div>
+        )
+      }
       console.log('[Table ActionDock] Hidden: inter-hand phase')
       return null
     }
@@ -1540,26 +1697,19 @@ export default function TablePage() {
       const isMyTurnNow = isPlaying && currentActorUserId?.toString() === heroIdString
       
       return (
-        <div className="table-action-dock z-40 flex-col items-center gap-2">
-          {/* Show Action Bar only if it's my turn */}
-          {isMyTurnNow && !isInterHand && (
-            <div className="w-full">
-              <ActionBar
-                allowedActions={allowedActions}
-                onAction={handleGameAction}
-                myStack={heroPlayer?.stack ?? 0}
-                isProcessing={actionPending || loading}
-                isMyTurn={isMyTurnNow}
-              />
-            </div>
-          )}
-          
-          {/* Show 'Wait' message if not my turn */}
-          {!isMyTurnNow && !isInterHand && (
-             <div className="pointer-events-auto px-4 py-2 rounded-full bg-black/40 text-white/50 text-xs font-medium backdrop-blur-sm">
-               Waiting for action...
-             </div>
-          )}
+        <div className={dockBaseClass} style={dockStyle}>
+          <div className="w-full pointer-events-auto">
+            <ActionBar
+              allowedActions={allowedActions}
+              onAction={handleGameAction}
+              myStack={heroPlayer?.stack ?? 0}
+              isProcessing={actionPending || loading || isTogglingSitOut}
+              isMyTurn={isMyTurnNow && !isInterHand}
+              onToggleStandUp={(next) => handleSitOutToggle(next)}
+              isStandingUp={heroIsStandingUp}
+              standUpProcessing={isTogglingSitOut}
+            />
+          </div>
         </div>
       )
     }
@@ -1574,13 +1724,13 @@ export default function TablePage() {
       })
       if (viewerIsCreator) {
         return (
-          <div className="table-action-dock z-40">
-            <div className="pointer-events-auto flex flex-col items-center gap-4">
+          <div className={dockBaseClass} style={dockStyle}>
+            <div className="pointer-events-auto flex flex-col items-center gap-3">
               <button
                 type="button"
                 onClick={handleStart}
                 disabled={isStarting || !canStart}
-                className="min-h-[52px] px-8 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 text-black font-bold text-lg shadow-2xl shadow-emerald-500/40 hover:from-emerald-400 hover:to-emerald-300 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed animate-pulse"
+                className="min-h-[48px] px-7 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 text-black font-bold text-base shadow-xl shadow-emerald-500/40 hover:from-emerald-400 hover:to-emerald-300 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isStarting ? t('table.actions.starting') : t('table.actions.start', { defaultValue: 'START GAME' })}
               </button>
@@ -1591,8 +1741,8 @@ export default function TablePage() {
 
       if (viewerIsSeated) {
         return (
-          <div className="table-action-dock z-40">
-            <div className="pointer-events-auto px-4 py-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-white/80 min-h-[52px] flex items-center justify-center text-center">
+          <div className={dockBaseClass} style={dockStyle}>
+            <div className="pointer-events-auto rounded-full border border-white/10 bg-black/60 px-4 py-2 text-sm font-medium text-white/80 shadow-lg backdrop-blur-md">
               {t('table.messages.waitingForHost')}
             </div>
           </div>
@@ -1620,26 +1770,19 @@ export default function TablePage() {
       })
       
       return (
-        <div className="table-action-dock z-40 flex-col items-center gap-2">
-          {/* Show Action Bar only if it's my turn */}
-          {isMyTurn && (
-            <div className="w-full">
-              <ActionBar
-                allowedActions={allowedActions}
-                onAction={handleGameAction}
-                myStack={heroPlayer?.stack ?? 0}
-                isProcessing={actionPending || loading}
-                isMyTurn={isMyTurn}
-              />
-            </div>
-          )}
-          
-          {/* Show 'Wait' message if not my turn */}
-          {!isMyTurn && (
-             <div className="pointer-events-auto px-4 py-2 rounded-full bg-black/40 text-white/50 text-xs font-medium backdrop-blur-sm">
-               Waiting for action...
-             </div>
-          )}
+        <div className={dockBaseClass} style={dockStyle}>
+          <div className="w-full pointer-events-auto">
+            <ActionBar
+              allowedActions={allowedActions}
+              onAction={handleGameAction}
+              myStack={heroPlayer?.stack ?? 0}
+              isProcessing={actionPending || loading || isTogglingSitOut}
+              isMyTurn={isMyTurn}
+              onToggleStandUp={(next) => handleSitOutToggle(next)}
+              isStandingUp={heroIsStandingUp}
+              standUpProcessing={isTogglingSitOut}
+            />
+          </div>
         </div>
       )
     }
@@ -1690,25 +1833,6 @@ export default function TablePage() {
             </svg>
           </button>
         </div>
-
-        {/* Stand Up Toggle (Top-Right) */}
-        {viewerIsSeated && (
-          <div className="absolute top-14 right-4 z-50">
-            <button
-              onClick={() => handleSitOutToggle(!heroPlayer?.is_sitting_out_next_hand)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border transition-all shadow-lg ${
-                heroPlayer?.is_sitting_out_next_hand
-                  ? 'bg-amber-500/90 border-amber-400 text-black'
-                  : 'bg-black/40 border-white/10 text-white/70 hover:bg-black/60'
-              }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${heroPlayer?.is_sitting_out_next_hand ? 'bg-black animate-pulse' : 'bg-gray-400'}`} />
-              <span className="text-[10px] font-bold uppercase tracking-wide">
-                {heroPlayer?.is_sitting_out_next_hand ? 'Standing Up' : 'Stand Up'}
-              </span>
-            </button>
-          </div>
-        )}
 
         {/* Arena - Game Content */}
         {liveState ? (
@@ -1937,26 +2061,26 @@ export default function TablePage() {
                     })
                     const isSittingOut = Boolean(player?.is_sitting_out_next_hand)
                     const isAllIn = Boolean(player?.is_all_in || (player?.stack ?? 0) <= 0)
-                    const showHeroCards =
-                      isHeroPlayer &&
-                      heroCards.length > 0 &&
-                      liveState.hand_id &&
-                      liveState.status !== 'ended' &&
-                      liveState.status !== 'waiting'
                     const showShowdownCards =
                       playerCards.length > 0 && (isInterHand || normalizedStatus === 'showdown')
                     const showOpponentBacks =
                       !isHeroPlayer &&
                       Boolean(player?.in_hand && liveState?.hand_id && !hasFolded && !showShowdownCards)
+                    const heroSeatCards =
+                      heroCards.length > 0
+                        ? heroCards
+                        : heroPlayer?.hole_cards?.length
+                          ? heroPlayer.hole_cards
+                          : heroPlayer?.cards ?? []
                     const seatSide = getSeatSide(slot.xPercent, slot.yPercent)
                     const isBottomSeat = seatSide === 'bottom'
                     const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
-                    const seatHoleCards = showHeroCards
-                      ? heroCards
+                    const seatHoleCards = isHeroPlayer
+                      ? heroSeatCards
                       : showShowdownCards
                         ? playerCards
                         : []
-                    const showCardBacks = showOpponentBacks
+                    const showCardBacks = isHeroPlayer ? false : showOpponentBacks
 
                     return (
                       <Fragment key={`seat-server-${serverIndex}`}>

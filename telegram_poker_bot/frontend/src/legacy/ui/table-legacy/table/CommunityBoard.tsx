@@ -22,7 +22,7 @@ export default function CommunityBoard({
   const { t } = useTranslation()
   const [isPulsing, setIsPulsing] = useState(false)
 
-  const slots = useMemo(() => Array.from({ length: 5 }, (_, idx) => cards[idx]), [cards])
+  const dealtCards = useMemo(() => cards.slice(0, 5).filter(Boolean), [cards])
   useEffect(() => {
     if (!Number.isFinite(potAmount)) return undefined
 
@@ -37,46 +37,30 @@ export default function CommunityBoard({
   const displayPot = formatByCurrency(safePotAmount, currencyType, { withDecimals: currencyType === 'REAL' })
 
   return (
-    <div className="flex w-full flex-col items-center gap-2.5" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
+    <div className="flex w-full flex-col items-center gap-3" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
       <div
         ref={potRef}
-        className={`table-pot-container ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
-        style={{ transform: 'scale(0.9)', transformOrigin: 'center center' }}
+        className={`pointer-events-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
       >
-        <div className="table-pot-pill">
-          <span className="table-pot-pill-label">
-            {t('table.potLabel', { defaultValue: 'POT' })}
+        <div className="inline-flex items-center gap-2 rounded-full border border-orange-300/50 bg-gradient-to-b from-orange-400 to-orange-600 px-4 py-1 shadow-lg shadow-orange-900/40 backdrop-blur-md">
+          <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/90">
+            {t('table.potLabel', { defaultValue: 'POT' })}:
           </span>
-          <div className="table-pot-pill-amount">{displayPot}</div>
+          <div className="text-sm font-bold tracking-wide text-white">{displayPot}</div>
         </div>
       </div>
 
       <div className="flex w-full items-center justify-center px-2 sm:px-4">
-        <div className="flex gap-1 items-center justify-center bg-black/20 px-4 py-2 rounded-2xl backdrop-blur-sm border border-white/5">
-          {slots.map((card, index) => {
-            return (
-              <div
-                key={`board-card-slot-${index}`}
-                className="relative"
-              >
-                <div
-                  className="flex items-center justify-center"
-                  style={{ height: cardHeight, width: cardWidth }}
-                >
-                  {card ? (
-                    <PlayingCard card={card} size="md" highlighted={highlightedCards.includes(card)} />
-                  ) : (
-                    <div 
-                      className="flex items-center justify-center rounded-lg border border-white/20 bg-white/10"
-                      style={{ height: cardHeight, width: cardWidth }}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+        <div className="flex items-center justify-center gap-2 sm:gap-3" style={{ minHeight: cardHeight }}>
+          {dealtCards.map((card, index) => (
+            <div
+              key={`board-card-slot-${index}`}
+              className="flex items-center justify-center"
+              style={{ height: cardHeight, width: cardWidth }}
+            >
+              <PlayingCard card={card} size="md" highlighted={highlightedCards.includes(card)} />
+            </div>
+          ))}
         </div>
       </div>
     </div>
