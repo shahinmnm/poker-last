@@ -405,9 +405,7 @@ export default function TablePage() {
 
         const mergedAllowedActions = incoming.allowed_actions
         const mergedAllowedActionsLegacy = (incoming as any)?.allowed_actions_legacy
-
-        // If REST payload would clear actor actions while WS already provided them, ignore it.
-        if (
+        const shouldPreserveAllowedActions =
           source === 'rest' &&
           lastSourceRef.current === 'ws' &&
           isSameHand &&
@@ -415,20 +413,15 @@ export default function TablePage() {
           previous.allowed_actions.length > 0 &&
           Array.isArray(incoming.allowed_actions) &&
           incoming.allowed_actions.length === 0
-        ) {
-          return previous ?? incoming
-        }
-        if (
+        const previousLegacyActions = (previous as any)?.allowed_actions_legacy
+        const incomingLegacyActions = (incoming as any)?.allowed_actions_legacy
+        const shouldPreserveAllowedActionsLegacy =
           source === 'rest' &&
           lastSourceRef.current === 'ws' &&
           isSameHand &&
-          Array.isArray((previous as any)?.allowed_actions_legacy) &&
-          (previous as any)?.allowed_actions_legacy?.length > 0 &&
-          Array.isArray((incoming as any)?.allowed_actions_legacy) &&
-          (incoming as any)?.allowed_actions_legacy?.length === 0
-        ) {
-          return previous ?? incoming
-        }
+          previousLegacyActions &&
+          Object.keys(previousLegacyActions).length > 0 &&
+          (!incomingLegacyActions || Object.keys(incomingLegacyActions).length === 0)
 
         const nextState: TableState = {
           ...(previous ?? incoming),
@@ -442,11 +435,15 @@ export default function TablePage() {
           current_actor: mergedCurrentActor,
           current_actor_user_id: mergedCurrentActorUserId,
           allowed_actions:
-            mergedAllowedActions ??
-            (isSameHand ? previous?.allowed_actions : undefined),
+            shouldPreserveAllowedActions
+              ? previous?.allowed_actions
+              : mergedAllowedActions ??
+                (isSameHand ? previous?.allowed_actions : undefined),
           allowed_actions_legacy:
-            mergedAllowedActionsLegacy ??
-            (isSameHand ? previous?.allowed_actions_legacy : undefined),
+            shouldPreserveAllowedActionsLegacy
+              ? previous?.allowed_actions_legacy
+              : mergedAllowedActionsLegacy ??
+                (isSameHand ? previous?.allowed_actions_legacy : undefined),
         }
 
         const mergedHeroCards = extractCardArray(mergedHero)
