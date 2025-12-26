@@ -932,9 +932,21 @@ export default function TablePage() {
         const isNewHand = payload.hand_id !== null && lastHandIdRef.current !== payload.hand_id
         if (isNewHand && payload.hand_id !== null) {
           lastHandIdRef.current = payload.hand_id
+          const viewerId = heroIdString
+          const viewerSeat = viewerId
+            ? payload.players?.find((player) => player.user_id?.toString() === viewerId)
+            : null
+          const needsHeroRefresh =
+            Boolean(viewerSeat) &&
+            !viewerSeat?.is_sitting_out_next_hand &&
+            !payload.hero?.cards?.length
+          if (needsHeroRefresh && initDataRef.current) {
+            // WebSocket payloads are public; refresh viewer-specific state for new hands.
+            fetchLiveState()
+          }
         }
       },
-      [applyIncomingState, navigate, showToast, t],
+      [applyIncomingState, fetchLiveState, heroIdString, navigate, showToast, t],
     ),
     onConnect: useCallback(() => {
       console.log('[Table WebSocket] Connected to table', tableId)
