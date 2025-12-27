@@ -3,6 +3,11 @@
  * 
  * Manages table state synchronization via WebSocket.
  * Provides normalized table state and connection status.
+ * 
+ * Features:
+ * - Full state replacement on reconnect snapshots
+ * - Delta merging for normal state_update messages
+ * - Reconnect event handling with forced resync
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
@@ -13,11 +18,25 @@ import type {
   TableDeltaMessage,
 } from '../types/normalized'
 
+// Debug logging helper - only logs in development
+const DEBUG = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true
+
+function debugLog(category: string, message: string, data?: Record<string, unknown>): void {
+  if (DEBUG) {
+    if (data) {
+      console.debug(`[useTableSync:${category}]`, message, data)
+    } else {
+      console.debug(`[useTableSync:${category}]`, message)
+    }
+  }
+}
+
 interface UseTableSyncOptions {
   tableId: number | string
   enabled?: boolean
   onSchemaVersionMismatch?: () => void
   onDelta?: (delta: TableDeltaMessage) => void
+  onReconnect?: () => void
 }
 
 interface UseTableSyncReturn {
@@ -25,6 +44,7 @@ interface UseTableSyncReturn {
   connectionState: ConnectionState
   isConnected: boolean
   isLive: boolean
+  isReconnecting: boolean
   reconnect: () => void
   requestSnapshot: () => void
   lastUpdate: number | null
@@ -61,15 +81,17 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
 }
 
 export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
-  const { tableId, enabled = true, onSchemaVersionMismatch, onDelta } = options
+  const { tableId, enabled = true, onSchemaVersionMismatch, onDelta, onReconnect } = options
 
   const [state, setState] = useState<NormalizedTableState | null>(null)
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected')
   const [lastUpdate, setLastUpdate] = useState<number | null>(null)
+  const [isReconnecting, setIsReconnecting] = useState(false)
 
   const wsManagerRef = useRef<WebSocketManager | null>(null)
   const onSchemaVersionMismatchRef = useRef(onSchemaVersionMismatch)
   const onDeltaRef = useRef(onDelta)
+  const onReconnectRef = useRef(onReconnect)
 
   // Update refs when callbacks change
   useEffect(() => {
@@ -80,18 +102,37 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
     onDeltaRef.current = onDelta
   }, [onDelta])
 
+  useEffect(() => {
+    onReconnectRef.current = onReconnect
+  }, [onReconnect])
+
   // Initialize WebSocket manager
   useEffect(() => {
     if (!enabled) return
 
     const wsManager = createTableWebSocket(tableId, {
-      onSnapshot: (snapshot) => {
-        console.log('[useTableSync] Snapshot received')
-        setState(snapshot)
+      onSnapshot: (snapshot, isReconnectSnapshot) => {
+        debugLog('snapshot', isReconnectSnapshot ? 'Reconnect snapshot received' : 'Initial snapshot received', {
+          isReconnectSnapshot,
+        })
+        
+        // On reconnect, completely replace state (server truth)
+        // This ensures we don't have stale data from missed messages
+        if (isReconnectSnapshot) {
+          debugLog('snapshot', 'Applying full state replacement from reconnect snapshot')
+          // Full replacement - server state is authoritative
+          setState(snapshot)
+        } else {
+          // Normal snapshot - also full replacement
+          setState(snapshot)
+        }
+        
         setLastUpdate(Date.now())
+        setIsReconnecting(false)
       },
       onDelta: (delta) => {
-        console.log('[useTableSync] Delta received:', delta.type)
+        debugLog('delta', 'Delta received', { type: delta.type })
+        
         setState((prev) => {
           if (!prev) return prev
           
@@ -107,13 +148,24 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
         onDeltaRef.current?.(delta)
       },
       onStateChange: (newState) => {
-        console.log('[useTableSync] Connection state:', newState)
+        debugLog('connection', 'Connection state changed', { newState })
         setConnectionState(newState)
 
         // Handle schema version mismatch
         if (newState === 'version_mismatch') {
           onSchemaVersionMismatchRef.current?.()
         }
+        
+        // Track reconnecting state
+        if (newState === 'disconnected') {
+          // Will be reconnecting if we had a previous connection
+          setIsReconnecting(true)
+        }
+      },
+      onReconnect: () => {
+        debugLog('reconnect', 'Reconnect event triggered')
+        setIsReconnecting(true)
+        onReconnectRef.current?.()
       },
       autoReconnect: true,
     })
@@ -143,6 +195,7 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
     connectionState,
     isConnected,
     isLive,
+    isReconnecting,
     reconnect,
     requestSnapshot,
     lastUpdate,

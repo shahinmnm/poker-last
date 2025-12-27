@@ -8,9 +8,10 @@
  * - Delta merging with sequence tracking
  * - Out-of-order message buffering and reordering
  * - Schema version mismatch detection
+ * - Robust reconnect state machine with snapshot refresh
  */
 
-import { resolveWebSocketUrl } from '../utils/apiClient'
+import { resolveWebSocketUrl, apiFetch } from '../utils/apiClient'
 import type {
   ConnectionState,
   TableDeltaMessage,
@@ -18,21 +19,37 @@ import type {
   WebSocketMessage,
 } from '../types/normalized'
 
+// Debug logging helper - only logs in development
+const DEBUG = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true
+
+function debugLog(category: string, message: string, data?: Record<string, unknown>): void {
+  if (DEBUG) {
+    if (data) {
+      console.debug(`[WS:${category}]`, message, data)
+    } else {
+      console.debug(`[WS:${category}]`, message)
+    }
+  }
+}
+
 type MessageHandler = (message: WebSocketMessage) => void
 type StateChangeHandler = (state: ConnectionState) => void
-type SnapshotHandler = (snapshot: NormalizedTableState) => void
+type SnapshotHandler = (snapshot: NormalizedTableState, isReconnectSnapshot: boolean) => void
 type DeltaHandler = (delta: TableDeltaMessage) => void
+type ReconnectHandler = () => void
 
 interface WebSocketManagerOptions {
   onMessage?: MessageHandler
   onStateChange?: StateChangeHandler
   onSnapshot?: SnapshotHandler
   onDelta?: DeltaHandler
+  onReconnect?: ReconnectHandler
   autoReconnect?: boolean
   heartbeatInterval?: number // ms
   reconnectDelay?: number // ms (initial)
   maxReconnectDelay?: number // ms
   gapTimeoutMs?: number // ms (default: 500)
+  snapshotDebounceMs?: number // ms (default: 1000)
 }
 
 export class WebSocketManager {
@@ -48,21 +65,34 @@ export class WebSocketManager {
   private messageBuffer: Map<number, TableDeltaMessage> = new Map()
   private gapTimeout: ReturnType<typeof setTimeout> | null = null
 
+  // Reconnect state machine
+  private hasConnectedBefore = false
+  private isReconnecting = false
+  private snapshotRefreshDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  private lastSnapshotRefreshTime = 0
+  private tableId: string | number | null = null
+
   private readonly url: string
   private readonly options: Required<WebSocketManagerOptions>
 
   constructor(url: string, options: WebSocketManagerOptions = {}) {
     this.url = url
+    // Extract tableId from URL pattern /ws/{tableId}
+    const tableIdMatch = url.match(/\/ws\/(\d+|[a-zA-Z0-9_-]+)/)
+    this.tableId = tableIdMatch ? tableIdMatch[1] : null
+    
     this.options = {
       onMessage: options.onMessage || (() => {}),
       onStateChange: options.onStateChange || (() => {}),
       onSnapshot: options.onSnapshot || (() => {}),
       onDelta: options.onDelta || (() => {}),
+      onReconnect: options.onReconnect || (() => {}),
       autoReconnect: options.autoReconnect ?? true,
       heartbeatInterval: options.heartbeatInterval || 25000, // 25s
       reconnectDelay: options.reconnectDelay || 1000, // 1s
       maxReconnectDelay: options.maxReconnectDelay || 30000, // 30s
       gapTimeoutMs: options.gapTimeoutMs || 500, // 500ms
+      snapshotDebounceMs: options.snapshotDebounceMs || 1000, // 1s debounce
     }
   }
 
@@ -147,25 +177,151 @@ export class WebSocketManager {
     this.updateState('syncing_snapshot')
   }
 
+  /**
+   * Check if this is a reconnection (not first connection)
+   */
+  isReconnect(): boolean {
+    return this.isReconnecting
+  }
+
+  /**
+   * Get current reconnect attempt count
+   */
+  getReconnectAttempts(): number {
+    return this.reconnectAttempts
+  }
+
   // ============================================================================
   // Private Methods
   // ============================================================================
 
   private handleOpen(): void {
-    console.log('[WS] Connected')
+    const isReconnect = this.hasConnectedBefore
+    this.isReconnecting = isReconnect
+    
+    debugLog('connect', isReconnect ? 'Reconnected' : 'Connected (first time)', {
+      reconnectAttempts: this.reconnectAttempts,
+      tableId: this.tableId,
+    })
+    
+    console.log('[WS] Connected', isReconnect ? '(reconnect)' : '(first)')
+    
+    // Mark that we've connected at least once
+    this.hasConnectedBefore = true
     this.reconnectAttempts = 0
     
     // Start heartbeat
     this.startHeartbeat()
     
-    // Request initial snapshot or use cached state
-    if (this.lastSnapshot) {
+    // On reconnect, always force a snapshot refresh
+    if (isReconnect) {
+      debugLog('reconnect', 'Triggering snapshot refresh on reconnect')
+      this.options.onReconnect()
+      this.triggerSnapshotRefresh()
+    } else if (this.lastSnapshot) {
       // We have cached state, request snapshot to verify
       this.requestSnapshot()
     } else {
       // First connection, expect snapshot from server
       this.updateState('syncing_snapshot')
     }
+  }
+
+  /**
+   * Trigger a snapshot refresh with debouncing to avoid hammering
+   * Uses both WS request and REST fallback
+   */
+  private triggerSnapshotRefresh(): void {
+    const now = Date.now()
+    const timeSinceLastRefresh = now - this.lastSnapshotRefreshTime
+    
+    // Debounce: if we just refreshed, skip
+    if (timeSinceLastRefresh < this.options.snapshotDebounceMs) {
+      debugLog('snapshot', 'Snapshot refresh debounced', {
+        timeSinceLastRefresh,
+        debounceMs: this.options.snapshotDebounceMs,
+      })
+      return
+    }
+    
+    // Clear any pending debounce timer
+    if (this.snapshotRefreshDebounceTimer) {
+      clearTimeout(this.snapshotRefreshDebounceTimer)
+      this.snapshotRefreshDebounceTimer = null
+    }
+    
+    this.lastSnapshotRefreshTime = now
+    debugLog('snapshot', 'Snapshot refresh triggered')
+    
+    // Strategy: Try WS first, then fallback to REST
+    // Send WS snapshot request
+    this.send({ type: 'get_snapshot' })
+    this.updateState('syncing_snapshot')
+    
+    // Fallback: Also fetch via REST API as a safety net
+    // This ensures we get state even if WS doesn't support get_snapshot
+    this.fetchSnapshotViaRest()
+  }
+
+  /**
+   * Fetch snapshot via REST API (fallback mechanism)
+   */
+  private async fetchSnapshotViaRest(): Promise<void> {
+    if (!this.tableId) {
+      debugLog('snapshot', 'Cannot fetch REST snapshot - no tableId')
+      return
+    }
+    
+    try {
+      debugLog('snapshot', 'Fetching snapshot via REST', { tableId: this.tableId })
+      
+      const snapshot = await apiFetch<NormalizedTableState>(
+        `/tables/${this.tableId}/state`
+      )
+      
+      debugLog('snapshot', 'REST snapshot received', {
+        tableId: this.tableId,
+      })
+      
+      // Only apply if we're still in syncing state (WS didn't already provide snapshot)
+      if (this.state === 'syncing_snapshot') {
+        this.applyRestSnapshot(snapshot)
+      } else {
+        debugLog('snapshot', 'REST snapshot ignored - already synced via WS')
+      }
+    } catch (error) {
+      debugLog('snapshot', 'REST snapshot fetch failed', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      console.warn('[WS] Failed to fetch snapshot via REST:', error)
+      // Don't fail hard - WS might still provide the snapshot
+    }
+  }
+
+  /**
+   * Apply a snapshot received via REST API
+   */
+  private applyRestSnapshot(snapshot: NormalizedTableState): void {
+    // Clear buffer and timeout on snapshot
+    this.messageBuffer.clear()
+    if (this.gapTimeout) {
+      clearTimeout(this.gapTimeout)
+      this.gapTimeout = null
+    }
+    
+    // Store snapshot
+    this.lastSnapshot = snapshot
+    // Reset sequence tracking - REST snapshot doesn't have event_seq
+    this.expectedSeq = null
+    this.expectedTableVersion = null
+    
+    // Notify handlers - mark as reconnect snapshot
+    this.options.onSnapshot(snapshot, this.isReconnecting)
+    this.updateState('live')
+    
+    debugLog('snapshot', 'REST snapshot applied', {
+      isReconnect: this.isReconnecting,
+    })
   }
 
   private handleMessage(event: MessageEvent): void {
@@ -228,15 +384,25 @@ export class WebSocketManager {
     this.expectedTableVersion = message.table_version
     this.expectedSchemaVersion = message.schema_version
 
-    // Notify handlers
-    this.options.onSnapshot(snapshot)
+    // Notify handlers - include reconnect flag
+    this.options.onSnapshot(snapshot, this.isReconnecting)
     this.updateState('live')
+
+    debugLog('snapshot', 'WS snapshot received', {
+      type: message.type,
+      table_version: message.table_version,
+      event_seq: message.event_seq,
+      isReconnect: this.isReconnecting,
+    })
 
     console.log('[WS] Snapshot received', {
       type: message.type,
       table_version: message.table_version,
       event_seq: message.event_seq,
     })
+    
+    // Clear reconnecting flag after successful snapshot
+    this.isReconnecting = false
   }
 
   private handleDelta(message: TableDeltaMessage): void {
@@ -373,6 +539,12 @@ export class WebSocketManager {
   }
 
   private handleClose(event: CloseEvent): void {
+    debugLog('disconnect', 'Connection closed', {
+      code: event.code,
+      reason: event.reason,
+      wasClean: event.wasClean,
+    })
+    
     console.log('[WS] Closed', {
       code: event.code,
       reason: event.reason,
@@ -397,6 +569,11 @@ export class WebSocketManager {
       this.options.maxReconnectDelay
     )
 
+    debugLog('reconnect', `Scheduling reconnect`, {
+      delay,
+      attempt: this.reconnectAttempts + 1,
+    })
+    
     console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`)
 
     this.reconnectTimer = setTimeout(() => {
@@ -435,6 +612,10 @@ export class WebSocketManager {
   private clearTimers(): void {
     this.clearHeartbeat()
     this.clearReconnectTimer()
+    if (this.snapshotRefreshDebounceTimer) {
+      clearTimeout(this.snapshotRefreshDebounceTimer)
+      this.snapshotRefreshDebounceTimer = null
+    }
   }
 
   private updateState(newState: ConnectionState): void {
