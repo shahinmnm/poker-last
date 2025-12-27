@@ -1340,8 +1340,12 @@ export default function TablePage() {
     const isMyTurn = isPlayingPhase && handNotEnded && idsMatch
     
     // Extract betting info from allowed actions
+    // Note: raise and all_in are separate actions with different semantics
     const betAction = allowedActions.find(a => a.action_type === 'bet')
-    const raiseAction = allowedActions.find(a => a.action_type === 'raise' || a.action_type === 'all_in')
+    const raiseAction = allowedActions.find(a => a.action_type === 'raise')
+    // all_in is checked separately via allowedActions.some() below
+    
+    // For slider bounds, prefer raise action over all_in since all_in may not have min/max
     const sliderAction = betAction ?? raiseAction ?? null
     
     const toCall = callAction?.amount ?? 0
@@ -1841,6 +1845,20 @@ export default function TablePage() {
     }
   }, [tableDetails?.viewer?.is_seated, setShowBottomNav])
 
+  // TASK 6: Cleanup in-flight timeout ref on component unmount
+  useEffect(() => {
+    return () => {
+      if (actionInFlightTimeoutRef.current) {
+        clearTimeout(actionInFlightTimeoutRef.current)
+        actionInFlightTimeoutRef.current = null
+      }
+      if (autoActionTimerRef.current) {
+        clearTimeout(autoActionTimerRef.current)
+        autoActionTimerRef.current = null
+      }
+    }
+  }, [])
+
   const handleDeleteTable = async () => {
     if (!tableId) {
       return
@@ -1969,8 +1987,7 @@ export default function TablePage() {
 
     // Logic for displaying the dock when table is active
     if (viewerIsSeated && tableStatus === 'active') {
-      const isMyTurnNow = isPlaying && currentActorUserId?.toString() === heroIdString
-      
+      // Use TurnContext.isMyTurn as single source of truth
       return (
         <div className={dockBaseClass} style={dockStyle}>
           <div className="w-full pointer-events-auto">
@@ -1979,7 +1996,7 @@ export default function TablePage() {
               onAction={handleGameAction}
               myStack={heroPlayer?.stack ?? 0}
               isProcessing={actionInFlight || actionPending || loading || isTogglingSitOut}
-              isMyTurn={isMyTurnNow && !isInterHand}
+              isMyTurn={turnContext.isMyTurn}
               onToggleStandUp={(next) => handleSitOutToggle(next)}
               isStandingUp={heroIsStandingUp}
               standUpProcessing={isTogglingSitOut}
