@@ -608,17 +608,24 @@ async def monitor_inter_hand_timeouts():
     - Survives server restarts and worker process cycles
     - No in-memory state that can be lost
     - Multiple workers can run safely (only one processes at a time via Redis lock)
+    - Template relationship is eagerly loaded to avoid greenlet_spawn errors
     """
+    import traceback
     from telegram_poker_bot.shared.database import get_db_session
 
     LOCK_KEY = "lock:monitor_inter_hand"
     LOCK_TTL = 30  # Lock expires after 30 seconds (sufficient for DB operations)
+    POLL_INTERVAL = 5  # Check every 5 seconds
 
-    logger.info("Inter-hand timeout monitor started")
+    logger.info(
+        "Inter-hand timeout monitor started",
+        poll_interval=POLL_INTERVAL,
+        timeout_threshold=settings.post_hand_delay_seconds,
+    )
 
     while True:
         try:
-            await asyncio.sleep(5)  # Check every 5 seconds
+            await asyncio.sleep(POLL_INTERVAL)
 
             redis_client = await get_redis_client()
             lock_acquired = await redis_client.set(LOCK_KEY, "1", nx=True, ex=LOCK_TTL)
@@ -632,15 +639,25 @@ async def monitor_inter_hand_timeouts():
 
                 async with get_db_session() as db:
                     # Query for hands in INTER_HAND_WAIT status and join with Table
+                    # CRITICAL: Eagerly load Table.template to avoid greenlet_spawn errors
+                    # when accessing table.template.table_type in is_persistent_table()
                     result = await db.execute(
                         select(Hand, Table)
                         .join(Table, Hand.table_id == Table.id)
+                        .options(joinedload(Table.template))
                         .where(
                             Hand.status == HandStatus.INTER_HAND_WAIT,
                             Table.status == TableStatus.ACTIVE,
                         )
                     )
-                    hands_with_tables = list(result.all())
+                    # Use unique() to handle the joined load
+                    hands_with_tables = list(result.unique().all())
+
+                    logger.debug(
+                        "Inter-hand monitor tick",
+                        tables_found=len(hands_with_tables),
+                        timestamp=now.isoformat(),
+                    )
 
                     for hand, table in hands_with_tables:
                         try:
@@ -657,43 +674,57 @@ async def monitor_inter_hand_timeouts():
                                 now - table.last_action_at
                             ).total_seconds()
 
-                            if (
-                                time_since_last_action
-                                > settings.post_hand_delay_seconds
-                            ):
+                            timeout_threshold = settings.post_hand_delay_seconds
+
+                            # Log computed timeout for diagnostics
+                            logger.debug(
+                                "Inter-hand timeout check",
+                                table_id=table.id,
+                                hand_no=hand.hand_no,
+                                time_since_last_action=round(time_since_last_action, 2),
+                                timeout_threshold=timeout_threshold,
+                                will_trigger=time_since_last_action > timeout_threshold,
+                            )
+
+                            if time_since_last_action > timeout_threshold:
                                 logger.info(
                                     "Inter-hand timeout expired, auto-completing",
                                     table_id=table.id,
                                     hand_no=hand.hand_no,
-                                    time_since_last_action=time_since_last_action,
-                                    timeout_threshold=settings.post_hand_delay_seconds,
+                                    time_since_last_action=round(time_since_last_action, 2),
+                                    timeout_threshold=timeout_threshold,
                                 )
 
                                 # Call runtime manager to complete inter-hand phase
                                 runtime_mgr = get_pokerkit_runtime_manager()
-                                result = await runtime_mgr.complete_inter_hand_phase(
+                                inter_hand_result = await runtime_mgr.complete_inter_hand_phase(
                                     db, table.id
                                 )
                                 await db.commit()
 
                                 # Broadcast the result
-                                await _handle_inter_hand_result(table.id, result)
+                                await _handle_inter_hand_result(table.id, inter_hand_result)
 
                                 logger.info(
                                     "Inter-hand phase auto-completed successfully",
                                     table_id=table.id,
                                     hand_no=hand.hand_no,
+                                    result_keys=list(inter_hand_result.keys()) if inter_hand_result else [],
                                 )
 
                         except Exception as e:
-                            logger.error(
+                            # Log full stack trace for debugging
+                            logger.exception(
                                 "Error processing inter-hand timeout for table",
                                 table_id=table.id if table else None,
                                 hand_id=hand.id if hand else None,
+                                hand_no=hand.hand_no if hand else None,
                                 error=str(e),
+                                traceback=traceback.format_exc(),
                             )
-                            # Rollback is handled by context manager
-                            # Continue to next table
+                            # Rollback any partial changes for this table
+                            await db.rollback()
+                            # Continue to next table - don't let one table failure stop others
 
             finally:
                 await redis_client.delete(LOCK_KEY)
@@ -702,7 +733,13 @@ async def monitor_inter_hand_timeouts():
             logger.info("Inter-hand timeout monitor cancelled")
             break
         except Exception as e:
-            logger.error("Error in inter-hand timeout monitor", error=str(e))
+            # Log full stack trace for main loop errors and continue
+            logger.exception(
+                "Error in inter-hand timeout monitor main loop - continuing",
+                error=str(e),
+                traceback=traceback.format_exc(),
+            )
+            # Continue the loop - don't let transient errors kill the monitor
 
 
 async def check_table_inactivity():
