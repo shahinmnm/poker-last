@@ -246,6 +246,11 @@ export default function TablePage() {
   const lastHandResultHandIdRef = useRef<number | null>(null)
   const heroCardsCacheRef = useRef<Map<number, string[]>>(new Map())
   const lastCachedHandIdRef = useRef<number | null>(null)
+  const heroCardsRefreshRef = useRef<{ handId: number | null; attempts: number; lastAttemptAt: number }>({
+    handId: null,
+    attempts: 0,
+    lastAttemptAt: 0,
+  })
   
   // Track inter-hand state for logging only when it changes
   const prevIsInterHandRef = useRef<boolean | null>(null)
@@ -1264,6 +1269,55 @@ export default function TablePage() {
     viewerIsCreator &&
     livePlayerCount >= 2 &&
     ((tableDetails?.status === 'waiting') || (tableDetails?.status === 'active' && !hasActiveHand))
+
+  useEffect(() => {
+    const handId = liveState?.hand_id ?? null
+
+    if (!handId || !viewerIsSeated || heroIsStandingUp || isInterHand || !hasActiveHand) {
+      heroCardsRefreshRef.current = { handId, attempts: 0, lastAttemptAt: 0 }
+      return
+    }
+
+    if (heroCards.length > 0) {
+      heroCardsRefreshRef.current = { handId, attempts: 0, lastAttemptAt: 0 }
+      return
+    }
+
+    if (!initData) {
+      return
+    }
+
+    const now = Date.now()
+    const current = heroCardsRefreshRef.current
+    const sameHand = current.handId === handId
+    const attempts = sameHand ? current.attempts : 0
+    const lastAttemptAt = sameHand ? current.lastAttemptAt : 0
+
+    if (sameHand && attempts >= 2 && now - lastAttemptAt < 1500) {
+      return
+    }
+
+    heroCardsRefreshRef.current = {
+      handId,
+      attempts: sameHand ? attempts + 1 : 1,
+      lastAttemptAt: now,
+    }
+
+    const timeout = window.setTimeout(() => {
+      fetchLiveState()
+    }, 120)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    fetchLiveState,
+    hasActiveHand,
+    heroCards.length,
+    heroIsStandingUp,
+    initData,
+    isInterHand,
+    liveState?.hand_id,
+    viewerIsSeated,
+  ])
 
   const canJoin = tableDetails?.permissions?.can_join ?? false
   const canLeave = tableDetails?.permissions?.can_leave ?? false
