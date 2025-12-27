@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     private_table_prestart_ttl_minutes: int = (
         60  # 60 minutes for private tables to start
     )
-    post_hand_delay_seconds: int = 20  # Delay after hand ends before starting next hand (configurable for Telegram UX)
+    post_hand_delay_seconds: int = 20  # Env: POST_HAND_DELAY_SECONDS. Delay after hand ends before starting next hand (recommended: 15-30s)
 
     # Mini App
     webapp_secret: str = "test-webapp-secret"

@@ -610,7 +610,6 @@ async def monitor_inter_hand_timeouts():
     - Multiple workers can run safely (only one processes at a time via Redis lock)
     - Template relationship is eagerly loaded to avoid greenlet_spawn errors
     """
-    import traceback
     from telegram_poker_bot.shared.database import get_db_session
 
     LOCK_KEY = "lock:monitor_inter_hand"
@@ -651,7 +650,7 @@ async def monitor_inter_hand_timeouts():
                         )
                     )
                     # Use unique() to handle the joined load
-                    hands_with_tables = list(result.unique().all())
+                    hands_with_tables = result.unique().all()
 
                     logger.debug(
                         "Inter-hand monitor tick",
@@ -713,14 +712,13 @@ async def monitor_inter_hand_timeouts():
                                 )
 
                         except Exception as e:
-                            # Log full stack trace for debugging
+                            # Log full stack trace for debugging (exception() includes traceback)
                             logger.exception(
                                 "Error processing inter-hand timeout for table",
                                 table_id=table.id if table else None,
                                 hand_id=hand.id if hand else None,
                                 hand_no=hand.hand_no if hand else None,
                                 error=str(e),
-                                traceback=traceback.format_exc(),
                             )
                             # Rollback any partial changes for this table
                             await db.rollback()
@@ -733,11 +731,10 @@ async def monitor_inter_hand_timeouts():
             logger.info("Inter-hand timeout monitor cancelled")
             break
         except Exception as e:
-            # Log full stack trace for main loop errors and continue
+            # Log full stack trace for main loop errors and continue (exception() includes traceback)
             logger.exception(
                 "Error in inter-hand timeout monitor main loop - continuing",
                 error=str(e),
-                traceback=traceback.format_exc(),
             )
             # Continue the loop - don't let transient errors kill the monitor
 
