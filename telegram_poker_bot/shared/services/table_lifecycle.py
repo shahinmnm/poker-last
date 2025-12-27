@@ -64,8 +64,41 @@ async def _emit_table_status_event(
             )
 
 
+def is_persistent_table_sync(table: Table) -> bool:
+    """Check if a table is persistent and should be immune from auto-cleanup.
+    
+    SYNC VERSION: Use this when table.template is already eagerly loaded.
+    This avoids greenlet_spawn errors in async context by not triggering lazy loading.
+    
+    A table is considered persistent if:
+    1. It has lobby_persistent flag set to True, OR
+    2. It is auto-generated (is_auto_generated flag), OR
+    3. Its template type is PERSISTENT or CASH_GAME
+    
+    Persistent tables should never be deleted, only paused (returned to WAITING state).
+    
+    Args:
+        table: Table instance with template already loaded
+        
+    Returns:
+        True if table is persistent, False otherwise
+    """
+    return (
+        table.lobby_persistent
+        or table.is_auto_generated
+        or (
+            table.template
+            and table.template.table_type
+            in [TableTemplateType.PERSISTENT, TableTemplateType.CASH_GAME]
+        )
+    )
+
+
 async def is_persistent_table(table: Table) -> bool:
     """Check if a table is persistent and should be immune from auto-cleanup.
+    
+    ASYNC VERSION: Delegates to sync version. Ensure table.template is
+    already eagerly loaded before calling to avoid greenlet_spawn errors.
     
     A table is considered persistent if:
     1. It has lobby_persistent flag set to True, OR
@@ -80,15 +113,7 @@ async def is_persistent_table(table: Table) -> bool:
     Returns:
         True if table is persistent, False otherwise
     """
-    return (
-        table.lobby_persistent
-        or table.is_auto_generated
-        or (
-            table.template
-            and table.template.table_type
-            in [TableTemplateType.PERSISTENT, TableTemplateType.CASH_GAME]
-        )
-    )
+    return is_persistent_table_sync(table)
 
 
 async def should_table_be_listed_publicly(table: Table) -> bool:

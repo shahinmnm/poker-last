@@ -32,6 +32,7 @@ from telegram_poker_bot.shared.models import (
 )
 from telegram_poker_bot.shared.config import get_settings
 from telegram_poker_bot.shared.services import table_lifecycle
+from telegram_poker_bot.shared.services.table_lifecycle import is_persistent_table_sync
 from telegram_poker_bot.engine_adapter import PokerEngineAdapter
 
 
@@ -1766,11 +1767,15 @@ class PokerKitTableRuntimeManager:
         Resolve the inter-hand wait phase by starting or ending the table.
         
         Auto-Proceed Logic (NO VOTING):
-        1. Wait 5 seconds (handled by monitor_inter_hand_timeouts)
+        1. Wait for inter-hand timeout (configurable via POST_HAND_DELAY_SECONDS)
         2. Auto-remove players who have "Stand Up Next" flag set
         3. Re-check active player count (must be >= 2)
         4. If >= 2: Call runtime.start_new_hand(db)
         5. If < 2: Pause the table (Set status to WAITING)
+        
+        Guards:
+        - Re-checks is_sitting_out_next_hand flag from DB before removal
+        - Uses sync is_persistent_table_sync to avoid greenlet_spawn errors
         """
 
         lock = await self._get_distributed_lock(table_id)
@@ -1780,9 +1785,9 @@ class PokerKitTableRuntimeManager:
             # === FIX: Pre-fetch persistence status ===
             # We fetch this NOW before any transaction commits expire the table object.
             # Accessing table.template lazily after a commit causes a greenlet_spawn
-            # async/sync mismatch crash.
+            # async/sync mismatch crash. Use sync version since template is already loaded.
             await db.refresh(runtime.table, attribute_names=["template"])
-            is_table_persistent = await table_lifecycle.is_persistent_table(runtime.table)
+            is_table_persistent = is_persistent_table_sync(runtime.table)
             # === END FIX ===
 
             if (
@@ -1791,6 +1796,15 @@ class PokerKitTableRuntimeManager:
             ):
                 return {"status": "no_inter_hand"}
 
+            # === GUARD: Re-fetch seats from DB to get current is_sitting_out_next_hand status ===
+            # This prevents double-kicking and ensures we're using the most recent flag values
+            seats_result = await db.execute(
+                select(Seat)
+                .options(selectinload(Seat.user))
+                .where(Seat.table_id == table_id, Seat.left_at.is_(None))
+                .order_by(Seat.position)
+            )
+            runtime.seats = list(seats_result.scalars().all())
             active_seats = [s for s in runtime.seats if s.left_at is None]
             
             # NEW: Auto-remove players who have "Stand Up Next" flag set
@@ -1824,11 +1838,13 @@ class PokerKitTableRuntimeManager:
                     .where(Seat.table_id == table_id, Seat.left_at.is_(None))
                     .order_by(Seat.position)
                 )
-                runtime.seats = seats_result.scalars().all()
+                runtime.seats = list(seats_result.scalars().all())
                 active_seats = [s for s in runtime.seats if s.left_at is None]
 
                 # Critical: Refresh table to prevent greenlet error on template access
                 await db.refresh(runtime.table, attribute_names=["template"])
+                # Re-check persistence after refresh
+                is_table_persistent = is_persistent_table_sync(runtime.table)
 
             runtime.current_hand.status = HandStatus.ENDED
             runtime.inter_hand_wait_start = None
@@ -1847,6 +1863,14 @@ class PokerKitTableRuntimeManager:
             # Count active players (no longer need to filter by is_sitting_out_next_hand
             # since those players were removed above).
             playing_seats = active_seats
+
+            logger.info(
+                "Inter-hand phase completion check",
+                table_id=table_id,
+                active_player_count=len(playing_seats),
+                is_persistent=is_table_persistent,
+                stood_up_count=len(stood_up_user_ids),
+            )
 
             if len(playing_seats) < 2:
                 # PAUSE LOGIC: Not enough players (< 2) to deal next hand
