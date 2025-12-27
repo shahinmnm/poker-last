@@ -6,7 +6,10 @@
  * 
  * Features:
  * - Full state replacement on reconnect snapshots
- * - Delta merging for normal state_update messages
+ * - Schema-aware delta merging for state_update messages
+ * - Critical arrays (pots, seats, board, actions) replaced entirely - never merged by index
+ * - Authoritative event detection for safe phase transitions
+ * - State validation to detect impossible transitions
  * - Reconnect event handling with forced resync
  */
 
@@ -16,6 +19,7 @@ import type {
   ConnectionState,
   NormalizedTableState,
   TableDeltaMessage,
+  Seat,
 } from '../types/normalized'
 
 // Debug logging helper - only logs in development
@@ -29,6 +33,222 @@ function debugLog(category: string, message: string, data?: Record<string, unkno
       console.debug(`[useTableSync:${category}]`, message)
     }
   }
+}
+
+// ============================================================================
+// Schema-Aware Merge Policy
+// ============================================================================
+
+/**
+ * Message types that indicate authoritative state transitions.
+ * When these occur, the entire state should be replaced (not merged).
+ */
+const AUTHORITATIVE_EVENT_TYPES = [
+  'hand_ended',
+  'new_hand',
+  'hand_started',
+  'street_changed',
+  'phase_changed',
+  'showdown',
+  'table_state',
+  'state_snapshot',
+  'full_state',
+] as const
+
+/**
+ * Determines if a websocket message represents an authoritative event
+ * that requires full state replacement instead of merge.
+ */
+function isAuthoritativeEvent(message: TableDeltaMessage): boolean {
+  const messageType = (message.type || '').toLowerCase()
+  
+  // Check if message type indicates authoritative event
+  if (AUTHORITATIVE_EVENT_TYPES.some(authType => 
+    messageType === authType || messageType.includes(authType)
+  )) {
+    return true
+  }
+  
+  // Check for full state payload markers
+  const payload = message.payload as Record<string, unknown> | undefined
+  if (payload) {
+    // If payload contains both seat_map and pots, likely a full state
+    if (Array.isArray(payload.seat_map) && Array.isArray(payload.pots)) {
+      return true
+    }
+    // Check for explicit full_state flag
+    if (payload.full_state === true || payload.is_authoritative === true) {
+      return true
+    }
+  }
+  
+  return false
+}
+
+/**
+ * Merges seat arrays by seat_index for stable seat identity.
+ * Each seat in the patch replaces the corresponding seat in target by seat_index.
+ */
+function mergeSeatsByIndex(target: Seat[], patch: Seat[]): Seat[] {
+  // Create a map of target seats by seat_index
+  const targetMap = new Map<number, Seat>()
+  for (const seat of target) {
+    targetMap.set(seat.seat_index, seat)
+  }
+  
+  // Apply patches by seat_index
+  for (const patchSeat of patch) {
+    targetMap.set(patchSeat.seat_index, patchSeat)
+  }
+  
+  // Return array sorted by seat_index for consistent ordering
+  return Array.from(targetMap.values()).sort((a, b) => a.seat_index - b.seat_index)
+}
+
+interface MergeOptions {
+  /** If true, merge seat_map by seat_index instead of replacing */
+  mergeSeatsByKey?: boolean
+  /** Message type for logging */
+  messageType?: string
+}
+
+/**
+ * Schema-aware merge for NormalizedTableState.
+ * 
+ * Rules:
+ * 1. Primitive fields: patch overwrites target when defined
+ * 2. Nested objects: merge recursively (except arrays)
+ * 3. Critical arrays: ALWAYS replace entirely (never merge by index)
+ * 4. seat_map: Can optionally merge by seat_index if stable
+ */
+function mergeTableState(
+  target: NormalizedTableState,
+  patch: Partial<NormalizedTableState>,
+  options: MergeOptions = {}
+): NormalizedTableState {
+  const result = { ...target }
+  const replacedArrays: string[] = []
+  
+  for (const key in patch) {
+    if (!Object.prototype.hasOwnProperty.call(patch, key)) continue
+    
+    const patchValue = patch[key as keyof NormalizedTableState]
+    const targetValue = target[key as keyof NormalizedTableState]
+    
+    // Handle null/undefined explicitly
+    if (patchValue === null || patchValue === undefined) {
+      (result as Record<string, unknown>)[key] = patchValue
+      continue
+    }
+    
+    // Handle arrays - critical arrays are always replaced
+    if (Array.isArray(patchValue)) {
+      // Special handling for seat_map with stable seat_index
+      if (key === 'seat_map' && options.mergeSeatsByKey && Array.isArray(targetValue)) {
+        (result as Record<string, unknown>)[key] = mergeSeatsByIndex(
+          targetValue as Seat[],
+          patchValue as Seat[]
+        )
+        replacedArrays.push(`${key}(merged by seat_index)`)
+      } else {
+        // Replace entire array for all critical arrays
+        (result as Record<string, unknown>)[key] = patchValue
+        replacedArrays.push(`${key}(${(patchValue as unknown[]).length} items)`)
+      }
+      continue
+    }
+    
+    // Handle nested objects - deep merge
+    if (
+      typeof patchValue === 'object' &&
+      typeof targetValue === 'object' &&
+      targetValue !== null &&
+      !Array.isArray(targetValue)
+    ) {
+      (result as Record<string, unknown>)[key] = {
+        ...targetValue,
+        ...patchValue,
+      }
+      continue
+    }
+    
+    // Primitive values - replace
+    (result as Record<string, unknown>)[key] = patchValue
+  }
+  
+  // Debug log replaced arrays
+  if (DEBUG && replacedArrays.length > 0) {
+    debugLog('merge', 'Arrays replaced', {
+      messageType: options.messageType,
+      arrays: replacedArrays,
+    })
+  }
+  
+  return result
+}
+
+/**
+ * Validates state transition to detect impossible/unsafe changes.
+ * Returns true if state appears inconsistent and a snapshot refresh is needed.
+ */
+function shouldForceSnapshot(
+  prev: NormalizedTableState,
+  next: NormalizedTableState,
+  message: TableDeltaMessage
+): { shouldRefresh: boolean; reason?: string } {
+  // Check for negative chip totals in pots
+  if (next.pots) {
+    for (const pot of next.pots) {
+      if (pot.amount < 0) {
+        return {
+          shouldRefresh: true,
+          reason: `Negative pot amount detected: pot_index=${pot.pot_index}, amount=${pot.amount}`,
+        }
+      }
+    }
+  }
+  
+  // Check for negative stack amounts in seats
+  if (next.seat_map) {
+    for (const seat of next.seat_map) {
+      if (seat.stack_amount < 0) {
+        return {
+          shouldRefresh: true,
+          reason: `Negative stack detected: seat_index=${seat.seat_index}, stack=${seat.stack_amount}`,
+        }
+      }
+    }
+  }
+  
+  // Check for board regression (cards decreasing without hand reset)
+  if (
+    prev.community_cards &&
+    next.community_cards &&
+    next.community_cards.length < prev.community_cards.length
+  ) {
+    // Only flag as issue if not a hand transition event
+    if (!isAuthoritativeEvent(message)) {
+      return {
+        shouldRefresh: true,
+        reason: `Board cards decreased without hand reset: ${prev.community_cards.length} -> ${next.community_cards.length}`,
+      }
+    }
+  }
+  
+  // Check for acting_seat_id set but no legal_actions (possible desync)
+  if (
+    next.acting_seat_id !== null &&
+    (!next.legal_actions || next.legal_actions.length === 0)
+  ) {
+    // This might be a partial update, log warning but don't force refresh yet
+    if (DEBUG) {
+      debugLog('validation', 'Acting seat set but no legal actions', {
+        acting_seat_id: next.acting_seat_id,
+      })
+    }
+  }
+  
+  return { shouldRefresh: false }
 }
 
 interface UseTableSyncOptions {
@@ -48,36 +268,6 @@ interface UseTableSyncReturn {
   reconnect: () => void
   requestSnapshot: () => void
   lastUpdate: number | null
-}
-
-/**
- * Deep merge utility for nested objects
- */
-function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-  const result = { ...target }
-
-  for (const key in source) {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      const sourceValue = source[key]
-      const targetValue = target[key]
-
-      if (sourceValue === null || sourceValue === undefined) {
-        // Explicitly set null/undefined values
-        result[key] = sourceValue as T[Extract<keyof T, string>]
-      } else if (Array.isArray(sourceValue)) {
-        // Replace arrays completely (no partial array merge)
-        result[key] = sourceValue as T[Extract<keyof T, string>]
-      } else if (typeof sourceValue === 'object' && typeof targetValue === 'object' && !Array.isArray(targetValue)) {
-        // Deep merge objects
-        result[key] = deepMerge(targetValue, sourceValue) as T[Extract<keyof T, string>]
-      } else {
-        // Replace primitive values
-        result[key] = sourceValue as T[Extract<keyof T, string>]
-      }
-    }
-  }
-
-  return result
 }
 
 export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
@@ -133,12 +323,47 @@ export function useTableSync(options: UseTableSyncOptions): UseTableSyncReturn {
       onDelta: (delta) => {
         debugLog('delta', 'Delta received', { type: delta.type })
         
+        // Check if this is an authoritative event (requires full state replacement)
+        if (isAuthoritativeEvent(delta)) {
+          debugLog('authoritative', 'Authoritative event detected - full state replacement', {
+            type: delta.type,
+            tableVersion: delta.table_version,
+            eventSeq: delta.event_seq,
+          })
+          
+          // For authoritative events, replace state entirely if payload is complete
+          const payload = delta.payload as NormalizedTableState
+          if (payload && payload.seat_map && payload.pots) {
+            setState(payload)
+            setLastUpdate(Date.now())
+            onDeltaRef.current?.(delta)
+            return
+          }
+          // If payload is not complete, request a snapshot
+          debugLog('authoritative', 'Authoritative event with partial payload - requesting snapshot')
+          wsManagerRef.current?.requestSnapshot()
+          return
+        }
+        
+        // Schema-aware delta merge
         setState((prev) => {
           if (!prev) return prev
           
-          // Deep merge delta payload with previous state
-          // This handles nested objects like seat_map, pots, table_metadata, etc.
-          const merged = deepMerge(prev, delta.payload as Partial<NormalizedTableState>)
+          // Apply schema-aware merge with array replacement policy
+          const merged = mergeTableState(prev, delta.payload as Partial<NormalizedTableState>, {
+            messageType: delta.type,
+          })
+          
+          // Validate the merged state for impossible transitions
+          const validation = shouldForceSnapshot(prev, merged, delta)
+          if (validation.shouldRefresh) {
+            debugLog('validation', 'Invalid state detected - requesting snapshot', {
+              reason: validation.reason,
+            })
+            // Request snapshot but still apply merged state temporarily
+            // The snapshot will override when it arrives
+            wsManagerRef.current?.requestSnapshot()
+          }
           
           return merged
         })
