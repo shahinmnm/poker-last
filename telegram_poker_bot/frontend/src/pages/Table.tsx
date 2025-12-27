@@ -34,6 +34,7 @@ import type {
   HandResultPayload,
   TablePlayerState,
   TableState,
+  TurnContext,
 } from '@/types/game'
 import type { GameVariant } from '@/types'
 
@@ -234,6 +235,13 @@ export default function TablePage() {
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
   const autoActionTimerRef = useRef<number | null>(null)
+  
+  // TASK 3/4: Track in-flight action to prevent double-submission
+  const [actionInFlight, setActionInFlight] = useState(false)
+  const actionInFlightTimeoutRef = useRef<number | null>(null)
+  
+  // TASK 5: Track turn key for timer correctness and auto-action gating
+  const lastTurnKeyRef = useRef<string>('')
   
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<string, HTMLElement>>(new Map())
@@ -640,6 +648,7 @@ export default function TablePage() {
 
   const handleGameAction = useCallback(
     async (actionType: AllowedAction['action_type'], amount?: number) => {
+      // TASK 4: Network layer protection - check pre-conditions before any action
       if (!tableId || !initData) {
         showToast(t('table.errors.unauthorized'))
         return
@@ -647,6 +656,14 @@ export default function TablePage() {
 
       const isReadyAction = actionType === 'ready'
       const normalizedActions = normalizeAllowedActions(liveState?.allowed_actions)
+      
+      // TASK 3/4: Prevent double-submission - check in-flight state
+      if (actionInFlight) {
+        if (import.meta.env.DEV) {
+          console.debug('[Action] Blocked - already in flight:', { actionType })
+        }
+        return
+      }
 
       if (isReadyAction) {
         if (!isInterHand) {
@@ -660,24 +677,63 @@ export default function TablePage() {
       }
 
       if (!isReadyAction) {
+        // TASK 3: Hard gate - use turnContext for validation
         if (!isPlaying) {
+          if (import.meta.env.DEV) {
+            console.debug('[Action] Blocked - not in playing phase:', { actionType, phase: currentPhase })
+          }
           showToast(t('table.errors.actionNotAllowed', { defaultValue: 'Action not available' }))
           return
         }
         if (!heroIdString || !currentActorUserId || currentActorUserId.toString() !== heroIdString) {
+          if (import.meta.env.DEV) {
+            console.debug('[Action] Blocked - not my turn:', { 
+              actionType, 
+              heroId: heroIdString, 
+              actorId: currentActorUserId 
+            })
+          }
           showToast(t('table.errors.notYourTurn', { defaultValue: "It's not your turn" }))
           return
         }
 
         const isAllowed = normalizedActions.some((action) => action.action_type === actionType)
         if (!isAllowed) {
+          if (import.meta.env.DEV) {
+            console.debug('[Action] Blocked - action not in allowed list:', { 
+              actionType, 
+              allowed: normalizedActions.map(a => a.action_type) 
+            })
+          }
           showToast(t('table.errors.actionNotAllowed', { defaultValue: 'Action not available' }))
           return
         }
       }
+      
+      // DEV-only: Log action submission
+      if (import.meta.env.DEV) {
+        console.debug('[Action] Submitting:', { 
+          actionType, 
+          amount, 
+          turnKey: `${tableId}:${liveState?.hand_id}:${currentActorUserId}`,
+          allowed: normalizedActions.map(a => a.action_type),
+        })
+      }
 
       try {
+        // TASK 3/4: Set in-flight immediately to prevent double-tap
+        setActionInFlight(true)
         setActionPending(true)
+        
+        // TASK 4: Set timeout fallback to clear in-flight (DEV only uses shorter timeout)
+        const inFlightTimeout = import.meta.env.DEV ? 5000 : 10000
+        actionInFlightTimeoutRef.current = window.setTimeout(() => {
+          if (import.meta.env.DEV) {
+            console.debug('[Action] In-flight timeout reached, clearing flag')
+          }
+          setActionInFlight(false)
+        }, inFlightTimeout)
+        
         const state = await apiFetch<TableState | { ready_players?: Array<number | string> }>(
           `/tables/${tableId}/actions`,
           {
@@ -714,12 +770,22 @@ export default function TablePage() {
         } else {
           showToast(t('table.errors.actionFailed'))
         }
+        // Clear in-flight on error
+        setActionInFlight(false)
+        if (actionInFlightTimeoutRef.current) {
+          clearTimeout(actionInFlightTimeoutRef.current)
+          actionInFlightTimeoutRef.current = null
+        }
       } finally {
         setActionPending(false)
+        // Note: actionInFlight cleared by TurnKey change effect or timeout
+        // We don't clear it here to prevent double-submission while waiting for WS update
       }
     },
     [
+      actionInFlight,
       applyIncomingState,
+      currentPhase,
       fetchLiveState,
       heroIdString,
       currentActorUserId,
@@ -727,6 +793,7 @@ export default function TablePage() {
       isInterHand,
       isPlaying,
       liveState?.allowed_actions,
+      liveState?.hand_id,
       normalizeAllowedActions,
       readyPlayerIds,
       showToast,
@@ -1250,6 +1317,105 @@ export default function TablePage() {
   const callAction = allowedActions.find((action) => action.action_type === 'call')
   const canCheckAction = allowedActions.some((action) => action.action_type === 'check')
   const canCheck = canCheckAction || (callAction?.amount ?? 0) === 0
+  
+  // TASK 2: Compute TurnContext - Single source of truth for action eligibility
+  const turnContext = useMemo((): TurnContext => {
+    const tableIdStr = tableId ?? ''
+    const handIdVal = liveState?.hand_id ?? null
+    const streetVal = liveState?.street ?? null
+    const actorIdVal = currentActorUserId ?? null
+    const myPlayerIdVal = heroIdString ?? null
+    
+    // Generate unique turn key for tracking
+    const turnKey = `${tableIdStr}:${handIdVal ?? 'none'}:${actorIdVal ?? 'none'}`
+    
+    // Determine if it's my turn with strict validation
+    const handNotEnded = liveState?.status !== 'showdown' && !isInterHand
+    const actorKnown = actorIdVal !== null
+    const myIdKnown = myPlayerIdVal !== null
+    const idsMatch = actorKnown && myIdKnown && actorIdVal.toString() === myPlayerIdVal
+    const isPlayingPhase = currentPhase === 'playing'
+    
+    // isMyTurn requires all conditions to be true
+    const isMyTurn = isPlayingPhase && handNotEnded && idsMatch
+    
+    // Extract betting info from allowed actions
+    // Note: raise and all_in are separate actions with different semantics
+    const betAction = allowedActions.find(a => a.action_type === 'bet')
+    const raiseAction = allowedActions.find(a => a.action_type === 'raise')
+    // all_in is checked separately via allowedActions.some() below
+    
+    // For slider bounds, prefer raise action over all_in since all_in may not have min/max
+    const sliderAction = betAction ?? raiseAction ?? null
+    
+    const toCall = callAction?.amount ?? 0
+    const minRaise = sliderAction?.min_amount ?? 0
+    const maxRaise = sliderAction?.max_amount ?? (heroPlayer?.stack ?? 0)
+    const myStack = heroPlayer?.stack ?? 0
+    
+    // Parse action deadline
+    let actionDeadlineMs: number | null = null
+    if (liveState?.action_deadline) {
+      const parsed = new Date(liveState.action_deadline).getTime()
+      if (!isNaN(parsed)) {
+        actionDeadlineMs = parsed
+      }
+    }
+    
+    // DEV-only: log TurnContext changes
+    if (import.meta.env.DEV && turnKey !== lastTurnKeyRef.current) {
+      console.debug('[TurnContext] Changed:', {
+        turnKey,
+        isMyTurn,
+        actorId: actorIdVal,
+        myPlayerId: myPlayerIdVal,
+        handId: handIdVal,
+        street: streetVal,
+        phase: currentPhase,
+        allowedActionsCount: allowedActions.length,
+      })
+    }
+    
+    return {
+      tableId: tableIdStr,
+      handId: handIdVal,
+      street: streetVal,
+      actorId: actorIdVal,
+      myPlayerId: myPlayerIdVal,
+      isMyTurn,
+      turnKey,
+      allowed: {
+        canFold: isMyTurn && allowedActions.some(a => a.action_type === 'fold'),
+        canCheck: isMyTurn && canCheckAction,
+        canCall: isMyTurn && Boolean(callAction),
+        canBet: isMyTurn && Boolean(betAction),
+        canRaise: isMyTurn && Boolean(raiseAction),
+        canAllIn: isMyTurn && allowedActions.some(a => a.action_type === 'all_in'),
+      },
+      toCall,
+      minRaise,
+      maxRaise,
+      myStack,
+      actionDeadlineMs,
+      turnTimeoutSeconds: liveState?.turn_timeout_seconds ?? null,
+    }
+  }, [
+    tableId,
+    liveState?.hand_id,
+    liveState?.street,
+    liveState?.status,
+    liveState?.action_deadline,
+    liveState?.turn_timeout_seconds,
+    currentActorUserId,
+    heroIdString,
+    heroPlayer?.stack,
+    currentPhase,
+    isInterHand,
+    allowedActions,
+    callAction,
+    canCheckAction,
+  ])
+  
   const tableStatus = (liveState?.status ?? tableDetails?.status ?? '').toString().toLowerCase()
   const normalizedStatus = tableStatus
   const viewerIsCreator = tableDetails?.viewer?.is_creator ?? false
@@ -1510,8 +1676,43 @@ export default function TablePage() {
     }
   }, [isInterHand, normalizedStatus, liveState?.inter_hand_wait, liveState?.status, lastHandResult, liveState?.ready_players, heroId])
   
-  const isMyTurn =
-    isPlaying && heroIdString !== null && currentActorUserId?.toString() === heroIdString
+  // TASK 2: Use TurnContext for isMyTurn (single source of truth)
+  const isMyTurn = turnContext.isMyTurn
+
+  // TASK 5/6: Track TurnKey changes to reset in-flight state and cancel auto-actions
+  useEffect(() => {
+    const currentTurnKey = turnContext.turnKey
+    const previousTurnKey = lastTurnKeyRef.current
+    
+    if (currentTurnKey !== previousTurnKey) {
+      // TurnKey changed - reset in-flight state and clear pending auto-actions
+      if (import.meta.env.DEV) {
+        console.debug('[TurnKey] Changed:', {
+          previous: previousTurnKey,
+          current: currentTurnKey,
+          isMyTurn: turnContext.isMyTurn,
+        })
+      }
+      
+      // Clear in-flight action state
+      setActionInFlight(false)
+      if (actionInFlightTimeoutRef.current) {
+        clearTimeout(actionInFlightTimeoutRef.current)
+        actionInFlightTimeoutRef.current = null
+      }
+      
+      // Cancel pending auto-action timers
+      if (autoActionTimerRef.current) {
+        clearTimeout(autoActionTimerRef.current)
+        autoActionTimerRef.current = null
+        if (import.meta.env.DEV) {
+          console.debug('[Timer] Cancelled auto-action timer on TurnKey change')
+        }
+      }
+      
+      lastTurnKeyRef.current = currentTurnKey
+    }
+  }, [turnContext.turnKey, turnContext.isMyTurn])
 
   const lastActorRef = useRef<string | null>(null)
   useEffect(() => {
@@ -1532,28 +1733,56 @@ export default function TablePage() {
     }
   }, [liveState?.hand_id])
 
+  // TASK 5: Auto-action timer with TurnKey validation
   useEffect(() => {
+    // Always clear existing timer first
     if (autoActionTimerRef.current) {
       clearTimeout(autoActionTimerRef.current)
       autoActionTimerRef.current = null
     }
 
-    if (
-      !isPlaying ||
-      !liveState ||
-      !heroIdString ||
-      currentActorUserId?.toString() !== heroIdString ||
-      !liveState.action_deadline
-    ) {
+    // Don't start timer if not my turn or no deadline
+    if (!turnContext.isMyTurn || !turnContext.actionDeadlineMs) {
       return undefined
     }
+    
+    // Capture current turn key for validation at execution time
+    const executionTurnKey = turnContext.turnKey
+    const handIdAtStart = liveState?.hand_id ?? null
 
-    const deadlineMs = new Date(liveState.action_deadline).getTime()
-    const delay = Math.max(0, deadlineMs - Date.now())
+    const delay = Math.max(0, turnContext.actionDeadlineMs - Date.now())
+    
+    if (import.meta.env.DEV) {
+      console.debug('[Timer] Starting auto-action timer:', {
+        turnKey: executionTurnKey,
+        delayMs: delay,
+        deadline: new Date(turnContext.actionDeadlineMs).toISOString(),
+      })
+    }
 
     const handleAutoAction = () => {
+      // CRITICAL: Re-validate turn before executing auto-action
+      // Check that the turn context hasn't changed since timer was set
+      if (lastTurnKeyRef.current !== executionTurnKey) {
+        if (import.meta.env.DEV) {
+          console.debug('[Timer] Auto-action blocked - TurnKey changed:', {
+            expected: executionTurnKey,
+            current: lastTurnKeyRef.current,
+          })
+        }
+        return
+      }
+      
       const timeoutCount =
-        autoTimeoutRef.current.handId === liveState.hand_id ? autoTimeoutRef.current.count : 0
+        autoTimeoutRef.current.handId === handIdAtStart ? autoTimeoutRef.current.count : 0
+
+      if (import.meta.env.DEV) {
+        console.debug('[Timer] Executing auto-action:', {
+          turnKey: executionTurnKey,
+          canCheck,
+          timeoutCount,
+        })
+      }
 
       if (timeoutCount === 0 && canCheck) {
         handleGameAction('check')
@@ -1562,7 +1791,7 @@ export default function TablePage() {
       }
 
       autoTimeoutRef.current = {
-        handId: liveState.hand_id ?? null,
+        handId: handIdAtStart,
         count: timeoutCount + 1,
       }
     }
@@ -1578,10 +1807,9 @@ export default function TablePage() {
   }, [
     canCheck,
     handleGameAction,
-    heroIdString,
-    isPlaying,
-    liveState?.action_deadline,
-    currentActorUserId,
+    turnContext.isMyTurn,
+    turnContext.actionDeadlineMs,
+    turnContext.turnKey,
     liveState?.hand_id,
   ])
 
@@ -1616,6 +1844,20 @@ export default function TablePage() {
       setShowBottomNav(true)
     }
   }, [tableDetails?.viewer?.is_seated, setShowBottomNav])
+
+  // TASK 6: Cleanup in-flight timeout ref on component unmount
+  useEffect(() => {
+    return () => {
+      if (actionInFlightTimeoutRef.current) {
+        clearTimeout(actionInFlightTimeoutRef.current)
+        actionInFlightTimeoutRef.current = null
+      }
+      if (autoActionTimerRef.current) {
+        clearTimeout(autoActionTimerRef.current)
+        autoActionTimerRef.current = null
+      }
+    }
+  }, [])
 
   const handleDeleteTable = async () => {
     if (!tableId) {
@@ -1729,7 +1971,7 @@ export default function TablePage() {
                 allowedActions={allowedActions}
                 onAction={handleGameAction}
                 myStack={heroPlayer?.stack ?? 0}
-                isProcessing={loading || isTogglingSitOut}
+                isProcessing={actionInFlight || loading || isTogglingSitOut}
                 isMyTurn={false}
                 onToggleStandUp={(next) => handleSitOutToggle(next)}
                 isStandingUp={heroIsStandingUp}
@@ -1745,8 +1987,7 @@ export default function TablePage() {
 
     // Logic for displaying the dock when table is active
     if (viewerIsSeated && tableStatus === 'active') {
-      const isMyTurnNow = isPlaying && currentActorUserId?.toString() === heroIdString
-      
+      // Use TurnContext.isMyTurn as single source of truth
       return (
         <div className={dockBaseClass} style={dockStyle}>
           <div className="w-full pointer-events-auto">
@@ -1754,8 +1995,8 @@ export default function TablePage() {
               allowedActions={allowedActions}
               onAction={handleGameAction}
               myStack={heroPlayer?.stack ?? 0}
-              isProcessing={actionPending || loading || isTogglingSitOut}
-              isMyTurn={isMyTurnNow && !isInterHand}
+              isProcessing={actionInFlight || actionPending || loading || isTogglingSitOut}
+              isMyTurn={turnContext.isMyTurn}
               onToggleStandUp={(next) => handleSitOutToggle(next)}
               isStandingUp={heroIsStandingUp}
               standUpProcessing={isTogglingSitOut}
@@ -1827,7 +2068,7 @@ export default function TablePage() {
               allowedActions={allowedActions}
               onAction={handleGameAction}
               myStack={heroPlayer?.stack ?? 0}
-              isProcessing={actionPending || loading || isTogglingSitOut}
+              isProcessing={actionInFlight || actionPending || loading || isTogglingSitOut}
               isMyTurn={isMyTurn}
               onToggleStandUp={(next) => handleSitOutToggle(next)}
               isStandingUp={heroIsStandingUp}

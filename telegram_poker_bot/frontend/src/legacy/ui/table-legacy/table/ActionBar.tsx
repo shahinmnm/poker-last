@@ -61,11 +61,18 @@ export default function ActionBar({
   const [betAmount, setBetAmount] = useState(() => clampAmount(minAmount || 0, minAmount, maxAmount || myStack))
   const [isAdjustingBet, setIsAdjustingBet] = useState(false)
 
+  // TASK 3/6: Reset UI state when turn changes or becomes invalid
   useEffect(() => {
     if (!isMyTurn) {
       setIsAdjustingBet(false)
+      // Reset bet amount to minimum when not our turn
+      if (primarySliderAction) {
+        const min = primarySliderAction.min_amount ?? 0
+        const max = primarySliderAction.max_amount ?? myStack
+        setBetAmount(clampAmount(min || 0, min, max || myStack))
+      }
     }
-  }, [isMyTurn])
+  }, [isMyTurn, primarySliderAction, myStack])
 
   useEffect(() => {
     if (activeBetAction && allowedActions.every((action) => action.action_type !== activeBetAction.action_type)) {
@@ -78,6 +85,22 @@ export default function ActionBar({
     setBetAmount((previous) => clampAmount(previous || minAmount, minAmount, maxAmount))
   }, [minAmount, maxAmount, activeBetAction])
 
+  // TASK 5: DEV-only validation for invalid raise bounds
+  useEffect(() => {
+    if (import.meta.env.DEV && primarySliderAction) {
+      const min = primarySliderAction.min_amount ?? 0
+      const max = primarySliderAction.max_amount ?? myStack
+      if (max < min && max > 0) {
+        console.warn('[ActionBar] Invalid raise bounds detected:', {
+          minRaise: min,
+          maxRaise: max,
+          myStack,
+          action: primarySliderAction.action_type,
+        })
+      }
+    }
+  }, [primarySliderAction, myStack])
+
   const sliderPercent = useMemo(() => {
     if (!maxAmount || maxAmount === minAmount) return 0
     return ((betAmount - minAmount) / (maxAmount - minAmount)) * 100
@@ -86,17 +109,36 @@ export default function ActionBar({
   const labelPercent = clampAmount(sliderPercent, 5, 95)
   const isDisabled = isProcessing || !isMyTurn
 
+  // TASK 3: Add disabled check to prevent actions when not allowed
   const handleStartAdjusting = (action: AllowedAction | null) => {
-    if (!action) return
+    // Gate: must be my turn and not processing
+    if (!action || isDisabled) return
     const min = action.min_amount ?? 0
     const max = action.max_amount ?? myStack
+    // TASK 5: Validate bounds before allowing slider
+    if (max > 0 && max < min) {
+      if (import.meta.env.DEV) {
+        console.debug('[ActionBar] Blocked slider - invalid bounds:', { min, max })
+      }
+      return
+    }
     setActiveBetAction(action)
     setBetAmount(clampAmount(min || 0, min, max || myStack))
     setIsAdjustingBet(true)
   }
 
+  // TASK 3: Add disabled check to bet submission
   const handleBetSubmit = (action: AllowedAction | null) => {
-    if (!action) return
+    if (!action || isDisabled) return
+    // TASK 7: DEV log submission
+    if (import.meta.env.DEV) {
+      console.debug('[ActionBar] Submitting bet:', {
+        action: action.action_type,
+        amount: betAmount,
+        isMyTurn,
+        isProcessing,
+      })
+    }
     onAction(action.action_type, betAmount)
     setIsAdjustingBet(false)
   }

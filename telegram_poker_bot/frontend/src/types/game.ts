@@ -168,3 +168,34 @@ export interface TableState {
   max_draw_rounds?: number // Total draw rounds for this variant
   variant?: string // Game variant identifier
 }
+
+/**
+ * TurnContext: Single source of truth for action eligibility.
+ * Used to gate UI actions and prevent double-submissions.
+ */
+export interface TurnContext {
+  tableId: string
+  handId?: string | number | null
+  street?: string | null
+  actorId?: string | number | null
+  myPlayerId?: string | number | null
+  isMyTurn: boolean
+  /** Unique key for turn tracking: `${tableId}:${handId}:${actorId}` */
+  turnKey: string
+  allowed: {
+    canFold: boolean
+    canCheck: boolean
+    canCall: boolean
+    canBet: boolean
+    canRaise: boolean
+    canAllIn: boolean
+  }
+  toCall?: number       // chips needed to call
+  minRaise?: number
+  maxRaise?: number
+  myStack?: number
+  /** Server-provided action deadline (epoch ms) */
+  actionDeadlineMs?: number | null
+  /** Turn timeout in seconds from server */
+  turnTimeoutSeconds?: number | null
+}
