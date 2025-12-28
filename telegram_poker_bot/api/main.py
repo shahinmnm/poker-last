@@ -74,6 +74,7 @@ from telegram_poker_bot.bot.i18n import get_translation
 from telegram_poker_bot.game_core import get_matchmaking_pool, get_redis_client
 from telegram_poker_bot.game_core.pokerkit_runtime import (
     HandCompleteError,
+    IllegalActionError,
     NoActorToActError,
     NotYourTurnError,
     get_pokerkit_runtime_manager,
@@ -3445,6 +3446,25 @@ async def submit_action(
         raise HTTPException(
             status_code=400,
             detail="No player to act; hand is complete or waiting for next hand.",
+        )
+    except IllegalActionError as e:
+        # Action was not allowed according to PokerKit rules
+        logger.warning(
+            "Illegal action rejected",
+            table_id=e.table_id,
+            hand_no=e.hand_no,
+            user_id=e.user_id,
+            action=e.action,
+            allowed_actions=e.allowed_actions,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Action not allowed",
+                "code": "ACTION_NOT_ALLOWED",
+                "action": e.action,
+                "allowed_actions": e.allowed_actions,
+            },
         )
     except HTTPException:
         raise

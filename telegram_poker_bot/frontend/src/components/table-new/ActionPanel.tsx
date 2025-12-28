@@ -82,11 +82,16 @@ export function ActionPanel({
   }
 
   // Check which actions are available
-  const hasFold = legalActions.some(a => a.action === 'fold')
   const hasCheck = legalActions.some(a => a.action === 'check')
   const callAction = legalActions.find(a => a.action === 'call')
   const hasAllIn = legalActions.some(a => a.action === 'all_in')
   const hasReady = legalActions.some(a => a.action === 'ready')
+
+  // DEFENSIVE RULE: Do NOT show Fold if check is available or call amount is 0.
+  // This is a safety net - the backend should already be correct, but we add
+  // client-side protection against accidental fold buttons when there's "no reason to fold".
+  const toCall = callAction?.call_amount ?? 0
+  const hasFold = legalActions.some(a => a.action === 'fold') && !hasCheck && toCall > 0
 
   return (
     <div className="action-panel flex flex-col items-center gap-3">

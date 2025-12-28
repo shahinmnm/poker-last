@@ -79,6 +79,34 @@ class NotYourTurnError(RuntimeError):
     """Raised when a player attempts to act out of turn."""
 
 
+class IllegalActionError(ValueError):
+    """Raised when a player attempts an action that is not allowed.
+
+    Attributes:
+        table_id: ID of the table where the action was attempted.
+        hand_no: Hand number where the action was attempted.
+        user_id: User ID of the player who attempted the action.
+        action: The action that was attempted.
+        allowed_actions: Summary of allowed actions at the time of the attempt.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        table_id: int,
+        hand_no: int,
+        user_id: int,
+        action: str,
+        allowed_actions: Dict[str, Any],
+    ):
+        super().__init__(message)
+        self.table_id = table_id
+        self.hand_no = hand_no
+        self.user_id = user_id
+        self.action = action
+        self.allowed_actions = allowed_actions
+
+
 class PokerKitTableRuntime:
     """
     Runtime state container for a single table using PokerKit engine.
@@ -1007,6 +1035,44 @@ class PokerKitTableRuntime:
 
         if player_index != actor_index:
             raise NotYourTurnError("It is not your turn to act.")
+
+        # TASK B: Pre-validate action legality before applying
+        # Get allowed actions using the public API from the engine adapter
+        allowed_actions = self.engine.get_allowed_actions(player_index)
+
+        # Validate the requested action against allowed actions
+        action_is_allowed = False
+        if action == ActionType.FOLD:
+            action_is_allowed = allowed_actions.get("can_fold", False)
+        elif action == ActionType.CHECK:
+            action_is_allowed = allowed_actions.get("can_check", False)
+        elif action == ActionType.CALL:
+            action_is_allowed = allowed_actions.get("can_call", False)
+        elif action == ActionType.BET:
+            action_is_allowed = allowed_actions.get("can_bet", False)
+        elif action == ActionType.RAISE:
+            action_is_allowed = allowed_actions.get("can_raise", False)
+        elif action == ActionType.ALL_IN:
+            # All-in is allowed if either bet or raise is allowed
+            action_is_allowed = allowed_actions.get("can_bet", False) or allowed_actions.get("can_raise", False)
+
+        if not action_is_allowed:
+            logger.warning(
+                "Illegal action attempted",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+                user_id=user_id,
+                action=action.value,
+                allowed_actions=allowed_actions,
+            )
+            raise IllegalActionError(
+                f"Action '{action.value}' is not allowed",
+                table_id=self.table.id,
+                hand_no=self.hand_no,
+                user_id=user_id,
+                action=action.value,
+                allowed_actions=allowed_actions,
+            )
 
         # Process action via PokerKit
         if action == ActionType.FOLD:
