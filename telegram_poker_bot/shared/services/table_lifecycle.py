@@ -37,16 +37,20 @@ logger = get_logger(__name__)
 def is_public_desk(table: Table) -> bool:
     """Check if a table is a public cash desk (public lobby table).
 
-    A "public desk" is:
+    A "public desk" is defined as:
     - table.is_public == True
-    - table.template.table_type == CASH_GAME (or PERSISTENT)
-    - No invite_code requirement (public lobby)
+    - table.invite_code is None (no invite code - truly public)
+    - table.template.table_type == CASH_GAME or PERSISTENT
 
-    Public desks MUST:
-    1. NEVER expire via expires_at
+    PUBLIC DESK LIFECYCLE RULES (these are the highest priority rules):
+    1. NEVER expire via expires_at (expires_at must be NULL)
     2. NEVER be marked EXPIRED/ENDED by automation
     3. NEVER be deleted/cleaned up automatically
     4. PAUSE to WAITING (not end) when <2 active players
+
+    Note: The public desk check is separate from template type checks in
+    is_persistent_table(). A public desk is always persistent, but not all
+    persistent tables are public desks.
 
     Args:
         table: Table instance to check
@@ -57,7 +61,7 @@ def is_public_desk(table: Table) -> bool:
     if not table.is_public:
         return False
     
-    # Public desks must not have invite codes
+    # Public desks must not have invite codes (truly public, no access restriction)
     if table.invite_code:
         return False
     
@@ -107,11 +111,16 @@ def is_persistent_table_sync(table: Table) -> bool:
     SYNC VERSION: Use this when table.template is already eagerly loaded.
     This avoids greenlet_spawn errors in async context by not triggering lazy loading.
     
-    A table is considered persistent if:
-    1. It is a public desk (is_public_desk(table) returns True), OR
-    2. It has lobby_persistent flag set to True, OR
-    3. It is auto-generated (is_auto_generated flag), OR
+    A table is considered persistent if ANY of these conditions are met
+    (checked in priority order):
+    1. It is a public desk (is_public_desk() returns True) - HIGHEST PRIORITY
+    2. It has lobby_persistent flag set to True
+    3. It is auto-generated (is_auto_generated flag)
     4. Its template type is PERSISTENT or CASH_GAME
+    
+    Note: Condition 1 (public desk) is a strict subset of condition 4, but we
+    check it first because public desks have additional semantic meaning beyond
+    just being persistent (they should never expire via expires_at either).
     
     Persistent tables should never be deleted, only paused (returned to WAITING state).
     
