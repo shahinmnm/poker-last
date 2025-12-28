@@ -45,6 +45,7 @@ export function ActionPanel({
 
   // TASK B.5: Reset raiseAmount to min_amount when new allowed_actions arrives
   // This prevents stale invalid values when the action context changes
+  // Using raiseAction directly in deps ensures we react to any change in the action object
   useEffect(() => {
     if (raiseAction) {
       // Always reset to min_amount when raiseAction changes (new turn or new allowed_actions)
@@ -55,7 +56,7 @@ export function ActionPanel({
     }
     // Close the raise control panel when actions change (new turn)
     setShowRaiseControl(false)
-  }, [raiseAction?.min_amount, raiseAction?.max_amount])
+  }, [raiseAction])
 
   const handleAction = (action: ActionType, amount?: number) => {
     if (disabled) return
