@@ -1288,7 +1288,10 @@ async def get_table_info(
     if table.status == TableStatus.ACTIVE:
         hand_result = await db.execute(
             select(Hand)
-            .where(Hand.table_id == table.id, Hand.status != HandStatus.ENDED)
+            .where(
+                Hand.table_id == table.id,
+                Hand.status.not_in([HandStatus.ENDED, HandStatus.ABORTED])
+            )
             .limit(1)
         )
         has_active_hand = hand_result.scalar_one_or_none() is not None
@@ -1633,9 +1636,19 @@ async def start_table(
 
     from telegram_poker_bot.shared.models import Hand, HandStatus
 
+    # HAND IN PROGRESS GUARD:
+    # This guard prevents starting a new hand when there's already an active hand.
+    # An active hand is any hand with status NOT in {ENDED, ABORTED}.
+    # 
+    # If a hand was aborted due to restore corruption (e.g., "No board dealing is pending"),
+    # it should be marked as ABORTED to allow the table to start a new hand.
+    # This marking is done in pokerkit_runtime.py's ensure_table() method.
     hand_result = await db.execute(
         select(Hand)
-        .where(Hand.table_id == table_id, Hand.status != HandStatus.ENDED)
+        .where(
+            Hand.table_id == table_id,
+            Hand.status.not_in([HandStatus.ENDED, HandStatus.ABORTED])
+        )
         .order_by(Hand.hand_no.desc())
         .limit(1)
     )

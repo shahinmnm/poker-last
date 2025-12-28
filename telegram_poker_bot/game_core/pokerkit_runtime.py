@@ -578,7 +578,7 @@ class PokerKitTableRuntime:
         """
         Load the current active hand or create a new one.
 
-        Query for the latest Hand for this table with status != ENDED.
+        Query for the latest Hand for this table with status not in {ENDED, ABORTED}.
         If exists, return it. Otherwise, create a new Hand row.
 
         Args:
@@ -588,9 +588,13 @@ class PokerKitTableRuntime:
             Current or new Hand record
         """
         # Force SQLAlchemy to refresh cached objects from database instead of returning stale cached instances
+        # Exclude both ENDED and ABORTED hands - ABORTED hands are corrupted and should not be resumed
         result = await db.execute(
             select(Hand)
-            .where(Hand.table_id == self.table.id, Hand.status != HandStatus.ENDED)
+            .where(
+                Hand.table_id == self.table.id,
+                Hand.status.not_in([HandStatus.ENDED, HandStatus.ABORTED])
+            )
             .order_by(Hand.hand_no.desc())
             .limit(1)
             .execution_options(populate_existing=True)
@@ -598,12 +602,13 @@ class PokerKitTableRuntime:
         hand = result.scalar_one_or_none()
 
         if hand:
-            # Double-check the hand isn't actually ENDED (could be stale from session cache)
-            if hand.status == HandStatus.ENDED:
+            # Double-check the hand isn't actually ENDED or ABORTED (could be stale from session cache)
+            if hand.status in [HandStatus.ENDED, HandStatus.ABORTED]:
                 logger.warning(
-                    "Found ENDED hand in query result (stale from session cache), creating new hand",
+                    "Found ENDED/ABORTED hand in query result (stale from session cache), creating new hand",
                     table_id=self.table.id,
                     hand_no=hand.hand_no,
+                    status=hand.status.value,
                 )
                 hand = None  # Force creation of a new hand
             else:
@@ -1437,7 +1442,9 @@ class PokerKitTableRuntime:
         )
 
         if self.table.status in {TableStatus.ENDED, TableStatus.EXPIRED} or (
-            self.current_hand and self.current_hand.status == HandStatus.ENDED
+            self.current_hand and self.current_hand.status in [
+                HandStatus.ENDED, HandStatus.ABORTED
+            ]
         ):
             phase = "finished"
         elif (
@@ -1740,7 +1747,10 @@ class PokerKitTableRuntimeManager:
         if runtime.engine is None:
             hand_result = await db.execute(
                 select(Hand)
-                .where(Hand.table_id == table_id, Hand.status != HandStatus.ENDED)
+                .where(
+                    Hand.table_id == table_id,
+                    Hand.status.not_in([HandStatus.ENDED, HandStatus.ABORTED])
+                )
                 .order_by(Hand.hand_no.desc())
                 .limit(1)
             )
@@ -1788,13 +1798,86 @@ class PokerKitTableRuntimeManager:
                         )
 
                 except Exception as e:
-                    logger.error(
-                        "Failed to restore engine from DB",
-                        table_id=table_id,
-                        hand_id=hand.id,
-                        error=str(e),
+                    # TASK 2: Deterministic recovery on restore failure
+                    # Classify error as "restore_corruption" when:
+                    # - Error matches known corruption patterns (e.g., "No board dealing is pending")
+                    # - Table is in recoverable state (WAITING, INTER_HAND_WAIT, or ACTIVE without live play)
+                    
+                    error_str = str(e)
+                    is_corruption_error = (
+                        "No board dealing is pending" in error_str
+                        or "A card must be burnt" in error_str
+                        or "Not all have stood pat" in error_str
+                        or "deck" in error_str.lower() and "card" in error_str.lower()
                     )
-                    # Keep engine as None, will be created on next start_game
+                    
+                    # Check if table is in a recoverable state
+                    is_recoverable_state = table.status in [
+                        TableStatus.WAITING,
+                        TableStatus.ACTIVE,  # May be stuck from previous attempt
+                    ] or hand.status == HandStatus.INTER_HAND_WAIT
+                    
+                    if is_corruption_error and is_recoverable_state:
+                        # RECOVERY ACTIONS (transactional):
+                        logger.warning(
+                            "Detected restore corruption - initiating recovery",
+                            table_id=table_id,
+                            hand_id=hand.id,
+                            hand_no=hand.hand_no,
+                            restore_error=error_str,
+                            table_status=table.status.value,
+                            hand_status=hand.status.value,
+                            recovered=True,
+                            reason="restore_corruption",
+                        )
+                        
+                        # 1. Mark the corrupted hand as ABORTED
+                        hand.status = HandStatus.ABORTED
+                        hand.ended_at = datetime.now(timezone.utc)
+                        
+                        # 2. Ensure table is in WAITING state for public desks
+                        # to allow auto-start to create a new hand
+                        if table.status == TableStatus.ACTIVE:
+                            # Check if this is a persistent table that should stay active
+                            if table_lifecycle.is_persistent_table_sync(table):
+                                table.status = TableStatus.WAITING
+                                logger.info(
+                                    "Reset persistent table to WAITING for recovery",
+                                    table_id=table_id,
+                                )
+                        
+                        # 3. Clear runtime state to allow fresh hand start
+                        runtime.engine = None
+                        runtime.current_hand = None
+                        runtime.hand_no = hand.hand_no  # Preserve for next hand numbering
+                        runtime.user_id_to_player_index = {}
+                        runtime.ready_players = set()
+                        runtime.inter_hand_wait_start = None
+                        runtime.last_hand_result = None
+                        
+                        # 4. Flush recovery changes to DB
+                        await db.flush()
+                        
+                        logger.info(
+                            "Ghost hand recovery completed successfully",
+                            table_id=table_id,
+                            hand_id=hand.id,
+                            hand_no=hand.hand_no,
+                            new_table_status=table.status.value,
+                            recovered=True,
+                        )
+                    else:
+                        # Non-recoverable error or table in active play state
+                        logger.error(
+                            "Failed to restore engine from DB",
+                            table_id=table_id,
+                            hand_id=hand.id,
+                            error=error_str,
+                            is_corruption_error=is_corruption_error,
+                            is_recoverable_state=is_recoverable_state,
+                            recovered=False,
+                        )
+                        # Keep engine as None, will be created on next start_game
 
         return runtime
 
@@ -2051,7 +2134,10 @@ class PokerKitTableRuntimeManager:
             if runtime.current_hand is None:
                 hand_result = await db.execute(
                     select(Hand)
-                    .where(Hand.table_id == table_id, Hand.status != HandStatus.ENDED)
+                    .where(
+                        Hand.table_id == table_id,
+                        Hand.status.not_in([HandStatus.ENDED, HandStatus.ABORTED])
+                    )
                     .order_by(Hand.hand_no.desc())
                     .limit(1)
                     .with_for_update()  # Lock row to prevent concurrent modifications
