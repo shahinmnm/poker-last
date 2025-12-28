@@ -107,11 +107,11 @@ export function ActionPanel({
 
   return (
     <div className="action-panel flex flex-col items-center gap-3">
-      {/* Sit Out Toggle - glassmorphism pill at top */}
+      {/* Leave After Hand Toggle - glassmorphism pill at top */}
       {showSitOutToggle && onSitOutToggle && (
         <div className="sit-out-toggle bg-black/40 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-3">
           <label htmlFor="sit-out-toggle" className="text-xs font-medium text-gray-200 cursor-pointer">
-            Sit Out
+            {isSittingOut ? 'Leaving after hand' : 'Leave after hand'}
           </label>
           <Toggle
             id="sit-out-toggle"

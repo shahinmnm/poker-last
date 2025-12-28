@@ -712,8 +712,10 @@
       "raise": "Raise",
       "allIn": "All-In",
       "rebuy": "Rebuy",
-      "sitOut": "Sit Out",
-      "sitOutNextHand": "Sit out next hand",
+      "leaveAfterHand": "Leave after hand",
+      "leavingAfterHand": "Leaving after hand",
+      "sitOut": "Leave after hand",
+      "sitOutNextHand": "Leave after this hand",
       "presets": {
         "halfPot": "½ Pot",
         "twoThirdsPot": "⅔ Pot",
@@ -829,7 +831,7 @@
     "playerStatus": {
       "waiting": "WAITING",
       "seated": "SEATED",
-      "sitOut": "SIT OUT",
+      "sitOut": "LEAVING",
       "active": "ACTIVE"
     },
     "playerPopover": {
