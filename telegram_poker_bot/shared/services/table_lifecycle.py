@@ -34,6 +34,43 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = get_logger(__name__)
 
 
+def is_public_desk(table: Table) -> bool:
+    """Check if a table is a public cash desk (public lobby table).
+
+    A "public desk" is:
+    - table.is_public == True
+    - table.template.table_type == CASH_GAME (or PERSISTENT)
+    - No invite_code requirement (public lobby)
+
+    Public desks MUST:
+    1. NEVER expire via expires_at
+    2. NEVER be marked EXPIRED/ENDED by automation
+    3. NEVER be deleted/cleaned up automatically
+    4. PAUSE to WAITING (not end) when <2 active players
+
+    Args:
+        table: Table instance to check
+
+    Returns:
+        True if table is a public desk, False otherwise
+    """
+    if not table.is_public:
+        return False
+    
+    # Public desks must not have invite codes
+    if table.invite_code:
+        return False
+    
+    # Check template type - CASH_GAME or PERSISTENT are public desk types
+    if table.template and table.template.table_type in [
+        TableTemplateType.CASH_GAME,
+        TableTemplateType.PERSISTENT,
+    ]:
+        return True
+    
+    return False
+
+
 _table_status_listeners: List[
     Callable[[int, TableStatus, str], Awaitable[None]]
 ] = []
@@ -71,9 +108,10 @@ def is_persistent_table_sync(table: Table) -> bool:
     This avoids greenlet_spawn errors in async context by not triggering lazy loading.
     
     A table is considered persistent if:
-    1. It has lobby_persistent flag set to True, OR
-    2. It is auto-generated (is_auto_generated flag), OR
-    3. Its template type is PERSISTENT or CASH_GAME
+    1. It is a public desk (is_public_desk(table) returns True), OR
+    2. It has lobby_persistent flag set to True, OR
+    3. It is auto-generated (is_auto_generated flag), OR
+    4. Its template type is PERSISTENT or CASH_GAME
     
     Persistent tables should never be deleted, only paused (returned to WAITING state).
     
@@ -83,6 +121,10 @@ def is_persistent_table_sync(table: Table) -> bool:
     Returns:
         True if table is persistent, False otherwise
     """
+    # Public desks are always persistent - highest priority
+    if is_public_desk(table):
+        return True
+    
     return (
         table.lobby_persistent
         or table.is_auto_generated
@@ -101,9 +143,10 @@ async def is_persistent_table(table: Table) -> bool:
     already eagerly loaded before calling to avoid greenlet_spawn errors.
     
     A table is considered persistent if:
-    1. It has lobby_persistent flag set to True, OR
-    2. It is auto-generated (is_auto_generated flag), OR
-    3. Its template type is PERSISTENT or CASH_GAME
+    1. It is a public desk (is_public_desk(table) returns True), OR
+    2. It has lobby_persistent flag set to True, OR
+    3. It is auto-generated (is_auto_generated flag), OR
+    4. Its template type is PERSISTENT or CASH_GAME
     
     Persistent tables should never be deleted, only paused (returned to WAITING state).
     
@@ -124,7 +167,9 @@ async def should_table_be_listed_publicly(table: Table) -> bool:
     - Expired tables
     - Ended tables
     - Deleted tables
-    - Pre-start tables past their expires_at time
+    - Pre-start tables past their expires_at time (EXCEPT public desks)
+
+    Public desks (CASH_GAME tables) are ALWAYS listed even when WAITING.
 
     Args:
         table: Table instance to check
@@ -136,7 +181,11 @@ async def should_table_be_listed_publicly(table: Table) -> bool:
     if table.status in {TableStatus.EXPIRED, TableStatus.ENDED}:
         return False
 
-    # Check pre-start expiry
+    # Public desks are ALWAYS visible (even when WAITING or empty)
+    if is_public_desk(table):
+        return True
+
+    # Check pre-start expiry for non-public-desk tables
     if table.status == TableStatus.WAITING and table.expires_at:
         now = datetime.now(timezone.utc)
         if table.expires_at <= now:
@@ -151,7 +200,7 @@ async def compute_prestart_expiry(
     """
     Check if a pre-start table should be expired.
     
-    PERSISTENT tables are immune from expiry.
+    PUBLIC DESKS (is_public_desk) and PERSISTENT tables are immune from expiry.
 
     Rule 1 & 7: Pre-start join TTL
     - PUBLIC tables (no invite_code): 10 minutes to start
@@ -166,6 +215,15 @@ async def compute_prestart_expiry(
     Returns:
         (should_expire, reason) tuple
     """
+    # PUBLIC DESKS NEVER expire - immediate return
+    if is_public_desk(table):
+        logger.debug(
+            "Public desk immune from pre-start expiry",
+            table_id=table.id,
+            is_public=table.is_public,
+        )
+        return False, None
+    
     # PERSISTENT tables never expire
     if await is_persistent_table(table):
         return False, None
@@ -208,14 +266,17 @@ async def compute_poststart_inactivity(
     """
     Check if an active table should be expired due to inactivity.
 
+    PUBLIC DESKS (is_public_desk) NEVER expire via this check - they should
+    PAUSE to WAITING instead (handled by background task, not here).
+
     Rule 2: Zombie Cleanup
     - Players who timeout consecutively are marked as sitting out
-    - If all players fold/timeout/sit-out, table is deleted
+    - If all players fold/timeout/sit-out, table is deleted (EXCEPT public desks)
 
     Rule 5 & 6: Min Player Deletion
     - This check must occur after the inter-hand phase
     - Count only active players (those NOT sitting out for next hand)
-    - If active_players < 2, mark table as expired immediately
+    - If active_players < 2, mark table as expired immediately (EXCEPT public desks)
 
     Args:
         db: Database session
@@ -224,6 +285,17 @@ async def compute_poststart_inactivity(
     Returns:
         (should_expire, reason) tuple
     """
+    # PUBLIC DESKS NEVER expire via inactivity - immediate return
+    # They should PAUSE to WAITING (not expire) - handled in background task
+    if is_public_desk(table):
+        logger.debug(
+            "Public desk immune from post-start inactivity expiry",
+            table_id=table.id,
+            is_public=table.is_public,
+            status=table.status.value if table.status else None,
+        )
+        return False, None
+    
     # Only applies to ACTIVE tables
     if table.status != TableStatus.ACTIVE:
         return False, None
@@ -361,9 +433,21 @@ async def check_and_enforce_lifecycle(
     This is the canonical lifecycle check method.
     Call this before any table operation to ensure table is still valid.
 
+    PUBLIC DESKS (is_public_desk) are ALWAYS immune - they NEVER expire.
+
     Returns:
         (was_expired, reason) tuple
     """
+    # PUBLIC DESKS NEVER expire via lifecycle rules - immediate return
+    if is_public_desk(table):
+        logger.debug(
+            "Public desk immune from lifecycle enforcement",
+            table_id=table.id,
+            is_public=table.is_public,
+            status=table.status.value if table.status else None,
+        )
+        return False, None
+
     # Persistent tables never expire via lifecycle rules
     template_type = getattr(getattr(table, "template", None), "table_type", None)
     if template_type == TableTemplateType.PERSISTENT:

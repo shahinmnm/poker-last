@@ -774,9 +774,21 @@ async def create_table(
         if invite_code is None:
             invite_code = _generate_invite_code(length=INVITE_CODE_FALLBACK_LENGTH)
 
+    # PUBLIC DESKS (CASH_GAME or PERSISTENT types that are public) NEVER have expires_at
+    # They must remain in lobby permanently regardless of emptiness or sit-out state
+    is_public_desk_table = (
+        is_public
+        and template.table_type in [TableTemplateType.CASH_GAME, TableTemplateType.PERSISTENT]
+        and not invite_code  # No invite code requirement
+    )
+
     expires_at = None
-    if template.table_type == TableTemplateType.EXPIRING and not lobby_persistent:
+    if not is_public_desk_table and template.table_type == TableTemplateType.EXPIRING and not lobby_persistent:
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiration_minutes)
+
+    # For public desk tables, also set lobby_persistent to True to ensure consistency
+    if is_public_desk_table:
+        lobby_persistent = True
 
     table = Table(
         mode=mode,
@@ -802,6 +814,7 @@ async def create_table(
         max_players=max_players,
         is_private=not is_public,
         is_public=is_public,
+        is_public_desk=is_public_desk_table,
         mode=mode.value,
         invite_code=invite_code,
         expires_at=expires_at.isoformat() if expires_at else None,
