@@ -208,13 +208,13 @@ export function ActionPanel({
                 <Plus size={14} />
               </button>
               
-              {/* Confirm button - shows "Raise to" or "Bet" */}
+              {/* Confirm button - shows "Raise to" or "Bet" label with amount */}
               <button
                 onClick={handleRaiseConfirm}
                 disabled={disabled}
                 className="bg-emerald-500 hover:bg-emerald-600 rounded-full px-4 py-1 text-sm font-bold text-white transition-colors disabled:opacity-50"
               >
-                {raiseAction.action === 'raise' ? 'Raise' : 'Bet'}
+                {raiseAction.action === 'raise' ? 'Raise to' : 'Bet'}
               </button>
               
               {/* Cancel button */}

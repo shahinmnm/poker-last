@@ -745,9 +745,15 @@ async def check_table_inactivity():
     Background task that manages table lifecycle.
 
     CRITICAL LOGIC CHANGES:
-    1. Persistent tables (Lobby/Cash) NEVER expire when empty.
-    2. Persistent tables PAUSE (switch to WAITING) when players leave, instead of ENDING.
-    3. SNG/Tournament tables retain original cleanup logic.
+    1. PUBLIC DESKS (is_public_desk) NEVER expire or get deleted regardless of emptiness
+    2. Persistent tables (Lobby/Cash) NEVER expire when empty - they PAUSE to WAITING
+    3. SNG/Tournament tables retain original cleanup logic
+    
+    PUBLIC DESK RULES:
+    - MUST NEVER be marked EXPIRED/ENDED by automation
+    - MUST NEVER be deleted/cleaned up automatically
+    - If <2 active players: PAUSE to WAITING (not end or expire)
+    - Survival condition is based on seated_players (not playing_count)
     """
     from telegram_poker_bot.shared.database import get_db_session
     from telegram_poker_bot.shared.services import table_lifecycle
@@ -784,6 +790,9 @@ async def check_table_inactivity():
                     for table in tables:
                         try:
                             # --- STEP 1: IDENTIFY TABLE TYPE ---
+                            # Check if this is a public desk first (highest priority immunity)
+                            is_public_desk_table = table_lifecycle.is_public_desk(table)
+                            
                             # Use the canonical is_persistent_table function
                             is_persistent = await table_lifecycle.is_persistent_table(
                                 table
@@ -797,6 +806,8 @@ async def check_table_inactivity():
                                 )
                             )
                             active_seats = list(seats_result.scalars())
+                            seated_count = len(active_seats)
+                            
                             # Count strictly active players (not sitting out next hand)
                             # This determines if a game can logically proceed
                             playing_count = len(
@@ -806,6 +817,41 @@ async def check_table_inactivity():
                                     if not s.is_sitting_out_next_hand
                                 ]
                             )
+                            
+                            # Log lifecycle check for debugging
+                            logger.debug(
+                                "Lifecycle check for table",
+                                table_id=table.id,
+                                status=table.status.value if table.status else None,
+                                is_public_desk=is_public_desk_table,
+                                is_persistent=is_persistent,
+                                seated_count=seated_count,
+                                playing_count=playing_count,
+                            )
+
+                            # --- PUBLIC DESK SPECIAL HANDLING ---
+                            # PUBLIC DESKS NEVER expire/delete - only pause to WAITING
+                            if is_public_desk_table:
+                                if table.status == TableStatus.ACTIVE and playing_count < 2:
+                                    # PAUSE to WAITING (never delete)
+                                    logger.info(
+                                        "Pausing PUBLIC DESK table (insufficient active players)",
+                                        table_id=table.id,
+                                        is_public_desk=True,
+                                        seated_count=seated_count,
+                                        playing_count=playing_count,
+                                    )
+                                    table.status = TableStatus.WAITING
+                                    table.last_action_at = now
+                                    await db.commit()
+
+                                    await manager.broadcast(table.id, {
+                                        "type": "table_paused",
+                                        "status": "waiting",
+                                        "message": "Waiting for players..."
+                                    })
+                                # Public desks always continue - never expire/delete
+                                continue
 
                             # --- STEP 2: HANDLE "WAITING" TABLES ---
                             if table.status == TableStatus.WAITING:
@@ -847,6 +893,9 @@ async def check_table_inactivity():
                                         logger.info(
                                             "Pausing persistent table (insufficient players)",
                                             table_id=table.id,
+                                            is_persistent=True,
+                                            seated_count=seated_count,
+                                            playing_count=playing_count,
                                         )
                                         table.status = TableStatus.WAITING
                                         table.last_action_at = now
