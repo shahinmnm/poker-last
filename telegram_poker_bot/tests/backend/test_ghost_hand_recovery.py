@@ -29,6 +29,19 @@ from telegram_poker_bot.shared.models import (
 )
 
 
+# Shared test configuration to avoid duplication
+DEFAULT_TEST_CONFIG = {
+    "backend": {
+        "small_blind": 25,
+        "big_blind": 50,
+        "starting_stack": 1000,
+        "max_players": 6,
+        "currency_type": "REAL",
+        "game_variant": "no_limit_texas_holdem",
+    }
+}
+
+
 @pytest_asyncio.fixture
 async def db_session():
     """Create test database session using in-memory SQLite."""
@@ -177,7 +190,7 @@ class TestStartTableGuard:
         template = TableTemplate(
             name="Test",
             table_type=TableTemplateType.EXPIRING,
-            config_json={"backend": {"small_blind": 25, "big_blind": 50, "starting_stack": 1000, "max_players": 6, "currency_type": "REAL", "game_variant": "no_limit_texas_holdem"}}
+            config_json=DEFAULT_TEST_CONFIG
         )
         db_session.add(template)
         await db_session.flush()
@@ -222,7 +235,7 @@ class TestStartTableGuard:
         template = TableTemplate(
             name="Test",
             table_type=TableTemplateType.EXPIRING,
-            config_json={"backend": {"small_blind": 25, "big_blind": 50, "starting_stack": 1000, "max_players": 6, "currency_type": "REAL", "game_variant": "no_limit_texas_holdem"}}
+            config_json=DEFAULT_TEST_CONFIG
         )
         db_session.add(template)
         await db_session.flush()
@@ -353,7 +366,7 @@ class TestLoadOrCreateHandExcludesAborted:
         template = TableTemplate(
             name="Test",
             table_type=TableTemplateType.EXPIRING,
-            config_json={"backend": {"small_blind": 25, "big_blind": 50, "starting_stack": 1000, "max_players": 6, "currency_type": "REAL", "game_variant": "no_limit_texas_holdem"}}
+            config_json=DEFAULT_TEST_CONFIG
         )
         db_session.add(template)
         await db_session.flush()
@@ -399,7 +412,7 @@ class TestLoadOrCreateHandExcludesAborted:
         template = TableTemplate(
             name="Test",
             table_type=TableTemplateType.EXPIRING,
-            config_json={"backend": {"small_blind": 25, "big_blind": 50, "starting_stack": 1000, "max_players": 6, "currency_type": "REAL", "game_variant": "no_limit_texas_holdem"}}
+            config_json=DEFAULT_TEST_CONFIG
         )
         db_session.add(template)
         await db_session.flush()
