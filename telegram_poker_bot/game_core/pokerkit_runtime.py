@@ -1037,8 +1037,8 @@ class PokerKitTableRuntime:
             raise NotYourTurnError("It is not your turn to act.")
 
         # TASK B: Pre-validate action legality before applying
-        # Get allowed actions using the same logic as to_full_state()
-        allowed_actions = self.engine._get_allowed_actions_for_player(player_index)
+        # Get allowed actions using the public API from the engine adapter
+        allowed_actions = self.engine.get_allowed_actions(player_index)
 
         # Validate the requested action against allowed actions
         action_is_allowed = False

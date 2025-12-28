@@ -294,6 +294,21 @@ class PokerEngineAdapter:
 
         return actions
 
+    def get_allowed_actions(self, player_index: int) -> Dict[str, Any]:
+        """Get allowed actions for a specific player.
+
+        This is the public API for querying allowed actions.
+        Returns an empty dict if the player is not the current actor.
+
+        Args:
+            player_index: The index of the player to get actions for.
+
+        Returns:
+            A dictionary with can_fold, can_check, can_call, can_bet, can_raise,
+            call_amount, min_raise_to, max_raise_to, current_pot, player_stack.
+        """
+        return self._get_allowed_actions_for_player(player_index)
+
     def _auto_advance_streets(self) -> None:
         """Automatically advance the board when no players remain to act."""
 
