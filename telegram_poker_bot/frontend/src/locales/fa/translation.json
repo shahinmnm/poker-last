@@ -729,8 +729,10 @@
       "raise": "ریز",
       "allIn": "آل‌این",
       "rebuy": "خرید مجدد",
-      "sitOut": "نشستن بیرون",
-      "sitOutNextHand": "نشستن بیرون دست بعدی",
+      "leaveAfterHand": "ترک بعد از دست",
+      "leavingAfterHand": "در حال ترک بعد از دست",
+      "sitOut": "ترک بعد از دست",
+      "sitOutNextHand": "ترک بعد از این دست",
       "lastAction": {
         "fold": "فولد",
         "check": "چک",

@@ -1860,7 +1860,7 @@ class PokerKitTableRuntimeManager:
         
         Auto-Proceed Logic (NO VOTING):
         1. Wait for inter-hand timeout (configurable via POST_HAND_DELAY_SECONDS)
-        2. Auto-remove players who have "Stand Up Next" flag set
+        2. Auto-remove players who have "Leave after hand" flag set
         3. Re-check active player count (must be >= 2)
         4. If >= 2: Call runtime.start_new_hand(db)
         5. If < 2: Pause the table (Set status to WAITING)
@@ -1899,14 +1899,14 @@ class PokerKitTableRuntimeManager:
             runtime.seats = list(seats_result.scalars().all())
             active_seats = [s for s in runtime.seats if s.left_at is None]
             
-            # NEW: Auto-remove players who have "Stand Up Next" flag set
-            # This implements the "Play or Watch" policy: if you don't play, you don't hold a seat
+            # Auto-remove players who have "Leave after hand" flag set
+            # This implements the semantics: player can complete current hand, then is removed
             table_service = _get_table_service()
             stood_up_user_ids = []
             for seat in active_seats:
                 if seat.is_sitting_out_next_hand:
                     logger.info(
-                        "Auto-removing player with Stand Up Next flag",
+                        "Auto-removing player with leave_after_hand flag",
                         table_id=table_id,
                         user_id=seat.user_id,
                         seat_position=seat.position,

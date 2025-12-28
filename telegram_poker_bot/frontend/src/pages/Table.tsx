@@ -2418,11 +2418,11 @@ export default function TablePage() {
                               side={seatSide}
                             />
 
-                            {/* Sitting Out Badge - Shows "Away" or "Zzz" icon */}
+                            {/* Leaving Badge - Shows when player is leaving after this hand */}
                             {player && isSittingOut && (
-                              <div className="absolute -top-2 -right-2 flex items-center gap-1 rounded-full bg-gray-800/90 px-2 py-0.5 text-[10px] font-semibold text-gray-300 shadow-lg">
-                                <span>💤</span>
-                                <span>Away</span>
+                              <div className="absolute -top-2 -right-2 flex items-center gap-1 rounded-full bg-amber-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-lg">
+                                <span>🚪</span>
+                                <span>Leaving</span>
                               </div>
                             )}
 

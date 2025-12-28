@@ -261,11 +261,11 @@ export default function ActionBar({
           'flex h-9 items-center gap-1.5 rounded-full px-3 text-[10px] font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60',
           activeClasses,
         )}
-        title={isStandingUp ? t('table.actions.standingUp', { defaultValue: 'Standing Up' }) : t('table.actions.standUp', { defaultValue: 'Stand Up' })}
+        title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
       >
         {statusDot}
         <LogOut size={16} className={isStandingUp ? 'text-black' : 'text-white'} />
-        <span>{isStandingUp ? t('table.actions.standingUp', { defaultValue: 'Standing Up' }) : t('table.actions.standUp', { defaultValue: 'Stand Up' })}</span>
+        <span>{isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave' })}</span>
       </button>
     )
   }
