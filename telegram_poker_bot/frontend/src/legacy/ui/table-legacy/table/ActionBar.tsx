@@ -1,3 +1,12 @@
+/**
+ * ActionBar - Main poker action UI component
+ *
+ * SEMANTICS CONTRACT:
+ * - call_amount: INCREMENTAL (chips to add to match current bet) - display as "Call {amount}"
+ * - min_amount/max_amount for raise/bet: TOTAL-TO (total committed for street)
+ *   - For raise actions: display as "Raise to {amount}"
+ *   - For bet actions (first bet of street): display as "Bet {amount}"
+ */
 import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
@@ -174,10 +183,13 @@ export default function ActionBar({
   const confirmLabelAmount = formatChips(
     isAdjustingBet ? betAmount ?? sliderLabelAmount ?? 0 : sliderLabelAmount ?? 0,
   )
+  // SEMANTICS: raise/bet amounts are TOTAL-TO values, display as "Raise to {amount}"
   const confirmLabel = (
     sliderLabelAction?.action_type === 'all_in'
       ? t('table.actions.allIn', { defaultValue: 'ALL-IN' })
-      : t('table.actionBar.raise', { defaultValue: 'Raise {amount}', amount: confirmLabelAmount })
+      : sliderLabelAction?.action_type === 'bet'
+        ? t('table.actionBar.bet', { defaultValue: 'Bet {amount}', amount: confirmLabelAmount })
+        : t('table.actionBar.raiseTo', { defaultValue: 'Raise to {amount}', amount: confirmLabelAmount })
   ).toUpperCase()
 
   const handleFold = () => {

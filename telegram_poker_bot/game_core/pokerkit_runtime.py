@@ -1074,6 +1074,31 @@ class PokerKitTableRuntime:
                 allowed_actions=allowed_actions,
             )
 
+        # TASK A.2: Validate raise/bet amounts against min/max bounds
+        # For 'raise' and 'bet' actions, amount is interpreted as TOTAL-TO (total committed for street)
+        if action in (ActionType.BET, ActionType.RAISE) and amount is not None:
+            min_amount = allowed_actions.get("min_raise_to", 0)
+            max_amount = allowed_actions.get("max_raise_to", 0)
+            if amount < min_amount or amount > max_amount:
+                logger.warning(
+                    "Raise/bet amount out of bounds",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    user_id=user_id,
+                    action_type=action.value,
+                    amount=amount,
+                    min_amount=min_amount,
+                    max_amount=max_amount,
+                )
+                raise IllegalActionError(
+                    f"Amount {amount} out of allowed range [{min_amount}, {max_amount}]",
+                    table_id=self.table.id,
+                    hand_no=self.hand_no,
+                    user_id=user_id,
+                    action=action.value,
+                    allowed_actions=allowed_actions,
+                )
+
         # Process action via PokerKit
         if action == ActionType.FOLD:
             self.engine.fold()
@@ -1082,6 +1107,7 @@ class PokerKitTableRuntime:
         elif action in (ActionType.BET, ActionType.RAISE):
             if amount is None:
                 raise ValueError("Amount required for bet/raise")
+            # Amount is interpreted as TOTAL-TO (total committed for this street)
             self.engine.bet_or_raise(amount)
         elif action == ActionType.ALL_IN:
             # All-in is just a bet/raise to full stack

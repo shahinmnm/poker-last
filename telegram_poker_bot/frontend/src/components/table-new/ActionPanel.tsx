@@ -4,9 +4,13 @@
  * Modern floating pill buttons inspired by GGPoker/PokerBros.
  * No full-width background bar - centered floating pills.
  * Renders action buttons based ONLY on backend legal_actions[].
+ * 
+ * SEMANTICS CONTRACT:
+ * - call_amount: INCREMENTAL (chips to add to match current bet) - display as "Call {amount}"
+ * - min_amount/max_amount for raise/bet: TOTAL-TO (total committed for street) - display as "Raise to {amount}"
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import type { LegalAction, ActionType } from '../../types/normalized'
 import Toggle from '../ui/Toggle'
@@ -39,12 +43,20 @@ export function ActionPanel({
     return legalActions.find((a) => a.action === 'raise' || a.action === 'bet')
   }, [legalActions])
 
-  // Initialize raise amount
-  useMemo(() => {
-    if (raiseAction && raiseAmount === null) {
+  // TASK B.5: Reset raiseAmount to min_amount when new allowed_actions arrives
+  // This prevents stale invalid values when the action context changes
+  // Using raiseAction directly in deps ensures we react to any change in the action object
+  useEffect(() => {
+    if (raiseAction) {
+      // Always reset to min_amount when raiseAction changes (new turn or new allowed_actions)
       setRaiseAmount(raiseAction.min_amount || 0)
+    } else {
+      // No raise action available, clear the amount
+      setRaiseAmount(null)
     }
-  }, [raiseAction, raiseAmount])
+    // Close the raise control panel when actions change (new turn)
+    setShowRaiseControl(false)
+  }, [raiseAction])
 
   const handleAction = (action: ActionType, amount?: number) => {
     if (disabled) return
@@ -152,17 +164,22 @@ export function ActionPanel({
           )}
 
           {/* Raise/Bet Control - composite pill UI */}
+          {/* Button shows "Raise to {min}" or "Bet {min}" - amounts are TOTAL-TO values */}
           {raiseAction && !showRaiseControl && (
             <button
               onClick={handleRaiseClick}
               disabled={disabled}
               className="bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {raiseAction.action === 'raise' ? 'Raise' : 'Bet'}
+              {raiseAction.action === 'raise' ? 'Raise to ' : 'Bet '}
+              <span className="font-mono">
+                {formatByCurrency(raiseAction.min_amount || 0, currency)}
+              </span>
             </button>
           )}
 
           {/* Expanded Raise Control - composite pill */}
+          {/* Amount displayed and submitted is TOTAL-TO (total committed for street) */}
           {raiseAction && showRaiseControl && (
             <div className="bg-black/60 backdrop-blur-md rounded-full p-1 flex items-center gap-1">
               {/* Minus button */}
@@ -174,8 +191,9 @@ export function ActionPanel({
                 <Minus size={14} />
               </button>
               
-              {/* Amount display */}
+              {/* Amount display - shows "to {amount}" label for clarity */}
               <div className="px-3 min-w-[80px] text-center">
+                <span className="text-gray-400 text-xs mr-1">to</span>
                 <span className="text-emerald-400 font-bold text-sm">
                   {formatByCurrency(raiseAmount || raiseAction.min_amount || 0, currency)}
                 </span>
@@ -190,7 +208,7 @@ export function ActionPanel({
                 <Plus size={14} />
               </button>
               
-              {/* Confirm button */}
+              {/* Confirm button - shows "Raise to" or "Bet" */}
               <button
                 onClick={handleRaiseConfirm}
                 disabled={disabled}

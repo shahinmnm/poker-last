@@ -252,17 +252,31 @@ class PokerEngineAdapter:
         }
 
     def _get_allowed_actions_for_player(self, player_index: int) -> Dict[str, Any]:
+        """
+        Build allowed actions for a player.
+
+        SEMANTICS CONTRACT (for frontend display):
+        - call_amount: INCREMENTAL chips the player must add to match current bet
+        - min_raise_to / max_raise_to: TOTAL-TO amounts (total committed for this street)
+        - bet amounts: TOTAL-TO amounts (first bet of the street)
+
+        Example: BB=200, player raises to 400. Opponent with 200 committed sees:
+        - call_amount = 200 (the increment needed)
+        - min_raise_to = 600 (minimum re-raise TO total)
+        """
         if player_index != self.state.actor_index:
             return {}
 
         actions: Dict[str, Any] = {}
         current_bet = max(self.state.bets) if self.state.bets else 0
         player_bet = self.state.bets[player_index]
+        # call_amount is INCREMENTAL: how much more the player must add to match
         call_amount = max(current_bet - player_bet, 0)
 
         can_check_call = self.state.can_check_or_call()
         actions["can_check"] = can_check_call and call_amount == 0
         actions["can_call"] = can_check_call and call_amount > 0
+        # call_amount is the INCREMENT to add (not total committed)
         actions["call_amount"] = call_amount if actions["can_call"] else 0
 
         # PokerKit is the source of truth for fold legality.
@@ -279,6 +293,8 @@ class PokerEngineAdapter:
 
         actions["can_bet"] = can_bet_raise and current_bet == 0
         actions["can_raise"] = can_bet_raise and current_bet > 0
+        # min_raise_to / max_raise_to are TOTAL-TO amounts (total committed for street)
+        # These are NOT increments - they represent the final total bet amount
         actions["min_raise_to"] = min_raise_to if min_raise_to is not None else 0
         actions["max_raise_to"] = (
             max_raise_to
@@ -299,6 +315,11 @@ class PokerEngineAdapter:
 
         This is the public API for querying allowed actions.
         Returns an empty dict if the player is not the current actor.
+
+        SEMANTICS CONTRACT:
+        - call_amount: INCREMENTAL amount (chips to add to match current bet)
+        - min_raise_to / max_raise_to: TOTAL-TO amounts (total committed for street)
+        - For 'raise' and 'bet' actions, frontend should display "Raise to X" / "Bet X"
 
         Args:
             player_index: The index of the player to get actions for.

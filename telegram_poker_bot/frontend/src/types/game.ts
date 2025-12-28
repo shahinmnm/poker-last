@@ -2,6 +2,11 @@
  * @deprecated This file contains legacy game state types.
  * New code should use the normalized types from '../types/normalized.ts'.
  * This file is kept for compatibility with existing legacy code only.
+ *
+ * SEMANTICS CONTRACT (bet/raise amounts):
+ * - call_amount / amount (for call action): INCREMENTAL - chips to add to match current bet
+ * - min_amount / max_amount (for raise/bet actions): TOTAL-TO - total committed for the street
+ * - UI should display "Call {call_amount}" (incremental) and "Raise to {amount}" (total)
  */
 
 import type { CurrencyType } from '../utils/currency'
@@ -29,8 +34,20 @@ export type AllowedActionType =
 
 export interface AllowedAction {
   action_type: AllowedActionType
+  /**
+   * For 'call' action: INCREMENTAL amount (chips to add to match current bet)
+   * For 'bet'/'raise': not used (use min_amount/max_amount instead)
+   */
   amount?: number
+  /**
+   * For 'bet'/'raise' actions: minimum TOTAL-TO amount (total committed for street)
+   * Display as "Raise to {min_amount}" not "Raise by {min_amount}"
+   */
   min_amount?: number
+  /**
+   * For 'bet'/'raise' actions: maximum TOTAL-TO amount (total committed for street)
+   * This is typically player's stack + current bet
+   */
   max_amount?: number
   cards_to_discard?: string[] // For draw games
   max_discards?: number // Maximum cards that can be discarded
@@ -42,11 +59,22 @@ export type AllowedActionsPayload =
       can_fold?: boolean
       can_check?: boolean
       can_call?: boolean
+      /**
+       * INCREMENTAL: amount to add to match current bet
+       * Display as "Call {call_amount}"
+       */
       call_amount?: number
       can_bet?: boolean
       can_raise?: boolean
       can_all_in?: boolean
+      /**
+       * TOTAL-TO: minimum total committed for street
+       * Display as "Raise to {min_raise_to}" not "Raise by"
+       */
       min_raise_to?: number
+      /**
+       * TOTAL-TO: maximum total committed for street
+       */
       max_raise_to?: number
       current_pot?: number
       player_stack?: number
