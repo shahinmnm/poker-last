@@ -440,7 +440,8 @@ async def _send_admin_menu_with_link(
         else:
             panel_message = (
                 "♠️ Poker Admin Control Room\n\n"
-                f"🔐 Single-use link. Expires in {ttl // 60} minute(s)."
+                f"🔐 Single-use link. Expires in {ttl // 60} minute(s).\n\n"
+                "Pick a console below."
             )
     else:
         if is_new_link:
@@ -453,7 +454,8 @@ async def _send_admin_menu_with_link(
         else:
             panel_message = (
                 "♠️ Poker Admin Control Room\n\n"
-                "⚠️ Link generation failed. Click 'Generate New Link' to try again."
+                "⚠️ Link generation failed. Click 'Generate New Link' to try again.\n\n"
+                "Pick a console below."
             )
         logger.warning(
             "Admin link generation failed for user",
