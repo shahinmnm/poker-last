@@ -808,7 +808,11 @@
       "seated": "Seat reserved.",
       "started": "Game starting now!",
       "left": "You left the table.",
-      "deleted": "Table deleted successfully."
+      "leftAfterHand": "You were removed after this hand.",
+      "deleted": "Table deleted successfully.",
+      "ready": "You're joining the next hand",
+      "standingUp": "You will leave after this hand",
+      "stayingSeated": "You will stay seated"
     },
     "errors": {
       "loadFailed": "We couldn’t load the table. Please try again.",
