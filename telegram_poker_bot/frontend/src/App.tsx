@@ -56,8 +56,8 @@ function App() {
         <ThemeProvider>
           <UserDataProvider>
             <LayoutProvider>
-              <OrientationGuard>
-                <BrowserRouter>
+              <BrowserRouter>
+                <OrientationGuard>
                   <StartParamBridge />
                   <Routes>
                     <Route element={<MainLayout />}>
@@ -99,8 +99,8 @@ function App() {
                     <Route path="admin/expired" element={<AdminExpired />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
-                </BrowserRouter>
-              </OrientationGuard>
+                </OrientationGuard>
+              </BrowserRouter>
             </LayoutProvider>
           </UserDataProvider>
         </ThemeProvider>

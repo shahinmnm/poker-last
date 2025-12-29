@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation } from 'react-router-dom'
 
 interface OrientationGuardProps {
   children: ReactNode
@@ -11,15 +12,16 @@ interface OrientationGuardProps {
  * This component detects when a mobile device is in portrait mode and displays
  * an overlay asking the user to rotate their device to landscape.
  * 
- * Why "Soft Lock" instead of CSS rotation:
- * - CSS transform: rotate(90deg) causes touch event misalignment
- * - Native OS elements (keyboard, notifications) remain in original orientation
- * - Better UX as users naturally rotate their device
- * - Industry standard approach used by major HTML5 game engines (Phaser, Unity WebGL)
+ * IMPORTANT: Only applies to table pages where landscape is needed for gameplay.
+ * Home, Lobby, Profile, Wallet, etc. work fine in portrait for mobile-first UX.
  */
 export function OrientationGuard({ children }: OrientationGuardProps) {
+  const location = useLocation()
   const [isPortrait, setIsPortrait] = useState(false)
   const hasAttemptedNativeLock = useRef(false)
+
+  // Only enforce landscape on table pages
+  const isTablePage = location.pathname.startsWith('/table/')
 
   const checkOrientation = useCallback(() => {
     // Consider portrait if height > width
@@ -35,8 +37,8 @@ export function OrientationGuard({ children }: OrientationGuardProps) {
     window.addEventListener('resize', checkOrientation)
     window.addEventListener('orientationchange', checkOrientation)
 
-    // Attempt native orientation lock APIs only once per session
-    if (!hasAttemptedNativeLock.current) {
+    // Attempt native orientation lock APIs only once per session (only on table pages)
+    if (!hasAttemptedNativeLock.current && isTablePage) {
       hasAttemptedNativeLock.current = true
       tryNativeOrientationLock()
     }
@@ -45,12 +47,15 @@ export function OrientationGuard({ children }: OrientationGuardProps) {
       window.removeEventListener('resize', checkOrientation)
       window.removeEventListener('orientationchange', checkOrientation)
     }
-  }, [checkOrientation])
+  }, [checkOrientation, isTablePage])
+
+  // Only show overlay on table pages when in portrait
+  const shouldShowOverlay = isPortrait && isTablePage
 
   return (
     <>
       {children}
-      {isPortrait && <RotateOverlay />}
+      {shouldShowOverlay && <RotateOverlay />}
     </>
   )
 }
