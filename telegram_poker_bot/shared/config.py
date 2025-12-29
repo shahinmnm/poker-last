@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     admin_session_ttl_seconds: int = 28800  # Admin session TTL (8 hours)
     
     # Internal API URL for bot-to-API communication within Docker network
-    # This should be the full URL to the API service (e.g., http://api:8000)
+    # This should be the full URL including /api prefix (e.g., http://api:8000/api)
     # Used for internal service calls like admin session-token generation
     api_base_url: Optional[str] = None
 

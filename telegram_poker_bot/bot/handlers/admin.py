@@ -130,8 +130,11 @@ async def _generate_admin_link(admin_chat_id: int) -> Optional[Dict[str, Any]]:
     Note:
         Uses API_BASE_URL for internal Docker network communication.
         Falls back to VITE_API_URL or PUBLIC_BASE_URL/api if not set.
-        The API_BASE_URL should be like http://api:8000 within Docker.
+        The API_BASE_URL should be like http://api:8000/api within Docker.
     """
+    # Maximum length for error text in logs (for safety)
+    MAX_ERROR_TEXT_LOG_LENGTH = 500
+    
     # Determine the API base URL for internal communication
     # Priority: API_BASE_URL > VITE_API_URL (if absolute) > PUBLIC_BASE_URL/api
     api_base = settings.api_base_url
@@ -182,7 +185,7 @@ async def _generate_admin_link(admin_chat_id: int) -> Optional[Dict[str, Any]]:
                         "Failed to generate admin token",
                         url=url,
                         status=response.status,
-                        error=error_text[:500],  # Truncate for safety
+                        error=error_text[:MAX_ERROR_TEXT_LOG_LENGTH],
                     )
                     return None
     except aiohttp.ClientConnectorError as exc:
