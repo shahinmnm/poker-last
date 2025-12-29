@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     admin_entry_token_ttl_seconds: int = 120  # One-time token TTL (2 minutes)
     admin_session_ttl_seconds: int = 28800  # Admin session TTL (8 hours)
     
+    # Admin public base URL - the externally reachable domain where /admin/enter is served
+    # This should be the public URL (e.g., https://poker.example.com) where nginx routes
+    # /admin/enter to the backend. If not set, defaults to public_base_url.
+    admin_public_base_url: Optional[str] = None
+    
+    # Admin dashboard path - the frontend route for admin panel after authentication
+    admin_dashboard_path: str = "/admin/panel"
+    
     # Internal API URL for bot-to-API communication within Docker network
     # This should be the full URL including /api prefix (e.g., http://api:8000/api)
     # Used for internal service calls like admin session-token generation
@@ -223,6 +231,15 @@ class Settings(BaseSettings):
     def mini_app_url(self) -> str:
         """Public base URL for the mini app."""
         return (self.mini_app_base_url or self.public_base_url).rstrip("/")
+
+    @property
+    def admin_public_url(self) -> str:
+        """Public base URL where /admin/enter is served.
+        
+        This is the externally reachable URL where nginx routes /admin/enter
+        to the backend API. Falls back to public_base_url if not explicitly set.
+        """
+        return (self.admin_public_base_url or self.public_base_url).rstrip("/")
 
     @property
     def initial_balance_cents(self) -> int:
