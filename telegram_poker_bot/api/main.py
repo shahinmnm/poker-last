@@ -879,11 +879,7 @@ async def check_table_inactivity():
                                 active_hand = await db.scalar(
                                     select(Hand).where(
                                         Hand.table_id == table.id,
-                                        Hand.status.notin_([
-                                            HandStatus.ENDED,
-                                            HandStatus.SHOWDOWN,
-                                            HandStatus.ABORTED
-                                        ])
+                                        Hand.status.notin_([HandStatus.ENDED, HandStatus.SHOWDOWN])
                                     )
                                 )
                                 if active_hand:
@@ -1085,7 +1081,7 @@ async def auto_fold_expired_actions():
                                 select(Hand)
                                 .where(
                                     Hand.table_id == table.id,
-                                    Hand.status.not_in([HandStatus.ENDED, HandStatus.ABORTED]),
+                                    Hand.status != HandStatus.ENDED,
                                 )
                                 .order_by(Hand.hand_no.desc())
                                 .limit(1)
@@ -1353,63 +1349,31 @@ async def monitor_table_autostart():
                                 reason=reason,
                             )
 
+                            # 1. Start Table (System Action)
+                            # Pass user_id=None to indicate system action
+                            await table_service.start_table(db, table.id, user_id=None)
+
+                            # 2. Initialize Game Engine
+                            runtime_mgr = get_pokerkit_runtime_manager()
+                            state = await runtime_mgr.start_game(db, table.id)
+
+                            # 3. Commit all changes
+                            await db.commit()
+
+                            # 4. Broadcast Start Event
+                            state = await _attach_template_to_payload(
+                                db, table.id, state
+                            )
+                            await manager.broadcast(table.id, state)
+
+                            # 5. Invalidate Cache
                             try:
-                                # 1. Start Table (System Action)
-                                # Pass user_id=None to indicate system action
-                                # Note: This may raise "Cannot start a new hand while another
-                                # hand is in progress" if ghost hand recovery hasn't occurred.
-                                # The ensure_table() method in runtime_mgr will attempt recovery
-                                # for corrupted hands before we reach this point.
-                                await table_service.start_table(db, table.id, user_id=None)
-
-                                # 2. Initialize Game Engine
-                                # This calls ensure_table() which triggers ghost hand recovery
-                                # if needed (marking corrupted hands as ABORTED)
-                                runtime_mgr = get_pokerkit_runtime_manager()
-                                state = await runtime_mgr.start_game(db, table.id)
-
-                                # 3. Commit all changes
-                                await db.commit()
-
-                                # 4. Broadcast Start Event
-                                state = await _attach_template_to_payload(
-                                    db, table.id, state
+                                pool = await get_matchmaking_pool()
+                                await table_service.invalidate_public_table_cache(
+                                    pool.redis
                                 )
-                                await manager.broadcast(table.id, state)
-
-                                # 5. Invalidate Cache
-                                try:
-                                    pool = await get_matchmaking_pool()
-                                    await table_service.invalidate_public_table_cache(
-                                        pool.redis
-                                    )
-                                except Exception:
-                                    pass
-
-                            except ValueError as ve:
-                                # Handle "Cannot start new hand while another in progress"
-                                # This can happen if recovery didn't succeed - log and continue
-                                # The next iteration may succeed after recovery completes
-                                error_str = str(ve)
-                                if "another hand is in progress" in error_str:
-                                    logger.warning(
-                                        "Auto-start blocked by existing hand - will retry after recovery",
-                                        table_id=table.id,
-                                        error=error_str,
-                                    )
-                                    # Trigger ensure_table to attempt recovery
-                                    try:
-                                        runtime_mgr = get_pokerkit_runtime_manager()
-                                        await runtime_mgr.ensure_table(db, table.id)
-                                        await db.commit()
-                                    except Exception as recovery_exc:
-                                        logger.error(
-                                            "Recovery attempt failed during auto-start",
-                                            table_id=table.id,
-                                            error=str(recovery_exc),
-                                        )
-                                else:
-                                    raise
+                            except Exception:
+                                pass
 
                     except Exception as exc:
                         logger.error(

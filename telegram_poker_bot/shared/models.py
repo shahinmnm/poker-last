@@ -51,7 +51,6 @@ class HandStatus(PyEnum):
     SHOWDOWN = "showdown"
     ENDED = "ended"
     INTER_HAND_WAIT = "inter_hand_wait"  # 20-second wait phase between hands
-    ABORTED = "aborted"  # Hand aborted due to restore corruption or other errors
 
 
 class GameVariant(str, enum.Enum):
