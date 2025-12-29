@@ -14,6 +14,8 @@ interface OrientationGuardProps {
  * 
  * IMPORTANT: Only applies to table pages where landscape is needed for gameplay.
  * Home, Lobby, Profile, Wallet, etc. work fine in portrait for mobile-first UX.
+ * 
+ * NOTE: This component uses useLocation and must be rendered inside a BrowserRouter.
  */
 export function OrientationGuard({ children }: OrientationGuardProps) {
   const location = useLocation()

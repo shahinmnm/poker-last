@@ -12,12 +12,20 @@ import { useTranslation } from 'react-i18next'
 import { useTelegram } from '../../hooks/useTelegram'
 import { apiFetch } from '@/utils/apiClient'
 import type { LobbyEntry } from '../../types/normalized'
-import Badge from '../ui/Badge'
+import Badge, { type BadgeVariant } from '../ui/Badge'
 import GameVariantBadge from '../ui/GameVariantBadge'
 
 interface LobbyRowProps {
   entry: LobbyEntry
   onClick?: (tableId: number) => void
+}
+
+/** Map table type to Badge variant for consistent styling */
+const TABLE_TYPE_VARIANT: Record<string, BadgeVariant> = {
+  public: 'success',
+  private: 'warning',
+  persistent: 'info',
+  sng: 'info',
 }
 
 export function LobbyRow({ entry, onClick }: LobbyRowProps) {
@@ -142,14 +150,6 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
     return `${Math.floor(remaining / 3600000)}h`
   }
 
-  // Map table type to Badge variant
-  const tableTypeVariant: Record<string, 'success' | 'warning' | 'info' | 'muted'> = {
-    public: 'success',
-    private: 'warning',
-    persistent: 'info',
-    sng: 'info',
-  }
-
   const isFull = entry.player_count >= entry.max_players
   const showWaitlist = isFull && entry.waitlist_count !== undefined
 
@@ -177,7 +177,7 @@ export function LobbyRow({ entry, onClick }: LobbyRowProps) {
             >
               {entry.template_name}
             </h3>
-            <Badge variant={tableTypeVariant[entry.table_type] || 'muted'} size="sm">
+            <Badge variant={TABLE_TYPE_VARIANT[entry.table_type] || 'muted'} size="sm">
               {entry.table_type}
             </Badge>
             {entry.invite_only && (

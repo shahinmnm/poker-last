@@ -13,11 +13,14 @@ interface LobbyViewProps {
   onTableClick?: (tableId: number) => void
 }
 
+/** Refresh interval for lobby data in milliseconds */
+const REFRESH_INTERVAL_MS = 25000
+
 export function LobbyView({ onTableClick }: LobbyViewProps) {
   const { t } = useTranslation()
   const { tables, connectionState, refresh } = useLobbySync({
     enabled: true,
-    refreshInterval: 25000,
+    refreshInterval: REFRESH_INTERVAL_MS,
   })
 
   return (
