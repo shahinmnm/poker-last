@@ -237,7 +237,98 @@ See [Deployment Guide](./docs/deployment/overview.md) for complete instructions.
 - `GET /admin/analytics/hourly` - Hourly statistics
 - `GET /admin/insights/generate` - Generate insights
 
+**Admin Ops Dashboard**
+- `GET /admin/tables` - List all tables with diagnostics
+- `GET /admin/tables/{id}` - Get full table diagnostics
+- `POST /admin/tables/{id}/reset-stuck-hand` - Reset stuck hand
+- `POST /admin/tables/{id}/force-waiting` - Force table to WAITING
+- `POST /admin/tables/{id}/kick-all` - Kick all players
+- `POST /admin/tables/{id}/clear-runtime-cache` - Clear Redis cache
+- `POST /admin/tables/{id}/broadcast-snapshot` - Force broadcast
+- `GET /admin/system/toggles` - Get system toggles
+- `POST /admin/system/toggles` - Set system toggles
+
 See [API Documentation](./docs/backend/api-overview.md) for complete API reference.
+
+## Ops Dashboard - Operator Guide
+
+The Ops Dashboard (`/admin/tables`) provides operator-grade table management tools for fixing stuck tables and managing the poker system.
+
+### Accessing the Dashboard
+
+Navigate to `/admin/tables` in your browser. The dashboard does not require authentication in the current implementation (placeholder auth - secure for production).
+
+### Dashboard Layout
+
+- **Left Panel**: Table list with filters
+- **Right Panel**: Selected table details and actions
+
+### Filtering Tables
+
+- **Search by Table ID**: Enter a specific table ID
+- **Status Filter**: Filter by ACTIVE, WAITING, PAUSED, ENDED, EXPIRED
+- **Public/Private Filter**: Show only public or private tables
+- **Stuck Only**: Show only tables that appear stuck
+
+### Stuck Table Detection
+
+A table is marked as "STUCK" if:
+- It has an active hand (not ENDED or INTER_HAND_WAIT status)
+- No activity has occurred for more than 5 minutes
+
+### Available Actions
+
+#### Safe Actions (No confirmation required)
+- **🔄 Refresh**: Reload table details
+- **📡 Broadcast Snapshot**: Force send current state to all connected clients
+- **⏸️ Force Waiting**: Set table status to WAITING (does not abort hands)
+
+#### Dangerous Actions (Require typing table ID to confirm)
+- **🔧 Reset Stuck Hand**: The primary fix for stuck tables
+  - Aborts any active hands (sets to ENDED status)
+  - Sets table to WAITING status
+  - Options:
+    - "Kick players after reset" - Remove all seated players
+    - "Clear runtime cache" - Clear Redis locks and runtime state
+- **🚪 Kick All**: Remove all players from the table
+  - Modes:
+    - "After Hand (Safe)" - Schedule removal at end of current hand
+    - "Abort Then Kick" - Abort any active hand first, then kick
+- **🗑️ Clear Cache**: Clear Redis runtime cache for the table
+
+### System Toggles (Emergency Brakes)
+
+Located at the bottom of the left panel:
+- **Pause Autostart**: Stops automatic table starts system-wide
+- **Pause Inter-Hand Monitor**: Stops automatic hand advancement
+
+Use these during incidents to prevent automation from interfering with manual fixes.
+
+### Fixing a Stuck Table (Example: Table 42)
+
+1. Open the Ops Dashboard (`/admin/tables`)
+2. Filter by "Stuck Only" or search for table ID 42
+3. Select the table to view diagnostics
+4. Verify the table shows as "STUCK" with an active hand
+5. Configure reset options:
+   - ✓ Clear runtime cache (recommended)
+   - ✗ Kick players (unless needed)
+6. Click "🔧 Reset Stuck Hand"
+7. Type "42" in the confirmation dialog
+8. Click "Reset Hand"
+9. Verify:
+   - Table status is now WAITING
+   - No active hand (current_hand is null)
+   - Next autostart should succeed
+
+### Common Issues and Solutions
+
+| Issue | Solution |
+|-------|----------|
+| "Cannot start a new hand while another hand is in progress" | Use "Reset Stuck Hand" to abort the stuck hand |
+| Clients out of sync | Use "Broadcast Snapshot" to resync |
+| Table won't autostart | Check system toggles, use "Force Waiting" |
+| Redis lock stuck | Use "Clear Runtime Cache" |
 
 ## Project Phases
 
