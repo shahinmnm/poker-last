@@ -1086,6 +1086,26 @@ export default function TablePage() {
           return
         }
 
+        // Handle player_sitout_changed: Update player's is_sitting_out_next_hand flag
+        // This shows the "Leaving" badge for other players at the table
+        if (payload?.type === 'player_sitout_changed') {
+          const { user_id: sitoutUserId, is_sitting_out: isSittingOut } = payload
+          if (sitoutUserId != null) {
+            setLiveState((prev) => {
+              if (!prev) return prev
+              return {
+                ...prev,
+                players: prev.players.map((p) =>
+                  p.user_id?.toString() === sitoutUserId.toString()
+                    ? { ...p, is_sitting_out_next_hand: isSittingOut }
+                    : p
+                ),
+              }
+            })
+          }
+          return
+        }
+
         // Handle player_left with optimistic update to fix "Ghost Seat" bug
         if (payload?.type === 'player_left') {
           // Validate that user_id exists in the payload
