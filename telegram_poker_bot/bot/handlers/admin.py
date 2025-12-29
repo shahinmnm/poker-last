@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import aiohttp
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -117,9 +118,56 @@ async def _ensure_admin_role(tg_user_id: int) -> None:
             )
 
 
-def _admin_menu_keyboard() -> InlineKeyboardMarkup:
-    """Build admin menu keyboard with web access button."""
-    admin_web_url = f"{settings.mini_app_url}/admin"
+async def _generate_admin_link(admin_chat_id: int) -> Optional[Dict[str, Any]]:
+    """Generate a one-time admin panel link via the API.
+    
+    Args:
+        admin_chat_id: Telegram chat ID of the admin
+        
+    Returns:
+        Dict with token info if successful, None if failed
+    """
+    api_base = settings.vite_api_url or f"{settings.public_base_url}/api"
+    url = f"{api_base}/admin/session-token"
+    
+    headers = {}
+    if settings.internal_api_key:
+        headers["X-Internal-API-Key"] = settings.internal_api_key
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url,
+                json={"admin_chat_id": admin_chat_id},
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    logger.error(
+                        "Failed to generate admin token",
+                        status=response.status,
+                        error=error_text,
+                    )
+                    return None
+    except Exception as exc:
+        logger.error(
+            "Error calling admin session-token API",
+            error=str(exc),
+        )
+        return None
+
+
+def _admin_menu_keyboard(one_time_url: Optional[str] = None) -> InlineKeyboardMarkup:
+    """Build admin menu keyboard with web access button.
+    
+    Args:
+        one_time_url: Optional one-time URL for secure web access
+    """
+    # Use one-time link if provided, otherwise fallback to static URL (will show session error)
+    admin_web_url = one_time_url or f"{settings.mini_app_url}/admin"
 
     return InlineKeyboardMarkup(
         [
@@ -343,9 +391,18 @@ async def go_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         target = query.message
     else:
         target = update.effective_message
+    
+    # Generate a fresh one-time link
+    user = update.effective_user
+    one_time_url = None
+    if user:
+        token_info = await _generate_admin_link(user.id)
+        if token_info:
+            one_time_url = token_info.get("enter_url")
+    
     if target:
         await target.reply_text(
-            "♠️ Poker Admin Control Room", reply_markup=_admin_menu_keyboard()
+            "♠️ Poker Admin Control Room", reply_markup=_admin_menu_keyboard(one_time_url)
         )
     return AdminState.MENU
 
@@ -481,9 +538,32 @@ async def start_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     if user:
         await _ensure_admin_role(user.id)
 
+    # Generate a one-time admin panel link
+    one_time_url = None
+    token_info = None
+    if user:
+        token_info = await _generate_admin_link(user.id)
+        if token_info:
+            one_time_url = token_info.get("enter_url")
+
+    # Build the message with link expiry info
+    if one_time_url and token_info:
+        ttl = token_info.get("ttl_seconds", 120)
+        panel_message = (
+            "♠️ Poker Admin Control Room\n\n"
+            f"🔐 Web Panel link expires in {ttl // 60} minute(s)\n"
+            "⚠️ Link is single-use only\n\n"
+            "Pick a console below."
+        )
+    else:
+        panel_message = (
+            "♠️ Poker Admin Control Room\n"
+            "Pick a console below."
+        )
+
     await message.reply_text(
-        "♠️ Poker Admin Control Room\nPick a console below.",
-        reply_markup=_admin_menu_keyboard(),
+        panel_message,
+        reply_markup=_admin_menu_keyboard(one_time_url),
     )
     return AdminState.MENU
 

@@ -141,10 +141,15 @@ from telegram_poker_bot.api.global_waitlist_routes import (
 )
 from telegram_poker_bot.api.analytics_admin_routes import analytics_admin_router
 from telegram_poker_bot.api.analytics_user_routes import analytics_user_router
+from telegram_poker_bot.api.admin_session_routes import admin_session_router
 
 # Mount all routers with consistent /api prefix
 # Auth router already has /api/auth prefix
 api_app.include_router(auth_router)
+
+# Admin session routes - includes /admin/enter and /api/admin/session/* endpoints
+# NOTE: These are mounted without prefix as they have explicit paths
+api_app.include_router(admin_session_router)
 
 # Admin router - mount under /api/admin
 api_app.include_router(admin_router, prefix=DEFAULT_API_PREFIX)

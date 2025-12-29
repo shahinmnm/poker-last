@@ -59,6 +59,11 @@ class Settings(BaseSettings):
 
     # Auth / Security
     jwt_secret_key: str = "CHANGE_ME_IN_PRODUCTION"
+    
+    # Admin Panel Security
+    internal_api_key: Optional[str] = None  # Secret for bot-to-API communication
+    admin_entry_token_ttl_seconds: int = 120  # One-time token TTL (2 minutes)
+    admin_session_ttl_seconds: int = 28800  # Admin session TTL (8 hours)
 
     # Feature Flags
     feature_wallet: bool = False

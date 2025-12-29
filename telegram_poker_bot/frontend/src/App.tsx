@@ -22,6 +22,9 @@ import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminInsights from './pages/admin/AdminInsights'
 import AdminTables from './pages/admin/AdminTables'
 import AdminTableTemplates from './pages/admin/AdminTableTemplates'
+import AdminPlayers from './pages/admin/AdminPlayers'
+import AdminBanking from './pages/admin/AdminBanking'
+import AdminAuditLogs from './pages/admin/AdminAuditLogs'
 import UIDemoPage from './pages/UIDemoPage'
 import { useTelegram } from './hooks/useTelegram'
 
@@ -83,6 +86,9 @@ function App() {
                       <Route path="insights" element={<AdminInsights />} />
                       <Route path="tables" element={<AdminTables />} />
                       <Route path="table-templates" element={<AdminTableTemplates />} />
+                      <Route path="players" element={<AdminPlayers />} />
+                      <Route path="banking" element={<AdminBanking />} />
+                      <Route path="audit-logs" element={<AdminAuditLogs />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
