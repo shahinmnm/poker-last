@@ -164,33 +164,43 @@ def _admin_menu_keyboard(one_time_url: Optional[str] = None) -> InlineKeyboardMa
     """Build admin menu keyboard with web access button.
     
     Args:
-        one_time_url: Optional one-time URL for secure web access
+        one_time_url: Optional one-time URL for secure web access.
+                     If None, web panel button is replaced with "Generate new link" button.
+    
+    SECURITY: Never falls back to a static admin URL. Only generated one-time links are used.
     """
-    # Use one-time link if provided, otherwise fallback to static URL (will show session error)
-    admin_web_url = one_time_url or f"{settings.mini_app_url}/admin"
-
-    return InlineKeyboardMarkup(
+    rows = []
+    
+    if one_time_url:
+        # Web panel button with secure one-time URL
+        rows.append([
+            InlineKeyboardButton("🌐 Web Admin Panel", url=one_time_url),
+        ])
+    
+    # Always include "Generate new link" button for refreshing the secure link
+    rows.append([
+        InlineKeyboardButton("🔄 Generate New Link", callback_data="admin_generate_link"),
+    ])
+    
+    rows.extend([
         [
-            [
-                InlineKeyboardButton("🌐 Web Admin Panel", url=admin_web_url),
-            ],
-            [
-                InlineKeyboardButton("🏦 Treasury", callback_data="admin_treasury"),
-                InlineKeyboardButton("🛠 User Desk", callback_data="admin_intel"),
-            ],
-            [
-                InlineKeyboardButton(
-                    "👀 Active Tables", callback_data="admin_live_ops"
-                ),
-                InlineKeyboardButton("📊 Snapshot", callback_data="admin_intel_stats"),
-            ],
-            [
-                InlineKeyboardButton("👥 Users", callback_data="admin_crm"),
-                InlineKeyboardButton("📢 Marketing", callback_data="admin_marketing"),
-            ],
-            [InlineKeyboardButton("❌ Close", callback_data="admin_close")],
-        ]
-    )
+            InlineKeyboardButton("🏦 Treasury", callback_data="admin_treasury"),
+            InlineKeyboardButton("🛠 User Desk", callback_data="admin_intel"),
+        ],
+        [
+            InlineKeyboardButton(
+                "👀 Active Tables", callback_data="admin_live_ops"
+            ),
+            InlineKeyboardButton("📊 Snapshot", callback_data="admin_intel_stats"),
+        ],
+        [
+            InlineKeyboardButton("👥 Users", callback_data="admin_crm"),
+            InlineKeyboardButton("📢 Marketing", callback_data="admin_marketing"),
+        ],
+        [InlineKeyboardButton("❌ Close", callback_data="admin_close")],
+    ])
+
+    return InlineKeyboardMarkup(rows)
 
 
 def _admin_home_button() -> List[InlineKeyboardButton]:
@@ -395,14 +405,77 @@ async def go_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Generate a fresh one-time link
     user = update.effective_user
     one_time_url = None
+    token_info = None
     if user:
         token_info = await _generate_admin_link(user.id)
         if token_info:
             one_time_url = token_info.get("enter_url")
     
+    # Build message with link info
+    if one_time_url and token_info:
+        ttl = token_info.get("ttl_seconds", 120)
+        panel_message = (
+            "♠️ Poker Admin Control Room\n\n"
+            f"🔐 Single-use link. Expires in {ttl // 60} minute(s)."
+        )
+    else:
+        panel_message = (
+            "♠️ Poker Admin Control Room\n\n"
+            "⚠️ Link generation failed. Click 'Generate New Link' to try again."
+        )
+    
     if target:
         await target.reply_text(
-            "♠️ Poker Admin Control Room", reply_markup=_admin_menu_keyboard(one_time_url)
+            panel_message, reply_markup=_admin_menu_keyboard(one_time_url)
+        )
+    return AdminState.MENU
+
+
+async def handle_generate_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the 'Generate new link' button - generates a fresh one-time admin URL."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+    
+    query = update.callback_query
+    if query:
+        await safe_answer_callback_query(query)
+        target = query.message
+    else:
+        target = update.effective_message
+    
+    # Generate a fresh one-time link
+    user = update.effective_user
+    one_time_url = None
+    token_info = None
+    if user:
+        token_info = await _generate_admin_link(user.id)
+        if token_info:
+            one_time_url = token_info.get("enter_url")
+    
+    # Build message with link info
+    if one_time_url and token_info:
+        ttl = token_info.get("ttl_seconds", 120)
+        panel_message = (
+            "♠️ Poker Admin Control Room\n\n"
+            f"✅ New link generated!\n"
+            f"🔐 Single-use link. Expires in {ttl // 60} minute(s).\n\n"
+            "Pick a console below."
+        )
+    else:
+        panel_message = (
+            "♠️ Poker Admin Control Room\n\n"
+            "❌ Failed to generate admin link.\n"
+            "Please try again or check backend logs.\n\n"
+            "Pick a console below."
+        )
+        logger.warning(
+            "Admin link generation failed for user",
+            user_id=user.id if user else None,
+        )
+    
+    if target:
+        await target.reply_text(
+            panel_message, reply_markup=_admin_menu_keyboard(one_time_url)
         )
     return AdminState.MENU
 
@@ -547,18 +620,27 @@ async def start_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             one_time_url = token_info.get("enter_url")
 
     # Build the message with link expiry info
+    # SECURITY: Never fallback to static URL if token generation fails
     if one_time_url and token_info:
         ttl = token_info.get("ttl_seconds", 120)
         panel_message = (
             "♠️ Poker Admin Control Room\n\n"
-            f"🔐 Web Panel link expires in {ttl // 60} minute(s)\n"
-            "⚠️ Link is single-use only\n\n"
+            f"🔐 Single-use link. Expires in {ttl // 60} minute(s).\n"
+            "⚠️ Use 'Generate New Link' for a fresh link.\n\n"
             "Pick a console below."
         )
     else:
+        # Token generation failed - show error without fallback to static URL
         panel_message = (
-            "♠️ Poker Admin Control Room\n"
+            "♠️ Poker Admin Control Room\n\n"
+            "⚠️ Admin link generation failed.\n"
+            "Click 'Generate New Link' to try again.\n"
+            "If the problem persists, check backend logs.\n\n"
             "Pick a console below."
+        )
+        logger.warning(
+            "Admin link generation failed for user",
+            user_id=user.id if user else None,
         )
 
     await message.reply_text(
@@ -581,6 +663,9 @@ async def handle_menu_selection(
     data = query.data if query else ""
     if data == "admin_home":
         return await go_home(update, context)
+
+    if data == "admin_generate_link":
+        return await handle_generate_link(update, context)
 
     if data == "admin_treasury":
         _reset_admin_context(context)
@@ -1477,7 +1562,7 @@ def build_admin_handler() -> ConversationHandler:
             AdminState.MENU: [
                 CallbackQueryHandler(
                     handle_menu_selection,
-                    pattern="^admin_(treasury|live_ops|close|intel|intel_stats|home|intel_menu|crm|marketing)$",
+                    pattern="^admin_(treasury|live_ops|close|intel|intel_stats|home|intel_menu|crm|marketing|generate_link)$",
                 ),
             ],
             AdminState.INTEL_MENU: [
@@ -1493,12 +1578,18 @@ def build_admin_handler() -> ConversationHandler:
             AdminState.TREASURY_OPERATION: [
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
                 CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
+                CallbackQueryHandler(
                     handle_operation_selection,
                     pattern="^admin_operation_(deposit|withdraw|back)$",
                 ),
             ],
             AdminState.TREASURY_CURRENCY: [
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
                 CallbackQueryHandler(
                     handle_currency_selection,
                     pattern="^admin_currency_(real|play|back)$",
@@ -1508,18 +1599,27 @@ def build_admin_handler() -> ConversationHandler:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_id),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
                 CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
+                CallbackQueryHandler(
                     handle_currency_selection, pattern="^admin_currency_back$"
                 ),
             ],
             AdminState.WAITING_FOR_AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.CONFIRMATION: [
                 CallbackQueryHandler(
                     handle_confirmation, pattern="^admin_confirm_(yes|no)$"
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.USER_LOOKUP: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_lookup_input),
