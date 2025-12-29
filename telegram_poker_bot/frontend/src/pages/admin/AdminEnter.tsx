@@ -45,7 +45,7 @@ export default function AdminEnter() {
     const redeemToken = async () => {
       try {
         if (import.meta.env.DEV) {
-          console.log('[AdminEnter] Attempting to redeem token (prefix):', token.slice(0, 8))
+          console.log('[AdminEnter] Attempting to redeem token')
         }
 
         const result = await redeemAdminEntryToken(token)
@@ -126,7 +126,9 @@ const styles: Record<string, React.CSSProperties> = {
     border: '4px solid #334155',
     borderTopColor: '#3b82f6',
     borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
+    // Use inline animation keyframes via CSS custom property workaround
+    // The animation is simple enough to be defined inline
+    animation: 'admin-enter-spin 1s linear infinite',
     margin: '0 auto 24px',
   },
   icon: {
@@ -151,17 +153,19 @@ const styles: Record<string, React.CSSProperties> = {
   },
 }
 
-// Add CSS animation for spinner (injected once)
-if (typeof document !== 'undefined') {
+// Add CSS animation for spinner
+// This is a simple one-time injection that is safe and idempotent
+const injectSpinnerStyle = () => {
+  if (typeof document === 'undefined') return
   const styleId = 'admin-enter-spinner-style'
-  if (!document.getElementById(styleId)) {
-    const styleSheet = document.createElement('style')
-    styleSheet.id = styleId
-    styleSheet.textContent = `
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-    `
-    document.head.appendChild(styleSheet)
-  }
+  if (document.getElementById(styleId)) return
+  const styleSheet = document.createElement('style')
+  styleSheet.id = styleId
+  styleSheet.textContent = `
+    @keyframes admin-enter-spin {
+      to { transform: rotate(360deg); }
+    }
+  `
+  document.head.appendChild(styleSheet)
 }
+injectSpinnerStyle()

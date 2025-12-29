@@ -339,9 +339,9 @@ async def redeem_entry_token(
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("User-Agent", "unknown")
     
-    # Rate limiting
+    # Rate limiting - strict for security-critical operation
     ip_hash = service._hash_sensitive(client_ip)
-    if not await service.check_rate_limit(f"redeem:{ip_hash}", max_requests=10, window_seconds=60):
+    if not await service.check_rate_limit(f"redeem:{ip_hash}", max_requests=3, window_seconds=60):
         logger.warning(
             "Admin redeem-entry-token rate limited",
             ip_hash=ip_hash,
@@ -361,7 +361,6 @@ async def redeem_entry_token(
     if not session:
         logger.warning(
             "Admin redeem-entry-token failed - invalid or expired token",
-            token_prefix=body.token[:8] if body.token else None,
         )
         response.status_code = 401
         return RedeemEntryTokenResponse(
