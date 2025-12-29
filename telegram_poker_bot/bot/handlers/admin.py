@@ -126,9 +126,35 @@ async def _generate_admin_link(admin_chat_id: int) -> Optional[Dict[str, Any]]:
         
     Returns:
         Dict with token info if successful, None if failed
+        
+    Note:
+        Uses API_BASE_URL for internal Docker network communication.
+        Falls back to VITE_API_URL or PUBLIC_BASE_URL/api if not set.
+        The API_BASE_URL should be like http://api:8000 within Docker.
     """
-    api_base = settings.vite_api_url or f"{settings.public_base_url}/api"
+    # Determine the API base URL for internal communication
+    # Priority: API_BASE_URL > VITE_API_URL (if absolute) > PUBLIC_BASE_URL/api
+    api_base = settings.api_base_url
+    if not api_base:
+        # Check if vite_api_url is an absolute URL (has scheme)
+        vite_url = settings.vite_api_url or ""
+        if vite_url.startswith(("http://", "https://")):
+            api_base = vite_url
+        else:
+            # Fall back to public_base_url with /api path
+            api_base = f"{settings.public_base_url}/api"
+    
+    # Ensure we have a valid URL with scheme
+    api_base = api_base.rstrip("/")
     url = f"{api_base}/admin/session-token"
+    
+    # Log the resolved URL (without exposing secrets)
+    logger.info(
+        "Calling admin session-token API",
+        url=url,
+        admin_chat_id=admin_chat_id,
+        has_internal_api_key=bool(settings.internal_api_key),
+    )
     
     headers = {}
     if settings.internal_api_key:
@@ -143,19 +169,36 @@ async def _generate_admin_link(admin_chat_id: int) -> Optional[Dict[str, Any]]:
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 if response.status == 200:
-                    return await response.json()
+                    result = await response.json()
+                    logger.info(
+                        "Admin session-token API success",
+                        admin_chat_id=admin_chat_id,
+                        has_enter_url=bool(result.get("enter_url")),
+                    )
+                    return result
                 else:
                     error_text = await response.text()
                     logger.error(
                         "Failed to generate admin token",
+                        url=url,
                         status=response.status,
-                        error=error_text,
+                        error=error_text[:500],  # Truncate for safety
                     )
                     return None
+    except aiohttp.ClientConnectorError as exc:
+        logger.error(
+            "Connection refused to admin session-token API",
+            url=url,
+            error=str(exc),
+            hint="Check that API_BASE_URL is set correctly and API container is running",
+        )
+        return None
     except Exception as exc:
         logger.error(
             "Error calling admin session-token API",
+            url=url,
             error=str(exc),
+            error_type=type(exc).__name__,
         )
         return None
 
