@@ -559,10 +559,36 @@ _inter_hand_monitor_task: Optional[asyncio.Task] = None
 
 
 async def _handle_inter_hand_result(table_id: int, result: Dict[str, Any]) -> None:
-    """Broadcast the outcome of the inter-hand phase."""
+    """Broadcast the outcome of the inter-hand phase.
+    
+    This function handles broadcasting after the inter-hand phase completes:
+    1. Broadcasts player_left events for players who had "leave after hand" flag set
+    2. Broadcasts table_ended if table has ended (SNG with < 2 players)
+    3. Broadcasts table_paused if table is paused (persistent table with < 2 players)
+    4. Broadcasts new game state if next hand started successfully
+    """
 
     if not result:
         return
+
+    # CRITICAL: Broadcast player_left events FIRST for players who left after hand
+    # This allows clients to see who left before receiving table state changes
+    stood_up_user_ids = result.get("stood_up_user_ids", [])
+    if stood_up_user_ids:
+        for user_id in stood_up_user_ids:
+            await manager.broadcast(
+                table_id,
+                {
+                    "type": "player_left",
+                    "user_id": user_id,
+                    "reason": "left_after_hand",
+                },
+            )
+            logger.info(
+                "Broadcasted player_left event (leave_after_hand)",
+                table_id=table_id,
+                user_id=user_id,
+            )
 
     if result.get("table_ended"):
         await manager.broadcast(

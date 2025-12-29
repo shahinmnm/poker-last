@@ -1090,6 +1090,10 @@ export default function TablePage() {
         if (payload?.type === 'player_left') {
           // Validate that user_id exists in the payload
           if (payload.user_id != null) {
+            // Check if the current user is the one who left
+            const leftUserId = payload.user_id.toString()
+            const isCurrentUserLeft = heroIdString === leftUserId
+            
             // 1. Optimistic Update: Remove player from liveState immediately
             setLiveState((prev) => {
               if (!prev) return prev;
@@ -1098,9 +1102,22 @@ export default function TablePage() {
                 players: prev.players.filter(p => p.user_id !== payload.user_id)
               };
             });
+            
+            // 2. If current user left, show toast and navigate to lobby
+            if (isCurrentUserLeft) {
+              const reason = payload.reason as string | undefined
+              if (reason === 'left_after_hand') {
+                showToast(t('table.toast.leftAfterHand', { defaultValue: 'You have left the table' }))
+              } else {
+                showToast(t('table.toast.left'))
+              }
+              // Navigate to lobby after a short delay to allow toast to be seen
+              setTimeout(() => navigate('/lobby', { replace: true }), 1500)
+              return
+            }
           }
           
-          // 2. Refresh full state from server
+          // 3. Refresh full state from server
           fetchLiveState();
           return;
         }
@@ -1113,7 +1130,7 @@ export default function TablePage() {
           fetchTable()
         }
       },
-      [applyIncomingState, fetchLiveState, fetchTable, liveState?.board, liveState?.hand_id, liveState?.hero, liveState?.inter_hand_wait_seconds, liveState?.min_raise, liveState?.players, liveState?.pot, liveState?.pots, liveState?.turn_timeout_seconds, tableId, t],
+      [applyIncomingState, fetchLiveState, fetchTable, heroIdString, liveState?.board, liveState?.hand_id, liveState?.hero, liveState?.inter_hand_wait_seconds, liveState?.min_raise, liveState?.players, liveState?.pot, liveState?.pots, liveState?.turn_timeout_seconds, navigate, showToast, tableId, t],
     ),
     onStateChange: useCallback(
       (payload: TableState) => {
