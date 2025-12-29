@@ -250,18 +250,79 @@ See [Deployment Guide](./docs/deployment/overview.md) for complete instructions.
 
 See [API Documentation](./docs/backend/api-overview.md) for complete API reference.
 
+## Admin Panel - Secure Access
+
+The admin panel is secured with Telegram-generated one-time links. No static URL access is allowed.
+
+### How Admin Access Works
+
+1. **Telegram Command**: Admin uses `/admin` command in the Telegram bot
+2. **Token Generation**: Bot calls backend to generate a cryptographically secure one-time token
+3. **One-Time Link**: Bot sends a link that expires in 2 minutes and is single-use
+4. **Session Creation**: When admin clicks the link, token is validated and consumed
+5. **Session Cookie**: HTTP-only session cookie is set for dashboard access
+6. **Protected Routes**: All `/admin/*` pages and `/api/admin/*` endpoints require valid session
+
+### Security Features
+
+- **One-Time Tokens**: Each link works exactly once
+- **Short Expiry**: Tokens expire in 2 minutes (configurable)
+- **Session Cookies**: HTTP-only, SameSite=Lax, Secure in production
+- **Rate Limiting**: 10 requests/minute per IP for token generation
+- **Audit Logging**: All admin actions are logged with chat_id, action, target, reason, timestamp
+- **Admin Allowlist**: Only `ADMIN_CHAT_ID` from `.env` can access admin features
+
+### Configuration
+
+Add these to your `.env` file:
+
+```bash
+# Admin Telegram Chat ID (required for admin access)
+ADMIN_CHAT_ID=123456789
+
+# Internal API key for bot-to-API communication (generate a random 32+ char string)
+INTERNAL_API_KEY=your_secure_random_string_here
+
+# Token TTL in seconds (default: 120 = 2 minutes)
+ADMIN_ENTRY_TOKEN_TTL_SECONDS=120
+
+# Session TTL in seconds (default: 28800 = 8 hours)
+ADMIN_SESSION_TTL_SECONDS=28800
+```
+
+### Admin Endpoints
+
+**Session Management**
+- `POST /api/admin/session-token` - Generate one-time token (bot-to-API, requires `X-Internal-API-Key`)
+- `GET /admin/enter?token=...` - Validate token and establish session
+- `GET /api/admin/session/validate` - Check current session status
+- `POST /api/admin/logout` - Invalidate session
+
+**Banking/Users**
+- `GET /api/admin/users` - List users with search
+- `GET /api/admin/users/{id}/wallet` - Get user wallet details
+- `POST /api/admin/users/{id}/deposit` - Deposit funds (requires reason)
+- `POST /api/admin/users/{id}/withdraw` - Withdraw funds (requires reason)
+- `GET /api/admin/transactions` - List transactions with filters
+
+**Dashboard**
+- `GET /api/admin/dashboard/kpis` - Get dashboard KPIs
+- `GET /api/admin/audit-logs` - Get audit log entries
+
 ## Ops Dashboard - Operator Guide
 
 The Ops Dashboard (`/admin/tables`) provides operator-grade table management tools for fixing stuck tables and managing the poker system.
 
 ### Accessing the Dashboard
 
-Navigate to `/admin/tables` in your browser. The dashboard does not require authentication in the current implementation (placeholder auth - secure for production).
+1. Use the `/admin` command in Telegram
+2. Click the "🌐 Web Admin Panel" button
+3. The one-time link opens the dashboard with a secure session
 
 ### Dashboard Layout
 
-- **Left Panel**: Table list with filters
-- **Right Panel**: Selected table details and actions
+- **Sidebar**: Navigation to all admin sections
+- **Main Content**: Selected page with data
 
 ### Filtering Tables
 

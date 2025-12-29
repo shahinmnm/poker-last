@@ -140,7 +140,12 @@ export default function AdminAuditLogs() {
                     {log.reason || '-'}
                     {log.metadata && Object.keys(log.metadata).length > 0 && (
                       <div style={styles.metadata}>
-                        {JSON.stringify(log.metadata)}
+                        {Object.entries(log.metadata).map(([key, value]) => (
+                          <span key={key} style={styles.metadataItem}>
+                            <span style={styles.metadataKey}>{key}:</span>{' '}
+                            <span style={styles.metadataValue}>{String(value)}</span>
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -297,8 +302,21 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '4px',
     fontSize: '11px',
     color: '#64748b',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+  },
+  metadataItem: {
+    backgroundColor: '#334155',
+    padding: '2px 6px',
+    borderRadius: '3px',
+  },
+  metadataKey: {
+    color: '#94a3b8',
+  },
+  metadataValue: {
+    color: '#e2e8f0',
     fontFamily: 'monospace',
-    wordBreak: 'break-all',
   },
   pagination: {
     display: 'flex',

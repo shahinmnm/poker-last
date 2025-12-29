@@ -266,7 +266,7 @@ export default function AdminBanking() {
                 <div style={styles.confirmationBox}>
                   <h4 style={styles.confirmTitle}>⚠️ Confirm Operation</h4>
                   <p style={styles.confirmText}>
-                    You are about to {operation} <strong>{formatCurrency(Math.round(parseFloat(amount) * 100))}</strong>{' '}
+                    You are about to {operation} <strong>{formatCurrency(Math.round((parseFloat(amount) || 0) * 100))}</strong>{' '}
                     ({currencyType}) {operation === 'deposit' ? 'to' : 'from'} user <strong>{selectedUser.username || selectedUser.id}</strong>.
                   </p>
                   <p style={styles.confirmReason}>Reason: {reason}</p>
