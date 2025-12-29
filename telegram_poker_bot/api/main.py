@@ -865,7 +865,28 @@ async def check_table_inactivity():
                             # PUBLIC DESKS NEVER expire/delete - only pause to WAITING
                             if is_public_desk_table:
                                 if table.status == TableStatus.ACTIVE and playing_count < 2:
-                                    # PAUSE to WAITING (never delete)
+                                    # FIX: Check if there's an active hand before pausing
+                                    # We must NOT pause mid-hand because players set is_sitting_out_next_hand
+                                    # during river/showdown - they should complete the current hand first.
+                                    active_hand = await db.scalar(
+                                        select(Hand).where(
+                                            Hand.table_id == table.id,
+                                            Hand.status.notin_([HandStatus.ENDED])
+                                        )
+                                    )
+                                    if active_hand:
+                                        # Hand still in progress (including INTER_HAND_WAIT)
+                                        # Don't pause - let the hand complete naturally
+                                        logger.debug(
+                                            "Skipping PUBLIC DESK pause - hand in progress",
+                                            table_id=table.id,
+                                            hand_no=active_hand.hand_no,
+                                            hand_status=active_hand.status.value,
+                                            playing_count=playing_count,
+                                        )
+                                        continue
+                                    
+                                    # No active hand - safe to PAUSE to WAITING (never delete)
                                     logger.info(
                                         "Pausing PUBLIC DESK table (insufficient active players)",
                                         table_id=table.id,

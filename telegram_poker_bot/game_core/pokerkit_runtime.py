@@ -1922,6 +1922,14 @@ class PokerKitTableRuntimeManager:
                             error=str(e),
                         )
             
+            # Log summary for apply_leave_after_hand operation
+            if stood_up_user_ids:
+                logger.info(
+                    "apply_leave_after_hand executed",
+                    table_id=table_id,
+                    removed_user_ids=stood_up_user_ids,
+                )
+            
             # Refresh seats after removals
             if stood_up_user_ids:
                 seats_result = await db.execute(
@@ -1938,11 +1946,21 @@ class PokerKitTableRuntimeManager:
                 # Re-check persistence after refresh
                 is_table_persistent = is_persistent_table_sync(runtime.table)
 
+            # CRITICAL: Mark the current hand as ENDED to clear the "hand in progress" guard
+            # This ensures autostart can proceed without getting blocked by the
+            # "Cannot start a new hand while another hand is in progress" check
+            hand_no_ending = runtime.current_hand.hand_no
             runtime.current_hand.status = HandStatus.ENDED
             runtime.inter_hand_wait_start = None
             runtime.table.last_action_at = datetime.now(timezone.utc)
 
             await db.flush()
+
+            logger.info(
+                "Hand status set to ENDED (clearing hand-in-progress guard)",
+                table_id=table_id,
+                hand_no=hand_no_ending,
+            )
 
             # Expire Hand object from SQLAlchemy session to prevent returning stale cached data
             db.expire(runtime.current_hand)
@@ -2007,6 +2025,15 @@ class PokerKitTableRuntimeManager:
                     return result
 
             runtime.table.last_action_at = datetime.now(timezone.utc)
+
+            # Log autostart eligibility decision
+            logger.info(
+                "Autostart eligibility: proceeding to start new hand",
+                table_id=table_id,
+                active_player_count=len(playing_seats),
+                is_persistent=is_table_persistent,
+                stood_up_count=len(stood_up_user_ids),
+            )
 
             # Auto-start the next hand
             state = await runtime.start_new_hand(db)
