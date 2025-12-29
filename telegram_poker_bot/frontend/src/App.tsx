@@ -25,6 +25,7 @@ import AdminTableTemplates from './pages/admin/AdminTableTemplates'
 import AdminPlayers from './pages/admin/AdminPlayers'
 import AdminBanking from './pages/admin/AdminBanking'
 import AdminAuditLogs from './pages/admin/AdminAuditLogs'
+import AdminExpired from './pages/admin/AdminExpired'
 import UIDemoPage from './pages/UIDemoPage'
 import { useTelegram } from './hooks/useTelegram'
 
@@ -82,6 +83,7 @@ function App() {
                     </Route>
                     <Route path="admin" element={<AdminDashboard />}>
                       <Route index element={<Navigate to="/admin/analytics" replace />} />
+                      <Route path="panel" element={<Navigate to="/admin/analytics" replace />} />
                       <Route path="analytics" element={<AdminAnalytics />} />
                       <Route path="insights" element={<AdminInsights />} />
                       <Route path="tables" element={<AdminTables />} />
@@ -90,6 +92,8 @@ function App() {
                       <Route path="banking" element={<AdminBanking />} />
                       <Route path="audit-logs" element={<AdminAuditLogs />} />
                     </Route>
+                    {/* Admin expired page - standalone, not inside AdminDashboard layout */}
+                    <Route path="admin/expired" element={<AdminExpired />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </BrowserRouter>

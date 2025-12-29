@@ -1,6 +1,6 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { adminValidateSession, adminLogout, adminGetDashboardKPIs } from '../../utils/apiClient'
+import { adminWhoAmI, adminLogout, adminGetDashboardKPIs } from '../../utils/apiClient'
 
 // Icons for navigation
 const icons = {
@@ -36,9 +36,14 @@ const navItems: NavItem[] = [
  * 
  * Provides navigation structure for admin pages with session validation.
  * Professional ops dashboard UI with sidebar navigation.
+ * 
+ * Uses /api/admin/whoami to verify admin session on load:
+ * - If 200 -> render dashboard
+ * - If 401 -> redirect to /admin/expired
  */
 export default function AdminDashboard() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [sessionValid, setSessionValid] = useState<boolean | null>(null)
   const [adminChatId, setAdminChatId] = useState<number | null>(null)
   const [kpis, setKpis] = useState<{
@@ -47,24 +52,27 @@ export default function AdminDashboard() {
   } | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  // Check session on mount and periodically
+  // Check session on mount using /api/admin/whoami
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await adminValidateSession()
-        setSessionValid(response.valid)
-        if (response.valid && response.admin_chat_id) {
-          setAdminChatId(response.admin_chat_id)
-        }
-      } catch {
+        const response = await adminWhoAmI()
+        // If we get here, session is valid (200 response)
+        setSessionValid(true)
+        setAdminChatId(response.chat_id)
+      } catch (error) {
+        // 401 or other error - session is invalid
         setSessionValid(false)
+        // Redirect to /admin/expired instead of showing inline error
+        navigate('/admin/expired?reason=no_session', { replace: true })
       }
     }
 
     checkSession()
-    const interval = setInterval(checkSession, 60000) // Check every minute
+    // Periodically check session (every 60 seconds)
+    const interval = setInterval(checkSession, 60000)
     return () => clearInterval(interval)
-  }, [])
+  }, [navigate])
 
   // Fetch KPIs for sidebar badges
   useEffect(() => {
@@ -90,7 +98,8 @@ export default function AdminDashboard() {
     } catch {
       // Ignore errors
     }
-    setSessionValid(false)
+    // After logout, redirect to expired page
+    navigate('/admin/expired?reason=logged_out', { replace: true })
   }
 
   const isActive = (path: string) => location.pathname === path
@@ -105,27 +114,13 @@ export default function AdminDashboard() {
     )
   }
 
-  // Show session expired message
+  // Session invalid - the useEffect will redirect to /admin/expired
+  // This is a fallback in case redirect hasn't happened yet
   if (!sessionValid) {
     return (
-      <div style={styles.sessionExpiredContainer}>
-        <div style={styles.sessionExpiredCard}>
-          <div style={styles.sessionExpiredIcon}>🔒</div>
-          <h1 style={styles.sessionExpiredTitle}>Session Expired</h1>
-          <p style={styles.sessionExpiredText}>
-            Your admin session has expired or is invalid.
-          </p>
-          <p style={styles.sessionExpiredInstructions}>
-            Please use the <code style={styles.code}>/admin</code> command in Telegram
-            to generate a new access link.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={styles.refreshButton}
-          >
-            Refresh Page
-          </button>
-        </div>
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingSpinner}>🔄</div>
+        <p>Redirecting...</p>
       </div>
     )
   }

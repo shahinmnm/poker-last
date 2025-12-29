@@ -187,28 +187,25 @@ async def admin_enter(
     2. Marks the token as used (single-use)
     3. Creates an admin session
     4. Sets a secure HTTP-only cookie
-    5. Redirects to the admin panel
+    5. Redirects to the admin panel (/admin/panel)
     
-    If the token is invalid or expired, shows an error message.
+    If the token is invalid or expired, redirects to /admin/expired.
     """
     service = get_admin_session_service()
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("User-Agent", "unknown")
+    base_url = settings.mini_app_url.rstrip("/")
     
     # Rate limiting
     ip_hash = service._hash_sensitive(client_ip)
     if not await service.check_rate_limit(f"enter:{ip_hash}", max_requests=10, window_seconds=60):
-        return HTMLResponse(
-            content="""
-            <html>
-            <head><title>Rate Limited</title></head>
-            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-                <h1>Too Many Requests</h1>
-                <p>Please wait before trying again.</p>
-            </body>
-            </html>
-            """,
-            status_code=429,
+        logger.warning(
+            "Admin enter rate limited",
+            ip_hash=ip_hash,
+        )
+        return RedirectResponse(
+            url=f"{base_url}/admin/expired?reason=rate_limited",
+            status_code=302,
         )
     
     # Validate and consume token
@@ -219,28 +216,29 @@ async def admin_enter(
     )
     
     if not session:
-        return HTMLResponse(
-            content="""
-            <html>
-            <head><title>Session Expired</title></head>
-            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-                <h1>Link Expired or Invalid</h1>
-                <p>This admin link has expired or was already used.</p>
-                <p>Please use the <code>/admin</code> command in Telegram to generate a new link.</p>
-            </body>
-            </html>
-            """,
-            status_code=401,
+        logger.warning(
+            "Admin enter failed - invalid or expired token",
+            token_prefix=token[:8] if token else None,
+        )
+        return RedirectResponse(
+            url=f"{base_url}/admin/expired?reason=invalid_token",
+            status_code=302,
         )
     
+    # Determine redirect target (admin dashboard)
+    redirect_to = "/admin/panel"
+    
     # Create redirect response with session cookie
-    base_url = settings.mini_app_url.rstrip("/")
     response = RedirectResponse(
-        url=f"{base_url}/admin/analytics",
+        url=f"{base_url}{redirect_to}",
         status_code=302,
     )
     
     # Set secure HTTP-only cookie
+    # - HttpOnly=true: prevents JavaScript access (XSS protection)
+    # - SameSite=Lax: CSRF protection while allowing navigation
+    # - Secure=true in production (HTTPS)
+    # - Path=/: applies to all /admin/* routes
     is_secure = base_url.startswith("https://")
     response.set_cookie(
         key="admin_session",
@@ -253,9 +251,16 @@ async def admin_enter(
     )
     
     logger.info(
-        "Admin session cookie set",
+        "Admin enter success",
         admin_chat_id=session.admin_chat_id,
-        session_id=session.session_id[:8],
+        redirect_to=redirect_to,
+    )
+    logger.info(
+        "Set-Cookie admin_session",
+        path="/",
+        httponly=True,
+        secure=is_secure,
+        samesite="lax",
     )
     
     return response
@@ -277,6 +282,39 @@ async def validate_session(
         valid=True,
         admin_chat_id=session.admin_chat_id,
         expires_at=session.expires_at,
+    )
+
+
+class WhoAmIResponse(BaseModel):
+    """Response for whoami endpoint."""
+    
+    admin: bool
+    chat_id: int
+    session_expires_at: str
+
+
+@admin_session_router.get("/api/admin/whoami", response_model=WhoAmIResponse)
+async def admin_whoami(
+    session: AdminSession = Depends(require_admin_session),
+):
+    """
+    Get current admin identity.
+    
+    Protected endpoint that returns admin information.
+    Used by frontend admin panel to verify session on load.
+    
+    Returns:
+        - admin: true (always, since endpoint requires admin session)
+        - chat_id: The admin's Telegram chat ID
+        - session_expires_at: Session expiration timestamp
+    
+    Raises:
+        401: If admin session is missing or invalid
+    """
+    return WhoAmIResponse(
+        admin=True,
+        chat_id=session.admin_chat_id,
+        session_expires_at=session.expires_at,
     )
 
 

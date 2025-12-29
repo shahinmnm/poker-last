@@ -564,6 +564,24 @@ export async function adminValidateSession(): Promise<AdminSessionValidateRespon
 }
 
 /**
+ * Admin whoami response
+ */
+export interface AdminWhoAmIResponse {
+  admin: boolean
+  chat_id: number
+  session_expires_at: string
+}
+
+/**
+ * Get current admin identity (protected endpoint)
+ * Used by frontend admin panel to verify session on load.
+ * Returns 401 if session is missing or invalid.
+ */
+export async function adminWhoAmI(): Promise<AdminWhoAmIResponse> {
+  return apiFetch<AdminWhoAmIResponse>('/admin/whoami')
+}
+
+/**
  * Logout and invalidate admin session
  */
 export async function adminLogout(): Promise<{ success: boolean; message: string }> {
