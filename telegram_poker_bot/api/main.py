@@ -630,6 +630,7 @@ async def monitor_inter_hand_timeouts():
     - Checks Table.last_action_at to determine if timeout has expired
     - Automatically advances to next hand when timeout expires
     - Race-safe with proper state checks
+    - Respects system toggle pause_interhand_monitor for emergency brake
 
     Design Notes:
     - Survives server restarts and worker process cycles
@@ -638,6 +639,7 @@ async def monitor_inter_hand_timeouts():
     - Template relationship is eagerly loaded to avoid greenlet_spawn errors
     """
     from telegram_poker_bot.shared.database import get_db_session
+    from telegram_poker_bot.api.admin_routes import is_interhand_monitor_paused
 
     LOCK_KEY = "lock:monitor_inter_hand"
     LOCK_TTL = 30  # Lock expires after 30 seconds (sufficient for DB operations)
@@ -652,6 +654,10 @@ async def monitor_inter_hand_timeouts():
     while True:
         try:
             await asyncio.sleep(POLL_INTERVAL)
+
+            # Check if monitor is paused via admin toggle (async Redis call)
+            if await is_interhand_monitor_paused():
+                continue
 
             redis_client = await get_redis_client()
             lock_acquired = await redis_client.set(LOCK_KEY, "1", nx=True, ex=LOCK_TTL)
@@ -1336,9 +1342,11 @@ async def monitor_table_autostart():
     """Background task to monitor tables and trigger auto-starts.
 
     Checks ALL waiting tables (SNG and Persistent) for start conditions.
+    Respects system toggle pause_autostart for emergency brake.
     """
     from telegram_poker_bot.shared.database import get_db_session
     from telegram_poker_bot.shared.services import sng_manager, table_service
+    from telegram_poker_bot.api.admin_routes import is_autostart_paused
     from sqlalchemy.orm import joinedload
 
     logger.info("Table auto-start monitor started")
@@ -1346,6 +1354,10 @@ async def monitor_table_autostart():
     while True:
         try:
             await asyncio.sleep(1)  # Check every second
+
+            # Check if autostart is paused via admin toggle (async Redis call)
+            if await is_autostart_paused():
+                continue
 
             async with get_db_session() as db:
                 # Find ALL tables in WAITING state (includes both Persistent and SNG tables)

@@ -278,3 +278,253 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
 
   return data as T
 }
+
+
+// ============================================================================
+// Admin Ops Dashboard API Types
+// ============================================================================
+
+export interface AdminTableSummary {
+  table_id: number
+  template_type: string | null
+  is_public: boolean
+  status: string | null
+  current_hand_id: number | null
+  current_hand_status: string | null
+  seated_count: number
+  active_count: number
+  sitting_out_count: number
+  expires_at: string | null
+  last_action_at: string | null
+  lobby_persistent: boolean
+  is_auto_generated: boolean
+  restore_error: string | null
+  created_at: string | null
+  is_stuck: boolean
+}
+
+export interface AdminTableListResponse {
+  timestamp: string
+  tables: AdminTableSummary[]
+  count: number
+  filters_applied: {
+    status: string | null
+    is_public: boolean | null
+    stuck_only: boolean
+  }
+}
+
+export interface AdminSeatDetail {
+  seat_id: number
+  position: number
+  user_id: number
+  username: string | null
+  chips: number
+  is_sitting_out_next_hand: boolean
+  joined_at: string | null
+  left_at: string | null
+}
+
+export interface AdminTableDetailResponse {
+  timestamp: string
+  table: {
+    id: number
+    status: string | null
+    is_public: boolean
+    lobby_persistent: boolean
+    is_auto_generated: boolean
+    expires_at: string | null
+    created_at: string | null
+    updated_at: string | null
+    last_action_at: string | null
+    creator_user_id: number | null
+    sng_state: string | null
+  }
+  template: {
+    id: string
+    name: string
+    table_type: string | null
+    has_waitlist: boolean
+    is_active: boolean
+  } | null
+  current_hand: {
+    id: number
+    hand_no: number
+    status: string
+    started_at: string | null
+    ended_at: string | null
+    pot_size: number
+  } | null
+  last_hand: {
+    id: number
+    hand_no: number
+    status: string
+    started_at: string | null
+    ended_at: string | null
+  } | null
+  seats: AdminSeatDetail[]
+  seat_summary: {
+    total: number
+    seated: number
+    active: number
+    sitting_out: number
+  }
+  runtime: Record<string, unknown>
+  cache: Record<string, unknown>
+  diagnostics: {
+    is_stuck: boolean
+    stuck_reason: string | null
+  }
+}
+
+export interface AdminActionReport {
+  timestamp: string
+  table_id: number
+  actions_taken: Array<{
+    action: string
+    [key: string]: unknown
+  }>
+  success: boolean
+  request?: Record<string, unknown>
+  mode?: string
+  action?: string
+}
+
+export interface AdminSystemToggles {
+  timestamp: string
+  toggles: {
+    pause_autostart: boolean
+    pause_interhand_monitor: boolean
+  }
+  changes?: Array<{
+    toggle: string
+    old_value: boolean
+    new_value: boolean
+  }>
+}
+
+
+// ============================================================================
+// Admin Ops Dashboard API Functions
+// ============================================================================
+
+export interface AdminListTablesOptions {
+  status?: string
+  is_public?: boolean
+  stuck_only?: boolean
+  limit?: number
+}
+
+/**
+ * List all tables with admin diagnostics
+ */
+export async function adminListTables(options: AdminListTablesOptions = {}): Promise<AdminTableListResponse> {
+  return apiFetch<AdminTableListResponse>('/admin/tables', {
+    query: {
+      status_filter: options.status,
+      is_public: options.is_public,
+      stuck_only: options.stuck_only,
+      limit: options.limit,
+    },
+  })
+}
+
+/**
+ * Get full diagnostics for a specific table
+ */
+export async function adminGetTable(tableId: number): Promise<AdminTableDetailResponse> {
+  return apiFetch<AdminTableDetailResponse>(`/admin/tables/${tableId}`)
+}
+
+export interface ResetStuckHandOptions {
+  kick_players?: boolean
+  clear_runtime_cache?: boolean
+  reason?: string
+}
+
+/**
+ * Reset a stuck hand on a table
+ */
+export async function adminResetStuckHand(
+  tableId: number,
+  options: ResetStuckHandOptions = {}
+): Promise<AdminActionReport> {
+  return apiFetch<AdminActionReport>(`/admin/tables/${tableId}/reset-stuck-hand`, {
+    method: 'POST',
+    body: {
+      kick_players: options.kick_players ?? false,
+      clear_runtime_cache: options.clear_runtime_cache ?? true,
+      reason: options.reason,
+    },
+  })
+}
+
+/**
+ * Force a table to WAITING status
+ */
+export async function adminForceWaiting(tableId: number): Promise<AdminActionReport> {
+  return apiFetch<AdminActionReport>(`/admin/tables/${tableId}/force-waiting`, {
+    method: 'POST',
+  })
+}
+
+export interface KickAllOptions {
+  mode?: 'after_hand' | 'immediate_abort_then_kick'
+}
+
+/**
+ * Kick all players from a table
+ */
+export async function adminKickAll(
+  tableId: number,
+  options: KickAllOptions = {}
+): Promise<AdminActionReport> {
+  return apiFetch<AdminActionReport>(`/admin/tables/${tableId}/kick-all`, {
+    method: 'POST',
+    body: {
+      mode: options.mode ?? 'after_hand',
+    },
+  })
+}
+
+/**
+ * Clear Redis runtime cache for a table
+ */
+export async function adminClearRuntimeCache(tableId: number): Promise<AdminActionReport> {
+  return apiFetch<AdminActionReport>(`/admin/tables/${tableId}/clear-runtime-cache`, {
+    method: 'POST',
+  })
+}
+
+/**
+ * Force broadcast the current table state to all connected clients
+ */
+export async function adminBroadcastSnapshot(tableId: number): Promise<AdminActionReport> {
+  return apiFetch<AdminActionReport>(`/admin/tables/${tableId}/broadcast-snapshot`, {
+    method: 'POST',
+  })
+}
+
+/**
+ * Get current system toggle values
+ */
+export async function adminGetSystemToggles(): Promise<AdminSystemToggles> {
+  return apiFetch<AdminSystemToggles>('/admin/system/toggles')
+}
+
+export interface SetSystemTogglesOptions {
+  pause_autostart?: boolean
+  pause_interhand_monitor?: boolean
+}
+
+/**
+ * Set system toggle values
+ */
+export async function adminSetSystemToggles(
+  options: SetSystemTogglesOptions
+): Promise<AdminSystemToggles> {
+  return apiFetch<AdminSystemToggles>('/admin/system/toggles', {
+    method: 'POST',
+    body: options as Record<string, unknown>,
+  })
+}
