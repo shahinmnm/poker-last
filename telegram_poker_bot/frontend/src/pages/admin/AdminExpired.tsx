@@ -7,6 +7,7 @@ import { useSearchParams } from 'react-router-dom'
  * - Admin session has expired
  * - Admin one-time link is invalid or already used
  * - User tries to access admin routes without authentication
+ * - User has logged out
  * 
  * Prompts user to generate a new access link via Telegram /admin command.
  */
@@ -17,6 +18,7 @@ export default function AdminExpired() {
   // Determine message based on reason
   let title = 'Session Expired'
   let message = 'Your admin session has expired or is invalid.'
+  let icon = '🔒'
 
   if (reason === 'invalid_token') {
     title = 'Link Expired or Invalid'
@@ -27,12 +29,16 @@ export default function AdminExpired() {
   } else if (reason === 'no_session') {
     title = 'Not Authenticated'
     message = 'You need to authenticate as an admin to access this page.'
+  } else if (reason === 'logged_out') {
+    title = 'Logged Out'
+    message = 'You have been successfully logged out.'
+    icon = '👋'
   }
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <div style={styles.icon}>🔒</div>
+        <div style={styles.icon}>{icon}</div>
         <h1 style={styles.title}>{title}</h1>
         <p style={styles.message}>{message}</p>
         <p style={styles.instructions}>
@@ -76,19 +82,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '28px',
     fontWeight: 'bold',
     color: '#f8fafc',
-    marginBottom: '16px',
     margin: '0 0 16px 0',
   },
   message: {
     fontSize: '16px',
     color: '#94a3b8',
-    marginBottom: '12px',
     margin: '0 0 12px 0',
   },
   instructions: {
     fontSize: '14px',
     color: '#64748b',
-    marginBottom: '24px',
     margin: '0 0 24px 0',
   },
   code: {
