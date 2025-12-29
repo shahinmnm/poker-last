@@ -1091,12 +1091,13 @@ export default function TablePage() {
         if (payload?.type === 'player_sitout_changed') {
           const { user_id: sitoutUserId, is_sitting_out: isSittingOut } = payload
           if (sitoutUserId != null) {
+            const sitoutUserIdStr = sitoutUserId.toString()
             setLiveState((prev) => {
               if (!prev) return prev
               return {
                 ...prev,
                 players: prev.players.map((p) =>
-                  p.user_id?.toString() === sitoutUserId.toString()
+                  p.user_id?.toString() === sitoutUserIdStr
                     ? { ...p, is_sitting_out_next_hand: isSittingOut }
                     : p
                 ),

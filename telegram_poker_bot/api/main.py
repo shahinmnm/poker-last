@@ -872,7 +872,7 @@ async def check_table_inactivity():
                                         select(Hand).where(
                                             Hand.table_id == table.id,
                                             Hand.status.notin_([HandStatus.ENDED])
-                                        )
+                                        ).order_by(Hand.hand_no.desc()).limit(1)
                                     )
                                     if active_hand:
                                         # Hand still in progress (including INTER_HAND_WAIT)
