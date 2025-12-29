@@ -162,9 +162,17 @@ async def create_session_token(
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
     
-    # Build the entry URL
-    base_url = settings.mini_app_url.rstrip("/")
+    # Build the entry URL using admin_public_url (where /admin/enter is routed to backend)
+    # This must be the externally reachable URL where nginx routes /admin/enter to the API
+    base_url = settings.admin_public_url.rstrip("/")
     enter_url = f"{base_url}/admin/enter?token={entry_token.token}"
+    
+    logger.info(
+        "Generated admin entry URL",
+        admin_chat_id=body.admin_chat_id,
+        enter_url_domain=base_url,
+        token_prefix=entry_token.token[:8] if entry_token.token else None,
+    )
     
     return SessionTokenResponse(
         token=entry_token.token,
@@ -191,10 +199,24 @@ async def admin_enter(
     
     If the token is invalid or expired, redirects to /admin/expired.
     """
+    # PART 1: Debug logging - confirm this endpoint is being hit
+    logger.info(
+        "HIT /admin/enter",
+        host=request.url.hostname,
+        path=request.url.path,
+        token_prefix=token[:8] if token else None,
+        x_forwarded_proto=request.headers.get("X-Forwarded-Proto"),
+        x_forwarded_for=request.headers.get("X-Forwarded-For"),
+    )
+    
     service = get_admin_session_service()
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("User-Agent", "unknown")
-    base_url = settings.mini_app_url.rstrip("/")
+    
+    # Use mini_app_url for redirects (the frontend domain)
+    frontend_base_url = settings.mini_app_url.rstrip("/")
+    # Use admin_dashboard_path from config
+    admin_dashboard_path = settings.admin_dashboard_path
     
     # Rate limiting
     ip_hash = service._hash_sensitive(client_ip)
@@ -204,7 +226,7 @@ async def admin_enter(
             ip_hash=ip_hash,
         )
         return RedirectResponse(
-            url=f"{base_url}/admin/expired?reason=rate_limited",
+            url=f"{frontend_base_url}/admin/expired?reason=rate_limited",
             status_code=302,
         )
     
@@ -221,31 +243,39 @@ async def admin_enter(
             token_prefix=token[:8] if token else None,
         )
         return RedirectResponse(
-            url=f"{base_url}/admin/expired?reason=invalid_token",
+            url=f"{frontend_base_url}/admin/expired?reason=invalid_token",
             status_code=302,
         )
     
     # Determine redirect target (admin dashboard)
-    redirect_to = "/admin/panel"
+    redirect_to = admin_dashboard_path
     
     # Create redirect response with session cookie
     response = RedirectResponse(
-        url=f"{base_url}{redirect_to}",
+        url=f"{frontend_base_url}{redirect_to}",
         status_code=302,
     )
     
     # Set secure HTTP-only cookie
     # - HttpOnly=true: prevents JavaScript access (XSS protection)
     # - SameSite=Lax: CSRF protection while allowing navigation
-    # - Secure=true in production (HTTPS)
-    # - Path=/: applies to all /admin/* routes
-    is_secure = base_url.startswith("https://")
+    # - Secure: Only set to true if the request came via HTTPS (check X-Forwarded-Proto for proxy)
+    #   In local http development, Secure=true would cause cookie to be dropped
+    # - Path=/: applies to all routes (needed for /admin/* and /api/admin/*)
+    
+    # Determine if request is secure (behind HTTPS proxy or direct HTTPS)
+    # Handle multiple values in X-Forwarded-Proto (e.g., "https,http" from chained proxies)
+    x_forwarded_proto = request.headers.get("X-Forwarded-Proto", "")
+    # Take the first protocol if multiple are present (leftmost is from original client)
+    first_proto = x_forwarded_proto.split(",")[0].strip().lower() if x_forwarded_proto else ""
+    is_https_request = first_proto == "https" or frontend_base_url.startswith("https://")
+    
     response.set_cookie(
         key="admin_session",
         value=session.session_id,
         max_age=settings.admin_session_ttl_seconds,
         httponly=True,
-        secure=is_secure,
+        secure=is_https_request,
         samesite="lax",
         path="/",
     )
@@ -254,12 +284,13 @@ async def admin_enter(
         "Admin enter success",
         admin_chat_id=session.admin_chat_id,
         redirect_to=redirect_to,
+        redirect_full_url=f"{frontend_base_url}{redirect_to}",
     )
     logger.info(
         "Set-Cookie admin_session",
         path="/",
         httponly=True,
-        secure=is_secure,
+        secure=is_https_request,
         samesite="lax",
     )
     

@@ -168,3 +168,51 @@ def test_mini_app_url_when_vite_api_url_not_set(monkeypatch):
     # vite_api_url should be derived from PUBLIC_BASE_URL
     assert settings.vite_api_url == "https://poker.example.com/api"
     assert settings.mini_app_url == "https://poker.example.com"
+
+
+def test_admin_public_url_defaults_to_public_base_url(monkeypatch):
+    """admin_public_url should fall back to PUBLIC_BASE_URL when ADMIN_PUBLIC_BASE_URL is not set."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.example.com")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.delenv("ADMIN_PUBLIC_BASE_URL", raising=False)
+
+    settings = config.get_settings()
+
+    assert settings.admin_public_url == "https://poker.example.com"
+
+
+def test_admin_public_url_uses_custom_value(monkeypatch):
+    """admin_public_url should use ADMIN_PUBLIC_BASE_URL when explicitly set."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.example.com")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.setenv("ADMIN_PUBLIC_BASE_URL", "https://admin.example.com")
+
+    settings = config.get_settings()
+
+    assert settings.admin_public_url == "https://admin.example.com"
+
+
+def test_admin_dashboard_path_defaults(monkeypatch):
+    """admin_dashboard_path should have correct default value."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.example.com")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.delenv("ADMIN_DASHBOARD_PATH", raising=False)
+
+    settings = config.get_settings()
+
+    assert settings.admin_dashboard_path == "/admin/panel"
+
+
+def test_admin_dashboard_path_custom(monkeypatch):
+    """admin_dashboard_path should use custom value when set."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://poker.example.com")
+    monkeypatch.setenv("WEBAPP_SECRET", "secret")
+    monkeypatch.setenv("ADMIN_DASHBOARD_PATH", "/admin/dashboard")
+
+    settings = config.get_settings()
+
+    assert settings.admin_dashboard_path == "/admin/dashboard"
