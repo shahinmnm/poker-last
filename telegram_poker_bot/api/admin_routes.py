@@ -440,11 +440,43 @@ class SystemTogglesRequest(BaseModel):
     pause_interhand_monitor: Optional[bool] = Field(default=None, description="Pause inter-hand monitor")
 
 
-# In-memory system toggles (in production, use Redis or DB)
-_system_toggles: Dict[str, bool] = {
+# Redis key for system toggles (persistent across restarts and workers)
+SYSTEM_TOGGLES_REDIS_KEY = "admin:system_toggles"
+
+# Default system toggles
+_DEFAULT_SYSTEM_TOGGLES: Dict[str, bool] = {
     "pause_autostart": False,
     "pause_interhand_monitor": False,
 }
+
+# Stuck table threshold in minutes (configurable)
+STUCK_TABLE_THRESHOLD_MINUTES = 5
+
+
+async def _get_system_toggles_from_redis() -> Dict[str, bool]:
+    """Get system toggles from Redis, falling back to defaults."""
+    try:
+        redis = await get_redis_client()
+        data = await redis.hgetall(SYSTEM_TOGGLES_REDIS_KEY)
+        if not data:
+            return _DEFAULT_SYSTEM_TOGGLES.copy()
+        return {
+            "pause_autostart": data.get(b"pause_autostart", b"false").decode() == "true",
+            "pause_interhand_monitor": data.get(b"pause_interhand_monitor", b"false").decode() == "true",
+        }
+    except Exception as e:
+        logger.warning("Failed to get system toggles from Redis, using defaults", error=str(e))
+        return _DEFAULT_SYSTEM_TOGGLES.copy()
+
+
+async def _set_system_toggle_in_redis(toggle: str, value: bool) -> None:
+    """Set a system toggle in Redis."""
+    try:
+        redis = await get_redis_client()
+        await redis.hset(SYSTEM_TOGGLES_REDIS_KEY, toggle, "true" if value else "false")
+    except Exception as e:
+        logger.error("Failed to set system toggle in Redis", toggle=toggle, value=value, error=str(e))
+        raise
 
 
 # ============================================================================
@@ -548,7 +580,7 @@ async def admin_list_tables(
     # Build table summaries with seat counts and hand info
     table_summaries = []
     now = datetime.now(timezone.utc)
-    stuck_threshold = timedelta(minutes=5)  # 5 minutes of no activity = potentially stuck
+    stuck_threshold = timedelta(minutes=STUCK_TABLE_THRESHOLD_MINUTES)
     
     for table in tables:
         # Get seats for this table
@@ -1168,10 +1200,13 @@ async def admin_get_system_toggles(
     Toggles control system-wide behavior:
     - pause_autostart: Prevents auto-start of tables
     - pause_interhand_monitor: Pauses inter-hand timeout processing
+    
+    Toggles are stored in Redis for persistence across restarts and workers.
     """
+    toggles = await _get_system_toggles_from_redis()
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "toggles": _system_toggles.copy(),
+        "toggles": toggles,
     }
 
 
@@ -1186,14 +1221,17 @@ async def admin_set_system_toggles(
     Emergency brakes for incident response:
     - pause_autostart: Stops automatic table starts
     - pause_interhand_monitor: Pauses inter-hand timeout processing
+    
+    Toggles are stored in Redis for persistence across restarts and workers.
     """
     now = datetime.now(timezone.utc)
+    current_toggles = await _get_system_toggles_from_redis()
     changes = []
     
     if request.pause_autostart is not None:
-        old_value = _system_toggles["pause_autostart"]
-        _system_toggles["pause_autostart"] = request.pause_autostart
+        old_value = current_toggles["pause_autostart"]
         if old_value != request.pause_autostart:
+            await _set_system_toggle_in_redis("pause_autostart", request.pause_autostart)
             changes.append({
                 "toggle": "pause_autostart",
                 "old_value": old_value,
@@ -1201,9 +1239,9 @@ async def admin_set_system_toggles(
             })
     
     if request.pause_interhand_monitor is not None:
-        old_value = _system_toggles["pause_interhand_monitor"]
-        _system_toggles["pause_interhand_monitor"] = request.pause_interhand_monitor
+        old_value = current_toggles["pause_interhand_monitor"]
         if old_value != request.pause_interhand_monitor:
+            await _set_system_toggle_in_redis("pause_interhand_monitor", request.pause_interhand_monitor)
             changes.append({
                 "toggle": "pause_interhand_monitor",
                 "old_value": old_value,
@@ -1216,23 +1254,28 @@ async def admin_set_system_toggles(
             changes=changes,
         )
     
+    # Get updated toggles from Redis
+    updated_toggles = await _get_system_toggles_from_redis()
+    
     return {
         "timestamp": now.isoformat(),
-        "toggles": _system_toggles.copy(),
+        "toggles": updated_toggles,
         "changes": changes,
     }
 
 
-def get_system_toggles() -> Dict[str, bool]:
-    """Get current system toggles (for use by other modules)."""
-    return _system_toggles.copy()
+async def get_system_toggles() -> Dict[str, bool]:
+    """Get current system toggles from Redis (for use by other modules)."""
+    return await _get_system_toggles_from_redis()
 
 
-def is_autostart_paused() -> bool:
-    """Check if autostart is paused."""
-    return _system_toggles.get("pause_autostart", False)
+async def is_autostart_paused() -> bool:
+    """Check if autostart is paused (async - reads from Redis)."""
+    toggles = await _get_system_toggles_from_redis()
+    return toggles.get("pause_autostart", False)
 
 
-def is_interhand_monitor_paused() -> bool:
-    """Check if inter-hand monitor is paused."""
-    return _system_toggles.get("pause_interhand_monitor", False)
+async def is_interhand_monitor_paused() -> bool:
+    """Check if inter-hand monitor is paused (async - reads from Redis)."""
+    toggles = await _get_system_toggles_from_redis()
+    return toggles.get("pause_interhand_monitor", False)

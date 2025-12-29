@@ -655,8 +655,8 @@ async def monitor_inter_hand_timeouts():
         try:
             await asyncio.sleep(POLL_INTERVAL)
 
-            # Check if monitor is paused via admin toggle
-            if is_interhand_monitor_paused():
+            # Check if monitor is paused via admin toggle (async Redis call)
+            if await is_interhand_monitor_paused():
                 continue
 
             redis_client = await get_redis_client()
@@ -1355,8 +1355,8 @@ async def monitor_table_autostart():
         try:
             await asyncio.sleep(1)  # Check every second
 
-            # Check if autostart is paused via admin toggle
-            if is_autostart_paused():
+            # Check if autostart is paused via admin toggle (async Redis call)
+            if await is_autostart_paused():
                 continue
 
             async with get_db_session() as db:
