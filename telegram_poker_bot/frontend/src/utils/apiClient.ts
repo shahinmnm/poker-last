@@ -528,3 +528,252 @@ export async function adminSetSystemToggles(
     body: options as Record<string, unknown>,
   })
 }
+
+
+// ============================================================================
+// Admin Session Management
+// ============================================================================
+
+export interface AdminSessionValidateResponse {
+  valid: boolean
+  admin_chat_id?: number
+  expires_at?: string
+}
+
+export interface AdminAuditLogEntry {
+  id: string
+  admin_chat_id: number
+  action_type: string
+  target?: string
+  reason?: string
+  metadata?: Record<string, unknown>
+  ip_hash?: string
+  timestamp: string
+}
+
+export interface AdminAuditLogsResponse {
+  entries: AdminAuditLogEntry[]
+  total: number
+}
+
+/**
+ * Validate the current admin session
+ */
+export async function adminValidateSession(): Promise<AdminSessionValidateResponse> {
+  return apiFetch<AdminSessionValidateResponse>('/admin/session/validate')
+}
+
+/**
+ * Logout and invalidate admin session
+ */
+export async function adminLogout(): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>('/admin/logout', {
+    method: 'POST',
+  })
+}
+
+/**
+ * Get admin audit logs
+ */
+export async function adminGetAuditLogs(options: {
+  limit?: number
+  offset?: number
+  action_type?: string
+} = {}): Promise<AdminAuditLogsResponse> {
+  return apiFetch<AdminAuditLogsResponse>('/admin/audit-logs', {
+    query: {
+      limit: options.limit,
+      offset: options.offset,
+      action_type: options.action_type,
+    },
+  })
+}
+
+
+// ============================================================================
+// Admin Dashboard KPIs
+// ============================================================================
+
+export interface AdminDashboardKPIs {
+  timestamp: string
+  kpis: {
+    total_users: number
+    active_tables: number
+    tables_by_status: Record<string, number>
+    hands_24h: number
+    deposits_24h: number
+    withdrawals_24h: number
+    net_flow_24h: number
+    active_players_24h: number
+    stuck_tables: number
+  }
+}
+
+/**
+ * Get dashboard KPIs
+ */
+export async function adminGetDashboardKPIs(): Promise<AdminDashboardKPIs> {
+  return apiFetch<AdminDashboardKPIs>('/admin/dashboard/kpis')
+}
+
+
+// ============================================================================
+// Admin User/Banking APIs
+// ============================================================================
+
+export interface AdminUserSummary {
+  id: number
+  tg_user_id: number
+  username: string | null
+  balance_real: number
+  balance_play: number
+  first_seen_at: string | null
+  last_seen_at: string | null
+}
+
+export interface AdminUsersResponse {
+  users: AdminUserSummary[]
+  count: number
+  offset: number
+  limit: number
+}
+
+export interface AdminUserWallet {
+  user: {
+    id: number
+    tg_user_id: number
+    username: string | null
+  }
+  wallet: {
+    balance_real: number
+    balance_play: number
+  }
+  recent_transactions: Array<{
+    id: number
+    type: string
+    amount: number
+    balance_after: number
+    currency_type: string
+    metadata: Record<string, unknown> | null
+    created_at: string | null
+  }>
+}
+
+export interface AdminTransactionSummary {
+  id: number
+  user_id: number
+  type: string
+  amount: number
+  balance_after: number
+  currency_type: string
+  reference_id: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string | null
+}
+
+export interface AdminTransactionsResponse {
+  transactions: AdminTransactionSummary[]
+  count: number
+  offset: number
+  limit: number
+}
+
+export interface AdminBalanceChangeResponse {
+  success: boolean
+  user_id: number
+  amount: number
+  currency_type: string
+  new_balance: number
+  reason: string
+}
+
+/**
+ * List users with optional search
+ */
+export async function adminListUsers(options: {
+  search?: string
+  limit?: number
+  offset?: number
+} = {}): Promise<AdminUsersResponse> {
+  return apiFetch<AdminUsersResponse>('/admin/users', {
+    query: {
+      search: options.search,
+      limit: options.limit,
+      offset: options.offset,
+    },
+  })
+}
+
+/**
+ * Get user wallet details
+ */
+export async function adminGetUserWallet(userId: number): Promise<AdminUserWallet> {
+  return apiFetch<AdminUserWallet>(`/admin/users/${userId}/wallet`)
+}
+
+/**
+ * Deposit funds to a user's wallet
+ */
+export async function adminDeposit(
+  userId: number,
+  options: {
+    amount: number
+    reason: string
+    currency_type?: string
+    client_action_id?: string
+  }
+): Promise<AdminBalanceChangeResponse> {
+  return apiFetch<AdminBalanceChangeResponse>(`/admin/users/${userId}/deposit`, {
+    method: 'POST',
+    body: {
+      amount: options.amount,
+      reason: options.reason,
+      currency_type: options.currency_type ?? 'REAL',
+      client_action_id: options.client_action_id,
+    },
+  })
+}
+
+/**
+ * Withdraw funds from a user's wallet
+ */
+export async function adminWithdraw(
+  userId: number,
+  options: {
+    amount: number
+    reason: string
+    currency_type?: string
+    client_action_id?: string
+  }
+): Promise<AdminBalanceChangeResponse> {
+  return apiFetch<AdminBalanceChangeResponse>(`/admin/users/${userId}/withdraw`, {
+    method: 'POST',
+    body: {
+      amount: options.amount,
+      reason: options.reason,
+      currency_type: options.currency_type ?? 'REAL',
+      client_action_id: options.client_action_id,
+    },
+  })
+}
+
+/**
+ * List transactions with filters
+ */
+export async function adminListTransactions(options: {
+  user_id?: number
+  tx_type?: string
+  currency_type?: string
+  limit?: number
+  offset?: number
+} = {}): Promise<AdminTransactionsResponse> {
+  return apiFetch<AdminTransactionsResponse>('/admin/transactions', {
+    query: {
+      user_id: options.user_id,
+      tx_type: options.tx_type,
+      currency_type: options.currency_type,
+      limit: options.limit,
+      offset: options.offset,
+    },
+  })
+}
