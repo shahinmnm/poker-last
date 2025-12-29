@@ -26,6 +26,7 @@ import AdminPlayers from './pages/admin/AdminPlayers'
 import AdminBanking from './pages/admin/AdminBanking'
 import AdminAuditLogs from './pages/admin/AdminAuditLogs'
 import AdminExpired from './pages/admin/AdminExpired'
+import AdminEnter from './pages/admin/AdminEnter'
 import UIDemoPage from './pages/UIDemoPage'
 import { useTelegram } from './hooks/useTelegram'
 
@@ -92,6 +93,8 @@ function App() {
                       <Route path="banking" element={<AdminBanking />} />
                       <Route path="audit-logs" element={<AdminAuditLogs />} />
                     </Route>
+                    {/* Admin enter page - standalone, handles token redemption */}
+                    <Route path="admin/enter" element={<AdminEnter />} />
                     {/* Admin expired page - standalone, not inside AdminDashboard layout */}
                     <Route path="admin/expired" element={<AdminExpired />} />
                     <Route path="*" element={<Navigate to="/" replace />} />

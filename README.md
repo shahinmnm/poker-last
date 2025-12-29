@@ -294,9 +294,12 @@ ADMIN_SESSION_TTL_SECONDS=28800
 
 **Session Management**
 - `POST /api/admin/session-token` - Generate one-time token (bot-to-API, requires `X-Internal-API-Key`)
-- `GET /admin/enter?token=...` - Validate token and establish session
+- `GET /admin/enter?token=...` - Validate token and establish session (server-side redirect)
+- `POST /api/admin/redeem-entry-token` - Validate token and establish session (SPA flow, returns JSON)
 - `GET /api/admin/session/validate` - Check current session status
 - `POST /api/admin/logout` - Invalidate session
+
+> **Note**: If nginx doesn't proxy `/admin/enter` to the API server-side handler, the SPA handles it via the `AdminEnter` route which calls `POST /api/admin/redeem-entry-token`.
 
 **Banking/Users**
 - `GET /api/admin/users` - List users with search

@@ -607,6 +607,59 @@ export async function adminGetAuditLogs(options: {
   })
 }
 
+/**
+ * Response from redeeming an admin entry token
+ */
+export interface RedeemAdminEntryTokenResponse {
+  ok: boolean
+  redirect?: string
+  reason?: string
+}
+
+/**
+ * Redeem a one-time admin entry token.
+ *
+ * This is called by the SPA /admin/enter route to validate the token
+ * and establish an admin session. On success, the backend sets the
+ * admin_session cookie and returns the redirect path.
+ *
+ * @param token - The one-time entry token from query string
+ * @returns Promise with ok status, redirect path on success, or reason on failure
+ */
+export async function redeemAdminEntryToken(token: string): Promise<RedeemAdminEntryTokenResponse> {
+  try {
+    const response = await fetch(resolveApiUrl('/admin/redeem-entry-token'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+      credentials: 'include', // Important: include cookies for same-origin requests
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        ok: true,
+        redirect: data.redirect || '/admin/panel',
+      }
+    } else {
+      return {
+        ok: false,
+        reason: data.reason || 'invalid_token',
+      }
+    }
+  } catch (error) {
+    // Network error or JSON parse error
+    return {
+      ok: false,
+      reason: 'network_error',
+    }
+  }
+}
+
 
 // ============================================================================
 // Admin Dashboard KPIs
