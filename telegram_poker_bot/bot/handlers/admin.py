@@ -390,17 +390,33 @@ def _get_admin_context(context: ContextTypes.DEFAULT_TYPE) -> Dict[str, Any]:
     return ctx
 
 
-async def go_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Return to the main admin menu."""
-    if not _is_admin(update):
-        return await _handle_unauthorized(update)
-    _reset_admin_context(context)
+async def _send_admin_menu_with_link(
+    update: Update,
+    *,
+    is_new_link: bool = False,
+    reset_context: bool = False,
+    context: Optional[ContextTypes.DEFAULT_TYPE] = None,
+) -> int:
+    """Generate admin link and send menu with proper messaging.
+    
+    Args:
+        update: Telegram update
+        is_new_link: If True, show "New link generated!" message
+        reset_context: If True, reset admin conversation context
+        context: Required if reset_context is True
+        
+    Returns:
+        AdminState.MENU
+    """
     query = update.callback_query
     if query:
         await safe_answer_callback_query(query)
         target = query.message
     else:
         target = update.effective_message
+    
+    if reset_context and context:
+        _reset_admin_context(context)
     
     # Generate a fresh one-time link
     user = update.effective_user
@@ -414,60 +430,31 @@ async def go_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Build message with link info
     if one_time_url and token_info:
         ttl = token_info.get("ttl_seconds", 120)
-        panel_message = (
-            "♠️ Poker Admin Control Room\n\n"
-            f"🔐 Single-use link. Expires in {ttl // 60} minute(s)."
-        )
+        if is_new_link:
+            panel_message = (
+                "♠️ Poker Admin Control Room\n\n"
+                f"✅ New link generated!\n"
+                f"🔐 Single-use link. Expires in {ttl // 60} minute(s).\n\n"
+                "Pick a console below."
+            )
+        else:
+            panel_message = (
+                "♠️ Poker Admin Control Room\n\n"
+                f"🔐 Single-use link. Expires in {ttl // 60} minute(s)."
+            )
     else:
-        panel_message = (
-            "♠️ Poker Admin Control Room\n\n"
-            "⚠️ Link generation failed. Click 'Generate New Link' to try again."
-        )
-    
-    if target:
-        await target.reply_text(
-            panel_message, reply_markup=_admin_menu_keyboard(one_time_url)
-        )
-    return AdminState.MENU
-
-
-async def handle_generate_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle the 'Generate new link' button - generates a fresh one-time admin URL."""
-    if not _is_admin(update):
-        return await _handle_unauthorized(update)
-    
-    query = update.callback_query
-    if query:
-        await safe_answer_callback_query(query)
-        target = query.message
-    else:
-        target = update.effective_message
-    
-    # Generate a fresh one-time link
-    user = update.effective_user
-    one_time_url = None
-    token_info = None
-    if user:
-        token_info = await _generate_admin_link(user.id)
-        if token_info:
-            one_time_url = token_info.get("enter_url")
-    
-    # Build message with link info
-    if one_time_url and token_info:
-        ttl = token_info.get("ttl_seconds", 120)
-        panel_message = (
-            "♠️ Poker Admin Control Room\n\n"
-            f"✅ New link generated!\n"
-            f"🔐 Single-use link. Expires in {ttl // 60} minute(s).\n\n"
-            "Pick a console below."
-        )
-    else:
-        panel_message = (
-            "♠️ Poker Admin Control Room\n\n"
-            "❌ Failed to generate admin link.\n"
-            "Please try again or check backend logs.\n\n"
-            "Pick a console below."
-        )
+        if is_new_link:
+            panel_message = (
+                "♠️ Poker Admin Control Room\n\n"
+                "❌ Failed to generate admin link.\n"
+                "Please try again or check backend logs.\n\n"
+                "Pick a console below."
+            )
+        else:
+            panel_message = (
+                "♠️ Poker Admin Control Room\n\n"
+                "⚠️ Link generation failed. Click 'Generate New Link' to try again."
+            )
         logger.warning(
             "Admin link generation failed for user",
             user_id=user.id if user else None,
@@ -478,6 +465,24 @@ async def handle_generate_link(update: Update, context: ContextTypes.DEFAULT_TYP
             panel_message, reply_markup=_admin_menu_keyboard(one_time_url)
         )
     return AdminState.MENU
+
+
+async def go_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Return to the main admin menu."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+    return await _send_admin_menu_with_link(
+        update, is_new_link=False, reset_context=True, context=context
+    )
+
+
+async def handle_generate_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the 'Generate new link' button - generates a fresh one-time admin URL."""
+    if not _is_admin(update):
+        return await _handle_unauthorized(update)
+    return await _send_admin_menu_with_link(
+        update, is_new_link=True, reset_context=False, context=context
+    )
 
 
 async def _handle_unauthorized(update: Update) -> int:
