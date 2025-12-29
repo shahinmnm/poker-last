@@ -108,6 +108,9 @@ services:
       - "-m"
       - "telegram_poker_bot.bot.main"
     env_file: *backend-env
+    environment:
+      # Internal API URL for bot-to-API communication within Docker network
+      API_BASE_URL: http://backend:8000/api
     depends_on:
       postgres:
         condition: service_healthy

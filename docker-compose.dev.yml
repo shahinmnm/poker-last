@@ -15,6 +15,8 @@ services:
       - ./pokerkit:/opt/pokerkit-src
     environment:
       PYTHONPATH: /opt/app:/opt/pokerkit-src
+      # Internal API URL for bot-to-API communication within Docker network
+      API_BASE_URL: http://api:8000/api
 
   api:
     command:

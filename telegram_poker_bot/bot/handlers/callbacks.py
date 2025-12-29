@@ -36,6 +36,13 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     
     data = query.data
     
+    # Skip admin callbacks - they are handled by the admin ConversationHandler
+    # This prevents "Unhandled callback data" warnings for admin callbacks
+    # that should be processed by admin.py handlers
+    if data and data.startswith("admin_"):
+        logger.debug("Skipping admin callback in global handler", data=data)
+        return
+    
     try:
         user, lang = await _get_or_create_user(update)
         

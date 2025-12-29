@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     internal_api_key: Optional[str] = None  # Secret for bot-to-API communication
     admin_entry_token_ttl_seconds: int = 120  # One-time token TTL (2 minutes)
     admin_session_ttl_seconds: int = 28800  # Admin session TTL (8 hours)
+    
+    # Internal API URL for bot-to-API communication within Docker network
+    # This should be the full URL including /api prefix (e.g., http://api:8000/api)
+    # Used for internal service calls like admin session-token generation
+    api_base_url: Optional[str] = None
 
     # Feature Flags
     feature_wallet: bool = False
