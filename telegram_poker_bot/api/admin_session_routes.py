@@ -62,6 +62,20 @@ class AuditLogResponse(BaseModel):
     total: int
 
 
+class RedeemEntryTokenRequest(BaseModel):
+    """Request to redeem a one-time admin entry token (SPA flow)."""
+    
+    token: str = Field(..., description="One-time entry token")
+
+
+class RedeemEntryTokenResponse(BaseModel):
+    """Response from redeeming an admin entry token."""
+    
+    ok: bool
+    redirect: Optional[str] = None
+    reason: Optional[str] = None
+
+
 # ==================== Dependencies ====================
 
 def get_client_ip(request: Request) -> str:
@@ -295,6 +309,92 @@ async def admin_enter(
     )
     
     return response
+
+
+@admin_session_router.post("/api/admin/redeem-entry-token", response_model=RedeemEntryTokenResponse)
+async def redeem_entry_token(
+    request: Request,
+    body: RedeemEntryTokenRequest,
+    response: Response,
+):
+    """
+    Redeem a one-time admin entry token (SPA flow).
+    
+    This endpoint is called by the frontend SPA at /admin/enter route to:
+    1. Validate the one-time token
+    2. Mark the token as used (single-use)
+    3. Create an admin session
+    4. Set a secure HTTP-only cookie
+    5. Return JSON with redirect path
+    
+    Unlike GET /admin/enter which redirects, this returns JSON for SPA consumption.
+    
+    Request JSON: { token: string }
+    
+    Response:
+    - Success (200): { ok: true, redirect: "/admin/panel" }
+    - Invalid token (401): { ok: false, reason: "invalid_token" }
+    """
+    service = get_admin_session_service()
+    client_ip = get_client_ip(request)
+    user_agent = request.headers.get("User-Agent", "unknown")
+    
+    # Rate limiting - strict for security-critical operation
+    ip_hash = service._hash_sensitive(client_ip)
+    if not await service.check_rate_limit(f"redeem:{ip_hash}", max_requests=3, window_seconds=60):
+        logger.warning(
+            "Admin redeem-entry-token rate limited",
+            ip_hash=ip_hash,
+        )
+        return RedeemEntryTokenResponse(
+            ok=False,
+            reason="rate_limited",
+        )
+    
+    # Validate and consume token
+    session = await service.validate_and_consume_token(
+        token=body.token,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    
+    if not session:
+        logger.warning(
+            "Admin redeem-entry-token failed - invalid or expired token",
+        )
+        response.status_code = 401
+        return RedeemEntryTokenResponse(
+            ok=False,
+            reason="invalid_token",
+        )
+    
+    # Determine if request is secure (behind HTTPS proxy or direct HTTPS)
+    x_forwarded_proto = request.headers.get("X-Forwarded-Proto", "")
+    first_proto = x_forwarded_proto.split(",")[0].strip().lower() if x_forwarded_proto else ""
+    frontend_base_url = settings.mini_app_url.rstrip("/")
+    is_https_request = first_proto == "https" or frontend_base_url.startswith("https://")
+    
+    # Set secure HTTP-only cookie
+    response.set_cookie(
+        key="admin_session",
+        value=session.session_id,
+        max_age=settings.admin_session_ttl_seconds,
+        httponly=True,
+        secure=is_https_request,
+        samesite="lax",
+        path="/",
+    )
+    
+    logger.info(
+        "Admin redeem-entry-token success",
+        admin_chat_id=session.admin_chat_id,
+        session_id_prefix=session.session_id[:8],
+    )
+    
+    return RedeemEntryTokenResponse(
+        ok=True,
+        redirect=settings.admin_dashboard_path,
+    )
 
 
 @admin_session_router.get("/api/admin/session/validate", response_model=SessionValidateResponse)
