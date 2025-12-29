@@ -1576,6 +1576,9 @@ def build_admin_handler() -> ConversationHandler:
                     pattern="^admin_home$",
                 ),
                 CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
+                CallbackQueryHandler(
                     handle_intel_menu_selection,
                     pattern="^admin_(intel_lookup|intel_balance|intel_stats|lookup_again|balance_again|stats_again|intel_menu)$",
                 ),
@@ -1629,12 +1632,18 @@ def build_admin_handler() -> ConversationHandler:
             AdminState.USER_LOOKUP: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_lookup_input),
                 CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
+                CallbackQueryHandler(
                     handle_intel_menu_selection,
                     pattern="^admin_(lookup_again|intel_menu|home|intel_stats)$",
                 ),
             ],
             AdminState.USER_BALANCE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_balance_input),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
                 CallbackQueryHandler(
                     handle_intel_menu_selection,
                     pattern="^admin_(balance_again|intel_menu|home|intel_stats)$",
@@ -1643,6 +1652,9 @@ def build_admin_handler() -> ConversationHandler:
             AdminState.USER_STATS: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_stats_input),
                 CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
+                CallbackQueryHandler(
                     handle_intel_menu_selection,
                     pattern="^admin_(stats_again|intel_menu|home|intel_stats)$",
                 ),
@@ -1650,18 +1662,27 @@ def build_admin_handler() -> ConversationHandler:
             AdminState.USER_CRM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crm_lookup),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.USER_CRM_ACTION: [
                 CallbackQueryHandler(
                     handle_crm_action, pattern="^admin_crm_(ban|message|balance):"
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.USER_MESSAGE: [
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, handle_crm_message_input
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.USER_BALANCE_CURRENCY: [
                 CallbackQueryHandler(
@@ -1669,12 +1690,18 @@ def build_admin_handler() -> ConversationHandler:
                     pattern="^admin_balance_currency:(REAL|PLAY)$",
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.USER_BALANCE_ADJUST: [
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, handle_crm_balance_adjust
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.MARKETING_MENU: [
                 CallbackQueryHandler(
@@ -1682,42 +1709,63 @@ def build_admin_handler() -> ConversationHandler:
                     pattern="^admin_marketing_(promo|broadcast)$",
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.MARKETING_PROMO_CODE: [
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, handle_promo_code_input
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.MARKETING_PROMO_AMOUNT: [
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, handle_promo_amount_input
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.MARKETING_PROMO_CURRENCY: [
                 CallbackQueryHandler(
                     handle_promo_currency, pattern="^promo_currency:(REAL|PLAY)$"
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.MARKETING_PROMO_LIMIT: [
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, handle_promo_limit_input
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.MARKETING_PROMO_EXPIRY: [
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, handle_promo_expiry_input
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
             AdminState.MARKETING_BROADCAST: [
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, handle_broadcast_message
                 ),
                 CallbackQueryHandler(go_home, pattern="^admin_home$"),
+                CallbackQueryHandler(
+                    handle_generate_link, pattern="^admin_generate_link$"
+                ),
             ],
         },
         fallbacks=[CommandHandler("cancel", start_admin)],
