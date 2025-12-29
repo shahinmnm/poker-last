@@ -264,8 +264,11 @@ async def admin_enter(
     # - Path=/: applies to all routes (needed for /admin/* and /api/admin/*)
     
     # Determine if request is secure (behind HTTPS proxy or direct HTTPS)
-    x_forwarded_proto = request.headers.get("X-Forwarded-Proto", "").lower()
-    is_https_request = x_forwarded_proto == "https" or frontend_base_url.startswith("https://")
+    # Handle multiple values in X-Forwarded-Proto (e.g., "https,http" from chained proxies)
+    x_forwarded_proto = request.headers.get("X-Forwarded-Proto", "")
+    # Take the first protocol if multiple are present (leftmost is from original client)
+    first_proto = x_forwarded_proto.split(",")[0].strip().lower() if x_forwarded_proto else ""
+    is_https_request = first_proto == "https" or frontend_base_url.startswith("https://")
     
     response.set_cookie(
         key="admin_session",
