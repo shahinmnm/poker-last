@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { adminValidateSession, adminLogout, adminGetDashboardKPIs } from '../../utils/apiClient'
 
@@ -39,7 +39,6 @@ const navItems: NavItem[] = [
  */
 export default function AdminDashboard() {
   const location = useLocation()
-  const navigate = useNavigate()
   const [sessionValid, setSessionValid] = useState<boolean | null>(null)
   const [adminChatId, setAdminChatId] = useState<number | null>(null)
   const [kpis, setKpis] = useState<{

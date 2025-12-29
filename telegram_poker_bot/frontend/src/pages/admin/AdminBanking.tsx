@@ -302,34 +302,39 @@ export default function AdminBanking() {
             {transactions.length === 0 ? (
               <div style={styles.empty}>No transactions yet</div>
             ) : (
-              transactions.map((tx) => (
-                <div key={tx.id} style={styles.transactionItem}>
-                  <div style={styles.txHeader}>
-                    <span style={{
-                      ...styles.txType,
-                      backgroundColor: tx.type === 'deposit' ? '#16a34a' : '#dc2626',
-                    }}>
-                      {tx.type.toUpperCase()}
-                    </span>
-                    <span style={styles.txUser}>User #{tx.user_id}</span>
+              transactions.map((tx) => {
+                const adminReason = tx.metadata?.admin_reason
+                const adminReasonText = typeof adminReason === 'string' && adminReason.length > 0 ? adminReason : null
+
+                return (
+                  <div key={tx.id} style={styles.transactionItem}>
+                    <div style={styles.txHeader}>
+                      <span style={{
+                        ...styles.txType,
+                        backgroundColor: tx.type === 'deposit' ? '#16a34a' : '#dc2626',
+                      }}>
+                        {tx.type.toUpperCase()}
+                      </span>
+                      <span style={styles.txUser}>User #{tx.user_id}</span>
+                    </div>
+                    <div style={styles.txDetails}>
+                      <span style={{
+                        ...styles.txAmount,
+                        color: tx.amount >= 0 ? '#22c55e' : '#ef4444',
+                      }}>
+                        {tx.amount >= 0 ? '+' : ''}{formatCurrency(tx.amount)}
+                      </span>
+                      <span style={styles.txCurrency}>{tx.currency_type}</span>
+                    </div>
+                    <div style={styles.txFooter}>
+                      <span style={styles.txDate}>{formatDate(tx.created_at)}</span>
+                      {adminReasonText && (
+                        <span style={styles.txReason}>{adminReasonText}</span>
+                      )}
+                    </div>
                   </div>
-                  <div style={styles.txDetails}>
-                    <span style={{
-                      ...styles.txAmount,
-                      color: tx.amount >= 0 ? '#22c55e' : '#ef4444',
-                    }}>
-                      {tx.amount >= 0 ? '+' : ''}{formatCurrency(tx.amount)}
-                    </span>
-                    <span style={styles.txCurrency}>{tx.currency_type}</span>
-                  </div>
-                  <div style={styles.txFooter}>
-                    <span style={styles.txDate}>{formatDate(tx.created_at)}</span>
-                    {tx.metadata?.admin_reason && (
-                      <span style={styles.txReason}>{String(tx.metadata.admin_reason)}</span>
-                    )}
-                  </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>

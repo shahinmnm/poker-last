@@ -13,7 +13,6 @@ export default function AdminAnalytics() {
   const {
     realtime,
     hourly,
-    summary,
     isLoading,
     error: analyticsError,
     fetchRealtime,

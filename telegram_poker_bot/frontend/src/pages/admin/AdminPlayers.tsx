@@ -82,7 +82,10 @@ export default function AdminPlayers() {
 
       {error && <div style={styles.error}>{error}</div>}
 
-      <div style={styles.content}>
+      <div style={{
+        ...styles.content,
+        gridTemplateColumns: selectedUser ? '1fr 400px' : '1fr',
+      }}>
         {/* Users List */}
         <div style={styles.usersList}>
           <h3 style={styles.sectionTitle}>
@@ -256,7 +259,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   content: {
     display: 'grid',
-    gridTemplateColumns: selectedUser ? '1fr 400px' : '1fr',
     gap: '24px',
   },
   usersList: {
