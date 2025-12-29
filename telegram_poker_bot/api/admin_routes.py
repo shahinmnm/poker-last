@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Body, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select, and_, func, or_
 from sqlalchemy.orm import joinedload
@@ -19,11 +19,18 @@ from telegram_poker_bot.shared.models import (
     Hand,
     HandStatus,
     User,
+    Transaction,
+    CurrencyType,
+    TransactionType,
 )
 from telegram_poker_bot.shared.services.insights_engine import get_insights_engine
 from telegram_poker_bot.shared.services.insights_delivery import (
     InsightsDeliveryService,
     LoggingChannel,
+)
+from telegram_poker_bot.shared.services.admin_session_service import (
+    get_admin_session_service,
+    AdminSession,
 )
 from telegram_poker_bot.game_core import get_redis_client
 
@@ -33,46 +40,50 @@ logger = get_logger(__name__)
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-# TODO: Add admin authentication dependency
-# For now, this is a placeholder - implement actual admin auth in production
-# 
-# SECURITY WARNING: This placeholder ALWAYS returns True, meaning admin endpoints
-# are currently accessible without authentication. This MUST be replaced with
-# proper authentication before production deployment.
-#
-# Recommended implementations:
-# - JWT tokens with admin role claims
-# - API keys validated against secure storage
-# - OAuth with admin scope verification
-# - Integration with existing authentication system
-#
-async def verify_admin_access() -> bool:
-    """Verify that the requester has admin privileges.
+# ============================================================================
+# Admin Session Authentication Dependency
+# ============================================================================
+
+
+async def get_admin_session_from_cookie(
+    request: Request,
+) -> Optional[AdminSession]:
+    """Extract and validate admin session from cookie."""
+    session_id = request.cookies.get("admin_session")
+    if not session_id:
+        return None
     
-    WARNING: This is a PLACEHOLDER implementation that bypasses authentication.
-    DO NOT use in production without implementing proper admin verification.
+    service = get_admin_session_service()
+    return await service.validate_session(session_id)
+
+
+async def verify_admin_access(
+    request: Request,
+    session: Optional[AdminSession] = Depends(get_admin_session_from_cookie),
+) -> AdminSession:
+    """Verify that the requester has a valid admin session.
     
-    Production implementation should:
-    1. Validate authentication token/credentials
-    2. Check user has admin role/permissions
-    3. Log access attempts
-    4. Return False for unauthorized access
-    5. Raise HTTPException(403) for denied access
+    This replaces the old placeholder authentication with session-based auth.
+    Admin sessions are created through the Telegram /admin command flow.
     
     Returns:
-        bool: True if admin access granted (currently always True - INSECURE)
+        AdminSession: The validated admin session
+        
+    Raises:
+        HTTPException: If session is missing or invalid
     """
-    # TODO: Implement actual admin verification
-    # Example:
-    # if not user_has_admin_role(current_user):
-    #     raise HTTPException(status_code=403, detail="Admin access required")
-    # return True
-    return True
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin session required. Please use /admin command in Telegram to get access.",
+            headers={"WWW-Authenticate": "AdminSession"},
+        )
+    return session
 
 
 @admin_router.get("/analytics/realtime")
 async def get_realtime_analytics(
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Get realtime snapshot of all tables.
@@ -123,7 +134,7 @@ async def get_realtime_analytics(
 async def get_hourly_aggregates(
     hours: int = Query(default=24, ge=1, le=168, description="Hours of data to retrieve"),
     table_id: Optional[int] = Query(default=None, description="Filter by table ID"),
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Get hourly aggregated analytics.
@@ -173,7 +184,7 @@ async def get_historical_range(
     end_date: str = Query(..., description="End date (ISO format)"),
     metric_type: str = Query(default="hourly", description="Metric type: hourly or snapshot"),
     table_id: Optional[int] = Query(default=None, description="Filter by table ID"),
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Get historical analytics for a date range.
@@ -288,7 +299,7 @@ async def get_historical_range(
 
 @admin_router.get("/analytics/summary")
 async def get_analytics_summary(
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Get summary statistics across all tables.
@@ -348,7 +359,7 @@ async def get_analytics_summary(
 @admin_router.get("/insights/generate")
 async def generate_insights(
     hours: int = Query(default=1, ge=1, le=24, description="Hours of data to analyze"),
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Generate insights from recent analytics data.
@@ -387,7 +398,7 @@ async def generate_insights(
 @admin_router.post("/insights/deliver")
 async def deliver_insights(
     hours: int = Query(default=1, ge=1, le=24, description="Hours of data to analyze"),
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Generate and deliver insights through configured channels.
@@ -539,7 +550,7 @@ async def admin_list_tables(
     is_public: Optional[bool] = Query(default=None, description="Filter by is_public"),
     stuck_only: bool = Query(default=False, description="Show only stuck tables"),
     limit: int = Query(default=100, ge=1, le=500, description="Max results"),
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -631,7 +642,7 @@ async def admin_list_tables(
 @admin_router.get("/tables/{table_id}")
 async def admin_get_table_detail(
     table_id: int,
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -797,7 +808,7 @@ async def admin_get_table_detail(
 async def admin_reset_stuck_hand(
     table_id: int,
     request: ResetStuckHandRequest = Body(default=ResetStuckHandRequest()),
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -939,7 +950,7 @@ async def admin_reset_stuck_hand(
 @admin_router.post("/tables/{table_id}/force-waiting")
 async def admin_force_waiting(
     table_id: int,
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -985,7 +996,7 @@ async def admin_force_waiting(
 async def admin_kick_all(
     table_id: int,
     request: KickAllRequest = Body(default=KickAllRequest()),
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1068,7 +1079,7 @@ async def admin_kick_all(
 @admin_router.post("/tables/{table_id}/clear-runtime-cache")
 async def admin_clear_runtime_cache(
     table_id: int,
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1128,7 +1139,7 @@ async def admin_clear_runtime_cache(
 @admin_router.post("/tables/{table_id}/broadcast-snapshot")
 async def admin_broadcast_snapshot(
     table_id: int,
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1192,7 +1203,7 @@ async def admin_broadcast_snapshot(
 
 @admin_router.get("/system/toggles")
 async def admin_get_system_toggles(
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
 ):
     """
     Get current system toggle values.
@@ -1213,7 +1224,7 @@ async def admin_get_system_toggles(
 @admin_router.post("/system/toggles")
 async def admin_set_system_toggles(
     request: SystemTogglesRequest,
-    is_admin: bool = Depends(verify_admin_access),
+    admin_session: AdminSession = Depends(verify_admin_access),
 ):
     """
     Set system toggle values.
@@ -1279,3 +1290,450 @@ async def is_interhand_monitor_paused() -> bool:
     """Check if inter-hand monitor is paused (async - reads from Redis)."""
     toggles = await _get_system_toggles_from_redis()
     return toggles.get("pause_interhand_monitor", False)
+
+
+# ============================================================================
+# Dashboard KPIs Endpoint
+# ============================================================================
+
+
+@admin_router.get("/dashboard/kpis")
+async def admin_get_dashboard_kpis(
+    admin_session: AdminSession = Depends(verify_admin_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get key performance indicators for the admin dashboard.
+    
+    Returns:
+    - Total users count
+    - Active tables count
+    - Tables by status
+    - Total hands played (last 24h)
+    - Total deposit/withdrawal volume (last 24h)
+    - Active players (users with activity in last 24h)
+    """
+    now = datetime.now(timezone.utc)
+    last_24h = now - timedelta(hours=24)
+    
+    # Total users
+    total_users_result = await db.execute(select(func.count(User.id)))
+    total_users = total_users_result.scalar() or 0
+    
+    # Table counts by status
+    table_counts_result = await db.execute(
+        select(Table.status, func.count(Table.id))
+        .group_by(Table.status)
+    )
+    table_counts = {status.value: count for status, count in table_counts_result.all()}
+    
+    # Active tables (WAITING + ACTIVE)
+    active_tables = table_counts.get("waiting", 0) + table_counts.get("active", 0)
+    
+    # Total hands in last 24h
+    hands_result = await db.execute(
+        select(func.count(Hand.id))
+        .where(Hand.started_at >= last_24h)
+    )
+    hands_24h = hands_result.scalar() or 0
+    
+    # Transaction volume in last 24h
+    deposits_result = await db.execute(
+        select(func.sum(Transaction.amount))
+        .where(
+            Transaction.created_at >= last_24h,
+            Transaction.type == TransactionType.DEPOSIT,
+            Transaction.amount > 0,
+        )
+    )
+    deposits_24h = deposits_result.scalar() or 0
+    
+    withdrawals_result = await db.execute(
+        select(func.sum(func.abs(Transaction.amount)))
+        .where(
+            Transaction.created_at >= last_24h,
+            Transaction.type == TransactionType.WITHDRAWAL,
+        )
+    )
+    withdrawals_24h = withdrawals_result.scalar() or 0
+    
+    # Active players (seated in last 24h)
+    active_players_result = await db.execute(
+        select(func.count(func.distinct(Seat.user_id)))
+        .where(Seat.joined_at >= last_24h)
+    )
+    active_players_24h = active_players_result.scalar() or 0
+    
+    # Stuck tables count
+    stuck_tables_result = await db.execute(
+        select(func.count(Table.id))
+        .where(
+            Table.status == TableStatus.ACTIVE,
+            Table.last_action_at < now - timedelta(minutes=STUCK_TABLE_THRESHOLD_MINUTES),
+        )
+    )
+    stuck_tables = stuck_tables_result.scalar() or 0
+    
+    return {
+        "timestamp": now.isoformat(),
+        "kpis": {
+            "total_users": total_users,
+            "active_tables": active_tables,
+            "tables_by_status": table_counts,
+            "hands_24h": hands_24h,
+            "deposits_24h": deposits_24h,
+            "withdrawals_24h": withdrawals_24h,
+            "net_flow_24h": deposits_24h - withdrawals_24h,
+            "active_players_24h": active_players_24h,
+            "stuck_tables": stuck_tables,
+        },
+    }
+
+
+# ============================================================================
+# User/Banking Admin Endpoints
+# ============================================================================
+
+
+class AdminDepositRequest(BaseModel):
+    """Request body for admin deposit."""
+    amount: int = Field(..., gt=0, description="Amount in cents to deposit")
+    reason: str = Field(..., min_length=3, description="Reason for the deposit")
+    currency_type: str = Field(default="REAL", description="Currency type: REAL or PLAY")
+    client_action_id: Optional[str] = Field(None, description="Idempotency key")
+
+
+class AdminWithdrawRequest(BaseModel):
+    """Request body for admin withdrawal."""
+    amount: int = Field(..., gt=0, description="Amount in cents to withdraw")
+    reason: str = Field(..., min_length=3, description="Reason for the withdrawal")
+    currency_type: str = Field(default="REAL", description="Currency type: REAL or PLAY")
+    client_action_id: Optional[str] = Field(None, description="Idempotency key")
+
+
+@admin_router.get("/users")
+async def admin_list_users(
+    search: Optional[str] = Query(None, description="Search by username or ID"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    admin_session: AdminSession = Depends(verify_admin_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List users with search capability.
+    
+    Search by:
+    - User ID (numeric)
+    - Telegram user ID (numeric)
+    - Username (partial match)
+    """
+    query = select(User)
+    
+    if search:
+        search = search.strip()
+        # Try numeric search first
+        try:
+            numeric_id = int(search)
+            query = query.where(
+                or_(
+                    User.id == numeric_id,
+                    User.tg_user_id == numeric_id,
+                )
+            )
+        except ValueError:
+            # Text search on username
+            query = query.where(
+                User.username.ilike(f"%{search}%")
+            )
+    
+    query = query.order_by(User.id.desc()).offset(offset).limit(limit)
+    result = await db.execute(query)
+    users = list(result.scalars())
+    
+    return {
+        "users": [
+            {
+                "id": u.id,
+                "tg_user_id": u.tg_user_id,
+                "username": u.username,
+                "balance_real": u.balance_real,
+                "balance_play": u.balance_play,
+                "first_seen_at": u.first_seen_at.isoformat() if u.first_seen_at else None,
+                "last_seen_at": u.last_seen_at.isoformat() if u.last_seen_at else None,
+            }
+            for u in users
+        ],
+        "count": len(users),
+        "offset": offset,
+        "limit": limit,
+    }
+
+
+@admin_router.get("/users/{user_id}/wallet")
+async def admin_get_user_wallet(
+    user_id: int,
+    admin_session: AdminSession = Depends(verify_admin_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get detailed wallet information for a user.
+    """
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+    
+    # Get recent transactions
+    tx_result = await db.execute(
+        select(Transaction)
+        .where(Transaction.user_id == user_id)
+        .order_by(Transaction.created_at.desc())
+        .limit(20)
+    )
+    transactions = list(tx_result.scalars())
+    
+    return {
+        "user": {
+            "id": user.id,
+            "tg_user_id": user.tg_user_id,
+            "username": user.username,
+        },
+        "wallet": {
+            "balance_real": user.balance_real,
+            "balance_play": user.balance_play,
+        },
+        "recent_transactions": [
+            {
+                "id": tx.id,
+                "type": tx.type.value if hasattr(tx.type, 'value') else str(tx.type),
+                "amount": tx.amount,
+                "balance_after": tx.balance_after,
+                "currency_type": tx.currency_type.value if hasattr(tx.currency_type, 'value') else str(tx.currency_type),
+                "metadata": tx.metadata_json,
+                "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            }
+            for tx in transactions
+        ],
+    }
+
+
+@admin_router.post("/users/{user_id}/deposit")
+async def admin_deposit(
+    user_id: int,
+    request: AdminDepositRequest,
+    admin_session: AdminSession = Depends(verify_admin_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Deposit funds to a user's wallet.
+    
+    Requires:
+    - amount: Positive amount in cents
+    - reason: Explanation for audit trail
+    """
+    from telegram_poker_bot.shared.services import wallet_service
+    from telegram_poker_bot.shared.services.admin_session_service import get_admin_session_service
+    
+    # Verify user exists
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+    
+    # Parse currency type
+    try:
+        currency = CurrencyType(request.currency_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid currency type: {request.currency_type}")
+    
+    # Perform deposit
+    try:
+        new_balance = await wallet_service.adjust_balance(
+            db,
+            user_id=user_id,
+            amount=request.amount,
+            currency_type=currency,
+            transaction_type=TransactionType.DEPOSIT,
+            metadata={
+                "admin_reason": request.reason,
+                "admin_chat_id": admin_session.admin_chat_id,
+                "client_action_id": request.client_action_id,
+            },
+        )
+        await db.commit()
+    except ValueError as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Audit log
+    admin_service = get_admin_session_service()
+    await admin_service.log_audit_action(
+        admin_chat_id=admin_session.admin_chat_id,
+        action_type="DEPOSIT",
+        target=f"user:{user_id}",
+        reason=request.reason,
+        metadata={
+            "amount": request.amount,
+            "currency": currency.value,
+            "new_balance": new_balance,
+        },
+    )
+    
+    logger.info(
+        "Admin deposit completed",
+        user_id=user_id,
+        amount=request.amount,
+        currency=currency.value,
+        admin_chat_id=admin_session.admin_chat_id,
+        reason=request.reason,
+    )
+    
+    return {
+        "success": True,
+        "user_id": user_id,
+        "amount": request.amount,
+        "currency_type": currency.value,
+        "new_balance": new_balance,
+        "reason": request.reason,
+    }
+
+
+@admin_router.post("/users/{user_id}/withdraw")
+async def admin_withdraw(
+    user_id: int,
+    request: AdminWithdrawRequest,
+    admin_session: AdminSession = Depends(verify_admin_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Withdraw funds from a user's wallet.
+    
+    Requires:
+    - amount: Positive amount in cents
+    - reason: Explanation for audit trail
+    """
+    from telegram_poker_bot.shared.services import wallet_service
+    from telegram_poker_bot.shared.services.admin_session_service import get_admin_session_service
+    
+    # Verify user exists
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+    
+    # Parse currency type
+    try:
+        currency = CurrencyType(request.currency_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid currency type: {request.currency_type}")
+    
+    # Perform withdrawal (negative amount)
+    try:
+        new_balance = await wallet_service.adjust_balance(
+            db,
+            user_id=user_id,
+            amount=-request.amount,  # Negative for withdrawal
+            currency_type=currency,
+            transaction_type=TransactionType.WITHDRAWAL,
+            metadata={
+                "admin_reason": request.reason,
+                "admin_chat_id": admin_session.admin_chat_id,
+                "client_action_id": request.client_action_id,
+            },
+        )
+        await db.commit()
+    except ValueError as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Audit log
+    admin_service = get_admin_session_service()
+    await admin_service.log_audit_action(
+        admin_chat_id=admin_session.admin_chat_id,
+        action_type="WITHDRAW",
+        target=f"user:{user_id}",
+        reason=request.reason,
+        metadata={
+            "amount": request.amount,
+            "currency": currency.value,
+            "new_balance": new_balance,
+        },
+    )
+    
+    logger.info(
+        "Admin withdrawal completed",
+        user_id=user_id,
+        amount=request.amount,
+        currency=currency.value,
+        admin_chat_id=admin_session.admin_chat_id,
+        reason=request.reason,
+    )
+    
+    return {
+        "success": True,
+        "user_id": user_id,
+        "amount": request.amount,
+        "currency_type": currency.value,
+        "new_balance": new_balance,
+        "reason": request.reason,
+    }
+
+
+@admin_router.get("/transactions")
+async def admin_list_transactions(
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    tx_type: Optional[str] = Query(None, description="Filter by transaction type"),
+    currency_type: Optional[str] = Query(None, description="Filter by currency type"),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    admin_session: AdminSession = Depends(verify_admin_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List transactions with filters.
+    """
+    query = select(Transaction)
+    
+    if user_id is not None:
+        query = query.where(Transaction.user_id == user_id)
+    
+    if tx_type:
+        try:
+            tx_type_enum = TransactionType(tx_type)
+            query = query.where(Transaction.type == tx_type_enum)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid transaction type: {tx_type}")
+    
+    if currency_type:
+        try:
+            currency_enum = CurrencyType(currency_type)
+            query = query.where(Transaction.currency_type == currency_enum)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid currency type: {currency_type}")
+    
+    query = query.order_by(Transaction.created_at.desc()).offset(offset).limit(limit)
+    result = await db.execute(query)
+    transactions = list(result.scalars())
+    
+    return {
+        "transactions": [
+            {
+                "id": tx.id,
+                "user_id": tx.user_id,
+                "type": tx.type.value if hasattr(tx.type, 'value') else str(tx.type),
+                "amount": tx.amount,
+                "balance_after": tx.balance_after,
+                "currency_type": tx.currency_type.value if hasattr(tx.currency_type, 'value') else str(tx.currency_type),
+                "reference_id": tx.reference_id,
+                "metadata": tx.metadata_json,
+                "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            }
+            for tx in transactions
+        ],
+        "count": len(transactions),
+        "offset": offset,
+        "limit": limit,
+    }
