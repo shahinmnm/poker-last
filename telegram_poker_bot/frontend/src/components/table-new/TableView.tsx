@@ -459,7 +459,7 @@ export function TableView() {
             <button
               onClick={handleJoin}
               disabled={isJoining}
-              className="bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-8 h-12 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-8 h-12 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
             >
               {isJoining ? 'Joining...' : 'Join Table'}
             </button>

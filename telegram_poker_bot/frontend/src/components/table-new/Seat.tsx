@@ -153,22 +153,22 @@ export function Seat({
         {/* Status badges below avatar - compact */}
         <div className="mt-4 flex flex-col items-center gap-0.5">
           {current_bet > 0 && (
-            <div className="bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+            <div className="bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap">
               {formatByCurrency(current_bet, currency)}
             </div>
           )}
           {is_all_in && (
-            <div className="bg-[var(--color-danger-soft)] text-[var(--color-danger)] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            <div className="bg-[var(--color-danger-soft)] text-[var(--color-danger)] text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">
               {t('table.actions.allIn', { defaultValue: 'ALL IN' })}
             </div>
           )}
           {is_sitting_out && (
-            <div className="bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+            <div className="bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap">
               {t('table.status.sittingOut', { defaultValue: 'Zzz' })}
             </div>
           )}
           {isHero && (
-            <div className="bg-[var(--color-info-bg)] text-[var(--color-info-text)] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            <div className="bg-[var(--color-info-bg)] text-[var(--color-info-text)] text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">
               {t('table.players.youTag', { defaultValue: 'YOU' })}
             </div>
           )}
