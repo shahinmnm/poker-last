@@ -740,3 +740,78 @@
     font-size: 14px;
   }
 }
+
+/* ==================== PHASE 2: ACTIONBAR HEIGHT CONSTRAINT ==================== */
+/* ActionBar should never consume more than 15% of viewport height */
+/* This prevents hero cards from being hidden */
+
+.action-bar-container {
+  /* Constrain maximum height to 15% of viewport */
+  max-height: 15vh;
+  /* Ensure content fits within constraint */
+  overflow: visible;
+}
+
+/* Minimal action strip styling - ~48px base height */
+.action-bar-minimal {
+  min-height: 48px;
+  max-height: 56px;
+  padding: 6px 12px;
+}
+
+/* ==================== PHASE 3: COMMUNITY CARDS SACRED ZONE ==================== */
+/* Community cards must never be overlapped by other UI elements */
+
+.community-cards-sacred {
+  position: relative;
+  z-index: var(--z-cards-chips, 20);
+  /* Ensure no pointer events from overlays affect cards */
+  pointer-events: auto;
+  /* Prevent any transforms from causing overlap */
+  isolation: isolate;
+}
+
+/* Board area clearance - ensures pot/winner don't overlap cards */
+.table-board-stack {
+  /* Add breathing room above and below community cards */
+  padding-block: 8px;
+}
+
+/* ==================== PHASE 5: HERO SEAT SCALE OPTIMIZATION ==================== */
+/* Hero seat should scale down during non-action phases */
+
+/* Base hero seat with transition for smooth scaling */
+.player-seat {
+  transition: transform 0.2s ease-out;
+  transform-origin: center bottom;
+}
+
+/* Hero seat in action mode (full scale) */
+.player-seat--hero-action {
+  transform: scale(1);
+}
+
+/* Hero seat in reduced mode (showdown, opponent turn) */
+.player-seat--hero-reduced {
+  transform: scale(0.9);
+}
+
+/* Ensure no layout jumps by maintaining element box size */
+.player-seat--hero-reduced {
+  /* Compensate for scale with margin to maintain layout */
+  margin-bottom: calc((1 - 0.9) * var(--seat-scale-factor, 1) * -5px);
+}
+
+/* Override for very small screens - less aggressive reduction */
+@media (max-width: 400px) {
+  .player-seat--hero-reduced {
+    transform: scale(0.92);
+  }
+}
+
+/* Disable scale transitions for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .player-seat {
+    transition: none;
+  }
+}

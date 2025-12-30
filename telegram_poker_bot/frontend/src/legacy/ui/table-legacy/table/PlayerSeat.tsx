@@ -26,6 +26,8 @@ export interface PlayerSeatProps {
   className?: string
   /** Seat direction for 4-directional layout (gravity towards table center) */
   side?: SideDirection
+  /** PHASE 5: Whether hero seat should be in reduced scale mode (showdown/opponent turn) */
+  heroScaleReduced?: boolean
 }
 
 const formatChips = (value: number): string => {
@@ -135,6 +137,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       onClick,
       className,
       side = 'bottom',
+      heroScaleReduced = false,
     },
     ref,
   ) => {
@@ -182,6 +185,13 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     const mutedState = hasFolded || isSittingOut
     const isHorizontal = side === 'left' || side === 'right'
 
+    // PHASE 5: Apply hero seat scale classes based on UI mode
+    const heroScaleClass = isHero
+      ? heroScaleReduced
+        ? 'player-seat--hero-reduced'
+        : 'player-seat--hero-action'
+      : ''
+
     return (
       <div
         ref={ref}
@@ -189,6 +199,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
           'relative flex items-center transition-all duration-300 m-1 player-seat',
           layout.container,
           mutedState && 'grayscale opacity-50',
+          heroScaleClass,
           className,
         )}
         style={{

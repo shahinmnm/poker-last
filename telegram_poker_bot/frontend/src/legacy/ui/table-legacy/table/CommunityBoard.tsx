@@ -38,6 +38,7 @@ export default function CommunityBoard({
 
   return (
     <div className="flex w-full flex-col items-center gap-3" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
+      {/* Pot display - stacked ABOVE community cards per PHASE 3 */}
       <div
         ref={potRef}
         className={`pointer-events-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
@@ -50,7 +51,8 @@ export default function CommunityBoard({
         </div>
       </div>
 
-      <div className="flex w-full items-center justify-center px-2 sm:px-4">
+      {/* PHASE 3: Community cards marked as SACRED ZONE - no overlays allowed */}
+      <div className="flex w-full items-center justify-center px-2 sm:px-4 community-cards-sacred">
         <div className="flex items-center justify-center gap-2 sm:gap-3" style={{ minHeight: cardHeight }}>
           {dealtCards.map((card, index) => (
             <div
