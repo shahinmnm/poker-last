@@ -633,7 +633,12 @@
       "call": "Call {{amount}}",
       "bet": "Bet {{amount}}",
       "raise": "Raise to {{amount}}",
-      "allIn": "All-in {{amount}}"
+      "allIn": "All-in {{amount}}",
+      "betLabel": "Bet",
+      "raiseToLabel": "Raise to",
+      "to": "to",
+      "min": "Min",
+      "max": "Max"
     },
     "blinds": "Blinds",
     "turnCountdown": "Action timer",
@@ -670,7 +675,8 @@
       "waiting": "Waiting",
       "active": "Running",
       "paused": "Paused",
-      "ended": "Ended"
+      "ended": "Ended",
+      "sittingOut": "Zzz"
     },
     "visibility": {
       "public": "Public table",
@@ -711,6 +717,7 @@
       "bet": "Bet",
       "raise": "Raise",
       "allIn": "All-In",
+      "ready": "Ready",
       "rebuy": "Rebuy",
       "leaveAfterHand": "Leave after hand",
       "leavingAfterHand": "Leaving after hand",

@@ -10,6 +10,7 @@
  */
 
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Seat as SeatType } from '../../types/normalized'
 import CardRenderer from './CardRenderer'
 import CircularTimer from './CircularTimer'
@@ -34,6 +35,7 @@ export function Seat({
   isHero = false,
   isActing = false,
 }: SeatProps) {
+  const { t } = useTranslation()
   const {
     seat_index,
     user_id,
@@ -62,15 +64,23 @@ export function Seat({
     return classes.join(' ')
   }, [is_acting, isActing, is_winner, is_sitting_out, isEmpty, isHero, onClick])
 
-  // Empty seat - minimal placeholder
+  // Empty seat - minimal placeholder with proper touch target
   if (isEmpty) {
     return (
       <div
         className={`${seatClasses} ${className}`}
         data-seat-index={seat_index}
         onClick={onClick}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={onClick ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onClick()
+          }
+        } : undefined}
       >
-        <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-600/50 flex items-center justify-center text-gray-500 text-xs">
+        <div className="min-h-[44px] min-w-[44px] w-10 h-10 rounded-full border-2 border-dashed border-[var(--border-2)] flex items-center justify-center text-[var(--text-3)] text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300/60">
           {seat_index + 1}
         </div>
       </div>
@@ -90,25 +100,25 @@ export function Seat({
         <div className={`relative ${is_sitting_out ? 'opacity-50' : ''}`}>
           {/* Dealer button badge - positioned at top-right of avatar */}
           {is_button && (
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center text-[8px] font-bold text-black z-20 shadow-md">
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--color-warning)] rounded-full flex items-center justify-center text-[8px] font-bold text-black z-20 shadow-md">
               D
             </div>
           )}
           
-          {/* Acting ring with animation */}
+          {/* Acting ring with animation - motion-reduce respects prefers-reduced-motion via CSS */}
           {is_acting && isActing && (
-            <div className="absolute inset-0 rounded-full ring-2 ring-yellow-400 animate-pulse" />
+            <div className="absolute inset-0 rounded-full ring-2 ring-[var(--color-warning)] animate-pulse motion-reduce:animate-none" />
           )}
           
           {/* Winner highlight */}
           {is_winner && (
-            <div className="absolute inset-0 rounded-full ring-2 ring-green-400 animate-pulse" />
+            <div className="absolute inset-0 rounded-full ring-2 ring-[var(--color-success)] animate-pulse motion-reduce:animate-none" />
           )}
           
           {/* Avatar - compact size w-10 h-10 with premium surface */}
           <div className="avatar w-10 h-10 rounded-full overflow-hidden bg-gradient-to-b from-slate-800/95 to-slate-900/95 ring-2 ring-[var(--border-2)]">
             {avatar_url ? (
-              <img src={avatar_url} alt={display_name || 'Player'} className="w-full h-full object-cover" />
+              <img src={avatar_url} alt={display_name || t('table.meta.unknown', { defaultValue: 'Player' })} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-lg font-bold text-[var(--text-1)]">
                 {display_name?.[0]?.toUpperCase() || '?'}
@@ -129,9 +139,9 @@ export function Seat({
               <div 
                 className="text-[10px] font-bold text-[var(--text-1)] truncate max-w-[60px] leading-tight tracking-tight"
                 dir="auto"
-                title={display_name || 'Anon'}
+                title={display_name || t('table.meta.unknown', { defaultValue: 'Anon' })}
               >
-                {display_name || 'Anon'}
+                {display_name || t('table.meta.unknown', { defaultValue: 'Anon' })}
               </div>
               <div className="text-[10px] text-emerald-400 font-semibold leading-tight tabular-nums mt-0.5">
                 {formatByCurrency(stack_amount, currency)}
@@ -143,23 +153,23 @@ export function Seat({
         {/* Status badges below avatar - compact */}
         <div className="mt-4 flex flex-col items-center gap-0.5">
           {current_bet > 0 && (
-            <div className="bg-yellow-500/20 text-yellow-400 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+            <div className="bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] text-[10px] font-medium px-1.5 py-0.5 rounded-full">
               {formatByCurrency(current_bet, currency)}
             </div>
           )}
           {is_all_in && (
-            <div className="bg-red-500/20 text-red-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-              ALL IN
+            <div className="bg-[var(--color-danger-soft)] text-[var(--color-danger)] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {t('table.actions.allIn', { defaultValue: 'ALL IN' })}
             </div>
           )}
           {is_sitting_out && (
-            <div className="bg-yellow-500/20 text-yellow-500 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
-              Zzz
+            <div className="bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+              {t('table.status.sittingOut', { defaultValue: 'Zzz' })}
             </div>
           )}
           {isHero && (
-            <div className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-              YOU
+            <div className="bg-[var(--color-info-bg)] text-[var(--color-info-text)] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {t('table.players.youTag', { defaultValue: 'YOU' })}
             </div>
           )}
         </div>
