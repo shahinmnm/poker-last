@@ -348,10 +348,10 @@ export default function ActionBar({
             <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] px-4 py-3 shadow-xl backdrop-blur-lg">
               {/* Min/Max labels */}
               <div className="flex justify-between mb-2 px-1">
-                <span className="text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
+                <span className="action-bar-min-max text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
                   {t('table.actionBar.min', { defaultValue: 'Min' })}: {formatChips(minAmount ?? 0)}
                 </span>
-                <span className="text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
+                <span className="action-bar-min-max text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
                   {t('table.actionBar.max', { defaultValue: 'Max' })}: {formatChips(maxAmount ?? 0)}
                 </span>
               </div>
@@ -377,16 +377,16 @@ export default function ActionBar({
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="pointer-events-auto max-w-[820px] text-white font-['Inter',_sans-serif]">
-          <div className="flex flex-wrap items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 py-2 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
+          <div className="action-bar-container flex flex-wrap items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 py-2 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
             <div className="flex flex-wrap items-center gap-2">
               {/* Fold - Secondary action: muted rose, less prominent */}
               <button
                 type="button"
                 onClick={handleFold}
                 disabled={foldDisabled}
-                className="action-btn-secondary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-rose-600/80 to-rose-800/80 px-5 text-sm font-bold uppercase tracking-wide text-white/95 shadow-md shadow-rose-900/40 transition-all duration-150 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:active:scale-100"
+                className="action-btn-secondary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-rose-600/80 to-rose-800/80 px-5 text-sm font-bold uppercase tracking-wide text-white/95 shadow-md shadow-rose-900/40 transition-all duration-150 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
               >
-                {foldLabel}
+                <span className="action-label-safe">{foldLabel}</span>
               </button>
 
               {/* Check/Call - Primary action: vibrant emerald, prominent */}
@@ -394,9 +394,9 @@ export default function ActionBar({
                 type="button"
                 onClick={handleCenter}
                 disabled={centerDisabled}
-                className="action-btn-primary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-6 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 transition-all duration-150 active:scale-[0.97] active:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:active:scale-100"
+                className="action-btn-primary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-6 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 transition-all duration-150 active:scale-[0.97] active:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
               >
-                {centerLabel}
+                <span className="action-label-safe">{centerLabel}</span>
               </button>
             </div>
 
@@ -406,12 +406,12 @@ export default function ActionBar({
                   type="button"
                   onClick={() => adjustBet(-1, sliderLabelAction)}
                   disabled={raiseDisabled}
-                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 motion-reduce:transition-none motion-reduce:active:scale-100"
+                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
                   <Minus size={18} />
                 </button>
                 <div className="min-w-[72px] px-2 text-center">
-                  <span className="block text-[10px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-0.5">
+                  <span className="slider-label-safe block text-[10px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-0.5">
                     {sliderLabelAction.action_type === 'bet' 
                       ? t('table.actionBar.betLabel', { defaultValue: 'Bet' })
                       : t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })}
@@ -424,7 +424,7 @@ export default function ActionBar({
                   type="button"
                   onClick={() => adjustBet(1, sliderLabelAction)}
                   disabled={raiseDisabled}
-                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 motion-reduce:transition-none motion-reduce:active:scale-100"
+                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
                   <Plus size={18} />
                 </button>
@@ -432,9 +432,9 @@ export default function ActionBar({
                   type="button"
                   onClick={handleRaise}
                   disabled={raiseDisabled}
-                  className="ml-1 min-h-[44px] h-10 rounded-full bg-gradient-to-b from-blue-500 to-blue-700 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-blue-400/60 focus:ring-offset-2 focus:ring-offset-transparent whitespace-nowrap motion-reduce:transition-none motion-reduce:active:scale-100"
+                  className="ml-1 min-h-[44px] h-10 rounded-full bg-gradient-to-b from-blue-500 to-blue-700 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 whitespace-nowrap motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
-                  {confirmLabel}
+                  <span className="action-label-safe">{confirmLabel}</span>
                 </button>
               </div>
             )}

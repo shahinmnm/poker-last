@@ -227,3 +227,88 @@
 .table-content-area {
   padding-bottom: var(--action-bar-total-offset);
 }
+
+/* ==================== ACTION BAR DETERMINISTIC LAYOUT ==================== */
+/* Small landscape screens (<=700x450) get deterministic two-row layout */
+/* This prevents unpredictable flex-wrap behavior */
+@media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
+  /* ActionBar container: use horizontal scroll instead of wrap */
+  .action-bar-container {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+  
+  .action-bar-container::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  
+  /* Ensure primary actions (Fold + Check/Call) stay visible */
+  .action-btn-primary,
+  .action-btn-secondary {
+    flex-shrink: 0;
+    min-width: fit-content;
+    /* Slightly smaller padding on very small screens */
+    padding-inline: 1rem;
+  }
+  
+  /* Raise control group: inline, no wrap */
+  .action-bar-container .flex.items-center.gap-1\.5 {
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+  }
+  
+  /* Action labels: truncate with ellipsis to prevent overflow */
+  .action-bar-label {
+    max-width: 5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Min/Max labels: smaller font for compact display */
+  .action-bar-min-max {
+    font-size: 9px;
+    white-space: nowrap;
+  }
+}
+
+/* ==================== RTL TEXT SAFETY ==================== */
+/* Action labels + badges: safe truncation without breaking RTL flow */
+.action-label-safe {
+  max-width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Status badges: ensure Farsi fits with controlled truncation */
+.status-badge-safe {
+  max-width: 4.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Min/Max labels on slider: controlled width */
+.slider-label-safe {
+  max-width: 5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Responsive font sizing for very small landscape */
+@media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
+  .action-label-safe,
+  .status-badge-safe {
+    font-size: 11px;
+  }
+  
+  .slider-label-safe {
+    font-size: 9px;
+  }
+}
