@@ -19,7 +19,7 @@ export function Toggle({ checked, onChange, disabled = false, className, ...rest
         'relative inline-flex h-6 w-11 items-center transition-colors duration-150',
         'rounded-full focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-main)] focus:ring-offset-2',
         checked ? 'bg-[color:var(--accent-main)]' : 'bg-[rgba(148,163,184,0.5)]',
-        disabled && 'cursor-not-allowed opacity-50',
+        disabled && 'cursor-not-allowed opacity-50 focus:ring-0',
         className,
       )}
       {...rest}

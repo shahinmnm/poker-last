@@ -128,13 +128,13 @@ export function ActionPanel({
 
       {/* Main action buttons - floating pills with premium casino styling */}
       {legalActions.length > 0 && (
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-3 items-end flex-wrap justify-center">
           {/* Fold button - Secondary action: muted rose, less prominent */}
           {hasFold && (
             <button
               onClick={() => handleAction('fold')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-rose-600/80 to-rose-800/80 shadow-md shadow-rose-900/40 text-white/95 font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-rose-600/80 to-rose-800/80 shadow-md shadow-rose-900/40 text-white/95 font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               {t('table.actionBar.fold', { defaultValue: 'Fold' })}
             </button>
@@ -145,7 +145,7 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('check')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               {t('table.actionBar.check', { defaultValue: 'Check' })}
             </button>
@@ -156,7 +156,7 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('call')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               {callAction.call_amount !== undefined
                 ? t('table.actionBar.call', { defaultValue: 'Call {{amount}}', amount: formatByCurrency(callAction.call_amount, currency) })
@@ -170,7 +170,7 @@ export function ActionPanel({
             <button
               onClick={handleRaiseClick}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-blue-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-blue-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               {raiseAction.action === 'raise' 
                 ? t('table.actionBar.raise', { defaultValue: 'Raise to {{amount}}', amount: formatByCurrency(raiseAction.min_amount || 0, currency) })
@@ -234,7 +234,7 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('all_in')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-rose-500 to-rose-700 shadow-lg shadow-rose-900/50 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-rose-500 to-rose-700 shadow-lg shadow-rose-900/50 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               {t('table.actions.allIn', { defaultValue: 'All In' })}
             </button>
@@ -245,7 +245,7 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('ready')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               {t('table.actions.ready', { defaultValue: 'Ready' })}
             </button>

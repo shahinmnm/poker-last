@@ -87,12 +87,17 @@ function tryNativeOrientationLock() {
 
 /**
  * Full-screen overlay displayed when device is in portrait mode
+ * Uses a solid dark background matching the app's edge color to prevent flash
  */
 function RotateOverlay() {
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm"
-      style={{ touchAction: 'none' }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+      style={{ 
+        touchAction: 'none',
+        // Use the app's edge color (#010b08) for a seamless transition
+        backgroundColor: '#010b08',
+      }}
     >
       {/* Animated phone icon */}
       <div className="relative mb-8">

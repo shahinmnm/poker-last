@@ -76,7 +76,7 @@ export default function QRScanner({ isOpen, onClose, onScan }: QRScannerProps) {
       <div className="space-y-4">
         {scanError && (
           <Card variant="overlay" padding="sm">
-            <p className="text-caption text-[color:var(--danger)]">{scanError}</p>
+            <p className="text-caption text-[color:var(--color-danger)]">{scanError}</p>
           </Card>
         )}
 

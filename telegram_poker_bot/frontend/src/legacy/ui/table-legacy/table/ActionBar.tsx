@@ -277,7 +277,7 @@ export default function ActionBar({
         disabled={standUpProcessing}
         aria-pressed={isStandingUp}
         className={clsx(
-          'flex min-h-[44px] h-10 items-center gap-1.5 rounded-full px-4 text-xs font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60',
+          'flex min-h-[44px] h-10 items-center gap-1.5 rounded-full px-4 text-xs font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:active:scale-100',
           activeClasses,
         )}
         title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
