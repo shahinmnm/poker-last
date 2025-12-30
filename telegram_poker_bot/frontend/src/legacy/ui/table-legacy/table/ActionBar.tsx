@@ -250,9 +250,30 @@ export default function ActionBar({
   const centerDisabled = isDisabled || !centerAction
   const raiseDisabled = isDisabled || !sliderLabelAction
 
-  const renderStandUpButton = () => {
+  // Render the stand up button as a compact chip when active, or inline button when not
+  const renderStandUpButton = (isCompactChip = false) => {
     if (!onToggleStandUp) return null
     const nextState = !isStandingUp
+    
+    // When standing up and compact mode requested, render as a floating status chip
+    if (isStandingUp && isCompactChip) {
+      return (
+        <button
+          type="button"
+          onClick={() => onToggleStandUp(nextState)}
+          disabled={standUpProcessing}
+          aria-pressed={isStandingUp}
+          className="leaving-status-chip"
+          title={t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' })}
+        >
+          <span className="leaving-status-chip__dot" />
+          <LogOut size={14} className="leaving-status-chip__icon" />
+          <span>{t('table.actions.leavingAfterHand', { defaultValue: 'Leaving' })}</span>
+        </button>
+      )
+    }
+    
+    // Standard inline button rendering
     const activeClasses = isStandingUp
       ? 'bg-amber-400 text-black shadow-amber-500/50 border-amber-300 ring-2 ring-amber-300/70 animate-[pulse_1.6s_ease-in-out_infinite]'
       : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'
@@ -305,25 +326,31 @@ export default function ActionBar({
     setIsAdjustingBet(true)
   }
 
+  // When not my turn: show waiting toast and leaving chip (if standing up)
   if (!isMyTurn) {
-    const standUpButton = renderStandUpButton()
     return (
-      <div
-        className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center px-3 sm:bottom-5 sm:px-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
-      >
-        <div
-          className={clsx(
-            'pointer-events-auto flex w-full max-w-[780px] items-center gap-3',
-            standUpButton ? 'justify-between' : 'justify-center',
-          )}
-        >
-          <div className="rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs font-medium text-white/80 shadow-lg backdrop-blur-md">
-            {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent…' })}
-          </div>
-          {standUpButton}
+      <>
+        {/* Waiting toast - centered above action bar safe zone */}
+        <div className="waiting-toast">
+          <span className="waiting-toast__spinner" />
+          {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent…' })}
         </div>
-      </div>
+        
+        {/* Leaving status chip - compact and docked to safe corner */}
+        {isStandingUp && renderStandUpButton(true)}
+        
+        {/* Non-standing-up toggle button stays inline at bottom */}
+        {!isStandingUp && onToggleStandUp && (
+          <div
+            className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-end px-3 sm:bottom-5 sm:px-4"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+          >
+            <div className="pointer-events-auto">
+              {renderStandUpButton(false)}
+            </div>
+          </div>
+        )}
+      </>
     )
   }
 
@@ -439,10 +466,14 @@ export default function ActionBar({
               </div>
             )}
 
-            {renderStandUpButton()}
+            {/* Inline leave button only when NOT standing up */}
+            {!isStandingUp && renderStandUpButton(false)}
           </div>
         </div>
       </div>
+      
+      {/* Floating compact leaving chip when standing up - positioned in safe zone */}
+      {isStandingUp && renderStandUpButton(true)}
     </>
   )
 }

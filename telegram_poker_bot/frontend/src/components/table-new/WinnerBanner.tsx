@@ -2,6 +2,7 @@
  * WinnerBanner Component
  * 
  * Animated banner showing the winner(s) after a hand.
+ * Uses safe zone positioning to avoid overlapping board/player areas.
  */
 
 import { useEffect, useState } from 'react'
@@ -38,38 +39,34 @@ export function WinnerBanner({
   const isMultipleWinners = winners.length > 1
 
   return (
-    <div className="winner-banner fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-slide-down">
-      <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg px-8 py-4 shadow-2xl border-2 border-yellow-300">
-        <div className="flex items-center gap-4">
-          <div className="text-4xl animate-bounce">🎉</div>
-          <div>
-            <div className="text-lg font-bold text-white">
-              {isMultipleWinners ? 'Winners!' : 'Winner!'}
-            </div>
-            <div className="text-xl font-bold text-gray-900">
-              {isMultipleWinners ? (
-                <>
-                  {winners.length} players split{' '}
-                  {formatByCurrency(
-                    winners.reduce((sum, w) => sum + w.amount, 0),
-                    currency
-                  )}
-                </>
-              ) : (
-                <>
-                  {mainWinner.hand_rank && (
-                    <span className="text-sm text-gray-700 mr-2">
-                      {mainWinner.hand_rank}
-                    </span>
-                  )}
-                  {formatByCurrency(mainWinner.amount, currency)}
-                </>
-              )}
-            </div>
+    <div className="winner-banner-safe">
+      <div className="flex items-center justify-center gap-3">
+        <div className="text-2xl animate-bounce">🎉</div>
+        <div className="text-center">
+          <div className="winner-banner-safe__amount">
+            {isMultipleWinners ? (
+              <>
+                {winners.length} players split{' '}
+                {formatByCurrency(
+                  winners.reduce((sum, w) => sum + w.amount, 0),
+                  currency
+                )}
+              </>
+            ) : (
+              formatByCurrency(mainWinner.amount, currency)
+            )}
           </div>
-          <div className="text-4xl animate-bounce" style={{ animationDelay: '0.2s' }}>
-            🎊
+          <div className="winner-banner-safe__label">
+            {isMultipleWinners 
+              ? 'Split Pot' 
+              : mainWinner.hand_rank 
+                ? `Won with ${mainWinner.hand_rank}`
+                : 'Winner!'
+            }
           </div>
+        </div>
+        <div className="text-2xl animate-bounce" style={{ animationDelay: '0.2s' }}>
+          🎊
         </div>
       </div>
     </div>

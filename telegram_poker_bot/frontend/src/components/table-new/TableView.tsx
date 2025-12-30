@@ -400,21 +400,31 @@ export function TableView() {
 
       {/* Main table area with strict Z-Index layering */}
       <div className="table-container relative h-full flex flex-col items-center justify-center">
-        {/* Pot display - Z-Index: 10 */}
-        <div ref={potRef} className="pot-display-container absolute top-[30%] left-1/2 -translate-x-1/2 z-10">
+        {/* Pot display - Z-Index: board-hud (30) */}
+        <div 
+          ref={potRef} 
+          className="pot-display-container absolute top-[30%] left-1/2 -translate-x-1/2"
+          style={{ zIndex: 'var(--z-board-hud, 30)' }}
+        >
           <PotDisplay pots={pots} currency={table_metadata.currency as 'REAL' | 'PLAY'} />
         </div>
 
-        {/* Community cards - Z-Index: 20 */}
-        <div className="community-board-container absolute top-[42%] left-1/2 -translate-x-1/2 z-20">
+        {/* Community cards - Z-Index: cards-chips (20) */}
+        <div 
+          className="community-board-container absolute top-[42%] left-1/2 -translate-x-1/2"
+          style={{ zIndex: 'var(--z-cards-chips, 20)' }}
+        >
           <CommunityBoard
             communityCards={community_cards}
             street={current_street}
           />
         </div>
 
-        {/* Seats arranged in ellipse with tight spacing - Z-Index: 30 */}
-        <div className="seats-container absolute inset-0 pb-36 z-30">
+        {/* Seats arranged in ellipse with tight spacing - Z-Index: seats (10) */}
+        <div 
+          className="seats-container absolute inset-0 pb-36"
+          style={{ zIndex: 'var(--z-seats, 10)' }}
+        >
           {seatPositions.map(({ seat, xPercent, yPercent, isHero }) => {
             return (
               <div
@@ -438,9 +448,12 @@ export function TableView() {
           })}
         </div>
 
-        {/* Action panel at bottom - Z-Index: 50 (Fixed Bottom) */}
+        {/* Action panel at bottom - Z-Index: actionbar (50) */}
         {heroSeat && (
-          <div className="action-panel-container fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <div 
+            className="action-panel-container fixed bottom-6 left-1/2 -translate-x-1/2"
+            style={{ zIndex: 'var(--z-actionbar, 50)' }}
+          >
             <ActionPanel
               legalActions={isHeroActing ? legal_actions : []}
               onAction={handleAction}
@@ -453,9 +466,12 @@ export function TableView() {
           </div>
         )}
 
-        {/* Join button for spectators - Z-Index: 50 */}
+        {/* Join button for spectators - Z-Index: actionbar (50) */}
         {!heroSeat && (
-          <div className="join-button-container fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <div 
+            className="join-button-container fixed bottom-6 left-1/2 -translate-x-1/2"
+            style={{ zIndex: 'var(--z-actionbar, 50)' }}
+          >
             <button
               onClick={handleJoin}
               disabled={isJoining}
@@ -466,9 +482,12 @@ export function TableView() {
           </div>
         )}
 
-        {/* Draw phase UI (overlays action panel when active) - Z-Index: 50 */}
+        {/* Draw phase UI (overlays action panel when active) - Z-Index: actionbar (50) */}
         {discard_phase_active && heroSeat && (
-          <div className="draw-phase-container fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <div 
+            className="draw-phase-container fixed bottom-6 left-1/2 -translate-x-1/2"
+            style={{ zIndex: 'var(--z-actionbar, 50)' }}
+          >
             <DrawRenderer
               holeCards={heroSeat.hole_cards}
               discardPhaseActive={discard_phase_active}
