@@ -35,6 +35,15 @@
   --z-board-hud: 30;
   --z-overlays: 40;
   --z-actionbar: 50;
+  
+  /* ==================== UI MODE LAYOUT VARIABLES ==================== */
+  /* Phase 1: Mode-based space allocation for board clarity */
+  /* These are defaults; overridden by [data-ui-mode] selectors below */
+  --action-strip-height: 52px;
+  --action-strip-density: 1; /* 1 = normal, 0.85 = low density */
+  --board-vertical-room: 1; /* Multiplier for board spacing (1 = normal, 1.1 = expanded) */
+  --hero-seat-scale: 1; /* Scale factor for hero seat */
+  --board-cluster-gap: 12px; /* Gap between pot, cards, and winner banner */
 }
 
 @media (max-width: 400px) {
@@ -768,5 +777,150 @@
 @media (prefers-reduced-motion: reduce) {
   .player-seat {
     transition: none;
+  }
+}
+
+/* ==================== UI MODE-BASED SPACE ALLOCATION ==================== */
+/* Phase 1: Mode selectors for dynamic layout based on useUIMode output */
+/* The table root container receives data-ui-mode attribute to control layout */
+
+/* PLAYER_ACTION: Hero is acting - Full hero cards, normal strip density */
+[data-ui-mode="PLAYER_ACTION"] {
+  --action-strip-height: 52px;
+  --action-strip-density: 1;
+  --board-vertical-room: 0.95; /* Slightly compressed to give hero cards room */
+  --hero-seat-scale: 1;
+  --player-hand-reserved: 80px;
+  --board-cluster-gap: 10px;
+}
+
+/* OPPONENT_ACTION: Another player acting - Low density strip, more board room */
+[data-ui-mode="OPPONENT_ACTION"] {
+  --action-strip-height: 48px;
+  --action-strip-density: 0.85;
+  --board-vertical-room: 1.1; /* Expanded board space when not acting */
+  --hero-seat-scale: 0.9;
+  --player-hand-reserved: 70px; /* Reduced since hero isn't focus */
+  --board-cluster-gap: 14px; /* More breathing room between board elements */
+}
+
+/* SHOWDOWN: Hand result visible - Micro strip, maximum board room */
+[data-ui-mode="SHOWDOWN"] {
+  --action-strip-height: 44px;
+  --action-strip-density: 0.8;
+  --board-vertical-room: 1.15; /* Maximum clarity for board/winner */
+  --hero-seat-scale: 0.85;
+  --player-hand-reserved: 60px;
+  --board-cluster-gap: 16px; /* Maximum gap for clean winner display */
+}
+
+/* WAITING: Table waiting for players/game start */
+[data-ui-mode="WAITING"] {
+  --action-strip-height: 48px;
+  --action-strip-density: 0.85;
+  --board-vertical-room: 1;
+  --hero-seat-scale: 1;
+  --player-hand-reserved: 80px;
+  --board-cluster-gap: 12px;
+}
+
+/* ==================== BOARD CLUSTER CONTAINER ==================== */
+/* Phase 3: Semantic wrapper for pot + community cards + winner banner */
+/* Uses CSS gap/stacking instead of absolute positioning where possible */
+
+.board-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--board-cluster-gap, 12px);
+  width: 100%;
+  max-width: 740px;
+  margin: 0 auto;
+  /* Ensure cluster respects mode-based spacing */
+  transform-origin: center center;
+}
+
+/* Board cluster items: pot always first, cards second, winner third */
+.board-cluster__pot {
+  order: 0;
+  flex-shrink: 0;
+}
+
+.board-cluster__cards {
+  order: 1;
+  flex-shrink: 0;
+  /* Sacred zone - community cards never overlapped */
+  z-index: var(--z-cards-chips, 20);
+}
+
+.board-cluster__winner {
+  order: 2;
+  flex-shrink: 0;
+}
+
+/* Apply board-vertical-room multiplier to cluster */
+.board-cluster--expanded {
+  gap: calc(var(--board-cluster-gap, 12px) * var(--board-vertical-room, 1));
+}
+
+/* ==================== MODE-AWARE ACTION STRIP ==================== */
+/* Apply density scaling based on UI mode */
+
+.action-strip--mode-aware {
+  /* Use CSS custom property for height based on mode */
+  min-height: var(--action-strip-height, 52px);
+  /* Apply density to padding/font-size via transform scale */
+  transform: scale(var(--action-strip-density, 1));
+  transform-origin: center bottom;
+}
+
+/* Low density strip: smaller padding, condensed labels */
+[data-ui-mode="OPPONENT_ACTION"] .action-strip--mode-aware,
+[data-ui-mode="SHOWDOWN"] .action-strip--mode-aware {
+  padding-top: calc(4px * var(--action-strip-density, 1));
+  padding-bottom: calc(4px * var(--action-strip-density, 1));
+}
+
+/* Action strip label text scales with density */
+.action-strip--mode-aware .action-label-safe {
+  font-size: calc(11px * var(--action-strip-density, 1));
+}
+
+/* ==================== RESPONSIVE MODE ADJUSTMENTS ==================== */
+/* Small landscape screens need tighter mode-based spacing */
+
+@media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
+  [data-ui-mode="PLAYER_ACTION"] {
+    --board-cluster-gap: 8px;
+    --player-hand-reserved: 55px;
+  }
+  
+  [data-ui-mode="OPPONENT_ACTION"] {
+    --board-cluster-gap: 10px;
+    --player-hand-reserved: 50px;
+  }
+  
+  [data-ui-mode="SHOWDOWN"] {
+    --board-cluster-gap: 12px;
+    --player-hand-reserved: 45px;
+  }
+}
+
+/* Very small portrait screens (568x320) */
+@media (max-width: 600px) and (max-height: 400px) {
+  [data-ui-mode="PLAYER_ACTION"] {
+    --board-cluster-gap: 6px;
+    --player-hand-reserved: 50px;
+  }
+  
+  [data-ui-mode="OPPONENT_ACTION"] {
+    --board-cluster-gap: 8px;
+    --player-hand-reserved: 45px;
+  }
+  
+  [data-ui-mode="SHOWDOWN"] {
+    --board-cluster-gap: 10px;
+    --player-hand-reserved: 40px;
   }
 }

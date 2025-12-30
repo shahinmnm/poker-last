@@ -7,6 +7,7 @@ import { useTableWebSocket } from '../legacy/hooks/useTableWebSocket'
 import { useUserData } from '../providers/UserDataProvider'
 import { useLayout } from '../providers/LayoutProvider'
 import { apiFetch, ApiError } from '../utils/apiClient'
+import { useUIMode } from '../hooks/useUIMode'
 import Toast from '../components/Toast'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -1717,6 +1718,20 @@ export default function TablePage() {
   // TASK 2: Use TurnContext for isMyTurn (single source of truth)
   const isMyTurn = turnContext.isMyTurn
 
+  // PHASE 1: Compute UI mode for layout adjustments using useUIMode hook
+  // This provides mode-based space allocation for board clarity
+  const isShowdown = normalizedStatus === 'showdown'
+  const isTableWaiting = normalizedStatus === 'waiting'
+  const uiModeContext = useUIMode({
+    isMyTurn,
+    isShowdown,
+    isInterHand,
+    isTableWaiting,
+    isSeated: viewerIsSeated,
+    currentActorUserId,
+  })
+  const uiMode = uiModeContext.mode
+
   // TASK 5/6: Track TurnKey changes to reset in-flight state and cancel auto-actions
   useEffect(() => {
     const currentTurnKey = turnContext.turnKey
@@ -2157,7 +2172,7 @@ export default function TablePage() {
         </div>
       )}
 
-      <div className="table-screen">
+      <div className="table-screen" data-ui-mode={uiMode}>
         {/* Back to Lobby Button (Top-Left) */}
         <div className="absolute top-14 left-4 z-50">
           <button 
@@ -2177,7 +2192,7 @@ export default function TablePage() {
               {/* Integrated Winner HUD & Next Hand Timer - Safe zone positioned below board */}
               {isInterHand && (
                 <div 
-                  className="absolute left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none flex flex-col items-center"
+                  className="board-cluster__winner absolute left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none flex flex-col items-center"
                   style={{ 
                     top: 'calc(var(--streets-row-offset, 18vh) + var(--winner-banner-offset, 20vh))',
                     zIndex: 'var(--z-overlays, 40)'

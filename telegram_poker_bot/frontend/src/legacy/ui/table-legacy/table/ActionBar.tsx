@@ -377,8 +377,9 @@ export default function ActionBar({
         >
           <div className="pointer-events-auto">
             {/* PHASE 1: Micro strip - 44-48px height, always visible when seated */}
+            {/* Uses action-strip--mode-aware for mode-based density scaling */}
             <div className={clsx(
-              'action-strip flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-xl backdrop-blur-lg',
+              'action-strip action-strip--mode-aware flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-xl backdrop-blur-lg',
               isShowdown 
                 ? 'action-bar-micro border-white/10 bg-black/60 shadow-black/40'  // Showdown: darker, more subtle
                 : 'action-bar-minimal border-[var(--border-2)] bg-[var(--surface-1)]/90 shadow-black/30'  // Normal: standard styling
@@ -513,7 +514,8 @@ export default function ActionBar({
       >
         <div className="pointer-events-auto">
           {/* Minimal strip: 48-56px height, compact buttons */}
-          <div className="action-bar-minimal action-strip flex items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-2 py-1 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
+          {/* Uses action-strip--mode-aware for mode-based density scaling */}
+          <div className="action-bar-minimal action-strip action-strip--mode-aware flex items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-2 py-1 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
             {/* Fold - compact */}
             <button
               type="button"
