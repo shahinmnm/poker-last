@@ -122,41 +122,41 @@ export function ActionPanel({
         </div>
       )}
 
-      {/* Main action buttons - floating pills */}
+      {/* Main action buttons - floating pills with premium casino styling */}
       {legalActions.length > 0 && (
         <div className="flex gap-3 items-end">
-          {/* Fold button - rose gradient pill */}
+          {/* Fold button - Secondary action: muted rose, less prominent */}
           {hasFold && (
             <button
               onClick={() => handleAction('fold')}
               disabled={disabled}
-              className="bg-gradient-to-b from-rose-500 to-rose-700 shadow-lg shadow-rose-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] bg-gradient-to-b from-rose-600/80 to-rose-800/80 shadow-md shadow-rose-900/40 text-white/95 font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               Fold
             </button>
           )}
 
-          {/* Check button - emerald gradient pill */}
+          {/* Check button - Primary action: vibrant emerald */}
           {hasCheck && (
             <button
               onClick={() => handleAction('check')}
               disabled={disabled}
-              className="bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               Check
             </button>
           )}
 
-          {/* Call button - emerald gradient pill */}
+          {/* Call button - Primary action: vibrant emerald */}
           {callAction && (
             <button
               onClick={() => handleAction('call')}
               disabled={disabled}
-              className="bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               Call{' '}
               {callAction.call_amount !== undefined && (
-                <span className="font-mono ml-1">
+                <span className="font-mono ml-1 opacity-90">
                   {formatByCurrency(callAction.call_amount, currency)}
                 </span>
               )}
@@ -169,7 +169,7 @@ export function ActionPanel({
             <button
               onClick={handleRaiseClick}
               disabled={disabled}
-              className="bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               {raiseAction.action === 'raise' ? 'Raise to ' : 'Bet '}
               <span className="font-mono">

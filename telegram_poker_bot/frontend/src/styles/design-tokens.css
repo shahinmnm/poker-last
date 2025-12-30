@@ -81,6 +81,31 @@
   /* ==================== COLORS - PRO MODE THEME (ROYAL VELVET) ==================== */
   color-scheme: dark;
   
+  /* ==================== SEMANTIC SURFACE HIERARCHY ==================== */
+  /* Premium casino surface layers for depth and clarity */
+  --surface-1: rgba(1, 15, 10, 0.75);      /* Primary surface - cards, panels */
+  --surface-2: rgba(1, 20, 15, 0.60);      /* Secondary surface - overlays */
+  --surface-3: rgba(1, 25, 18, 0.45);      /* Tertiary surface - subtle backgrounds */
+  
+  /* ==================== SEMANTIC TEXT HIERARCHY ==================== */
+  --text-1: #f9fafb;                        /* Primary text - headings, names */
+  --text-2: #d1d5db;                        /* Secondary text - labels, values */
+  --text-3: #9ca3af;                        /* Tertiary text - hints, muted info */
+  
+  /* ==================== SEMANTIC BORDER HIERARCHY ==================== */
+  --border-1: rgba(255, 255, 255, 0.25);   /* Strong borders - active states */
+  --border-2: rgba(255, 255, 255, 0.15);   /* Medium borders - default */
+  --border-3: rgba(255, 255, 255, 0.08);   /* Subtle borders - disabled */
+  
+  /* ==================== SEMANTIC ACTION COLORS ==================== */
+  --brand: #2cc57a;                         /* Brand accent - primary actions */
+  --brand-hover: #23b56f;                   /* Brand hover state */
+  --success: #22c55e;                       /* Success states */
+  --warning: #f59e0b;                       /* Warning states */
+  --danger: #ef4444;                        /* Danger/fold states */
+  --danger-hover: #dc2626;                  /* Danger hover */
+  --info: #3b82f6;                          /* Info/raise states */
+  
   /* Background colors - Royal Velvet Gradient */
   /* Center (Spotlight): #008f58 (Ref: 26017) */
   /* Mid (Body): #003d29 (Ref: 26702) */

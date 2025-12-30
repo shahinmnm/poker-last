@@ -335,16 +335,26 @@ export default function ActionBar({
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
         >
           <div className="pointer-events-auto relative w-full max-w-[520px]">
+            {/* Floating bet amount label */}
             <div className="pointer-events-none absolute -top-10" style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}>
-              <div className="rounded-full border border-emerald-300/50 bg-emerald-600/90 px-3 py-1 text-[11px] font-semibold text-white shadow-lg shadow-emerald-900/40 backdrop-blur-lg">
-                {t('table.actionBar.currentBet', {
-                  amount: formatChips(betAmount ?? 0),
-                  defaultValue: `${formatChips(betAmount ?? 0)} chips`,
-                })}
+              <div className="rounded-full border border-emerald-400/60 bg-emerald-600/95 px-4 py-1.5 shadow-lg shadow-emerald-900/50 backdrop-blur-lg">
+                <span className="text-[13px] font-bold text-white tabular-nums tracking-tight">
+                  {formatChips(betAmount ?? 0)}
+                </span>
               </div>
             </div>
 
-            <div className="rounded-full border border-white/10 bg-black/60 px-3 py-2 shadow-xl backdrop-blur-lg">
+            {/* Slider container with min/max labels */}
+            <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] px-4 py-3 shadow-xl backdrop-blur-lg">
+              {/* Min/Max labels */}
+              <div className="flex justify-between mb-2 px-1">
+                <span className="text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
+                  {t('table.actionBar.min', { defaultValue: 'Min' })}: {formatChips(minAmount ?? 0)}
+                </span>
+                <span className="text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
+                  {t('table.actionBar.max', { defaultValue: 'Max' })}: {formatChips(maxAmount ?? 0)}
+                </span>
+              </div>
               <input
                 type="range"
                 min={minAmount}
@@ -367,45 +377,54 @@ export default function ActionBar({
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="pointer-events-auto max-w-[820px] text-white font-['Inter',_sans-serif]">
-          <div className="flex flex-wrap items-center gap-2 rounded-full border border-emerald-200/25 bg-white/10 px-2.5 py-2 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
+          <div className="flex flex-wrap items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 py-2 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
             <div className="flex flex-wrap items-center gap-2">
+              {/* Fold - Secondary action: muted rose, less prominent */}
               <button
                 type="button"
                 onClick={handleFold}
                 disabled={foldDisabled}
-                className="min-h-[44px] h-11 rounded-full bg-gradient-to-b from-rose-500 to-rose-700 px-5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-900/50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className="action-btn-secondary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-rose-600/80 to-rose-800/80 px-5 text-sm font-bold uppercase tracking-wide text-white/95 shadow-md shadow-rose-900/40 transition-all duration-150 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none motion-reduce:transition-none motion-reduce:active:scale-100"
               >
                 {foldLabel}
               </button>
 
+              {/* Check/Call - Primary action: vibrant emerald, prominent */}
               <button
                 type="button"
                 onClick={handleCenter}
                 disabled={centerDisabled}
-                className="min-h-[44px] h-11 rounded-full bg-gradient-to-b from-emerald-500 to-emerald-700 px-5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className="action-btn-primary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-6 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 transition-all duration-150 active:scale-[0.97] active:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
               >
                 {centerLabel}
               </button>
             </div>
 
             {sliderLabelAction && (
-              <div className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/15 px-2 py-1.5 shadow-lg backdrop-blur-md">
+              <div className="flex items-center gap-1.5 rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] px-2 py-1.5 shadow-lg backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => adjustBet(-1, sliderLabelAction)}
                   disabled={raiseDisabled}
-                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
                   <Minus size={18} />
                 </button>
-                <div className="min-w-[72px] px-2 text-center text-[13px] font-semibold text-emerald-300 tabular-nums">
-                  {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
+                <div className="min-w-[72px] px-2 text-center">
+                  <span className="block text-[10px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-0.5">
+                    {sliderLabelAction.action_type === 'bet' 
+                      ? t('table.actionBar.betLabel', { defaultValue: 'Bet' })
+                      : t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })}
+                  </span>
+                  <span className="block text-[14px] font-bold text-emerald-300 tabular-nums leading-none">
+                    {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => adjustBet(1, sliderLabelAction)}
                   disabled={raiseDisabled}
-                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
                   <Plus size={18} />
                 </button>
@@ -413,7 +432,7 @@ export default function ActionBar({
                   type="button"
                   onClick={handleRaise}
                   disabled={raiseDisabled}
-                  className="ml-1 min-h-[44px] h-10 rounded-full bg-emerald-500 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+                  className="ml-1 min-h-[44px] h-10 rounded-full bg-gradient-to-b from-blue-500 to-blue-700 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 whitespace-nowrap motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
                   {confirmLabel}
                 </button>
