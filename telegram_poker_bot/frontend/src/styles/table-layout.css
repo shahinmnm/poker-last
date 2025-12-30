@@ -670,6 +670,14 @@
   padding: 4px 8px;
 }
 
+/* PHASE 1: Micro strip for SHOWDOWN - even more compact (44-48px) */
+/* Shows only safe controls (leave toggle, menu) without betting actions */
+.action-bar-micro {
+  min-height: 44px;
+  max-height: 48px;
+  padding: 4px 12px;
+}
+
 .action-strip {
   /* Ensure strip stays compact and doesn't grow */
   flex-shrink: 0;
