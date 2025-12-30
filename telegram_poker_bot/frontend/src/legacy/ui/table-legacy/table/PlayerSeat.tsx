@@ -1,8 +1,10 @@
-import { forwardRef, useMemo } from 'react'
+import { forwardRef, useMemo, useCallback } from 'react'
 import clsx from 'clsx'
 import { Plus } from 'lucide-react'
 import PlayerCircularTimer from './PlayerCircularTimer'
 import PlayingCard from '../../../../components/ui/PlayingCard'
+import HeroDetailPopover from '../../../../components/table/HeroDetailPopover'
+import useAutoDismissOverlay from '../../../../hooks/useAutoDismissOverlay'
 
 type PositionLabel = 'BTN' | 'SB' | 'BB' | null | undefined
 type SideDirection = 'top' | 'bottom' | 'left' | 'right'
@@ -28,6 +30,8 @@ export interface PlayerSeatProps {
   side?: SideDirection
   /** PHASE 5: Whether hero seat should be in reduced scale mode (showdown/opponent turn) */
   heroScaleReduced?: boolean
+  /** Seat index (0-based) for hero detail popover */
+  seatIndex?: number
 }
 
 const formatChips = (value: number): string => {
@@ -138,9 +142,27 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       className,
       side = 'bottom',
       heroScaleReduced = false,
+      seatIndex = 0,
     },
     ref,
   ) => {
+    // Phase 2: Hero detail popover state
+    const { 
+      isOpen: showHeroDetail, 
+      open: openHeroDetail, 
+      close: closeHeroDetail,
+      overlayRef: heroOverlayRef 
+    } = useAutoDismissOverlay({ 
+      timeoutMs: 2500 
+    })
+    
+    // Handle hero seat tap
+    const handleHeroTap = useCallback(() => {
+      if (isHero && !isEmpty) {
+        openHeroDetail()
+      }
+    }, [isHero, isEmpty, openHeroDetail])
+    
     const initial = useMemo(
       () => (playerName?.charAt(0)?.toUpperCase() || '?'),
       [playerName],
@@ -277,18 +299,34 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             )}
           </div>
 
-          {/* INFO PILL (Floating Badge) - Premium casino typography with RTL support */}
+          {/* INFO PILL (Floating Badge) - Phase 2: Simplified for hero, tappable for details */}
+          {/* For hero: show truncated name + stack, tap reveals full details */}
+          {/* For opponents: show full info as before */}
           <div
             className={clsx(
-              'pointer-events-none absolute z-30 flex -translate-x-1/2 items-center justify-center',
+              'absolute z-30 flex -translate-x-1/2 items-center justify-center',
               layout.infoPill,
+              isHero ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'
             )}
+            onClick={isHero ? handleHeroTap : undefined}
+            role={isHero ? 'button' : undefined}
+            tabIndex={isHero ? 0 : undefined}
+            onKeyDown={isHero ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                handleHeroTap()
+              }
+            } : undefined}
+            aria-label={isHero ? 'Tap for player details' : undefined}
           >
-            <div className="flex flex-col items-center rounded-xl border border-[var(--border-2)] bg-[var(--surface-1)] px-3 py-1.5 shadow-lg shadow-black/40 backdrop-blur-md">
-              {/* Player name - primary text, stronger emphasis */}
+            <div className={clsx(
+              'flex flex-col items-center rounded-xl border border-[var(--border-2)] bg-[var(--surface-1)] px-3 py-1.5 shadow-lg shadow-black/40 backdrop-blur-md',
+              isHero && 'ui-pressable hover:bg-[var(--surface-2)]'
+            )}>
+              {/* Player name - primary text, truncated for hero */}
               <div 
                 className="text-[11px] font-bold text-[var(--text-1)] leading-tight overflow-hidden text-ellipsis whitespace-nowrap tracking-tight"
-                style={{ maxWidth: 'clamp(56px, 10vw, 76px)' }}
+                style={{ maxWidth: isHero ? 'clamp(48px, 8vw, 64px)' : 'clamp(56px, 10vw, 76px)' }}
                 dir="auto"
                 title={playerName || seatLabel}
               >
@@ -298,8 +336,33 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
               <div className="text-[11px] font-semibold text-emerald-400 leading-tight tabular-nums mt-0.5">
                 {formatChips(chipCount)}
               </div>
+              {/* Tiny status badge for hero only if needed */}
+              {isHero && (positionLabel === 'BTN' || isSittingOut || isActive) && (
+                <div className="flex items-center gap-1 mt-1">
+                  {isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse motion-reduce:animate-none" />
+                  )}
+                </div>
+              )}
             </div>
           </div>
+          
+          {/* Hero Detail Popover - Phase 2: Shows on tap, auto-dismisses */}
+          {isHero && showHeroDetail && (
+            <div ref={heroOverlayRef as React.RefObject<HTMLDivElement>}>
+              <HeroDetailPopover
+                displayName={playerName}
+                stack={chipCount}
+                seatIndex={seatIndex}
+                isDealer={positionLabel === 'BTN'}
+                isSmallBlind={positionLabel === 'SB'}
+                isBigBlind={positionLabel === 'BB'}
+                isSittingOut={isSittingOut}
+                onClose={closeHeroDetail}
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2"
+              />
+            </div>
+          )}
         </div>
 
         {/* CARDS (The Dynamic Layer) */}

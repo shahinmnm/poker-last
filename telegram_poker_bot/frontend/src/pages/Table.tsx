@@ -2484,6 +2484,7 @@ export default function TablePage() {
                               onClick={isEmpty && canJoin && !viewerIsSeated ? handleSeat : undefined}
                               side={seatSide}
                               heroScaleReduced={isHeroPlayer && !isMyTurn}
+                              seatIndex={serverIndex}
                             />
 
                             {/* Leaving Badge - Shows when player is leaving after this hand */}

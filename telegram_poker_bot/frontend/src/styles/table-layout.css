@@ -44,6 +44,20 @@
   --board-vertical-room: 1; /* Multiplier for board spacing (1 = normal, 1.1 = expanded) */
   --hero-seat-scale: 1; /* Scale factor for hero seat */
   --board-cluster-gap: 12px; /* Gap between pot, cards, and winner banner */
+  
+  /* ==================== THIN ACTION STRIP TOKENS (PHASE 1 REFACTOR) ==================== */
+  /* Visual height is smaller for compact appearance, hit area ensures 44px tap targets */
+  --action-strip-height-visual: 44px;  /* Target visual bar height */
+  --action-strip-height-hit: 56px;     /* Hit area / tap target wrapper */
+  --action-strip-font: clamp(11px, 2.2vw, 13px);  /* Responsive font size */
+  --action-strip-radius: 16px;         /* Border radius for buttons */
+  --action-strip-gap: 6px;             /* Gap between action buttons */
+  --action-strip-px: 10px;             /* Horizontal padding inside strip */
+  --action-strip-py: 4px;              /* Vertical padding inside strip */
+  
+  /* ==================== HERO DETAIL OVERLAY TOKENS (PHASE 2 REFACTOR) ==================== */
+  --hero-overlay-timeout: 2500ms;      /* Auto-dismiss timeout */
+  --hero-overlay-radius: 12px;         /* Border radius for overlay */
 }
 
 @media (max-width: 400px) {
@@ -1112,4 +1126,463 @@
     transition: none;
     animation: none;
   }
+}
+
+/* ==================== PHASE 4: UNIFIED STYLE SYSTEM ==================== */
+/* Reusable utility classes for consistent UI across components */
+
+/* Surface card - glassmorphism panel with semantic tokens */
+.ui-surface-card {
+  background: var(--surface-1, rgba(1, 15, 10, 0.75));
+  border-radius: var(--radius-xl, 16px);
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.15));
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Pill - rounded element for labels, badges, buttons */
+.ui-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill, 9999px);
+  font-size: var(--action-strip-font, clamp(11px, 2.2vw, 13px));
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Menu sheet - dropdown/bottom-sheet container */
+.ui-menu-sheet {
+  background: var(--surface-1, rgba(1, 15, 10, 0.85));
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-xl, 16px);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* Pressable - interactive element with touch feedback */
+.ui-pressable {
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-pressable:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ui-pressable:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Reduce motion: disable transform on pressable */
+@media (prefers-reduced-motion: reduce) {
+  .ui-pressable:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Focus ring - consistent focus indicator */
+.ui-focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand, #2cc57a), 0 0 0 4px rgba(44, 197, 122, 0.3);
+}
+
+/* Menu item row - consistent menu row styling */
+.ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 500;
+  color: var(--text-1, #f9fafb);
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: start;
+  transition: background-color 0.15s ease;
+}
+
+.ui-menu-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ui-menu-item:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* RTL support for menu items */
+[dir="rtl"] .ui-menu-item {
+  flex-direction: row-reverse;
+  text-align: end;
+}
+
+/* ==================== PHASE 1: THIN ACTION STRIP STYLES ==================== */
+/* 2x thinner action strip with maintained touch targets */
+
+/* Thin strip container - visual height ~44px, but hit area 56px via inner button padding */
+.action-strip-thin {
+  display: flex;
+  align-items: center;
+  gap: var(--action-strip-gap, 6px);
+  padding: var(--action-strip-py, 4px) var(--action-strip-px, 10px);
+  border-radius: calc(var(--action-strip-radius, 16px) + 4px);
+  background: var(--surface-1, rgba(1, 15, 10, 0.75));
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.15));
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Thin action button - smaller visual, full touch target */
+.action-btn-thin {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--action-strip-height-hit, 56px);
+  padding: 0 14px;
+  border-radius: var(--action-strip-radius, 16px);
+  font-size: var(--action-strip-font, clamp(11px, 2.2vw, 13px));
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.1s ease;
+  /* Visual height achieved via reduced vertical padding, but touch area preserved */
+}
+
+/* Visual inner content - makes button look thinner while keeping hit area */
+.action-btn-thin::before {
+  content: '';
+  position: absolute;
+  inset: 6px 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.action-btn-thin:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.action-btn-thin:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-btn-thin {
+    transition: none;
+  }
+  .action-btn-thin:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Thin button variants */
+.action-btn-thin--fold {
+  background: linear-gradient(180deg, rgba(244, 63, 94, 0.85) 0%, rgba(190, 18, 60, 0.85) 100%);
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(190, 18, 60, 0.35);
+}
+
+.action-btn-thin--check,
+.action-btn-thin--call {
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.95) 0%, rgba(16, 185, 129, 0.95) 100%);
+  color: white;
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.4);
+}
+
+.action-btn-thin--raise,
+.action-btn-thin--bet {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.95) 0%, rgba(37, 99, 235, 0.95) 100%);
+  color: white;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
+}
+
+.action-btn-thin--allin {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%);
+  color: white;
+  box-shadow: 0 2px 10px rgba(185, 28, 28, 0.4);
+}
+
+/* Leave toggle thin - minimal footprint */
+.action-btn-thin--leave {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0 10px;
+}
+
+.action-btn-thin--leave[aria-pressed="true"] {
+  background: rgba(251, 191, 36, 0.9);
+  color: rgba(0, 0, 0, 0.9);
+  border-color: rgba(251, 191, 36, 0.8);
+}
+
+/* Divider for thin strip */
+.action-strip-thin__divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+/* ==================== PHASE 2: HERO DETAIL OVERLAY ==================== */
+/* Popover for tap-to-reveal hero details */
+
+.hero-detail-overlay {
+  position: absolute;
+  z-index: var(--z-overlays, 40);
+  min-width: 160px;
+  max-width: 220px;
+  padding: 12px 16px;
+  border-radius: var(--hero-overlay-radius, 12px);
+  background: var(--surface-1, rgba(1, 15, 10, 0.9));
+  border: 1px solid var(--border-1, rgba(255, 255, 255, 0.25));
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  animation: heroOverlayFadeIn 0.15s ease-out;
+}
+
+@keyframes heroOverlayFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-detail-overlay {
+    animation: none;
+  }
+}
+
+.hero-detail-overlay__name {
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 700;
+  color: var(--text-1, #f9fafb);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+.hero-detail-overlay__stack {
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 600;
+  color: var(--success, #22c55e);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 8px;
+}
+
+.hero-detail-overlay__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hero-detail-overlay__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 9999px);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-2, #d1d5db);
+}
+
+.hero-detail-overlay__badge--dealer {
+  background: rgba(251, 191, 36, 0.2);
+  color: rgba(251, 191, 36, 0.95);
+}
+
+.hero-detail-overlay__badge--you {
+  background: rgba(59, 130, 246, 0.2);
+  color: rgba(147, 197, 253, 0.95);
+}
+
+/* ==================== PHASE 3: MENU REDESIGN STYLES ==================== */
+/* Professional capsule menu and submenu */
+
+.table-menu-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--surface-1, rgba(1, 15, 10, 0.75));
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.15));
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  min-height: 44px;
+}
+
+.table-menu-capsule:hover {
+  background: var(--surface-2, rgba(1, 20, 15, 0.85));
+}
+
+.table-menu-capsule:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-menu-capsule {
+    transition: background-color 0.15s ease;
+  }
+  .table-menu-capsule:active {
+    transform: none;
+  }
+}
+
+/* Status indicator dot */
+.table-menu-capsule__dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.table-menu-capsule__dot--connected {
+  background: var(--success, #22c55e);
+}
+
+.table-menu-capsule__dot--connecting {
+  background: var(--warning, #f59e0b);
+}
+
+.table-menu-capsule__dot--disconnected {
+  background: var(--danger, #ef4444);
+}
+
+/* Ping animation for connected state */
+.table-menu-capsule__dot--connected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--success, #22c55e);
+  animation: menuDotPing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes menuDotPing {
+  0% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-menu-capsule__dot--connected::before {
+    animation: none;
+    display: none;
+  }
+}
+
+/* Menu capsule info section */
+.table-menu-capsule__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+}
+
+.table-menu-capsule__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-1, #f9fafb);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-menu-capsule__stakes {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-3, #9ca3af);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Menu icon */
+.table-menu-capsule__icon {
+  color: var(--text-3, #9ca3af);
+  flex-shrink: 0;
+}
+
+/* Submenu sheet */
+.table-submenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 200px;
+  max-width: 280px;
+  z-index: var(--z-overlays, 40);
+  animation: submenuFadeIn 0.15s ease-out;
+}
+
+@keyframes submenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-submenu {
+    animation: none;
+  }
+}
+
+/* Submenu separator */
+.table-submenu__separator {
+  height: 1px;
+  background: var(--border-3, rgba(255, 255, 255, 0.08));
+  margin: 4px 0;
+}
+
+/* RTL support */
+[dir="rtl"] .table-menu-capsule__info {
+  align-items: flex-end;
+}
+
+[dir="rtl"] .table-menu-capsule__title {
+  direction: rtl;
+}
+
+/* Backdrop for closing menu on outside click */
+.table-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlays, 40) - 1);
+  background: transparent;
 }

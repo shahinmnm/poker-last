@@ -338,14 +338,12 @@ export default function ActionBar({
         disabled={standUpProcessing}
         aria-pressed={isStandingUp}
         className={clsx(
-          'action-strip-leave flex min-h-[44px] h-11 items-center gap-1 rounded-full px-3 text-[11px] font-bold uppercase tracking-wide transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 motion-reduce:transition-none motion-reduce:active:scale-100',
-          isStandingUp
-            ? 'bg-amber-400 text-black shadow-amber-500/40 ring-2 ring-amber-300/70'
-            : 'bg-white/5 text-white/80 border border-white/10 hover:bg-white/10'
+          'action-btn-thin action-btn-thin--leave ui-focus-ring',
+          isStandingUp && 'action-btn-thin--leave[aria-pressed="true"]'
         )}
         title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
       >
-        <LogOut size={16} className={isStandingUp ? 'text-black' : 'text-white/80'} />
+        <LogOut size={14} className={isStandingUp ? 'text-black' : 'text-white/80'} />
         <span className="hidden sm:inline action-label-safe">
           {isStandingUp 
             ? t('table.actions.leaving', { defaultValue: 'Leaving' })
@@ -368,21 +366,18 @@ export default function ActionBar({
           </div>
         )}
         
-        {/* PHASE 1: Micro strip in SHOWDOWN - always show safe controls */}
+        {/* PHASE 1 REFACTOR: Thin micro strip - always show safe controls */}
         {/* During showdown: show compact strip with leave toggle (no betting actions) */}
         {/* During opponent action: show minimal strip with leave toggle */}
         <div
-          className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-5 sm:px-4"
+          className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
         >
           <div className="pointer-events-auto">
-            {/* PHASE 1: Micro strip - 44-48px height, always visible when seated */}
-            {/* Uses action-strip--mode-aware for mode-based density scaling */}
+            {/* Thin micro strip - uses action-strip-thin for consistent appearance */}
             <div className={clsx(
-              'action-strip action-strip--mode-aware flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-xl backdrop-blur-lg',
-              isShowdown 
-                ? 'action-bar-micro border-white/10 bg-black/60 shadow-black/40'  // Showdown: darker, more subtle
-                : 'action-bar-minimal border-[var(--border-2)] bg-[var(--surface-1)]/90 shadow-black/30'  // Normal: standard styling
+              'action-strip-thin action-strip action-strip--mode-aware',
+              isShowdown && 'opacity-80'  // Slightly muted during showdown
             )}>
               {/* Leave toggle - integrated into strip (always visible) */}
               {renderLeaveToggle()}
@@ -507,46 +502,47 @@ export default function ActionBar({
         </div>
       )}
 
-      {/* PHASE 1: Minimal Action Strip - always anchored at bottom */}
+      {/* PHASE 1 REFACTOR: Thin Action Strip - 2x thinner visual, 44px tap targets preserved */}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-5 sm:px-4"
+        className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="pointer-events-auto">
-          {/* Minimal strip: 48-56px height, compact buttons */}
-          {/* Uses action-strip--mode-aware for mode-based density scaling */}
-          <div className="action-bar-minimal action-strip action-strip--mode-aware flex items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-2 py-1 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
-            {/* Fold - compact */}
+          {/* Thin strip: Uses action-strip-thin class for compact visual with preserved touch targets */}
+          <div className="action-strip-thin action-strip action-strip--mode-aware">
+            {/* Fold - thin variant */}
             <button
               type="button"
               onClick={handleFold}
               disabled={foldDisabled}
-              className="action-btn-secondary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-rose-600/80 to-rose-800/80 px-4 text-[13px] font-bold uppercase tracking-wide text-white/95 shadow-md shadow-rose-900/40 transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 motion-reduce:transition-none motion-reduce:active:scale-100"
+              className="action-btn-thin action-btn-thin--fold ui-focus-ring"
             >
               <span className="action-label-safe">{foldLabel}</span>
             </button>
 
-            {/* Check/Call - compact primary */}
+            {/* Check/Call - thin primary */}
             <button
               type="button"
               onClick={handleCenter}
               disabled={centerDisabled}
-              className="action-btn-primary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-5 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 motion-reduce:transition-none motion-reduce:active:scale-100"
+              className={clsx(
+                'action-btn-thin ui-focus-ring',
+                checkAction ? 'action-btn-thin--check' : 'action-btn-thin--call'
+              )}
             >
               <span className="action-label-safe">{centerLabel}</span>
             </button>
 
-            {/* Raise - verb only button that opens expanded panel */}
+            {/* Raise/Bet - verb only button that opens expanded panel */}
             {sliderLabelAction && (
               <button
                 type="button"
                 onClick={handleRaiseClick}
                 disabled={raiseDisabled}
                 className={clsx(
-                  'min-h-[44px] h-11 rounded-full px-4 text-[13px] font-bold uppercase tracking-wide text-white transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 motion-reduce:transition-none motion-reduce:active:scale-100',
-                  isExpanded
-                    ? 'bg-blue-600 shadow-lg shadow-blue-900/50 ring-2 ring-blue-400/50 focus-visible:ring-blue-400/60'
-                    : 'bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 focus-visible:ring-blue-400/60'
+                  'action-btn-thin ui-focus-ring',
+                  sliderLabelAction.action_type === 'bet' ? 'action-btn-thin--bet' : 'action-btn-thin--raise',
+                  isExpanded && 'ring-2 ring-white/30'
                 )}
               >
                 <span className="flex items-center gap-1">
@@ -555,15 +551,15 @@ export default function ActionBar({
                       ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
                       : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
                   </span>
-                  <ChevronUp size={14} className={clsx('transition-transform duration-150', isExpanded && 'rotate-180')} />
+                  <ChevronUp size={12} className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
                 </span>
               </button>
             )}
 
             {/* Divider */}
-            <div className="h-6 w-px bg-white/10" />
+            <div className="action-strip-thin__divider" aria-hidden="true" />
 
-            {/* Leave toggle - integrated into strip */}
+            {/* Leave toggle - thin variant */}
             {renderLeaveToggle()}
           </div>
         </div>
