@@ -7,13 +7,14 @@
  *   - For raise actions: display as "Raise to {amount}"
  *   - For bet actions (first bet of street): display as "Bet {amount}"
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 
 import { LogOut, Minus, Plus } from 'lucide-react'
 import type { AllowedAction } from '@/types/game'
 import { formatChips } from '@/utils/formatChips'
+import { useHapticFeedback } from '@/hooks/useHapticFeedback'
 
 interface ActionBarProps {
   allowedActions: AllowedAction[]
@@ -40,6 +41,17 @@ export default function ActionBar({
   standUpProcessing = false,
 }: ActionBarProps) {
   const { t } = useTranslation()
+  const haptic = useHapticFeedback()
+  
+  // Throttle haptic feedback during rapid slider adjustments
+  const lastHapticTime = useRef(0)
+  const throttledHaptic = () => {
+    const now = Date.now()
+    if (now - lastHapticTime.current > 100) { // Max 10 haptics per second
+      haptic.selectionChanged()
+      lastHapticTime.current = now
+    }
+  }
 
   const foldAction = useMemo(
     () => allowedActions.find((action) => action.action_type === 'fold'),
@@ -195,6 +207,7 @@ export default function ActionBar({
   const handleFold = () => {
     if (!foldAction || !isMyTurn) return
     if (isProcessing) return
+    haptic.impact('medium')
     onAction('fold')
     setIsAdjustingBet(false)
   }
@@ -203,13 +216,16 @@ export default function ActionBar({
     if (!centerAction || isDisabled) return
     if (sliderActions.includes(centerAction.action_type)) {
       if (!isAdjustingBet || activeBetAction?.action_type !== centerAction.action_type) {
+        haptic.impact('light')
         handleStartAdjusting(centerAction)
         return
       }
+      haptic.notification('success')
       handleBetSubmit(centerAction)
       return
     }
 
+    haptic.impact('light')
     if (centerAction.action_type === 'check') {
       onAction('check')
     } else if (centerAction.action_type === 'call') {
@@ -220,9 +236,11 @@ export default function ActionBar({
   const handleRaise = () => {
     if (!sliderLabelAction || isDisabled) return
     if (!isAdjustingBet || activeBetAction?.action_type !== sliderLabelAction.action_type) {
+      haptic.impact('light')
       handleStartAdjusting(sliderLabelAction)
       return
     }
+    haptic.notification('success')
     handleBetSubmit(sliderLabelAction)
   }
 
@@ -258,13 +276,13 @@ export default function ActionBar({
         disabled={standUpProcessing}
         aria-pressed={isStandingUp}
         className={clsx(
-          'flex h-9 items-center gap-1.5 rounded-full px-3 text-[10px] font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60',
+          'flex min-h-[44px] h-10 items-center gap-1.5 rounded-full px-4 text-xs font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60',
           activeClasses,
         )}
         title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
       >
         {statusDot}
-        <LogOut size={16} className={isStandingUp ? 'text-black' : 'text-white'} />
+        <LogOut size={18} className={isStandingUp ? 'text-black' : 'text-white'} />
         <span>{isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave' })}</span>
       </button>
     )
@@ -277,6 +295,9 @@ export default function ActionBar({
     const max = baseAction.max_amount ?? myStack
     const span = Math.max(1, max - min)
     const step = Math.max(1, Math.round(span / 12))
+
+    // Throttled haptic feedback on bet adjustment (prevents excessive triggers)
+    throttledHaptic()
 
     setActiveBetAction(baseAction)
     setBetAmount((previous) => clampAmount((previous || min) + direction * step, min, max || myStack))
@@ -345,13 +366,13 @@ export default function ActionBar({
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="pointer-events-auto max-w-[820px] text-white font-['Inter',_sans-serif]">
-          <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-emerald-200/25 bg-white/10 px-2 py-1.5 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
-            <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2 rounded-full border border-emerald-200/25 bg-white/10 px-2.5 py-2 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleFold}
                 disabled={foldDisabled}
-                className="h-10 rounded-full bg-gradient-to-b from-rose-500 to-rose-700 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-900/50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-[44px] h-11 rounded-full bg-gradient-to-b from-rose-500 to-rose-700 px-5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-900/50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {foldLabel}
               </button>
@@ -360,38 +381,38 @@ export default function ActionBar({
                 type="button"
                 onClick={handleCenter}
                 disabled={centerDisabled}
-                className="h-10 rounded-full bg-gradient-to-b from-emerald-500 to-emerald-700 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-[44px] h-11 rounded-full bg-gradient-to-b from-emerald-500 to-emerald-700 px-5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {centerLabel}
               </button>
             </div>
 
             {sliderLabelAction && (
-              <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/15 px-1.5 py-1 shadow-lg backdrop-blur-md">
+              <div className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/15 px-2 py-1.5 shadow-lg backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => adjustBet(-1, sliderLabelAction)}
                   disabled={raiseDisabled}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <Minus size={14} />
+                  <Minus size={18} />
                 </button>
-                <div className="min-w-[64px] px-2 text-center text-[12px] font-semibold text-emerald-300 tabular-nums">
+                <div className="min-w-[72px] px-2 text-center text-[13px] font-semibold text-emerald-300 tabular-nums">
                   {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
                 </div>
                 <button
                   type="button"
                   onClick={() => adjustBet(1, sliderLabelAction)}
                   disabled={raiseDisabled}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <Plus size={14} />
+                  <Plus size={18} />
                 </button>
                 <button
                   type="button"
                   onClick={handleRaise}
                   disabled={raiseDisabled}
-                  className="ml-1 h-9 rounded-full bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+                  className="ml-1 min-h-[44px] h-10 rounded-full bg-emerald-500 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-900/50 transition hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
                 >
                   {confirmLabel}
                 </button>

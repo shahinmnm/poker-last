@@ -129,22 +129,31 @@
 
 /* Touch-friendly sizes */
 @media (hover: none) and (pointer: coarse) {
-  /* Increase tap targets */
+  /* Increase tap targets - ensure minimum 44px */
   button,
   .seat-component,
   .lobby-row {
-    min-height: 44px;
+    min-height: var(--touch-target-min, 44px);
   }
 
   /* Larger action buttons */
   .action-panel button {
     padding: 1rem !important;
     font-size: 1rem !important;
+    min-height: var(--touch-target-comfortable, 48px);
   }
 
   /* Larger seat tap area */
   .seat-component {
     padding: 0.5rem;
+  }
+  
+  /* Ensure all interactive elements have adequate touch targets */
+  [role="button"],
+  input[type="range"],
+  .clickable,
+  .tappable {
+    min-height: var(--touch-target-min, 44px);
   }
 }
 

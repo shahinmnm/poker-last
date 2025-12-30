@@ -186,21 +186,27 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       <div
         ref={ref}
         className={clsx(
-          'relative flex items-center transition-all duration-300 m-1',
+          'relative flex items-center transition-all duration-300 m-1 player-seat',
           layout.container,
           mutedState && 'grayscale opacity-50',
           className,
         )}
         style={{
-          width: isHorizontal ? '100px' : '86px',
-          height: isHorizontal ? '86px' : '104px',
+          // Use clamp() for responsive sizing that adapts to viewport
+          // --seat-scale-factor is set via CSS media queries in table-layout.css
+          width: isHorizontal 
+            ? `calc(clamp(85px, 12vw, 110px) * var(--seat-scale-factor, 1))` 
+            : `calc(clamp(75px, 10vw, 95px) * var(--seat-scale-factor, 1))`,
+          height: isHorizontal 
+            ? `calc(clamp(75px, 10vw, 95px) * var(--seat-scale-factor, 1))` 
+            : `calc(clamp(90px, 12vw, 115px) * var(--seat-scale-factor, 1))`,
           zIndex: isActive ? 30 : 20,
         }}
         aria-label={seatLabel}
       >
         {/* AVATAR (The Centerpiece) */}
         <div className="relative z-20 flex items-center justify-center">
-          <div className="relative flex h-12 w-12 items-center justify-center">
+          <div className="relative flex items-center justify-center" style={{ width: 'clamp(40px, 6vw, 52px)', height: 'clamp(40px, 6vw, 52px)' }}>
             {showTimer && turnDeadline && totalTime !== null && (
               <PlayerCircularTimer
                 deadline={turnDeadline}
@@ -213,10 +219,11 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
             <div
               className={clsx(
-                'relative flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/90 text-sm font-bold text-white ring-2 ring-white/15 shadow-xl',
+                'relative flex items-center justify-center rounded-full bg-slate-900/90 text-sm font-bold text-white ring-2 ring-white/15 shadow-xl',
                 isActive && 'ring-emerald-400/90 shadow-emerald-500/30',
                 isHero && !isActive && 'ring-amber-200/70',
               )}
+              style={{ width: 'clamp(40px, 6vw, 52px)', height: 'clamp(40px, 6vw, 52px)' }}
             >
               <span>{initial}</span>
 
@@ -249,18 +256,18 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             )}
           </div>
 
-          {/* INFO PILL (Floating Badge) */}
+          {/* INFO PILL (Floating Badge) - Improved typography */}
           <div
             className={clsx(
               'pointer-events-none absolute z-30 flex -translate-x-1/2 items-center justify-center',
               layout.infoPill,
             )}
           >
-            <div className="flex flex-col items-center rounded-full border border-white/10 bg-black/80 px-2.5 py-1 shadow-lg backdrop-blur-sm">
-              <div className="text-[10px] font-semibold text-gray-200 truncate max-w-[70px] leading-none">
+            <div className="flex flex-col items-center rounded-full border border-white/10 bg-black/80 px-3 py-1.5 shadow-lg backdrop-blur-sm">
+              <div className="text-xs font-semibold text-gray-200 truncate max-w-[80px] leading-tight">
                 {playerName || seatLabel}
               </div>
-              <div className="text-[10px] font-bold text-emerald-400 leading-tight">
+              <div className="text-xs font-bold text-emerald-400 leading-tight">
                 {formatChips(chipCount)}
               </div>
             </div>
