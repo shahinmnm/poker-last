@@ -2014,6 +2014,8 @@ export default function TablePage() {
                 onToggleStandUp={(next) => handleSitOutToggle(next)}
                 isStandingUp={heroIsStandingUp}
                 standUpProcessing={isTogglingSitOut}
+                isShowdown={normalizedStatus === 'showdown'}
+                isInterHand={isInterHand}
               />
             </div>
           </div>
@@ -2038,6 +2040,8 @@ export default function TablePage() {
               onToggleStandUp={(next) => handleSitOutToggle(next)}
               isStandingUp={heroIsStandingUp}
               standUpProcessing={isTogglingSitOut}
+              isShowdown={normalizedStatus === 'showdown'}
+              isInterHand={isInterHand}
             />
           </div>
         </div>
@@ -2111,6 +2115,8 @@ export default function TablePage() {
               onToggleStandUp={(next) => handleSitOutToggle(next)}
               isStandingUp={heroIsStandingUp}
               standUpProcessing={isTogglingSitOut}
+              isShowdown={normalizedStatus === 'showdown'}
+              isInterHand={isInterHand}
             />
           </div>
         </div>
@@ -2460,6 +2466,7 @@ export default function TablePage() {
                               isEmpty={isEmpty}
                               onClick={isEmpty && canJoin && !viewerIsSeated ? handleSeat : undefined}
                               side={seatSide}
+                              heroScaleReduced={isHeroPlayer && !isMyTurn}
                             />
 
                             {/* Leaving Badge - Shows when player is leaving after this hand */}

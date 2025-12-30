@@ -25,6 +25,10 @@ interface ActionBarProps {
   onToggleStandUp?: (standUp: boolean) => void
   isStandingUp?: boolean
   standUpProcessing?: boolean
+  /** Is the hand in showdown phase - suppresses waiting toast */
+  isShowdown?: boolean
+  /** Is inter-hand waiting period - suppresses waiting toast */
+  isInterHand?: boolean
 }
 
 const clampAmount = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
@@ -39,6 +43,8 @@ export default function ActionBar({
   onToggleStandUp,
   isStandingUp = false,
   standUpProcessing = false,
+  isShowdown = false,
+  isInterHand = false,
 }: ActionBarProps) {
   const { t } = useTranslation()
   const haptic = useHapticFeedback()
@@ -324,15 +330,22 @@ export default function ActionBar({
     setIsAdjustingBet(true)
   }
 
-  // When not my turn: show waiting toast and leaving chip (if standing up)
+  // PHASE 4: Waiting toast suppression during showdown
+  // Only show waiting toast when: NOT showdown AND NOT inter-hand AND NOT my turn
+  const showWaitingToast = !isMyTurn && !isShowdown && !isInterHand
+
+  // When not my turn: show waiting toast (conditionally) and leaving chip (if standing up)
   if (!isMyTurn) {
     return (
       <>
         {/* Waiting toast - centered above action bar safe zone */}
-        <div className="waiting-toast">
-          <span className="waiting-toast__spinner" />
-          {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent…' })}
-        </div>
+        {/* PHASE 4 FIX: Only shown when NOT showdown AND NOT inter-hand */}
+        {showWaitingToast && (
+          <div className="waiting-toast">
+            <span className="waiting-toast__spinner" />
+            {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent…' })}
+          </div>
+        )}
         
         {/* Leaving status chip - compact and docked to safe corner */}
         {isStandingUp && renderStandUpButton(true)}
