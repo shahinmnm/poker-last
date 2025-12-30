@@ -1021,9 +1021,12 @@
 }
 
 /* 6-PLAYER TABLE HARDENING: When more seats are rendered, reduce spacing */
-/* Applied when table has many active seats */
-.table-area:has(.seat-enter:nth-child(6)) .board-cluster {
-  --board-cluster-gap: max(8px, calc(var(--board-cluster-gap, 12px) * 0.85));
+/* NOTE: This uses CSS :has() which may not be supported in all browsers.
+   This is progressive enhancement - layout still works without it. */
+@supports selector(:has(*)) {
+  .table-area:has(.seat-enter:nth-child(6)) .board-cluster {
+    --board-cluster-gap: max(8px, calc(var(--board-cluster-gap, 12px) * 0.85));
+  }
 }
 
 /* RTL HARDENING: Ensure Farsi/Arabic names don't break layout */
@@ -1045,7 +1048,6 @@
 .board-cluster__pot,
 .board-cluster__cards,
 .board-cluster__winner {
-  will-change: auto; /* Reset will-change when not animating */
   backface-visibility: hidden; /* Prevent sub-pixel rendering issues */
 }
 

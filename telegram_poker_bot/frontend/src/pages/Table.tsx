@@ -2202,12 +2202,12 @@ export default function TablePage() {
                   {winnerDisplayInfo && (
                     <div className="winner-banner-safe winner-banner-safe--inline mb-4 motion-reduce:animate-none">
                       <div className="flex flex-col items-center">
-                        {/* BETA HARDENING: tabular-nums for consistent pot display width */}
-                        <span className="winner-banner-safe__amount" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {/* BETA HARDENING: tabular-nums applied via CSS (.winner-banner-safe__amount) */}
+                        <span className="winner-banner-safe__amount">
                           {formatByCurrency(winnerDisplayInfo.amount, currencyType)} Chips
                         </span>
-                        {/* BETA HARDENING: max-width + ellipsis for long winner names */}
-                        <span className="winner-banner-safe__label" style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} dir="auto">
+                        {/* BETA HARDENING: max-width + ellipsis applied via CSS (.winner-banner-safe__label) */}
+                        <span className="winner-banner-safe__label" dir="auto">
                           Won by {winnerDisplayInfo.displayName}
                         </span>
                       </div>
