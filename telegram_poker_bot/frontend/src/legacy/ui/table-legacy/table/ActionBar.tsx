@@ -349,10 +349,10 @@ export default function ActionBar({
               {/* Min/Max labels */}
               <div className="flex justify-between mb-2 px-1">
                 <span className="text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
-                  Min: {formatChips(minAmount ?? 0)}
+                  {t('table.actionBar.min', { defaultValue: 'Min' })}: {formatChips(minAmount ?? 0)}
                 </span>
                 <span className="text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
-                  Max: {formatChips(maxAmount ?? 0)}
+                  {t('table.actionBar.max', { defaultValue: 'Max' })}: {formatChips(maxAmount ?? 0)}
                 </span>
               </div>
               <input
@@ -412,7 +412,9 @@ export default function ActionBar({
                 </button>
                 <div className="min-w-[72px] px-2 text-center">
                   <span className="block text-[10px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-0.5">
-                    {sliderLabelAction.action_type === 'bet' ? 'Bet' : 'Raise to'}
+                    {sliderLabelAction.action_type === 'bet' 
+                      ? t('table.actionBar.betLabel', { defaultValue: 'Bet' })
+                      : t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })}
                   </span>
                   <span className="block text-[14px] font-bold text-emerald-300 tabular-nums leading-none">
                     {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
