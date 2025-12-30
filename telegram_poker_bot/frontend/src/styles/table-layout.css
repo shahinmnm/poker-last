@@ -10,8 +10,10 @@
   --table-min-height: 94vh;
   
   /* ActionBar height reservation - prevents seat overlap */
+  /* Base height + slider expanded height + safe-area + breathing room */
   --action-bar-height: 72px;
-  --action-bar-total-offset: calc(var(--action-bar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  --action-bar-slider-height: 60px; /* Extra space when raise slider is expanded */
+  --action-bar-total-offset: calc(var(--action-bar-height) + var(--action-bar-slider-height) + env(safe-area-inset-bottom, 0px) + 16px);
 }
 
 @media (max-width: 400px) {
@@ -19,6 +21,7 @@
     /* keep the bottom median clear for the action dock on narrow portraits */
     --seat-row-offset: 72vh;
     --action-bar-height: 80px; /* Slightly larger on small screens for better touch */
+    --action-bar-slider-height: 56px; /* Compact slider on small screens */
   }
 }
 
@@ -180,15 +183,16 @@
 @media (max-height: 600px) {
   :root {
     --action-bar-height: 64px;
+    --action-bar-slider-height: 48px; /* Compact slider on short screens */
     --seat-row-offset: 58vh;
-    --seat-scale-factor: 0.85;
+    --seat-scale-factor: 0.88; /* Slightly larger for readability (was 0.85) */
   }
 }
 
 /* Extra small devices need more compact layout */
 @media (max-width: 360px) {
   :root {
-    --seat-scale-factor: 0.8;
+    --seat-scale-factor: 0.85; /* Raised from 0.8 to maintain 64px min seat size */
   }
   
   .table-pot-pill {
@@ -198,6 +202,16 @@
   
   .table-pot-pill-amount {
     font-size: 13px;
+  }
+}
+
+/* Very small landscape screens (e.g., 667x375) need balanced scaling */
+@media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
+  :root {
+    --seat-scale-factor: 0.82;
+    --action-bar-height: 60px;
+    --action-bar-slider-height: 44px;
+    --seat-row-offset: 55vh;
   }
 }
 

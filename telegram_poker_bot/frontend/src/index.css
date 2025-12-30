@@ -537,32 +537,54 @@ a {
   outline: none;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06), 0 8px 20px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(18px);
+  /* Increase touch hitbox by adding transparent padding around the track */
+  padding: 16px 0;
+  margin: -16px 0;
+  box-sizing: content-box;
+}
+
+/* Focus state for accessibility */
+.action-range:focus {
+  outline: 2px solid rgba(74, 222, 128, 0.6);
+  outline-offset: 4px;
 }
 
 /* Larger thumb for better touch targets (>=44px effective area) */
 .action-range::-webkit-slider-thumb {
   appearance: none;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 9999px;
   background: linear-gradient(135deg, rgba(74, 222, 128, 0.95), rgba(52, 211, 153, 0.85));
   border: 3px solid rgba(255, 255, 255, 0.45);
   box-shadow: 0 0 22px rgba(74, 222, 128, 0.8), 0 8px 18px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(18px);
   cursor: pointer;
-  /* Offset to vertically center the 32px thumb on the 12px track: (32-12)/2 = 10px */
-  margin-top: -10px;
+  /* Offset to vertically center the 44px thumb on the 12px track: (44-12)/2 = 16px */
+  margin-top: -16px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.action-range::-webkit-slider-thumb:active {
+  transform: scale(1.1);
+  box-shadow: 0 0 28px rgba(74, 222, 128, 0.95), 0 10px 24px rgba(0, 0, 0, 0.5);
 }
 
 .action-range::-moz-range-thumb {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 9999px;
   background: linear-gradient(135deg, rgba(74, 222, 128, 0.95), rgba(52, 211, 153, 0.85));
   border: 3px solid rgba(255, 255, 255, 0.45);
   box-shadow: 0 0 22px rgba(74, 222, 128, 0.8), 0 8px 18px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(18px);
   cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.action-range::-moz-range-thumb:active {
+  transform: scale(1.1);
+  box-shadow: 0 0 28px rgba(74, 222, 128, 0.95), 0 10px 24px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes seatFadeSlideIn {
