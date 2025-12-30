@@ -60,7 +60,7 @@ export function WinnerBanner({
           </div>
           <div className="winner-banner-safe__label">
             {isMultipleWinners 
-              ? `Split ${winners.length} ways`
+              ? `Split ${winners.length}`
               : mainWinner.hand_rank 
                 ? mainWinner.hand_rank
                 : 'Winner'
