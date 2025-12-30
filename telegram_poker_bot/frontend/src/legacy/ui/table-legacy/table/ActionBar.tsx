@@ -375,7 +375,7 @@ export default function ActionBar({
           className="action-expanded-panel pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-3 sm:bottom-24 sm:px-4"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
         >
-          <div className="pointer-events-auto relative w-full max-w-[400px]">
+          <div className="pointer-events-auto relative w-full max-w-[var(--expanded-panel-max-width,400px)]">
             {/* Floating bet amount label */}
             <div className="pointer-events-none absolute -top-10" style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}>
               <div className="rounded-full border border-emerald-400/60 bg-emerald-600/95 px-4 py-1.5 shadow-lg shadow-emerald-900/50 backdrop-blur-lg">
