@@ -11,6 +11,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Minus, Plus } from 'lucide-react'
 import type { LegalAction, ActionType } from '../../types/normalized'
 import Toggle from '../ui/Toggle'
@@ -35,6 +36,7 @@ export function ActionPanel({
   onSitOutToggle,
   showSitOutToggle = false,
 }: ActionPanelProps) {
+  const { t } = useTranslation()
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null)
   const [showRaiseControl, setShowRaiseControl] = useState(false)
 
@@ -109,9 +111,11 @@ export function ActionPanel({
     <div className="action-panel flex flex-col items-center gap-3">
       {/* Leave After Hand Toggle - glassmorphism pill at top */}
       {showSitOutToggle && onSitOutToggle && (
-        <div className="sit-out-toggle bg-black/40 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-3">
-          <label htmlFor="sit-out-toggle" className="text-xs font-medium text-gray-200 cursor-pointer">
-            {isSittingOut ? 'Leaving after hand' : 'Leave after hand'}
+        <div className="sit-out-toggle bg-[var(--surface-1)] backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-3 border border-[var(--border-2)]">
+          <label htmlFor="sit-out-toggle" className="text-xs font-medium text-[var(--text-2)] cursor-pointer">
+            {isSittingOut 
+              ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' })
+              : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
           </label>
           <Toggle
             id="sit-out-toggle"
@@ -130,9 +134,9 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('fold')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-rose-600/80 to-rose-800/80 shadow-md shadow-rose-900/40 text-white/95 font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none motion-reduce:transition-none motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-rose-600/80 to-rose-800/80 shadow-md shadow-rose-900/40 text-white/95 font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
             >
-              Fold
+              {t('table.actionBar.fold', { defaultValue: 'Fold' })}
             </button>
           )}
 
@@ -141,9 +145,9 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('check')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
             >
-              Check
+              {t('table.actionBar.check', { defaultValue: 'Check' })}
             </button>
           )}
 
@@ -152,14 +156,11 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('call')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
             >
-              Call{' '}
-              {callAction.call_amount !== undefined && (
-                <span className="font-mono ml-1 opacity-90">
-                  {formatByCurrency(callAction.call_amount, currency)}
-                </span>
-              )}
+              {callAction.call_amount !== undefined
+                ? t('table.actionBar.call', { defaultValue: 'Call {{amount}}', amount: formatByCurrency(callAction.call_amount, currency) })
+                : t('table.actionBar.check', { defaultValue: 'Call' })}
             </button>
           )}
 
@@ -169,32 +170,31 @@ export function ActionPanel({
             <button
               onClick={handleRaiseClick}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
+              className="min-h-[44px] bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus:ring-2 focus:ring-blue-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
             >
-              {raiseAction.action === 'raise' ? 'Raise to ' : 'Bet '}
-              <span className="font-mono">
-                {formatByCurrency(raiseAction.min_amount || 0, currency)}
-              </span>
+              {raiseAction.action === 'raise' 
+                ? t('table.actionBar.raise', { defaultValue: 'Raise to {{amount}}', amount: formatByCurrency(raiseAction.min_amount || 0, currency) })
+                : t('table.actionBar.bet', { defaultValue: 'Bet {{amount}}', amount: formatByCurrency(raiseAction.min_amount || 0, currency) })}
             </button>
           )}
 
           {/* Expanded Raise Control - composite pill */}
           {/* Amount displayed and submitted is TOTAL-TO (total committed for street) */}
           {raiseAction && showRaiseControl && (
-            <div className="bg-black/60 backdrop-blur-md rounded-full p-1 flex items-center gap-1">
+            <div className="bg-[var(--surface-1)] backdrop-blur-md rounded-full p-1 flex items-center gap-1 border border-[var(--border-2)]">
               {/* Minus button */}
               <button
                 onClick={decrementRaise}
                 disabled={disabled}
-                className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-white transition-colors disabled:opacity-50"
+                className="min-h-[44px] min-w-[44px] w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-300/60 motion-reduce:transition-none"
               >
                 <Minus size={14} />
               </button>
               
               {/* Amount display - shows "to {amount}" label for clarity */}
               <div className="px-3 min-w-[80px] text-center">
-                <span className="text-gray-400 text-xs mr-1">to</span>
-                <span className="text-emerald-400 font-bold text-sm">
+                <span className="text-[var(--text-3)] text-xs mr-1">{t('table.actionBar.to', { defaultValue: 'to' })}</span>
+                <span className="text-emerald-400 font-bold text-sm tabular-nums">
                   {formatByCurrency(raiseAmount || raiseAction.min_amount || 0, currency)}
                 </span>
               </div>
@@ -203,38 +203,40 @@ export function ActionPanel({
               <button
                 onClick={incrementRaise}
                 disabled={disabled}
-                className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-white transition-colors disabled:opacity-50"
+                className="min-h-[44px] min-w-[44px] w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-300/60 motion-reduce:transition-none"
               >
                 <Plus size={14} />
               </button>
               
-              {/* Confirm button - shows "Raise to" or "Bet" label with amount */}
+              {/* Confirm button - matches primary gradient style */}
               <button
                 onClick={handleRaiseConfirm}
                 disabled={disabled}
-                className="bg-emerald-500 hover:bg-emerald-600 rounded-full px-4 py-1 text-sm font-bold text-white transition-colors disabled:opacity-50"
+                className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-full px-4 py-1 text-sm font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-300/60 motion-reduce:transition-none"
               >
-                {raiseAction.action === 'raise' ? 'Raise to' : 'Bet'}
+                {raiseAction.action === 'raise' 
+                  ? t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })
+                  : t('table.actionBar.betLabel', { defaultValue: 'Bet' })}
               </button>
               
               {/* Cancel button */}
               <button
                 onClick={() => setShowRaiseControl(false)}
-                className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-300 transition-colors text-xs"
+                className="min-h-[44px] min-w-[44px] w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-[var(--text-2)] transition-colors text-xs focus:outline-none focus:ring-2 focus:ring-white/30 motion-reduce:transition-none"
               >
                 ✕
               </button>
             </div>
           )}
 
-          {/* All In button - danger pill */}
+          {/* All In button - danger pill, consistent with legacy styling */}
           {hasAllIn && (
             <button
               onClick={() => handleAction('all_in')}
               disabled={disabled}
-              className="bg-gradient-to-b from-red-500 to-red-700 shadow-lg shadow-red-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] bg-gradient-to-b from-rose-500 to-rose-700 shadow-lg shadow-rose-900/50 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
             >
-              All In
+              {t('table.actions.allIn', { defaultValue: 'All In' })}
             </button>
           )}
 
@@ -243,9 +245,9 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('ready')}
               disabled={disabled}
-              className="bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-900/50 text-white font-bold px-6 h-10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
             >
-              Ready
+              {t('table.actions.ready', { defaultValue: 'Ready' })}
             </button>
           )}
         </div>
@@ -259,7 +261,7 @@ export function ActionPanel({
               key={index}
               onClick={() => setRaiseAmount(preset.amount)}
               disabled={disabled}
-              className="bg-black/40 backdrop-blur-sm text-gray-200 text-xs font-medium px-3 py-1 rounded-full hover:bg-black/60 transition-colors disabled:opacity-50"
+              className="min-h-[44px] bg-[var(--surface-2)] backdrop-blur-sm text-[var(--text-2)] text-xs font-medium px-3 py-1 rounded-full border border-[var(--border-3)] hover:bg-[var(--surface-1)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-300/60 motion-reduce:transition-none"
             >
               {preset.label}
             </button>

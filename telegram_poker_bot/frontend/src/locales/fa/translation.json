@@ -663,7 +663,12 @@
       "call": "کال {{amount}}",
       "bet": "شرط {{amount}}",
       "raise": "ریز تا {{amount}}",
-      "allIn": "آل‌این {{amount}}"
+      "allIn": "آل‌این {{amount}}",
+      "betLabel": "شرط",
+      "raiseToLabel": "ریز تا",
+      "to": "به",
+      "min": "حداقل",
+      "max": "حداکثر"
     },
     "blinds": "بلایند",
     "turnCountdown": "تایمر اکشن",
@@ -687,7 +692,8 @@
       "waiting": "در انتظار",
       "active": "در حال اجرا",
       "paused": "متوقف",
-      "ended": "پایان یافته"
+      "ended": "پایان یافته",
+      "sittingOut": "خواب"
     },
     "visibility": {
       "public": "میز عمومی",
@@ -728,6 +734,7 @@
       "bet": "بت",
       "raise": "ریز",
       "allIn": "آل‌این",
+      "ready": "آماده",
       "rebuy": "خرید مجدد",
       "leaveAfterHand": "ترک بعد از دست",
       "leavingAfterHand": "در حال ترک بعد از دست",
