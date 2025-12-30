@@ -887,22 +887,6 @@
   font-size: calc(11px * var(--action-strip-density, 1));
 }
 
-/* ==================== HERO SEAT MODE SCALING ==================== */
-/* Apply hero-seat-scale based on UI mode via custom property */
-
-.player-seat--hero-mode-scale {
-  transform: scale(var(--hero-seat-scale, 1));
-  transition: transform 0.2s ease-out;
-  transform-origin: center bottom;
-}
-
-/* Respect reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .player-seat--hero-mode-scale {
-    transition: none;
-  }
-}
-
 /* ==================== RESPONSIVE MODE ADJUSTMENTS ==================== */
 /* Small landscape screens need tighter mode-based spacing */
 

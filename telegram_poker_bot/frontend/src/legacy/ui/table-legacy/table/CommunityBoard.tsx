@@ -37,10 +37,9 @@ export default function CommunityBoard({
   const displayPot = formatByCurrency(safePotAmount, currencyType, { withDecimals: currencyType === 'REAL' })
 
   return (
-    /* PHASE 3: Board cluster container - semantic wrapper for pot + cards
-     * Uses CSS gap from --board-cluster-gap variable (set by data-ui-mode)
-     * Order: pot (0) -> cards (1) -> winner banner passed via parent
-     */
+    // PHASE 3: Board cluster container - semantic wrapper for pot + cards
+    // Uses CSS gap from --board-cluster-gap variable (set by data-ui-mode)
+    // Order: pot (0) -> cards (1) -> winner banner passed via parent
     <div className="board-cluster board-cluster--expanded" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
       {/* Pot display - order: 0 (always first in cluster) */}
       <div
