@@ -44,10 +44,11 @@ export default function ActionBar({
   const haptic = useHapticFeedback()
   
   // Throttle haptic feedback during rapid slider adjustments
+  // Use 200ms interval (max 5 haptics/sec) to avoid UI slowdown and excessive vibration
   const lastHapticTime = useRef(0)
   const throttledHaptic = () => {
     const now = Date.now()
-    if (now - lastHapticTime.current > 100) { // Max 10 haptics per second
+    if (now - lastHapticTime.current > 200) { // Max 5 haptics per second
       haptic.selectionChanged()
       lastHapticTime.current = now
     }
