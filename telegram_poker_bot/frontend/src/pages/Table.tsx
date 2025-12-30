@@ -2192,7 +2192,7 @@ export default function TablePage() {
               {/* Integrated Winner HUD & Next Hand Timer - Safe zone positioned below board */}
               {isInterHand && (
                 <div 
-                  className="board-cluster__winner absolute left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none flex flex-col items-center"
+                  className="board-cluster__winner absolute left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none flex flex-col items-center motion-reduce:transition-none"
                   style={{ 
                     top: 'calc(var(--streets-row-offset, 18vh) + var(--winner-banner-offset, 20vh))',
                     zIndex: 'var(--z-overlays, 40)'
@@ -2200,22 +2200,24 @@ export default function TablePage() {
                 >
                   {/* Winner Badge (Safe positioned below community cards) */}
                   {winnerDisplayInfo && (
-                    <div className="winner-banner-safe winner-banner-safe--inline mb-4">
+                    <div className="winner-banner-safe winner-banner-safe--inline mb-4 motion-reduce:animate-none">
                       <div className="flex flex-col items-center">
-                        <span className="winner-banner-safe__amount">
+                        {/* BETA HARDENING: tabular-nums for consistent pot display width */}
+                        <span className="winner-banner-safe__amount" style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {formatByCurrency(winnerDisplayInfo.amount, currencyType)} Chips
                         </span>
-                        <span className="winner-banner-safe__label">
+                        {/* BETA HARDENING: max-width + ellipsis for long winner names */}
+                        <span className="winner-banner-safe__label" style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} dir="auto">
                           Won by {winnerDisplayInfo.displayName}
                         </span>
                       </div>
                     </div>
                   )}
 
-                  {/* Next Hand Progress Bar */}
+                  {/* Next Hand Progress Bar - respects reduced motion */}
                   <div className="w-48 bg-black/40 h-1.5 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
                     <div 
-                      className="h-full bg-emerald-400 shadow-[0_0_10px_currentColor] transition-all ease-linear"
+                      className="h-full bg-emerald-400 shadow-[0_0_10px_currentColor] transition-all ease-linear motion-reduce:transition-none"
                       style={{ width: `${interHandProgress * 100}%`, transitionDuration: '100ms' }}
                     />
                   </div>

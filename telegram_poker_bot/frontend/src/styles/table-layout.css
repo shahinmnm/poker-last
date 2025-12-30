@@ -839,6 +839,15 @@
   margin: 0 auto;
   /* Ensure cluster respects mode-based spacing */
   transform-origin: center center;
+  /* BETA HARDENING: Smooth transition for gap changes during mode transitions */
+  transition: gap 0.2s ease-out;
+}
+
+/* Disable gap transition for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .board-cluster {
+    transition: none;
+  }
 }
 
 /* Board cluster items: pot always first, cards second, winner third */
@@ -873,6 +882,15 @@
   /* Apply density to padding/font-size via transform scale */
   transform: scale(var(--action-strip-density, 1));
   transform-origin: center bottom;
+  /* BETA HARDENING: Smooth transition for density scaling during mode transitions */
+  transition: transform 0.2s ease-out, min-height 0.15s ease-out;
+}
+
+/* Disable transitions for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .action-strip--mode-aware {
+    transition: none;
+  }
 }
 
 /* Low density strip: smaller padding, condensed labels */
@@ -922,5 +940,174 @@
   [data-ui-mode="SHOWDOWN"] {
     --board-cluster-gap: 10px;
     --player-hand-reserved: 40px;
+  }
+}
+
+/* ==================== BETA HARDENING: STRESS CASE FIXES ==================== */
+/* Phase 3: Harden for stress cases - 6+ players, large pots, long names, fast turn changes */
+
+/* TABULAR-NUMS: All numeric amounts in board cluster use tabular (monospaced) figures */
+/* This prevents layout shifts when pot amounts change (e.g., 999 -> 1,000) */
+.board-cluster__pot,
+.board-cluster .table-pot-pill-amount,
+.board-cluster .pot-display,
+.winner-banner-safe__amount,
+.raise-cluster__value,
+.raise-cluster__label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* CONSISTENT LINE-HEIGHT: Prevent vertical jumping during fast state updates */
+.board-cluster__pot,
+.winner-banner-safe,
+.table-pot-pill,
+.top-cluster__pot {
+  line-height: 1.4;
+}
+
+/* LONG NAME HANDLING: Max-width + ellipsis for player names in board context */
+.top-cluster__opponent,
+.winner-banner-safe__label {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* LARGE POT HANDLING: Clamp font-size for very large pot numbers (9,999,999+) */
+.board-cluster__pot .table-pot-pill-amount,
+.board-cluster__pot [class*="font-bold"] {
+  font-size: clamp(13px, 3vw, 16px);
+}
+
+/* WINNER BANNER: Prevent layout jump with consistent sizing */
+.winner-banner-safe {
+  min-width: 140px;
+  min-height: 48px;
+}
+
+/* SMALL SCREEN HARDENING: Very small screens (568x320 and 667x375) */
+@media (max-width: 568px), (max-height: 375px) {
+  /* Tighter pot pill for small screens */
+  .table-pot-pill {
+    padding: 4px 12px;
+    min-width: 70px;
+  }
+  
+  .table-pot-pill-amount {
+    font-size: 12px;
+  }
+  
+  /* Winner banner compaction */
+  .winner-banner-safe {
+    min-width: 120px;
+    min-height: 40px;
+    padding: 6px 12px;
+  }
+  
+  .winner-banner-safe__amount {
+    font-size: 14px;
+  }
+  
+  .winner-banner-safe__label {
+    font-size: 9px;
+    max-width: 150px;
+  }
+  
+  /* Board cluster gap clamp */
+  .board-cluster {
+    gap: clamp(6px, var(--board-cluster-gap, 10px), 14px);
+  }
+}
+
+/* 6-PLAYER TABLE HARDENING: When more seats are rendered, reduce spacing */
+/* Applied when table has many active seats */
+.table-area:has(.seat-enter:nth-child(6)) .board-cluster {
+  --board-cluster-gap: max(8px, calc(var(--board-cluster-gap, 12px) * 0.85));
+}
+
+/* RTL HARDENING: Ensure Farsi/Arabic names don't break layout */
+[dir="rtl"] .winner-banner-safe__label,
+[dir="rtl"] .top-cluster__opponent,
+[dir="rtl"] .action-label-safe {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Global RTL text direction auto-detection */
+.winner-banner-safe__label,
+.top-cluster__opponent {
+  unicode-bidi: plaintext;
+}
+
+/* FAST TURN CHANGE: Prevent flicker during rapid mode transitions */
+.board-cluster,
+.board-cluster__pot,
+.board-cluster__cards,
+.board-cluster__winner {
+  will-change: auto; /* Reset will-change when not animating */
+  backface-visibility: hidden; /* Prevent sub-pixel rendering issues */
+}
+
+/* During active transitions, optimize for animation */
+.board-cluster--expanded {
+  will-change: gap;
+}
+
+/* ==================== OVERLAY CONTAINMENT: SACRED ZONE PROTECTION ==================== */
+/* Ensure overlays never cover community cards at any viewport size */
+
+/* Sacred zone: Community cards must always be visible */
+.community-cards-sacred {
+  position: relative;
+  z-index: var(--z-cards-chips, 20);
+  pointer-events: auto;
+  isolation: isolate;
+  /* Minimum clearance around cards */
+  padding: 4px;
+}
+
+/* Winner banner: Position below sacred zone, never overlap */
+.board-cluster__winner {
+  /* Position in normal flow after cards */
+  margin-top: calc(var(--board-cluster-gap, 12px) * 0.5);
+  z-index: calc(var(--z-cards-chips, 20) - 1);
+}
+
+/* Pot label: Position above sacred zone in normal flow */
+.board-cluster__pot {
+  z-index: calc(var(--z-cards-chips, 20) + 1);
+  margin-bottom: calc(var(--board-cluster-gap, 12px) * 0.5);
+}
+
+/* Waiting toast: Ensure it doesn't overlap board content */
+.waiting-toast {
+  /* Already positioned fixed, ensure clearance from board */
+  max-width: calc(100vw - 48px);
+}
+
+/* ==================== INTER-HAND STATE HARDENING ==================== */
+/* Smooth transitions between hands and during showdown */
+
+/* Inter-hand winner HUD: Consistent positioning */
+.board-cluster__winner.winner-banner-safe--inline {
+  animation: none; /* Disable animation for inline variant */
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+}
+
+/* Respect reduced motion for all board cluster transitions */
+@media (prefers-reduced-motion: reduce) {
+  .board-cluster,
+  .board-cluster__pot,
+  .board-cluster__cards,
+  .board-cluster__winner,
+  .board-cluster--expanded,
+  .winner-banner-safe,
+  .action-strip--mode-aware {
+    transition: none;
+    animation: none;
   }
 }
