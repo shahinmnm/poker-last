@@ -110,6 +110,25 @@ export default function ActionBar({
     setIsExpanded(false)
     setIsAdjustingBet(false)
   }, [])
+  
+  // PHASE 2: Auto-close panel on showdown or opponent action mode change
+  useEffect(() => {
+    if (isShowdown || !isMyTurn) {
+      collapsePanel()
+    }
+  }, [isShowdown, isMyTurn, collapsePanel])
+  
+  // PHASE 2: Escape key closes expanded panel (desktop)
+  useEffect(() => {
+    if (!isExpanded) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        collapsePanel()
+      }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isExpanded, collapsePanel])
 
   // TASK 3/6: Reset UI state when turn changes or becomes invalid
   useEffect(() => {
@@ -345,22 +364,26 @@ export default function ActionBar({
           </div>
         )}
         
-        {/* PHASE 1: Minimal strip (disabled) when not my turn but still visible */}
-        {/* PHASE 3: Hidden during SHOWDOWN, visible during OPPONENT_ACTION */}
-        {!isShowdown && (
-          <div
-            className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-5 sm:px-4"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
-          >
-            <div className="pointer-events-auto">
-              {/* PHASE 1: Minimal action strip - 48-56px height */}
-              <div className="action-bar-minimal action-strip flex items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)]/90 px-3 py-1.5 shadow-xl shadow-black/30 backdrop-blur-lg">
-                {/* Leave toggle - integrated into minimal strip */}
-                {renderLeaveToggle()}
-              </div>
+        {/* PHASE 1: Micro strip in SHOWDOWN - always show safe controls */}
+        {/* During showdown: show compact strip with leave toggle (no betting actions) */}
+        {/* During opponent action: show minimal strip with leave toggle */}
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-5 sm:px-4"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+        >
+          <div className="pointer-events-auto">
+            {/* PHASE 1: Micro strip - 44-48px height, always visible when seated */}
+            <div className={clsx(
+              'action-strip flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-xl backdrop-blur-lg',
+              isShowdown 
+                ? 'action-bar-micro border-white/10 bg-black/60 shadow-black/40'  // Showdown: darker, more subtle
+                : 'action-bar-minimal border-[var(--border-2)] bg-[var(--surface-1)]/90 shadow-black/30'  // Normal: standard styling
+            )}>
+              {/* Leave toggle - integrated into strip (always visible) */}
+              {renderLeaveToggle()}
             </div>
           </div>
-        )}
+        </div>
       </>
     )
   }
@@ -368,6 +391,15 @@ export default function ActionBar({
   // PHASE 1 & 2: Main rendering when it's my turn
   return (
     <>
+      {/* PHASE 2: Backdrop for tap-outside-closes-panel */}
+      {isExpanded && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={collapsePanel}
+          aria-hidden="true"
+        />
+      )}
+      
       {/* PHASE 2: Expanded Action Panel - opens above minimal strip */}
       {/* Only visible when isExpanded is true (user tapped Raise) */}
       {isExpanded && sliderLabelAction && (

@@ -59,6 +59,18 @@ export function ActionPanel({
     // Close the raise control panel when actions change (new turn)
     setShowRaiseControl(false)
   }, [raiseAction])
+  
+  // PHASE 2: Escape key closes raise panel (desktop)
+  useEffect(() => {
+    if (!showRaiseControl) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowRaiseControl(false)
+      }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [showRaiseControl])
 
   const handleAction = (action: ActionType, amount?: number) => {
     if (disabled) return
