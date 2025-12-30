@@ -44,13 +44,14 @@ export default function CommunityBoard({
       {/* Pot display - order: 0 (always first in cluster) */}
       <div
         ref={potRef}
-        className={`board-cluster__pot pointer-events-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
+        className={`board-cluster__pot pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
       >
         <div className="inline-flex items-center gap-2 rounded-full border border-orange-300/50 bg-gradient-to-b from-orange-400 to-orange-600 px-4 py-1 shadow-lg shadow-orange-900/40 backdrop-blur-md">
           <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/90">
             {t('table.potLabel', { defaultValue: 'POT' })}:
           </span>
-          <div className="text-sm font-bold tracking-wide text-white">{displayPot}</div>
+          {/* BETA HARDENING: tabular-nums prevents layout shift when pot changes */}
+          <div className="text-sm font-bold tracking-wide text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>{displayPot}</div>
         </div>
       </div>
 
