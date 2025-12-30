@@ -128,13 +128,13 @@ export function ActionPanel({
 
       {/* Main action buttons - floating pills with premium casino styling */}
       {legalActions.length > 0 && (
-        <div className="action-bar-container flex gap-3 items-end flex-wrap justify-center">
+        <div className="action-bar-container flex gap-3 items-center flex-wrap justify-center">
           {/* Fold button - Secondary action: muted rose, less prominent */}
           {hasFold && (
             <button
               onClick={() => handleAction('fold')}
               disabled={disabled}
-              className="action-btn-secondary min-h-[44px] bg-gradient-to-b from-rose-600/80 to-rose-800/80 shadow-md shadow-rose-900/40 text-white/95 font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
+              className="action-btn-secondary min-h-[44px] h-11 bg-gradient-to-b from-rose-600/80 to-rose-800/80 shadow-md shadow-rose-900/40 text-white/95 font-bold px-5 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               <span className="action-label-safe">{t('table.actionBar.fold', { defaultValue: 'Fold' })}</span>
             </button>
@@ -145,7 +145,7 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('check')}
               disabled={disabled}
-              className="action-btn-primary min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
+              className="action-btn-primary min-h-[44px] h-11 bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               <span className="action-label-safe">{t('table.actionBar.check', { defaultValue: 'Check' })}</span>
             </button>
@@ -156,7 +156,7 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('call')}
               disabled={disabled}
-              className="action-btn-primary min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
+              className="action-btn-primary min-h-[44px] h-11 bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 text-white font-bold px-6 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] active:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               <span className="action-label-safe">
                 {callAction.call_amount !== undefined
@@ -167,17 +167,17 @@ export function ActionPanel({
           )}
 
           {/* Raise/Bet Control - composite pill UI */}
-          {/* Button shows "Raise to {min}" or "Bet {min}" - amounts are TOTAL-TO values */}
+          {/* Button shows only verb - amounts are in expanded cluster */}
           {raiseAction && !showRaiseControl && (
             <button
               onClick={handleRaiseClick}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
+              className="min-h-[44px] h-11 bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 text-white font-bold px-5 rounded-full transition-all duration-150 hover:scale-105 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               <span className="action-label-safe">
                 {raiseAction.action === 'raise' 
-                  ? t('table.actionBar.raise', { defaultValue: 'Raise to {{amount}}', amount: formatByCurrency(raiseAction.min_amount || 0, currency) })
-                  : t('table.actionBar.bet', { defaultValue: 'Bet {{amount}}', amount: formatByCurrency(raiseAction.min_amount || 0, currency) })}
+                  ? t('table.actions.raise', { defaultValue: 'Raise' })
+                  : t('table.actionBar.betLabel', { defaultValue: 'Bet' })}
               </span>
             </button>
           )}
@@ -185,20 +185,25 @@ export function ActionPanel({
           {/* Expanded Raise Control - composite pill */}
           {/* Amount displayed and submitted is TOTAL-TO (total committed for street) */}
           {raiseAction && showRaiseControl && (
-            <div className="bg-[var(--surface-1)] backdrop-blur-md rounded-full p-1 flex items-center gap-1 border border-[var(--border-2)]">
+            <div className="raise-cluster bg-[var(--surface-1)] backdrop-blur-md rounded-full p-1.5 flex items-center gap-1.5 border border-[var(--border-2)]">
               {/* Minus button */}
               <button
                 onClick={decrementRaise}
                 disabled={disabled}
-                className="min-h-[44px] min-w-[44px] w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none"
+                aria-label={t('table.actionBar.decreaseAmount', { defaultValue: 'Decrease amount' })}
+                className="raise-cluster__btn min-h-[44px] min-w-[44px] w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none"
               >
-                <Minus size={14} />
+                <Minus size={18} />
               </button>
               
-              {/* Amount display - shows "to {amount}" label for clarity */}
-              <div className="px-3 min-w-[80px] text-center">
-                <span className="slider-label-safe text-[var(--text-3)] text-xs mr-1">{t('table.actionBar.to', { defaultValue: 'to' })}</span>
-                <span className="text-emerald-400 font-bold text-sm tabular-nums">
+              {/* Amount display - single source of truth for amount */}
+              <div className="raise-cluster__amount px-2 min-w-[80px] text-center">
+                <span className="raise-cluster__label block text-[9px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-1">
+                  {raiseAction.action === 'raise' 
+                    ? t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })
+                    : t('table.actionBar.betLabel', { defaultValue: 'Bet' })}
+                </span>
+                <span className="raise-cluster__value block text-[18px] font-bold text-emerald-300 tabular-nums leading-none">
                   {formatByCurrency(raiseAmount || raiseAction.min_amount || 0, currency)}
                 </span>
               </div>
@@ -207,20 +212,21 @@ export function ActionPanel({
               <button
                 onClick={incrementRaise}
                 disabled={disabled}
-                className="min-h-[44px] min-w-[44px] w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none"
+                aria-label={t('table.actionBar.increaseAmount', { defaultValue: 'Increase amount' })}
+                className="raise-cluster__btn min-h-[44px] min-w-[44px] w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none"
               >
-                <Plus size={14} />
+                <Plus size={18} />
               </button>
               
-              {/* Confirm button - matches primary gradient style */}
+              {/* Confirm button - matches primary gradient style, just verb */}
               <button
                 onClick={handleRaiseConfirm}
                 disabled={disabled}
-                className="min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-full px-4 py-1 text-sm font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none"
+                className="raise-cluster__submit ml-1 min-h-[44px] h-11 bg-gradient-to-b from-blue-500 to-blue-700 rounded-full px-5 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
               >
                 <span className="action-label-safe">
                   {raiseAction.action === 'raise' 
-                    ? t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })
+                    ? t('table.actions.raise', { defaultValue: 'Raise' })
                     : t('table.actionBar.betLabel', { defaultValue: 'Bet' })}
                 </span>
               </button>
@@ -228,7 +234,8 @@ export function ActionPanel({
               {/* Cancel button */}
               <button
                 onClick={() => setShowRaiseControl(false)}
-                className="min-h-[44px] min-w-[44px] w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-[var(--text-2)] transition-colors text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 motion-reduce:transition-none"
+                aria-label={t('common.cancel', { defaultValue: 'Cancel' })}
+                className="min-h-[44px] min-w-[44px] w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-[var(--text-2)] transition-colors text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 motion-reduce:transition-none"
               >
                 ✕
               </button>
@@ -240,7 +247,7 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('all_in')}
               disabled={disabled}
-              className="min-h-[44px] bg-gradient-to-b from-rose-500 to-rose-700 shadow-lg shadow-rose-900/50 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
+              className="min-h-[44px] h-11 bg-gradient-to-b from-rose-500 to-rose-700 shadow-lg shadow-rose-900/50 text-white font-bold px-5 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               <span className="action-label-safe">{t('table.actions.allIn', { defaultValue: 'All In' })}</span>
             </button>
@@ -251,7 +258,7 @@ export function ActionPanel({
             <button
               onClick={() => handleAction('ready')}
               disabled={disabled}
-              className="action-btn-primary min-h-[44px] bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 text-white font-bold px-6 h-10 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
+              className="action-btn-primary min-h-[44px] h-11 bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 text-white font-bold px-6 rounded-full transition-all duration-150 hover:scale-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100 whitespace-nowrap"
             >
               <span className="action-label-safe">{t('table.actions.ready', { defaultValue: 'Ready' })}</span>
             </button>

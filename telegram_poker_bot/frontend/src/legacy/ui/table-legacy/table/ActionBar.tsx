@@ -193,16 +193,14 @@ export default function ActionBar({
       ? betAmount
       : sliderLabelAction.min_amount ?? sliderLabelAction.amount ?? betAmount
     : 0
-  const confirmLabelAmount = formatChips(
-    isAdjustingBet ? betAmount ?? sliderLabelAmount ?? 0 : sliderLabelAmount ?? 0,
-  )
-  // SEMANTICS: raise/bet amounts are TOTAL-TO values, display as "Raise to {amount}"
+  // SEMANTICS: raise/bet amounts are TOTAL-TO values
+  // Button shows only action verb (no amount) - amount is shown in the center cluster
   const confirmLabel = (
     sliderLabelAction?.action_type === 'all_in'
       ? t('table.actions.allIn', { defaultValue: 'ALL-IN' })
       : sliderLabelAction?.action_type === 'bet'
-        ? t('table.actionBar.bet', { defaultValue: 'Bet {amount}', amount: confirmLabelAmount })
-        : t('table.actionBar.raiseTo', { defaultValue: 'Raise to {amount}', amount: confirmLabelAmount })
+        ? t('table.actionBar.betLabel', { defaultValue: 'Bet' })
+        : t('table.actions.raise', { defaultValue: 'Raise' })
   ).toUpperCase()
 
   const handleFold = () => {
@@ -263,12 +261,12 @@ export default function ActionBar({
           onClick={() => onToggleStandUp(nextState)}
           disabled={standUpProcessing}
           aria-pressed={isStandingUp}
-          className="leaving-status-chip"
+          className="leaving-status-chip leaving-status-chip--active"
           title={t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' })}
         >
           <span className="leaving-status-chip__dot" />
-          <LogOut size={14} className="leaving-status-chip__icon" />
-          <span>{t('table.actions.leavingAfterHand', { defaultValue: 'Leaving' })}</span>
+          <LogOut size={14} className="leaving-status-chip__icon" strokeWidth={2.5} />
+          <span>{t('table.actions.leaving', { defaultValue: 'Leaving' })}</span>
         </button>
       )
     }
@@ -298,14 +296,14 @@ export default function ActionBar({
         disabled={standUpProcessing}
         aria-pressed={isStandingUp}
         className={clsx(
-          'flex min-h-[44px] h-10 items-center gap-1.5 rounded-full px-4 text-xs font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:active:scale-100',
+          'flex min-h-[44px] h-11 items-center gap-1.5 rounded-full px-4 text-xs font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:active:scale-100',
           activeClasses,
         )}
         title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
       >
         {statusDot}
         <LogOut size={18} className={isStandingUp ? 'text-black' : 'text-white'} />
-        <span>{isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave' })}</span>
+        <span>{isStandingUp ? t('table.actions.leaving', { defaultValue: 'Leaving' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave' })}</span>
       </button>
     )
   }
@@ -428,22 +426,25 @@ export default function ActionBar({
             </div>
 
             {sliderLabelAction && (
-              <div className="flex items-center gap-1.5 rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] px-2 py-1.5 shadow-lg backdrop-blur-md">
+              <div className="raise-cluster flex items-center gap-1.5 rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] px-2 py-1.5 shadow-lg backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => adjustBet(-1, sliderLabelAction)}
                   disabled={raiseDisabled}
-                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
+                  aria-label={t('table.actionBar.decreaseAmount', { defaultValue: 'Decrease amount' })}
+                  className="raise-cluster__btn flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
                   <Minus size={18} />
                 </button>
-                <div className="min-w-[72px] px-2 text-center">
-                  <span className="slider-label-safe block text-[10px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-0.5">
+                {/* Amount cluster: single source of truth for raise amount */}
+                <div className="raise-cluster__amount min-w-[80px] px-2 text-center">
+                  <span className="raise-cluster__label block text-[9px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-1">
                     {sliderLabelAction.action_type === 'bet' 
                       ? t('table.actionBar.betLabel', { defaultValue: 'Bet' })
                       : t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })}
                   </span>
-                  <span className="block text-[14px] font-bold text-emerald-300 tabular-nums leading-none">
+                  {/* Prominent amount - the only amount display for raise */}
+                  <span className="raise-cluster__value block text-[18px] font-bold text-emerald-300 tabular-nums leading-none">
                     {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
                   </span>
                 </div>
@@ -451,15 +452,17 @@ export default function ActionBar({
                   type="button"
                   onClick={() => adjustBet(1, sliderLabelAction)}
                   disabled={raiseDisabled}
-                  className="flex min-h-[44px] min-w-[44px] h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
+                  aria-label={t('table.actionBar.increaseAmount', { defaultValue: 'Increase amount' })}
+                  className="raise-cluster__btn flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
                   <Plus size={18} />
                 </button>
+                {/* Action button - only shows verb, amount is in cluster center */}
                 <button
                   type="button"
                   onClick={handleRaise}
                   disabled={raiseDisabled}
-                  className="ml-1 min-h-[44px] h-10 rounded-full bg-gradient-to-b from-blue-500 to-blue-700 px-4 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 whitespace-nowrap motion-reduce:transition-none motion-reduce:active:scale-100"
+                  className="raise-cluster__submit ml-1 min-h-[44px] h-11 rounded-full bg-gradient-to-b from-blue-500 to-blue-700 px-5 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 whitespace-nowrap motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
                   <span className="action-label-safe">{confirmLabel}</span>
                 </button>
