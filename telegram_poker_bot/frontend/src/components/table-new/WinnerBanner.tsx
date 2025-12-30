@@ -3,11 +3,13 @@
  * 
  * Animated banner showing the winner(s) after a hand.
  * Uses safe zone positioning to avoid overlapping board/player areas.
+ * Anchored to board area with surface tokens for "board event" feel.
  */
 
 import { useEffect, useState } from 'react'
 import { formatByCurrency, type CurrencyType } from '@/utils/currency'
 import type { WinnerInfo } from '../../types/normalized'
+import { Trophy } from 'lucide-react'
 
 interface WinnerBannerProps {
   winners: WinnerInfo[]
@@ -40,13 +42,13 @@ export function WinnerBanner({
 
   return (
     <div className="winner-banner-safe">
-      <div className="flex items-center justify-center gap-3">
-        <div className="text-2xl animate-bounce">🎉</div>
+      <div className="flex items-center justify-center gap-2">
+        {/* Trophy icon - respects motion-reduce via CSS */}
+        <Trophy size={20} className="text-amber-400 flex-shrink-0" />
         <div className="text-center">
           <div className="winner-banner-safe__amount">
             {isMultipleWinners ? (
               <>
-                {winners.length} players split{' '}
                 {formatByCurrency(
                   winners.reduce((sum, w) => sum + w.amount, 0),
                   currency
@@ -58,16 +60,14 @@ export function WinnerBanner({
           </div>
           <div className="winner-banner-safe__label">
             {isMultipleWinners 
-              ? 'Split Pot' 
+              ? `Split ${winners.length}`
               : mainWinner.hand_rank 
-                ? `Won with ${mainWinner.hand_rank}`
-                : 'Winner!'
+                ? mainWinner.hand_rank
+                : 'Winner'
             }
           </div>
         </div>
-        <div className="text-2xl animate-bounce" style={{ animationDelay: '0.2s' }}>
-          🎊
-        </div>
+        <Trophy size={20} className="text-amber-400 flex-shrink-0" />
       </div>
     </div>
   )

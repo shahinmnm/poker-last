@@ -737,7 +737,9 @@
       "ready": "آماده",
       "rebuy": "خرید مجدد",
       "leaveAfterHand": "ترک بعد از دست",
-      "leavingAfterHand": "در حال ترک بعد از دست",
+      "leavingAfterHand": "در حال ترک",
+      "leaving": "ترک",
+      "waitingForTurn": "منتظر حریف…",
       "sitOut": "ترک بعد از دست",
       "sitOutNextHand": "ترک بعد از این دست",
       "lastAction": {

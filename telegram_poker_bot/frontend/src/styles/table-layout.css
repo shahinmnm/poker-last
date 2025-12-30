@@ -333,6 +333,7 @@
 
 /* ==================== LEAVING PILL (COMPACT STATUS CHIP) ==================== */
 /* Phase 3A: "Leaving after hand" converted to compact status chip */
+/* Two states: active (leaving enabled) vs inactive (not leaving) */
 
 .leaving-status-chip {
   position: fixed;
@@ -344,37 +345,76 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.9), rgba(245, 158, 11, 0.85));
-  border: 1px solid rgba(253, 224, 71, 0.5);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 20px rgba(251, 191, 36, 0.3);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(245, 158, 11, 0.9));
+  border: 2px solid rgba(253, 224, 71, 0.6);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3), 
+    0 0 20px rgba(251, 191, 36, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(12px);
   color: #1a1a1a;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  max-width: 140px;
+  max-width: 150px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: auto;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+/* Active state - stronger visual presence */
+.leaving-status-chip--active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 1), rgba(245, 158, 11, 0.95));
+  border: 2px solid rgba(253, 224, 71, 0.8);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.35),
+    0 0 24px rgba(251, 191, 36, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Inactive state - muted appearance */
+.leaving-status-chip--inactive {
+  background: rgba(100, 100, 100, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .leaving-status-chip:hover {
-  transform: scale(1.02);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 25px rgba(251, 191, 36, 0.4);
+  transform: scale(1.03);
+  box-shadow: 
+    0 6px 18px rgba(0, 0, 0, 0.4),
+    0 0 28px rgba(251, 191, 36, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .leaving-status-chip:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
+}
+
+/* Respect motion-reduce */
+@media (prefers-reduced-motion: reduce) {
+  .leaving-status-chip:hover {
+    transform: none;
+  }
+  .leaving-status-chip:active {
+    transform: none;
+  }
 }
 
 .leaving-status-chip__icon {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Icon filled state for active */
+.leaving-status-chip--active .leaving-status-chip__icon {
+  fill: currentColor;
 }
 
 .leaving-status-chip__dot {
@@ -383,6 +423,12 @@
   border-radius: 50%;
   background: #1a1a1a;
   animation: leaving-pulse 1.5s ease-in-out infinite;
+}
+
+/* Inactive dot is muted */
+.leaving-status-chip--inactive .leaving-status-chip__dot {
+  background: rgba(255, 255, 255, 0.5);
+  animation: none;
 }
 
 @keyframes leaving-pulse {
@@ -430,6 +476,7 @@
 
 /* ==================== WINNER BANNER (SAFE POSITIONING) ==================== */
 /* Phase 3C: Winner banner anchored between board and player zones */
+/* Phase 2 Polish: More compact, board-event feel with surface tokens */
 
 .winner-banner-safe {
   position: fixed;
@@ -438,16 +485,31 @@
   top: calc(var(--streets-row-offset) + var(--winner-banner-offset, 22vh));
   transform: translateX(-50%);
   z-index: var(--z-overlays, 40);
-  max-width: min(90vw, 400px);
-  padding: 12px 24px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(245, 158, 11, 0.9));
-  border: 2px solid rgba(253, 224, 71, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 40px rgba(251, 191, 36, 0.4);
-  backdrop-filter: blur(12px);
+  max-width: min(85vw, 340px);
+  padding: 10px 20px;
+  border-radius: 12px;
+  /* Board-anchored styling with surface tokens */
+  background: linear-gradient(
+    135deg,
+    var(--surface-1, rgba(1, 15, 10, 0.85)),
+    var(--surface-2, rgba(1, 20, 15, 0.75))
+  );
+  border: 1px solid var(--border-1, rgba(255, 255, 255, 0.25));
+  box-shadow: 
+    0 6px 24px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(251, 191, 36, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
   text-align: center;
   pointer-events: none;
-  animation: winner-entrance 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: winner-entrance 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Motion-reduce: no animation */
+@media (prefers-reduced-motion: reduce) {
+  .winner-banner-safe {
+    animation: none;
+  }
 }
 
 /* Inline variant: for use within flex containers without fixed positioning */
@@ -461,7 +523,7 @@
 @keyframes winner-entrance {
   0% {
     opacity: 0;
-    transform: translateX(-50%) scale(0.8) translateY(20px);
+    transform: translateX(-50%) scale(0.85) translateY(15px);
   }
   100% {
     opacity: 1;
@@ -470,30 +532,34 @@
 }
 
 .winner-banner-safe__amount {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
-  color: #1a1a1a;
+  color: #fbbf24; /* amber-400 for contrast on dark surface */
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .winner-banner-safe__label {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(26, 26, 26, 0.75);
+  letter-spacing: 0.08em;
+  color: var(--text-2, #d1d5db);
   margin-top: 2px;
 }
 
 /* ==================== TOP CLUSTER (POT + OPPONENT TAG) ==================== */
-/* Phase 3D: Vertical stack for top elements to prevent overlap */
+/* Phase 4: Enforce vertical stack for top elements to prevent overlap */
 
 .top-cluster {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   z-index: var(--z-board-hud, 30);
+  /* Enforce max width to prevent long names breaking layout */
+  max-width: min(90vw, 400px);
+  margin: 0 auto;
 }
 
 .top-cluster__pot {
@@ -504,11 +570,55 @@
   padding: 4px 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(8px);
+  /* Enforce ordering - pot always first */
+  order: 0;
 }
 
 .top-cluster__opponent {
   /* Opponent tag gets its own row below pot */
   order: 1;
+  /* Prevent long names from breaking layout */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==================== RAISE CLUSTER STYLING ==================== */
+/* Phase 1: ActionBar raise cluster styling */
+
+.raise-cluster {
+  /* Ensure consistent height alignment with other buttons */
+  display: flex;
+  align-items: center;
+}
+
+.raise-cluster__btn {
+  /* Ensure +/- buttons are visually part of the cluster */
+  flex-shrink: 0;
+}
+
+.raise-cluster__amount {
+  /* Amount display area - the single source of truth */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.raise-cluster__label {
+  /* Small label above amount */
+  font-variant-numeric: tabular-nums;
+}
+
+.raise-cluster__value {
+  /* Amount is the most prominent element */
+  font-variant-numeric: tabular-nums;
+}
+
+.raise-cluster__submit {
+  /* Submit button should match other action button height */
+  flex-shrink: 0;
 }
 
 /* ==================== SMALL LANDSCAPE OVERRIDES ==================== */
@@ -532,16 +642,52 @@
   }
   
   .winner-banner-safe {
-    padding: 8px 16px;
-    max-width: min(85vw, 320px);
+    padding: 8px 14px;
+    max-width: min(80vw, 280px);
   }
   
   .winner-banner-safe__amount {
-    font-size: 16px;
+    font-size: 15px;
   }
   
   .winner-banner-safe__label {
     font-size: 9px;
+  }
+  
+  /* Raise cluster: compact for small landscape */
+  .raise-cluster {
+    gap: 0.5rem;
+    padding: 4px 6px;
+  }
+  
+  .raise-cluster__btn {
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .raise-cluster__amount {
+    min-width: 70px;
+  }
+  
+  .raise-cluster__label {
+    font-size: 8px;
+  }
+  
+  .raise-cluster__value {
+    font-size: 15px;
+  }
+  
+  .raise-cluster__submit {
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+  
+  /* Top cluster: tighter spacing */
+  .top-cluster {
+    gap: 4px;
+    max-width: min(85vw, 320px);
   }
 }
 
@@ -562,5 +708,35 @@
   .leaving-status-chip__dot {
     width: 6px;
     height: 6px;
+  }
+  
+  /* Raise cluster: even more compact */
+  .raise-cluster__amount {
+    min-width: 60px;
+    padding-inline: 4px;
+  }
+  
+  .raise-cluster__label {
+    font-size: 8px;
+  }
+  
+  .raise-cluster__value {
+    font-size: 14px;
+  }
+  
+  .raise-cluster__submit {
+    padding-inline: 10px;
+    font-size: 10px;
+  }
+  
+  /* Winner banner: more compact */
+  .winner-banner-safe {
+    padding: 6px 12px;
+    max-width: min(80vw, 240px);
+    border-radius: 10px;
+  }
+  
+  .winner-banner-safe__amount {
+    font-size: 14px;
   }
 }

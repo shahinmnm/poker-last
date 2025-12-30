@@ -721,6 +721,8 @@
       "rebuy": "Rebuy",
       "leaveAfterHand": "Leave after hand",
       "leavingAfterHand": "Leaving after hand",
+      "leaving": "Leaving",
+      "waitingForTurn": "Waiting for opponent…",
       "sitOut": "Leave after hand",
       "sitOutNextHand": "Leave after this hand",
       "presets": {
