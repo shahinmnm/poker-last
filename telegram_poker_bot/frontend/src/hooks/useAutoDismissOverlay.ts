@@ -114,7 +114,9 @@ export function useAutoDismissOverlay(
     if (!isOpen || !isReady) return
     
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      event.stopPropagation() // Prevent re-triggering
+      // Stop propagation first to prevent re-triggering (before any check)
+      event.stopPropagation()
+      
       const target = event.target as Node
       if (overlayRef.current && !overlayRef.current.contains(target)) {
         close()

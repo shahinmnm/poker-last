@@ -1598,10 +1598,15 @@
     --action-strip-font: clamp(12px, 2.5vw, 13px);
   }
   
-  .action-btn-primary,
-  .action-btn-secondary,
-  .action-btn-thin {
-    font-size: clamp(12px, 2.5vw, 14px) !important;
+  /* Use higher specificity to override inline styles without !important */
+  .action-panel .action-btn-primary,
+  .action-panel .action-btn-secondary,
+  .action-bar-container .action-btn-primary,
+  .action-bar-container .action-btn-secondary,
+  .action-btn-primary.action-btn-primary,
+  .action-btn-secondary.action-btn-secondary,
+  .action-btn-thin.action-btn-thin {
+    font-size: clamp(12px, 2.5vw, 14px);
   }
   
   .action-label-safe {

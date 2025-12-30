@@ -116,6 +116,15 @@ export function TableMenuCapsule({
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, closeMenu])
   
+  // Helper to create click handler for menu items
+  const createMenuItemHandler = (handler?: () => void) => {
+    if (!handler) return undefined
+    return () => {
+      handler()
+      closeMenu()
+    }
+  }
+  
   // Menu items - Recent Hands may not be fully implemented
   // Mark unimplemented items as disabled with "Coming soon"
   const menuItems: MenuItem[] = [
@@ -123,10 +132,7 @@ export function TableMenuCapsule({
       id: 'recent-hands',
       icon: <History size={18} />,
       label: t('table.actions.recentHands', { defaultValue: 'Recent Hands' }),
-      onClick: onRecentHands ? () => {
-        onRecentHands()
-        closeMenu()
-      } : undefined,
+      onClick: createMenuItemHandler(onRecentHands),
       showChevron: true,
       // If no handler provided, mark as disabled with hint
       disabled: !onRecentHands,

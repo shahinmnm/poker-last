@@ -125,7 +125,9 @@ export function HeroDetailPopover({
     if (!isReady) return
     
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      event.stopPropagation() // Stop propagation to prevent re-open
+      // Stop propagation first to prevent re-open (before any check)
+      event.stopPropagation()
+      
       const target = event.target as Node
       if (overlayRef.current && !overlayRef.current.contains(target)) {
         safeClose()
