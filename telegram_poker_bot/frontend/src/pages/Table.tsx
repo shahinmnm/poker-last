@@ -19,7 +19,7 @@ import RecentHandsModal from '../legacy/ui/lobby-legacy/tables/RecentHandsModal'
 import TableExpiredModal from '../legacy/ui/lobby-legacy/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../legacy/ui/lobby-legacy/tables/ChipFly'
 import PokerFeltBackground from '../components/background/PokerFeltBackground'
-import GameVariantBadge from '../components/ui/GameVariantBadge'
+import TableMenuCapsule from '../components/table/TableMenuCapsule'
 import CommunityBoard from '@/legacy/ui/table-legacy/table/CommunityBoard'
 import ActionBar from '@/legacy/ui/table-legacy/table/ActionBar'
 import DynamicPokerTable from '@/components/table/DynamicPokerTable'
@@ -128,11 +128,6 @@ const getSeatSide = (xPercent: number, yPercent: number): 'top' | 'bottom' | 'le
 
 const DEFAULT_TOAST = { message: '', visible: false }
 const EXPIRED_TABLE_REDIRECT_DELAY_MS = 2000
-const TABLE_CAPSULE_MENU_WIDTH = '50vw'
-const TABLE_CAPSULE_STYLE: CSSProperties = {
-  width: TABLE_CAPSULE_MENU_WIDTH,
-
-}
 /**
  * Street names that indicate active gameplay.
  * During gameplay, liveState.status contains the current street name (preflop, flop, turn, river)
@@ -228,7 +223,6 @@ export default function TablePage() {
 
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
-  const [showTableMenu, setShowTableMenu] = useState(false)
   const [showVariantRules, setShowVariantRules] = useState(false)
   const [isTogglingSitOut, setIsTogglingSitOut] = useState(false)
   const [pendingSitOut, setPendingSitOut] = useState<boolean | null>(null)
@@ -246,8 +240,6 @@ export default function TablePage() {
   
   // Refs for tracking elements for animations
   const playerTileRefs = useRef<Map<string, HTMLElement>>(new Map())
-  const tableMenuButtonRef = useRef<HTMLButtonElement | null>(null)
-  const tableMenuRef = useRef<HTMLDivElement | null>(null)
   const potAreaRef = useRef<HTMLDivElement | null>(null)
   const lastActionRef = useRef<LastAction | null>(null)
   const lastHandResultRef = useRef<TableState['hand_result'] | null>(null)
@@ -286,22 +278,6 @@ export default function TablePage() {
     setShowVariantRules(false)
     return undefined
   }, [variantConfig.id])
-
-  // Close the table menu when clicking outside the button or the menu itself
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      if (!showTableMenu) return
-      const menuEl = tableMenuRef.current
-      const btnEl = tableMenuButtonRef.current
-      const target = e.target as Node
-      if (menuEl && menuEl.contains(target)) return
-      if (btnEl && btnEl.contains(target)) return
-      setShowTableMenu(false)
-    }
-
-    document.addEventListener('mousedown', onDocClick)
-    return () => document.removeEventListener('mousedown', onDocClick)
-  }, [showTableMenu])
 
   // Track the last hand_id to detect when a new hand starts
   const lastHandIdRef = useRef<number | null>(null)
@@ -1543,7 +1519,6 @@ export default function TablePage() {
     return configJson?.ui_schema
   }, [tableDetails?.template])
   const tableMaxPlayers = templateRules.maxPlayers ?? tableDetails?.max_players ?? 0
-  const tableStartingStack = templateRules.startingStack ?? tableDetails?.starting_stack ?? 0
   const stakesLabel = templateRules.stakesLabel ?? null
   const currencyType: CurrencyType =
     (liveState?.currency_type as CurrencyType | undefined) ||
@@ -1558,10 +1533,6 @@ export default function TablePage() {
     }
     return stakesLabel ?? '—'
   }, [currencyType, stakesLabel, templateRules.stakes?.big, templateRules.stakes?.small])
-  const startingStackDisplay =
-    tableStartingStack > 0
-      ? formatByCurrency(tableStartingStack, currencyType, { withDecimals: currencyType === 'REAL' })
-      : null
   const potDisplayAmount = useMemo(() => {
     if (typeof liveState?.pot === 'number') return liveState.pot
     if (liveState?.pots?.length) {
@@ -1569,10 +1540,6 @@ export default function TablePage() {
     }
     return 0
   }, [liveState?.pot, liveState?.pots])
-  const formattedPot = useMemo(
-    () => formatByCurrency(potDisplayAmount, currencyType, { withDecimals: currencyType === 'REAL' }),
-    [potDisplayAmount, currencyType],
-  )
   // Memoize winner display info to avoid find() on every render
   const winnerDisplayInfo = useMemo(() => {
     if (!lastHandResult?.winners?.length) return null
@@ -2240,108 +2207,17 @@ export default function TablePage() {
                       className="table-header-capsule pointer-events-none z-30" 
                       style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
                     >
-                      <button
-                        ref={tableMenuButtonRef}
-                        type="button"
-                        onClick={() => setShowTableMenu((prev) => !prev)}
-                        className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-black/60 px-4 py-1.5 backdrop-blur-md shadow-xl transition active:scale-95 hover:bg-black/70"
-                      >
-                        {/* 1. Modern Pulse Dot (Radar Effect) */}
-                        <div className="relative flex h-2.5 w-2.5">
-                          {wsStatus === 'connected' && (
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          )}
-                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                            wsStatus === 'connected' ? 'bg-emerald-500' : 
-                            wsStatus === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
-                          }`}></span>
-                        </div>
-
-                        {/* 2. Vertical Divider */}
-                        <div className="h-4 w-px bg-white/10"></div>
-
-                        {/* 3. Table Info (Name & Stakes) - Replaces static "Table Menu" */}
-                        <div className="flex flex-col items-start justify-center">
-                          <div className="text-[11px] font-bold text-gray-100 leading-none max-w-[140px] truncate">
-                            {templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.defaultName', { defaultValue: 'Poker Table' })}
-                          </div>
-                          <div className="text-[9px] font-medium text-gray-400 leading-none mt-0.5 font-mono">
-                            {stakesDisplay}
-                          </div>
-                        </div>
-
-                        {/* 4. Minimal Menu Icon */}
-                        <div className="pl-1 text-gray-400">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                          </svg>
-                        </div>
-                      </button>
-
-                      {/* Keep the existing {showTableMenu && ...} block exactly as it is below this button */}
-                      {showTableMenu && (
-                        <div
-                          ref={tableMenuRef}
-                          className="pointer-events-auto rounded-3xl border border-white/15 bg-white/12 p-3 text-white shadow-2xl shadow-emerald-900/40 backdrop-blur-xl w-[50vw] max-w-[95%] text-sm"
-                          style={TABLE_CAPSULE_STYLE}
-                        >
-                          <div className="mb-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-[1fr_auto] sm:items-center sm:text-left">
-                            <div className="space-y-1">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{t('table.meta.table', { defaultValue: 'Table' })}</p>
-                              <p className="text-base font-semibold leading-tight">{templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.unnamed', { defaultValue: 'Friendly game' })}</p>
-                            </div>
-                            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
-                              <div className="rounded-full bg-emerald-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100">
-                                {tableDetails.visibility === 'private' || tableDetails.is_private ? t('table.meta.private', { defaultValue: 'Private' }) : t('table.meta.public', { defaultValue: 'Public' })}
-                              </div>
-                              <GameVariantBadge variant={tableDetails.game_variant} size="lg" />
-                            </div>
-                          </div>
-
-                          <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-emerald-50/90">
-                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stakes', { defaultValue: 'Stakes' })}</p>
-                              <p className="text-sm font-semibold leading-snug">{stakesDisplay}</p>
-                            </div>
-                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.players', { defaultValue: 'Players' })}</p>
-                              <p className="text-sm font-semibold leading-snug">{tableDetails.player_count} / {tableMaxPlayers}</p>
-                            </div>
-                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.stack', { defaultValue: 'Stack' })}</p>
-                              <p className="text-sm font-semibold leading-snug">
-                                {startingStackDisplay ?? '—'}
-                              </p>
-                            </div>
-                            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center sm:text-left">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">{t('table.meta.pot', { defaultValue: 'Pot' })}</p>
-                              <p className="text-sm font-semibold leading-snug">{formattedPot}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              block
-                              onClick={() => setShowRecentHands(true)}
-                            >
-                              {t('table.actions.recentHands', { defaultValue: 'Recent hands' })}
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              block
-                              onClick={handleLeave}
-                              disabled={!canLeave || isLeaving}
-                            >
-                              {isLeaving ? t('table.actions.leaving') : t('table.actions.leave', { defaultValue: 'Leave table' })}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                      {/* Phase 3: Professional TableMenuCapsule with unified tokens */}
+                      <TableMenuCapsule
+                        tableName={templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.defaultName', { defaultValue: 'Poker Table' })}
+                        stakesDisplay={stakesDisplay}
+                        connectionStatus={wsStatus === 'connected' ? 'connected' : wsStatus === 'connecting' ? 'connecting' : 'disconnected'}
+                        onLeaveTable={handleLeave}
+                        onRecentHands={() => setShowRecentHands(true)}
+                        canLeave={canLeave}
+                        isLeaving={isLeaving}
+                        className="pointer-events-auto"
+                      />
                     </div>
                   )}
 
