@@ -117,7 +117,7 @@ export default function AdminTableTemplates() {
   return (
     <div style={{ padding: 16, display: 'grid', gap: 16 }}>
       <h2>Table Templates</h2>
-      {status && <div style={{ color: 'var(--accent-color, #0b3d2e)' }}>{status}</div>}
+      {status && <div style={{ color: 'var(--color-accent, #2cc57a)' }}>{status}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 16 }}>
         <div>
           <button onClick={() => setSelectedId(null)} style={{ marginBottom: 8 }}>
