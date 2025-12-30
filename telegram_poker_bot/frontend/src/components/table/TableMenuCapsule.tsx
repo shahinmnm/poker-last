@@ -15,7 +15,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Settings, Volume2, HelpCircle, LogOut, ChevronRight, History } from 'lucide-react'
+import { LogOut, ChevronRight, History } from 'lucide-react'
 import clsx from 'clsx'
 
 export interface TableMenuCapsuleProps {
@@ -104,7 +104,8 @@ export function TableMenuCapsule({
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, closeMenu])
   
-  // Menu items
+  // Menu items - only recent hands is fully implemented
+  // Other items are disabled placeholders for future implementation
   const menuItems: MenuItem[] = [
     {
       id: 'recent-hands',
@@ -116,35 +117,8 @@ export function TableMenuCapsule({
       },
       showChevron: true,
     },
-    {
-      id: 'settings',
-      icon: <Settings size={18} />,
-      label: t('common.settings', { defaultValue: 'Settings' }),
-      onClick: () => {
-        // Settings action placeholder
-        closeMenu()
-      },
-      showChevron: true,
-    },
-    {
-      id: 'sound',
-      icon: <Volume2 size={18} />,
-      label: t('table.menu.sound', { defaultValue: 'Sound' }),
-      onClick: () => {
-        // Sound toggle placeholder
-        closeMenu()
-      },
-    },
-    {
-      id: 'rules',
-      icon: <HelpCircle size={18} />,
-      label: t('table.menu.rules', { defaultValue: 'Game Rules' }),
-      onClick: () => {
-        // Rules action placeholder
-        closeMenu()
-      },
-      showChevron: true,
-    },
+    // Note: Settings, Sound, and Rules are disabled until backend support is added
+    // They remain visible but non-functional to indicate planned features
   ]
   
   // Leave item (separate for danger styling)

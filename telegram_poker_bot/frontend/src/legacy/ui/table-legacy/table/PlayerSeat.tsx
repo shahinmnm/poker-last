@@ -5,6 +5,7 @@ import PlayerCircularTimer from './PlayerCircularTimer'
 import PlayingCard from '../../../../components/ui/PlayingCard'
 import HeroDetailPopover from '../../../../components/table/HeroDetailPopover'
 import useAutoDismissOverlay from '../../../../hooks/useAutoDismissOverlay'
+import { formatChips } from '../../../../utils/formatChips'
 
 type PositionLabel = 'BTN' | 'SB' | 'BB' | null | undefined
 type SideDirection = 'top' | 'bottom' | 'left' | 'right'
@@ -32,13 +33,6 @@ export interface PlayerSeatProps {
   heroScaleReduced?: boolean
   /** Seat index (0-based) for hero detail popover */
   seatIndex?: number
-}
-
-const formatChips = (value: number): string => {
-  if (!Number.isFinite(value)) return '0'
-  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`
-  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}k`
-  return `${value}`
 }
 
 /** 4-Directional Layout Configuration - Gravity towards table center */
