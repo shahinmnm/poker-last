@@ -1586,3 +1586,290 @@
   z-index: calc(var(--z-overlays, 40) - 1);
   background: transparent;
 }
+
+/* ==================== PHASE 1-4 HARDENING PASS ==================== */
+
+/* ==================== PHASE 1: MINIMUM READABLE LABEL SIZE ==================== */
+/* On <=600px width landscape, clamp should not drop below 12px for primary actions */
+
+@media (max-width: 600px) and (orientation: landscape) {
+  :root {
+    /* Clamp minimum to 12px for landscape small screens */
+    --action-strip-font: clamp(12px, 2.5vw, 13px);
+  }
+  
+  .action-btn-primary,
+  .action-btn-secondary,
+  .action-btn-thin {
+    font-size: clamp(12px, 2.5vw, 14px) !important;
+  }
+  
+  .action-label-safe {
+    font-size: clamp(12px, 2.5vw, 14px);
+  }
+}
+
+/* Ensure disabled buttons look disabled and not clickable */
+.action-btn-primary:disabled,
+.action-btn-secondary:disabled,
+.action-btn-thin:disabled,
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: auto; /* Keep pointer-events for cursor feedback */
+  filter: grayscale(30%);
+}
+
+.action-btn-primary:disabled:active,
+.action-btn-secondary:disabled:active,
+.action-btn-thin:disabled:active {
+  transform: none;
+}
+
+/* Ensure strip never overlaps hero cards/hero name line */
+.action-panel-container,
+.draw-phase-container {
+  /* Leave space above for hero cards */
+  max-height: calc(100vh - var(--player-hand-reserved, 80px) - env(safe-area-inset-bottom, 0px) - 24px);
+}
+
+/* ==================== PHASE 2: HERO POPOVER SAFETY ==================== */
+/* Constrain max-height and position within hero zone */
+
+.hero-detail-overlay {
+  /* Constrain to never overlap community cards */
+  max-height: calc(var(--player-hand-reserved, 80px) + 40px);
+  overflow: hidden;
+  /* Stay within bottom 35% of viewport (hero zone) */
+  max-width: min(220px, 80vw);
+}
+
+/* Flip placement: when near top edge, position below instead of above */
+.hero-detail-overlay--below {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+.hero-detail-overlay--above {
+  bottom: calc(100% + 8px);
+  top: auto;
+}
+
+/* Prevent tap-through during opening (flicker prevention) */
+.hero-detail-overlay {
+  pointer-events: auto;
+  touch-action: manipulation;
+  /* Delay before event listeners are attached handled in JS */
+}
+
+/* Backdrop for hero popover (prevents tap-through) */
+.hero-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlays, 40) - 1);
+  background: transparent;
+  pointer-events: auto;
+}
+
+/* ==================== PHASE 3: MENU CAPSULE SAFETY ==================== */
+/* Safe positioning to never cover pot/opponent tags/community cards */
+
+.table-menu-capsule {
+  /* Ensure capsule stays in top-hud lane */
+  position: relative;
+  z-index: var(--z-board-hud, 30);
+}
+
+/* Submenu safe positioning - never cover sacred zones */
+.table-submenu {
+  /* Position below capsule, not overlapping board */
+  max-height: calc(50vh - var(--streets-row-offset, 18vh));
+  overflow-y: auto;
+  /* Ensure submenu doesn't go off-screen */
+  max-width: calc(100vw - 32px);
+}
+
+/* Position submenu to avoid sacred zones */
+.table-submenu--safe-left {
+  left: 16px;
+  right: auto;
+  transform: none;
+}
+
+.table-submenu--safe-right {
+  right: 16px;
+  left: auto;
+  transform: none;
+}
+
+/* Disabled menu items styling */
+.ui-menu-item:disabled,
+.ui-menu-item[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ui-menu-item:disabled::after,
+.ui-menu-item[aria-disabled="true"]::after {
+  content: attr(data-disabled-hint);
+  font-size: 9px;
+  color: var(--text-3, #9ca3af);
+  margin-inline-start: auto;
+}
+
+/* Reduced motion: disable ping animation */
+@media (prefers-reduced-motion: reduce) {
+  .table-menu-capsule__dot--connected::before {
+    animation: none;
+    display: none;
+  }
+  
+  .hero-detail-overlay {
+    animation: none;
+  }
+  
+  .table-submenu {
+    animation: none;
+  }
+}
+
+/* ==================== PHASE 4: Z-INDEX + POINTER EVENTS ==================== */
+/* Ensure proper layering and interactivity */
+
+/* Overlays should not block action strip unless intentionally */
+.hero-detail-overlay,
+.table-submenu {
+  z-index: var(--z-overlays, 40);
+}
+
+/* Action strip has higher z-index when in use */
+.action-panel-container {
+  z-index: var(--z-actionbar, 50);
+  pointer-events: auto;
+}
+
+/* Backdrop catches outside tap; underlying gameplay tappable when closed */
+.table-menu-backdrop,
+.hero-popover-backdrop {
+  pointer-events: auto;
+}
+
+/* When overlays are closed, ensure underlying elements are tappable */
+.seats-container {
+  pointer-events: auto;
+}
+
+.seat-component {
+  pointer-events: auto;
+}
+
+/* Community cards sacred zone - always tappable */
+.community-cards-sacred,
+.board-cluster__cards {
+  pointer-events: auto;
+  z-index: var(--z-cards-chips, 20);
+}
+
+/* ==================== SMALL LANDSCAPE HARDENING (568x320) ==================== */
+/* Extra-small landscape viewports need special attention */
+
+@media (max-width: 600px) and (max-height: 400px) and (orientation: landscape) {
+  :root {
+    /* Tighter spacing for small landscape */
+    --action-strip-height: 44px;
+    --action-strip-height-visual: 40px;
+    --action-strip-height-hit: 48px;
+    --action-strip-gap: 4px;
+    --action-strip-px: 8px;
+    --hero-overlay-radius: 10px;
+    --player-hand-reserved: 50px;
+  }
+  
+  .hero-detail-overlay {
+    max-height: 100px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  
+  .hero-detail-overlay__name {
+    font-size: 11px;
+  }
+  
+  .hero-detail-overlay__stack {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  
+  .hero-detail-overlay__badge {
+    font-size: 8px;
+    padding: 1px 5px;
+  }
+  
+  /* Tighter action buttons */
+  .action-btn-thin {
+    padding: 0 10px;
+    min-height: 48px;
+  }
+  
+  /* Compact menu capsule */
+  .table-menu-capsule {
+    padding: 4px 8px 4px 6px;
+    gap: 6px;
+    min-height: 40px;
+  }
+  
+  .table-menu-capsule__title {
+    font-size: 10px;
+    max-width: 100px;
+  }
+  
+  .table-menu-capsule__stakes {
+    font-size: 8px;
+  }
+  
+  /* Compact submenu */
+  .table-submenu {
+    min-width: 160px;
+    max-width: 200px;
+  }
+  
+  .ui-menu-item {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* ==================== TELEGRAM WEBVIEW SPECIFIC HARDENING ==================== */
+/* Extra rules for Telegram WebView environment */
+
+/* Telegram WebView viewport handling */
+@supports (padding: max(0px)) {
+  .action-panel-container {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+  }
+}
+
+/* Prevent overscroll/bounce on iOS WebView */
+.table-view,
+.table-container {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Touch feedback enhancement for WebView */
+.action-btn-primary:active:not(:disabled),
+.action-btn-secondary:active:not(:disabled),
+.action-btn-thin:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 0.05s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-btn-primary:active:not(:disabled),
+  .action-btn-secondary:active:not(:disabled),
+  .action-btn-thin:active:not(:disabled) {
+    transform: none;
+  }
+}

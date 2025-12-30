@@ -45,6 +45,8 @@ interface MenuItem {
   variant?: 'default' | 'danger'
   disabled?: boolean
   showChevron?: boolean
+  /** Hint text shown when disabled (e.g., "Coming soon") */
+  disabledHint?: string
 }
 
 export function TableMenuCapsule({
@@ -67,16 +69,17 @@ export function TableMenuCapsule({
     setIsOpen(false)
   }, [])
   
-  // Toggle menu
-  const toggleMenu = useCallback(() => {
+  // Toggle menu with stop propagation for flicker prevention
+  const toggleMenu = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+    event.stopPropagation()
     setIsOpen(prev => !prev)
   }, [])
   
-  // Handle click outside
+  // Handle click outside (includes touch events for mobile)
   useEffect(() => {
     if (!isOpen) return
     
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node
       if (
         menuRef.current && !menuRef.current.contains(target) &&
@@ -86,8 +89,17 @@ export function TableMenuCapsule({
       }
     }
     
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    // Small delay to prevent same-tap close (flicker prevention)
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside, { passive: true })
+    }, 50)
+    
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [isOpen, closeMenu])
   
   // Handle Escape key
@@ -104,18 +116,21 @@ export function TableMenuCapsule({
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, closeMenu])
   
-  // Menu items - only recent hands is fully implemented
-  // Other items are disabled placeholders for future implementation
+  // Menu items - Recent Hands may not be fully implemented
+  // Mark unimplemented items as disabled with "Coming soon"
   const menuItems: MenuItem[] = [
     {
       id: 'recent-hands',
       icon: <History size={18} />,
       label: t('table.actions.recentHands', { defaultValue: 'Recent Hands' }),
-      onClick: () => {
-        onRecentHands?.()
+      onClick: onRecentHands ? () => {
+        onRecentHands()
         closeMenu()
-      },
+      } : undefined,
       showChevron: true,
+      // If no handler provided, mark as disabled with hint
+      disabled: !onRecentHands,
+      disabledHint: !onRecentHands ? t('common.comingSoon', { defaultValue: 'Coming soon' }) : undefined,
     },
     // Note: Settings, Sound, and Rules are disabled until backend support is added
     // They remain visible but non-functional to indicate planned features
@@ -214,15 +229,25 @@ export function TableMenuCapsule({
               key={item.id}
               type="button"
               role="menuitem"
-              className="ui-menu-item ui-pressable ui-focus-ring"
-              onClick={item.onClick}
+              className={clsx(
+                'ui-menu-item ui-pressable ui-focus-ring',
+                item.disabled && 'opacity-50 cursor-not-allowed'
+              )}
+              onClick={item.disabled ? undefined : item.onClick}
               disabled={item.disabled}
+              aria-disabled={item.disabled}
+              data-disabled-hint={item.disabledHint}
             >
               <span className="text-[var(--text-2)]" aria-hidden="true">
                 {item.icon}
               </span>
               <span className="flex-1">{item.label}</span>
-              {item.showChevron && (
+              {item.disabledHint && item.disabled && (
+                <span className="text-[9px] text-[var(--text-3)] ml-auto">
+                  {item.disabledHint}
+                </span>
+              )}
+              {item.showChevron && !item.disabled && (
                 <ChevronRight size={14} className="text-[var(--text-3)]" aria-hidden="true" />
               )}
             </button>

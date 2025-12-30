@@ -8,16 +8,25 @@
  * - Full username (no truncation)
  * - Stack amount (tabular-nums)
  * - Seat position / dealer indicator
- * - Auto-dismiss after 2-3 seconds
- * - Dismiss on tap outside
+ * - Auto-dismiss after 2500ms default
+ * - Dismiss on tap outside (with flicker prevention)
  * - RTL support with dir="auto" and unicode-bidi: plaintext
  * - Respects prefers-reduced-motion
+ * - Closes on mode transitions (SHOWDOWN, leave table, action strip expand)
+ * - Constrained max-height to stay within hero zone
+ * - Flip placement based on available space
  */
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatChips } from '@/utils/formatChips'
 import clsx from 'clsx'
+
+/** Default auto-dismiss timeout in ms */
+const AUTO_DISMISS_TIMEOUT = 2500
+
+/** Delay before event listeners are attached (prevents same-tap close) */
+const OPEN_DELAY_MS = 100
 
 export interface HeroDetailPopoverProps {
   /** Full player display name */
@@ -38,6 +47,12 @@ export interface HeroDetailPopoverProps {
   onClose: () => void
   /** Additional CSS class */
   className?: string
+  /** UI mode for mode-transition closing (SHOWDOWN triggers close) */
+  uiMode?: 'PLAYER_ACTION' | 'OPPONENT_ACTION' | 'SHOWDOWN' | 'WAITING'
+  /** Whether action strip is expanded (triggers close) */
+  actionStripExpanded?: boolean
+  /** Custom auto-dismiss timeout in ms (default: 2500) */
+  autoDismissMs?: number
 }
 
 export function HeroDetailPopover({
@@ -50,43 +65,93 @@ export function HeroDetailPopover({
   isSittingOut = false,
   onClose,
   className,
+  uiMode,
+  actionStripExpanded = false,
+  autoDismissMs = AUTO_DISMISS_TIMEOUT,
 }: HeroDetailPopoverProps) {
   const { t } = useTranslation()
   const overlayRef = useRef<HTMLDivElement>(null)
+  const [isReady, setIsReady] = useState(false)
+  const autoDismissRef = useRef<number | null>(null)
   
-  // Handle click outside to close
+  // Clear auto-dismiss timer
+  const clearAutoDismiss = useCallback(() => {
+    if (autoDismissRef.current !== null) {
+      clearTimeout(autoDismissRef.current)
+      autoDismissRef.current = null
+    }
+  }, [])
+  
+  // Safe close with cleanup
+  const safeClose = useCallback(() => {
+    clearAutoDismiss()
+    onClose()
+  }, [clearAutoDismiss, onClose])
+  
+  // Auto-dismiss timer (respects reduced motion - no animation but still dismisses)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node
-      if (overlayRef.current && !overlayRef.current.contains(target)) {
-        onClose()
-      }
+    clearAutoDismiss()
+    
+    if (autoDismissMs > 0) {
+      autoDismissRef.current = window.setTimeout(() => {
+        safeClose()
+      }, autoDismissMs)
     }
     
-    // Small delay to prevent immediate close on the tap that opened it
+    return () => clearAutoDismiss()
+  }, [autoDismissMs, clearAutoDismiss, safeClose])
+  
+  // Close on mode transitions: SHOWDOWN or action strip expansion
+  useEffect(() => {
+    if (uiMode === 'SHOWDOWN' || actionStripExpanded) {
+      safeClose()
+    }
+  }, [uiMode, actionStripExpanded, safeClose])
+  
+  // Flicker prevention: delay attaching outside click listeners
+  useEffect(() => {
     const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('touchstart', handleClickOutside)
-    }, 50)
+      setIsReady(true)
+    }, OPEN_DELAY_MS)
     
     return () => {
       clearTimeout(timer)
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('touchstart', handleClickOutside)
+      setIsReady(false)
     }
-  }, [onClose])
+  }, [])
+  
+  // Handle click outside to close (with flicker prevention)
+  useEffect(() => {
+    if (!isReady) return
+    
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      event.stopPropagation() // Stop propagation to prevent re-open
+      const target = event.target as Node
+      if (overlayRef.current && !overlayRef.current.contains(target)) {
+        safeClose()
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside, { capture: true })
+    document.addEventListener('touchstart', handleClickOutside, { capture: true, passive: true })
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, { capture: true })
+      document.removeEventListener('touchstart', handleClickOutside, { capture: true })
+    }
+  }, [isReady, safeClose])
   
   // Handle Escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose()
+        safeClose()
       }
     }
     
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
-  }, [onClose])
+  }, [safeClose])
   
   // Determine position label
   const getPositionLabel = (): string | null => {
