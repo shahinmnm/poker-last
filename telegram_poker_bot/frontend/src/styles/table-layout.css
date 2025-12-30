@@ -752,11 +752,53 @@
   /* Default: allow content to be visible for accessibility */
 }
 
-/* Minimal action strip styling - ~48px base height */
+/* ==================== PHASE 1: MINIMAL ACTION STRIP ==================== */
+/* Compact 48-56px strip that's always present when seated */
+
 .action-bar-minimal {
   min-height: 48px;
   max-height: 56px;
-  padding: 6px 12px;
+  padding: 4px 8px;
+}
+
+.action-strip {
+  /* Ensure strip stays compact and doesn't grow */
+  flex-shrink: 0;
+  /* Override any container max-height for the minimal strip */
+  max-height: 56px !important;
+}
+
+.action-strip-leave {
+  /* Ensure leave toggle has minimum tap target */
+  flex-shrink: 0;
+}
+
+/* ==================== PHASE 2: EXPANDED ACTION PANEL ==================== */
+/* Panel that opens above strip when user taps Raise */
+
+.action-expanded-panel {
+  /* Not constrained by 15vh - allowed to be taller temporarily */
+  max-height: none;
+  /* Animation for smooth appearance */
+  animation: expandedPanelSlideUp 0.2s ease-out;
+}
+
+@keyframes expandedPanelSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .action-expanded-panel {
+    animation: none;
+  }
 }
 
 /* ==================== PHASE 3: COMMUNITY CARDS SACRED ZONE ==================== */
@@ -775,6 +817,15 @@
 .table-board-stack {
   /* Add breathing room above and below community cards */
   padding-block: 8px;
+}
+
+/* ==================== PHASE 4: LEAVE TOGGLE IN STRIP ==================== */
+/* Unified leave-after-hand toggle (replaces floating chip) */
+
+.leaving-status-chip {
+  /* Phase 4: Now integrated into strip - hide floating version */
+  /* Keep for backward compat but reduce prominence */
+  display: none;
 }
 
 /* ==================== PHASE 5: HERO SEAT SCALE OPTIMIZATION ==================== */
