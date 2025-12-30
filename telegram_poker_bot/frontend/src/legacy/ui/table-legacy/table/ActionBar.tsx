@@ -1,15 +1,19 @@
 /**
  * ActionBar - Main poker action UI component
  *
- * ARCHITECTURE (Phase 5):
+ * ARCHITECTURE (Phase 5 + Beta Safety Pass):
  * - Minimal Strip: 48-56px height, always visible when seated
  *   - Contains: Fold, Check/Call, Raise (verb), Leave toggle
+ * - Micro Strip: 44-48px height, shown during SHOWDOWN
+ *   - Contains: Leave toggle only (safe controls)
+ *   - No betting actions (Fold/Call/Raise hidden)
  * - Expanded Panel: Opens on Raise tap, contains slider/presets
  *   - Auto-closes after action submission
- *   - Dismissible with X button
+ *   - Dismissible with X button, tap-outside, or Escape key
+ *   - Auto-closes on mode transition (SHOWDOWN/OPPONENT_ACTION)
  *
  * OVERLAY PRIORITY (useUIMode):
- * - SHOWDOWN: strip disabled/hidden, winner visible
+ * - SHOWDOWN: micro strip visible (safe controls only), winner visible
  * - PLAYER_ACTION: strip + panel enabled
  * - OPPONENT_ACTION: strip disabled, waiting toast allowed
  * - WAITING: strip hidden if not seated
