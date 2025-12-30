@@ -220,16 +220,22 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
             <div
               className={clsx(
-                'relative flex items-center justify-center rounded-full bg-slate-900/90 text-sm font-bold text-white ring-2 ring-white/15 shadow-xl',
-                isActive && 'ring-emerald-400/90 shadow-emerald-500/30',
-                isHero && !isActive && 'ring-amber-200/70',
+                'relative flex items-center justify-center rounded-full text-sm font-bold text-white shadow-xl',
+                /* Premium surface with subtle gradient */
+                'bg-gradient-to-b from-slate-800/95 to-slate-900/95',
+                /* Default state ring */
+                'ring-2 ring-[var(--border-2)]',
+                /* Active player glow */
+                isActive && 'ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.4)]',
+                /* Hero highlight */
+                isHero && !isActive && 'ring-amber-300/80 shadow-amber-500/20',
               )}
               style={{ width: 'clamp(40px, 6vw, 52px)', height: 'clamp(40px, 6vw, 52px)' }}
             >
-              <span>{initial}</span>
+              <span className="text-[var(--text-1)]">{initial}</span>
 
               {isAllIn && (
-                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg z-20">
+                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 z-20 border border-rose-400/50">
                   ALL-IN
                 </span>
               )}
@@ -237,7 +243,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
             {/* Dealer/Blind Badge (Dynamic Position) */}
             {positionLabel === 'BTN' && (
-              <span className={clsx('absolute z-30 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-black text-slate-900 shadow', layout.badge)}>
+              <span className={clsx('absolute z-30 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-black text-slate-900 shadow-md', layout.badge)}>
                 D
               </span>
             )}
@@ -257,23 +263,25 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             )}
           </div>
 
-          {/* INFO PILL (Floating Badge) - Improved typography with RTL support */}
+          {/* INFO PILL (Floating Badge) - Premium casino typography with RTL support */}
           <div
             className={clsx(
               'pointer-events-none absolute z-30 flex -translate-x-1/2 items-center justify-center',
               layout.infoPill,
             )}
           >
-            <div className="flex flex-col items-center rounded-full border border-white/10 bg-black/80 px-3 py-1.5 shadow-lg backdrop-blur-sm">
+            <div className="flex flex-col items-center rounded-xl border border-[var(--border-2)] bg-[var(--surface-1)] px-3 py-1.5 shadow-lg shadow-black/40 backdrop-blur-md">
+              {/* Player name - primary text, stronger emphasis */}
               <div 
-                className="text-xs font-semibold text-gray-200 leading-tight overflow-hidden text-ellipsis whitespace-nowrap"
-                style={{ maxWidth: 'clamp(60px, 10vw, 80px)' }}
+                className="text-[11px] font-bold text-[var(--text-1)] leading-tight overflow-hidden text-ellipsis whitespace-nowrap tracking-tight"
+                style={{ maxWidth: 'clamp(56px, 10vw, 76px)' }}
                 dir="auto"
                 title={playerName || seatLabel}
               >
                 {playerName || seatLabel}
               </div>
-              <div className="text-xs font-bold text-emerald-400 leading-tight tabular-nums">
+              {/* Stack - secondary text, muted but readable */}
+              <div className="text-[11px] font-semibold text-emerald-400 leading-tight tabular-nums mt-0.5">
                 {formatChips(chipCount)}
               </div>
             </div>

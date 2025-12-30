@@ -105,12 +105,12 @@ export function Seat({
             <div className="absolute inset-0 rounded-full ring-2 ring-green-400 animate-pulse" />
           )}
           
-          {/* Avatar - compact size w-10 h-10 */}
-          <div className="avatar w-10 h-10 rounded-full overflow-hidden bg-gray-700 ring-2 ring-white/10">
+          {/* Avatar - compact size w-10 h-10 with premium surface */}
+          <div className="avatar w-10 h-10 rounded-full overflow-hidden bg-gradient-to-b from-slate-800/95 to-slate-900/95 ring-2 ring-[var(--border-2)]">
             {avatar_url ? (
               <img src={avatar_url} alt={display_name || 'Player'} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-lg font-bold text-gray-400">
+              <div className="w-full h-full flex items-center justify-center text-lg font-bold text-[var(--text-1)]">
                 {display_name?.[0]?.toUpperCase() || '?'}
               </div>
             )}
@@ -123,13 +123,17 @@ export function Seat({
             </div>
           )}
           
-          {/* Info pill - overlapping bottom 30% of avatar */}
-          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-full px-2 py-0.5 border border-white/10 shadow-md whitespace-nowrap">
+          {/* Info pill - overlapping bottom 30% of avatar with premium styling */}
+          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[var(--surface-1)] backdrop-blur-md rounded-xl px-2 py-0.5 border border-[var(--border-2)] shadow-lg shadow-black/40 whitespace-nowrap">
             <div className="flex flex-col items-center">
-              <div className="text-[10px] text-gray-300 truncate max-w-[60px] leading-tight">
+              <div 
+                className="text-[10px] font-bold text-[var(--text-1)] truncate max-w-[60px] leading-tight tracking-tight"
+                dir="auto"
+                title={display_name || 'Anon'}
+              >
                 {display_name || 'Anon'}
               </div>
-              <div className="text-[10px] text-emerald-400 font-bold leading-tight">
+              <div className="text-[10px] text-emerald-400 font-semibold leading-tight tabular-nums mt-0.5">
                 {formatByCurrency(stack_amount, currency)}
               </div>
             </div>
