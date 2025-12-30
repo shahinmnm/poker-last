@@ -39,8 +39,6 @@ export interface UIModeParams {
   isSeated: boolean
   /** Current actor user ID (null if no active hand) */
   currentActorUserId: string | number | null
-  /** Hero's user ID */
-  heroUserId: string | number | null
 }
 
 /**
@@ -54,8 +52,6 @@ export function computeUIMode(params: UIModeParams): UIModeContext {
     isTableWaiting,
     isSeated,
     currentActorUserId,
-    // heroUserId is available in params but not needed for mode computation
-    // It's kept in the interface for potential future use
   } = params
 
   // Determine UI mode based on game state priority

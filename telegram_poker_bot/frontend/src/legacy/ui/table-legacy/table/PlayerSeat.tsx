@@ -185,12 +185,15 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     const mutedState = hasFolded || isSittingOut
     const isHorizontal = side === 'left' || side === 'right'
 
-    // PHASE 5: Apply hero seat scale classes based on UI mode
-    const heroScaleClass = isHero
-      ? heroScaleReduced
-        ? 'player-seat--hero-reduced'
-        : 'player-seat--hero-action'
-      : ''
+    // PHASE 5: Compute hero seat scale class based on UI mode
+    // - Hero with full scale (isMyTurn): 'player-seat--hero-action'
+    // - Hero with reduced scale (not isMyTurn): 'player-seat--hero-reduced'
+    // - Non-hero: no additional class
+    const getHeroScaleClass = (): string => {
+      if (!isHero) return ''
+      return heroScaleReduced ? 'player-seat--hero-reduced' : 'player-seat--hero-action'
+    }
+    const heroScaleClass = getHeroScaleClass()
 
     return (
       <div

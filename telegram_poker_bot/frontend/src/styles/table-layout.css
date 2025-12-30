@@ -748,8 +748,8 @@
 .action-bar-container {
   /* Constrain maximum height to 15% of viewport */
   max-height: 15vh;
-  /* Ensure content fits within constraint */
-  overflow: visible;
+  /* NOTE: overflow behavior for landscape is handled by media query at line ~254 */
+  /* Default: allow content to be visible for accessibility */
 }
 
 /* Minimal action strip styling - ~48px base height */
@@ -794,11 +794,7 @@
 /* Hero seat in reduced mode (showdown, opponent turn) */
 .player-seat--hero-reduced {
   transform: scale(0.9);
-}
-
-/* Ensure no layout jumps by maintaining element box size */
-.player-seat--hero-reduced {
-  /* Compensate for scale with margin to maintain layout */
+  /* Compensate for scale with margin to maintain layout - prevent layout jumps */
   margin-bottom: calc((1 - 0.9) * var(--seat-scale-factor, 1) * -5px);
 }
 
