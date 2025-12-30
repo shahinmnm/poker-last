@@ -675,20 +675,21 @@ async def monitor_inter_hand_timeouts():
                 now = datetime.now(timezone.utc)
 
                 async with get_db_session() as db:
-                    # Query for hands in INTER_HAND_WAIT status and join with Table
-                    # CRITICAL: Eagerly load Table.template to avoid greenlet_spawn errors
-                    # when accessing table.template.table_type in is_persistent_table()
+                    # Query scalar columns to avoid async lazy-loads in logging.
                     result = await db.execute(
-                        select(Hand, Table)
+                        select(
+                            Hand.id.label("hand_id"),
+                            Hand.hand_no.label("hand_no"),
+                            Table.id.label("table_id"),
+                            Table.last_action_at.label("last_action_at"),
+                        )
                         .join(Table, Hand.table_id == Table.id)
-                        .options(joinedload(Table.template))
                         .where(
                             Hand.status == HandStatus.INTER_HAND_WAIT,
                             Table.status == TableStatus.ACTIVE,
                         )
                     )
-                    # Use unique() to handle the joined load
-                    hands_with_tables = result.unique().all()
+                    hands_with_tables = result.all()
 
                     logger.debug(
                         "Inter-hand monitor tick",
@@ -696,19 +697,23 @@ async def monitor_inter_hand_timeouts():
                         timestamp=now.isoformat(),
                     )
 
-                    for hand, table in hands_with_tables:
+                    for row in hands_with_tables:
+                        hand_id = row.hand_id
+                        hand_no = row.hand_no
+                        table_id = row.table_id
+                        last_action_at = row.last_action_at
                         try:
                             # Check if timeout has expired
-                            if not table.last_action_at:
+                            if not last_action_at:
                                 logger.warning(
                                     "Table in INTER_HAND_WAIT but no last_action_at",
-                                    table_id=table.id,
-                                    hand_no=hand.hand_no,
+                                    table_id=table_id,
+                                    hand_no=hand_no,
                                 )
                                 continue
 
                             time_since_last_action = (
-                                now - table.last_action_at
+                                now - last_action_at
                             ).total_seconds()
 
                             timeout_threshold = settings.post_hand_delay_seconds
@@ -716,8 +721,8 @@ async def monitor_inter_hand_timeouts():
                             # Log computed timeout for diagnostics
                             logger.debug(
                                 "Inter-hand timeout check",
-                                table_id=table.id,
-                                hand_no=hand.hand_no,
+                                table_id=table_id,
+                                hand_no=hand_no,
                                 time_since_last_action=round(time_since_last_action, 2),
                                 timeout_threshold=timeout_threshold,
                                 will_trigger=time_since_last_action > timeout_threshold,
@@ -726,8 +731,8 @@ async def monitor_inter_hand_timeouts():
                             if time_since_last_action > timeout_threshold:
                                 logger.info(
                                     "Inter-hand timeout expired, auto-completing",
-                                    table_id=table.id,
-                                    hand_no=hand.hand_no,
+                                    table_id=table_id,
+                                    hand_no=hand_no,
                                     time_since_last_action=round(time_since_last_action, 2),
                                     timeout_threshold=timeout_threshold,
                                 )
@@ -735,17 +740,17 @@ async def monitor_inter_hand_timeouts():
                                 # Call runtime manager to complete inter-hand phase
                                 runtime_mgr = get_pokerkit_runtime_manager()
                                 inter_hand_result = await runtime_mgr.complete_inter_hand_phase(
-                                    db, table.id
+                                    db, table_id
                                 )
                                 await db.commit()
 
                                 # Broadcast the result
-                                await _handle_inter_hand_result(table.id, inter_hand_result)
+                                await _handle_inter_hand_result(table_id, inter_hand_result)
 
                                 logger.info(
                                     "Inter-hand phase auto-completed successfully",
-                                    table_id=table.id,
-                                    hand_no=hand.hand_no,
+                                    table_id=table_id,
+                                    hand_no=hand_no,
                                     result_keys=list(inter_hand_result.keys()) if inter_hand_result else [],
                                 )
 
@@ -753,9 +758,9 @@ async def monitor_inter_hand_timeouts():
                             # Log full stack trace for debugging (exception() includes traceback)
                             logger.exception(
                                 "Error processing inter-hand timeout for table",
-                                table_id=table.id if table else None,
-                                hand_id=hand.id if hand else None,
-                                hand_no=hand.hand_no if hand else None,
+                                table_id=table_id,
+                                hand_id=hand_id,
+                                hand_no=hand_no,
                                 error=str(e),
                             )
                             # Rollback any partial changes for this table
