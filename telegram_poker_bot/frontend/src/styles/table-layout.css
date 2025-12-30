@@ -24,6 +24,9 @@
   /* Zone: Winner banner vertical offset from board area */
   --winner-banner-offset: 22vh;
   
+  /* Phase 1/2: Expanded panel max width - keeps slider contained on larger screens */
+  --expanded-panel-max-width: 400px;
+  
   /* ==================== Z-INDEX HIERARCHY ==================== */
   /* Strict z-index layers to prevent overlap conflicts */
   --z-table-felt: 0;
@@ -331,109 +334,15 @@
   }
 }
 
-/* ==================== LEAVING PILL (COMPACT STATUS CHIP) ==================== */
-/* Phase 3A: "Leaving after hand" converted to compact status chip */
-/* Two states: active (leaving enabled) vs inactive (not leaving) */
+/* ==================== PHASE 4: LEAVING TOGGLE (INTEGRATED) ==================== */
+/* Leave-after-hand is now integrated into the minimal action strip */
+/* The old floating .leaving-status-chip is deprecated and replaced by inline toggle */
+/* Keeping minimal styles for backward compatibility during transition */
 
 .leaving-status-chip {
-  position: fixed;
-  bottom: calc(var(--action-bar-total-offset) + 8px);
-  right: max(env(safe-area-inset-right, 0px), 12px);
-  z-index: var(--z-overlays, 40);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(245, 158, 11, 0.9));
-  border: 2px solid rgba(253, 224, 71, 0.6);
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.3), 
-    0 0 20px rgba(251, 191, 36, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(12px);
-  color: #1a1a1a;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  max-width: 150px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: auto;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-}
-
-/* Active state - stronger visual presence */
-.leaving-status-chip--active {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 1), rgba(245, 158, 11, 0.95));
-  border: 2px solid rgba(253, 224, 71, 0.8);
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.35),
-    0 0 24px rgba(251, 191, 36, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-/* Inactive state - muted appearance */
-.leaving-status-chip--inactive {
-  background: rgba(100, 100, 100, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.leaving-status-chip:hover {
-  transform: scale(1.03);
-  box-shadow: 
-    0 6px 18px rgba(0, 0, 0, 0.4),
-    0 0 28px rgba(251, 191, 36, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-
-.leaving-status-chip:active {
-  transform: scale(0.97);
-}
-
-/* Respect motion-reduce */
-@media (prefers-reduced-motion: reduce) {
-  .leaving-status-chip:hover {
-    transform: none;
-  }
-  .leaving-status-chip:active {
-    transform: none;
-  }
-}
-
-.leaving-status-chip__icon {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-}
-
-/* Icon filled state for active */
-.leaving-status-chip--active .leaving-status-chip__icon {
-  fill: currentColor;
-}
-
-.leaving-status-chip__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #1a1a1a;
-  animation: leaving-pulse 1.5s ease-in-out infinite;
-}
-
-/* Inactive dot is muted */
-.leaving-status-chip--inactive .leaving-status-chip__dot {
-  background: rgba(255, 255, 255, 0.5);
-  animation: none;
-}
-
-@keyframes leaving-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.85); }
+  /* DEPRECATED: Now integrated into action strip (Phase 4) */
+  /* Hiding via display:none would break any remaining usage */
+  /* Instead, keep as fallback but styles are no longer maintained */
 }
 
 /* ==================== WAITING TOAST ==================== */
@@ -752,11 +661,53 @@
   /* Default: allow content to be visible for accessibility */
 }
 
-/* Minimal action strip styling - ~48px base height */
+/* ==================== PHASE 1: MINIMAL ACTION STRIP ==================== */
+/* Compact 48-56px strip that's always present when seated */
+
 .action-bar-minimal {
   min-height: 48px;
   max-height: 56px;
-  padding: 6px 12px;
+  padding: 4px 8px;
+}
+
+.action-strip {
+  /* Ensure strip stays compact and doesn't grow */
+  flex-shrink: 0;
+  /* Override any container max-height for the minimal strip */
+  max-height: 56px !important;
+}
+
+.action-strip-leave {
+  /* Ensure leave toggle has minimum tap target */
+  flex-shrink: 0;
+}
+
+/* ==================== PHASE 2: EXPANDED ACTION PANEL ==================== */
+/* Panel that opens above strip when user taps Raise */
+
+.action-expanded-panel {
+  /* Not constrained by 15vh - allowed to be taller temporarily */
+  max-height: none;
+  /* Animation for smooth appearance */
+  animation: expandedPanelSlideUp 0.2s ease-out;
+}
+
+@keyframes expandedPanelSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .action-expanded-panel {
+    animation: none;
+  }
 }
 
 /* ==================== PHASE 3: COMMUNITY CARDS SACRED ZONE ==================== */

@@ -1,17 +1,30 @@
 /**
  * ActionBar - Main poker action UI component
  *
+ * ARCHITECTURE (Phase 5):
+ * - Minimal Strip: 48-56px height, always visible when seated
+ *   - Contains: Fold, Check/Call, Raise (verb), Leave toggle
+ * - Expanded Panel: Opens on Raise tap, contains slider/presets
+ *   - Auto-closes after action submission
+ *   - Dismissible with X button
+ *
+ * OVERLAY PRIORITY (useUIMode):
+ * - SHOWDOWN: strip disabled/hidden, winner visible
+ * - PLAYER_ACTION: strip + panel enabled
+ * - OPPONENT_ACTION: strip disabled, waiting toast allowed
+ * - WAITING: strip hidden if not seated
+ *
  * SEMANTICS CONTRACT:
  * - call_amount: INCREMENTAL (chips to add to match current bet) - display as "Call {amount}"
  * - min_amount/max_amount for raise/bet: TOTAL-TO (total committed for street)
  *   - For raise actions: display as "Raise to {amount}"
  *   - For bet actions (first bet of street): display as "Bet {amount}"
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 
-import { LogOut, Minus, Plus } from 'lucide-react'
+import { LogOut, Minus, Plus, X, ChevronUp } from 'lucide-react'
 import type { AllowedAction } from '@/types/game'
 import { formatChips } from '@/utils/formatChips'
 import { useHapticFeedback } from '@/hooks/useHapticFeedback'
@@ -48,6 +61,9 @@ export default function ActionBar({
 }: ActionBarProps) {
   const { t } = useTranslation()
   const haptic = useHapticFeedback()
+  
+  // PHASE 2: Expanded panel state - opens when user taps Raise
+  const [isExpanded, setIsExpanded] = useState(false)
   
   // Throttle haptic feedback during rapid slider adjustments
   // Use 200ms interval (max 5 haptics/sec) to avoid UI slowdown and excessive vibration
@@ -88,11 +104,17 @@ export default function ActionBar({
   const maxAmount = activeBetAction?.max_amount ?? primarySliderAction?.max_amount ?? myStack
   const [betAmount, setBetAmount] = useState(() => clampAmount(minAmount || 0, minAmount, maxAmount || myStack))
   const [isAdjustingBet, setIsAdjustingBet] = useState(false)
+  
+  // PHASE 2: Collapse expanded panel when turn changes
+  const collapsePanel = useCallback(() => {
+    setIsExpanded(false)
+    setIsAdjustingBet(false)
+  }, [])
 
   // TASK 3/6: Reset UI state when turn changes or becomes invalid
   useEffect(() => {
     if (!isMyTurn) {
-      setIsAdjustingBet(false)
+      collapsePanel()
       // Reset bet amount to minimum when not our turn
       if (primarySliderAction) {
         const min = primarySliderAction.min_amount ?? 0
@@ -100,7 +122,7 @@ export default function ActionBar({
         setBetAmount(clampAmount(min || 0, min, max || myStack))
       }
     }
-  }, [isMyTurn, primarySliderAction, myStack])
+  }, [isMyTurn, primarySliderAction, myStack, collapsePanel])
 
   useEffect(() => {
     if (activeBetAction && allowedActions.every((action) => action.action_type !== activeBetAction.action_type)) {
@@ -179,8 +201,6 @@ export default function ActionBar({
     return null
   }, [betAction, callAction, checkAction, raiseAction])
 
-  const shouldShowSlider = Boolean(isMyTurn && isAdjustingBet && activeBetAction && sliderActions.includes(activeBetAction.action_type))
-
   const centerLabel = useMemo(() => {
     if (checkAction) {
       return t('table.actionBar.check', { defaultValue: 'CHECK' }).toUpperCase()
@@ -194,11 +214,6 @@ export default function ActionBar({
   }, [callAction, checkAction, t])
 
   const sliderLabelAction = raiseAction ?? betAction ?? null
-  const sliderLabelAmount = sliderLabelAction
-    ? isAdjustingBet && activeBetAction?.action_type === sliderLabelAction.action_type
-      ? betAmount
-      : sliderLabelAction.min_amount ?? sliderLabelAction.amount ?? betAmount
-    : 0
   // SEMANTICS: raise/bet amounts are TOTAL-TO values
   // Button shows only action verb (no amount) - amount is shown in the center cluster
   const confirmLabel = (
@@ -214,19 +229,23 @@ export default function ActionBar({
     if (isProcessing) return
     haptic.impact('medium')
     onAction('fold')
-    setIsAdjustingBet(false)
+    collapsePanel()
   }
 
   const handleCenter = () => {
     if (!centerAction || isDisabled) return
     if (sliderActions.includes(centerAction.action_type)) {
-      if (!isAdjustingBet || activeBetAction?.action_type !== centerAction.action_type) {
+      // Open expanded panel for bet/raise
+      if (!isExpanded) {
         haptic.impact('light')
+        setIsExpanded(true)
         handleStartAdjusting(centerAction)
         return
       }
+      // If expanded, submit the bet
       haptic.notification('success')
       handleBetSubmit(centerAction)
+      collapsePanel()
       return
     }
 
@@ -236,83 +255,33 @@ export default function ActionBar({
     } else if (centerAction.action_type === 'call') {
       onAction('call', centerAction.amount)
     }
+    collapsePanel()
   }
 
-  const handleRaise = () => {
+  // PHASE 1: Raise button in minimal strip opens expanded panel
+  const handleRaiseClick = () => {
     if (!sliderLabelAction || isDisabled) return
-    if (!isAdjustingBet || activeBetAction?.action_type !== sliderLabelAction.action_type) {
-      haptic.impact('light')
+    haptic.impact('light')
+    setIsExpanded(true)
+    handleStartAdjusting(sliderLabelAction)
+  }
+
+  // PHASE 2: Submit raise from expanded panel
+  const handleRaiseSubmit = () => {
+    if (!sliderLabelAction || isDisabled) return
+    if (!isAdjustingBet) {
       handleStartAdjusting(sliderLabelAction)
       return
     }
     haptic.notification('success')
     handleBetSubmit(sliderLabelAction)
+    collapsePanel()
   }
 
   const foldLabel = t('table.actionBar.fold', { defaultValue: 'Fold' }).toUpperCase()
   const foldDisabled = !isMyTurn || !foldAction
   const centerDisabled = isDisabled || !centerAction
   const raiseDisabled = isDisabled || !sliderLabelAction
-
-  // Render the stand up button as a compact chip when active, or inline button when not
-  const renderStandUpButton = (isCompactChip = false) => {
-    if (!onToggleStandUp) return null
-    const nextState = !isStandingUp
-    
-    // When standing up and compact mode requested, render as a floating status chip
-    if (isStandingUp && isCompactChip) {
-      return (
-        <button
-          type="button"
-          onClick={() => onToggleStandUp(nextState)}
-          disabled={standUpProcessing}
-          aria-pressed={isStandingUp}
-          className="leaving-status-chip leaving-status-chip--active"
-          title={t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' })}
-        >
-          <span className="leaving-status-chip__dot" />
-          <LogOut size={14} className="leaving-status-chip__icon" strokeWidth={2.5} />
-          <span>{t('table.actions.leaving', { defaultValue: 'Leaving' })}</span>
-        </button>
-      )
-    }
-    
-    // Standard inline button rendering
-    const activeClasses = isStandingUp
-      ? 'bg-amber-400 text-black shadow-amber-500/50 border-amber-300 ring-2 ring-amber-300/70 animate-[pulse_1.6s_ease-in-out_infinite]'
-      : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'
-    const statusDot = (
-      <span className="relative flex h-2.5 w-2.5 items-center justify-center">
-        {isStandingUp && (
-          <span className="absolute inline-flex h-4 w-4 rounded-full bg-amber-500/50 animate-ping" />
-        )}
-        <span
-          className={clsx(
-            'relative h-2.5 w-2.5 rounded-full',
-            isStandingUp ? 'bg-amber-700' : 'bg-amber-300',
-          )}
-        />
-      </span>
-    )
-
-    return (
-      <button
-        type="button"
-        onClick={() => onToggleStandUp(nextState)}
-        disabled={standUpProcessing}
-        aria-pressed={isStandingUp}
-        className={clsx(
-          'flex min-h-[44px] h-11 items-center gap-1.5 rounded-full px-4 text-xs font-black uppercase tracking-wide shadow-lg transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-300/60 focus:ring-offset-2 focus:ring-offset-transparent motion-reduce:transition-none motion-reduce:active:scale-100',
-          activeClasses,
-        )}
-        title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
-      >
-        {statusDot}
-        <LogOut size={18} className={isStandingUp ? 'text-black' : 'text-white'} />
-        <span>{isStandingUp ? t('table.actions.leaving', { defaultValue: 'Leaving' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave' })}</span>
-      </button>
-    )
-  }
 
   const adjustBet = (direction: 1 | -1, actionOverride?: AllowedAction | null) => {
     const baseAction = actionOverride ?? activeBetAction ?? sliderLabelAction ?? primarySliderAction
@@ -334,12 +303,41 @@ export default function ActionBar({
   // Only show waiting toast when: NOT showdown AND NOT inter-hand AND NOT my turn
   const showWaitingToast = !isMyTurn && !isShowdown && !isInterHand
 
-  // When not my turn: show waiting toast (conditionally) and leaving chip (if standing up)
+  // PHASE 4: Compact leave toggle for minimal strip (integrated, not separate chip)
+  const renderLeaveToggle = () => {
+    if (!onToggleStandUp) return null
+    const nextState = !isStandingUp
+    
+    return (
+      <button
+        type="button"
+        onClick={() => onToggleStandUp(nextState)}
+        disabled={standUpProcessing}
+        aria-pressed={isStandingUp}
+        className={clsx(
+          'action-strip-leave flex min-h-[44px] h-11 items-center gap-1 rounded-full px-3 text-[11px] font-bold uppercase tracking-wide transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 motion-reduce:transition-none motion-reduce:active:scale-100',
+          isStandingUp
+            ? 'bg-amber-400 text-black shadow-amber-500/40 ring-2 ring-amber-300/70'
+            : 'bg-white/5 text-white/80 border border-white/10 hover:bg-white/10'
+        )}
+        title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
+      >
+        <LogOut size={16} className={isStandingUp ? 'text-black' : 'text-white/80'} />
+        <span className="hidden sm:inline action-label-safe">
+          {isStandingUp 
+            ? t('table.actions.leaving', { defaultValue: 'Leaving' })
+            : t('table.actions.sitOut', { defaultValue: 'Leave' })}
+        </span>
+      </button>
+    )
+  }
+
+  // PHASE 3: When not my turn - show minimal disabled strip or waiting UI
   if (!isMyTurn) {
     return (
       <>
         {/* Waiting toast - centered above action bar safe zone */}
-        {/* PHASE 4 FIX: Only shown when NOT showdown AND NOT inter-hand */}
+        {/* PHASE 3: Only shown in OPPONENT_ACTION mode (NOT showdown, NOT inter-hand) */}
         {showWaitingToast && (
           <div className="waiting-toast">
             <span className="waiting-toast__spinner" />
@@ -347,17 +345,19 @@ export default function ActionBar({
           </div>
         )}
         
-        {/* Leaving status chip - compact and docked to safe corner */}
-        {isStandingUp && renderStandUpButton(true)}
-        
-        {/* Non-standing-up toggle button stays inline at bottom */}
-        {!isStandingUp && onToggleStandUp && (
+        {/* PHASE 1: Minimal strip (disabled) when not my turn but still visible */}
+        {/* PHASE 3: Hidden during SHOWDOWN, visible during OPPONENT_ACTION */}
+        {!isShowdown && (
           <div
-            className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-end px-3 sm:bottom-5 sm:px-4"
+            className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-5 sm:px-4"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
           >
             <div className="pointer-events-auto">
-              {renderStandUpButton(false)}
+              {/* PHASE 1: Minimal action strip - 48-56px height */}
+              <div className="action-bar-minimal action-strip flex items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)]/90 px-3 py-1.5 shadow-xl shadow-black/30 backdrop-blur-lg">
+                {/* Leave toggle - integrated into minimal strip */}
+                {renderLeaveToggle()}
+              </div>
             </div>
           </div>
         )}
@@ -365,14 +365,17 @@ export default function ActionBar({
     )
   }
 
+  // PHASE 1 & 2: Main rendering when it's my turn
   return (
     <>
-      {shouldShowSlider && activeBetAction && (
+      {/* PHASE 2: Expanded Action Panel - opens above minimal strip */}
+      {/* Only visible when isExpanded is true (user tapped Raise) */}
+      {isExpanded && sliderLabelAction && (
         <div
-        className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-3 sm:bottom-24 sm:px-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+          className="action-expanded-panel pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-3 sm:bottom-24 sm:px-4"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
         >
-          <div className="pointer-events-auto relative w-full max-w-[520px]">
+          <div className="pointer-events-auto relative w-full max-w-[var(--expanded-panel-max-width,400px)]">
             {/* Floating bet amount label */}
             <div className="pointer-events-none absolute -top-10" style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}>
               <div className="rounded-full border border-emerald-400/60 bg-emerald-600/95 px-4 py-1.5 shadow-lg shadow-emerald-900/50 backdrop-blur-lg">
@@ -382,114 +385,151 @@ export default function ActionBar({
               </div>
             </div>
 
-            {/* Slider container with min/max labels */}
-            <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] px-4 py-3 shadow-xl backdrop-blur-lg">
-              {/* Min/Max labels */}
-              <div className="flex justify-between mb-2 px-1">
-                <span className="action-bar-min-max text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
-                  {t('table.actionBar.min', { defaultValue: 'Min' })}: {formatChips(minAmount ?? 0)}
-                </span>
-                <span className="action-bar-min-max text-[10px] font-medium text-[var(--text-3)] uppercase tracking-wider">
-                  {t('table.actionBar.max', { defaultValue: 'Max' })}: {formatChips(maxAmount ?? 0)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={minAmount}
-                max={maxAmount || minAmount || 1}
-                value={betAmount}
-                onChange={(event) => setBetAmount(Number(event.target.value))}
-                disabled={isDisabled}
-                className="action-range h-2"
-                style={{
-                  background: `linear-gradient(90deg, rgba(74,222,128,0.95) ${sliderPercent}%, rgba(255,255,255,0.12) ${sliderPercent}%)`,
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div
-        className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-start px-3 sm:bottom-5 sm:px-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
-      >
-        <div className="pointer-events-auto max-w-[820px] text-white font-['Inter',_sans-serif]">
-          <div className="action-bar-container flex flex-wrap items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 py-2 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Fold - Secondary action: muted rose, less prominent */}
+            {/* Expanded panel container */}
+            <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] p-4 shadow-xl backdrop-blur-lg">
+              {/* Close button */}
               <button
                 type="button"
-                onClick={handleFold}
-                disabled={foldDisabled}
-                className="action-btn-secondary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-rose-600/80 to-rose-800/80 px-5 text-sm font-bold uppercase tracking-wide text-white/95 shadow-md shadow-rose-900/40 transition-all duration-150 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
+                onClick={collapsePanel}
+                aria-label={t('common.cancel', { defaultValue: 'Close' })}
+                className="absolute top-2 right-2 min-h-[36px] min-w-[36px] h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 motion-reduce:transition-none"
               >
-                <span className="action-label-safe">{foldLabel}</span>
+                <X size={16} />
               </button>
-
-              {/* Check/Call - Primary action: vibrant emerald, prominent */}
-              <button
-                type="button"
-                onClick={handleCenter}
-                disabled={centerDisabled}
-                className="action-btn-primary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-6 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 transition-all duration-150 active:scale-[0.97] active:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
-              >
-                <span className="action-label-safe">{centerLabel}</span>
-              </button>
-            </div>
-
-            {sliderLabelAction && (
-              <div className="raise-cluster flex items-center gap-1.5 rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] px-2 py-1.5 shadow-lg backdrop-blur-md">
+              
+              {/* Raise cluster - +/- buttons with amount display */}
+              <div className="flex items-center justify-center gap-2 mb-3">
                 <button
                   type="button"
                   onClick={() => adjustBet(-1, sliderLabelAction)}
                   disabled={raiseDisabled}
                   aria-label={t('table.actionBar.decreaseAmount', { defaultValue: 'Decrease amount' })}
-                  className="raise-cluster__btn flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
+                  className="raise-cluster__btn flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
-                  <Minus size={18} />
+                  <Minus size={20} />
                 </button>
-                {/* Amount cluster: single source of truth for raise amount */}
-                <div className="raise-cluster__amount min-w-[80px] px-2 text-center">
-                  <span className="raise-cluster__label block text-[9px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-1">
+                
+                {/* Amount display */}
+                <div className="raise-cluster__amount min-w-[100px] px-3 text-center">
+                  <span className="raise-cluster__label block text-[10px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-1">
                     {sliderLabelAction.action_type === 'bet' 
                       ? t('table.actionBar.betLabel', { defaultValue: 'Bet' })
                       : t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })}
                   </span>
-                  {/* Prominent amount - the only amount display for raise */}
-                  <span className="raise-cluster__value block text-[18px] font-bold text-emerald-300 tabular-nums leading-none">
-                    {formatChips(isAdjustingBet ? betAmount ?? 0 : sliderLabelAmount ?? 0)}
+                  <span className="raise-cluster__value block text-[22px] font-bold text-emerald-300 tabular-nums leading-none">
+                    {formatChips(betAmount ?? 0)}
                   </span>
                 </div>
+                
                 <button
                   type="button"
                   onClick={() => adjustBet(1, sliderLabelAction)}
                   disabled={raiseDisabled}
                   aria-label={t('table.actionBar.increaseAmount', { defaultValue: 'Increase amount' })}
-                  className="raise-cluster__btn flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 active:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:focus:ring-0 disabled:focus-visible:ring-0 motion-reduce:transition-none motion-reduce:active:scale-100"
+                  className="raise-cluster__btn flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 motion-reduce:transition-none motion-reduce:active:scale-100"
                 >
-                  <Plus size={18} />
-                </button>
-                {/* Action button - only shows verb, amount is in cluster center */}
-                <button
-                  type="button"
-                  onClick={handleRaise}
-                  disabled={raiseDisabled}
-                  className="raise-cluster__submit ml-1 min-h-[44px] h-11 rounded-full bg-gradient-to-b from-blue-500 to-blue-700 px-5 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.97] active:brightness-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:focus:ring-0 disabled:focus-visible:ring-0 whitespace-nowrap motion-reduce:transition-none motion-reduce:active:scale-100"
-                >
-                  <span className="action-label-safe">{confirmLabel}</span>
+                  <Plus size={20} />
                 </button>
               </div>
+              
+              {/* Slider */}
+              <div className="mb-3">
+                <div className="flex justify-between mb-1.5 px-1">
+                  <span className="text-[9px] font-medium text-[var(--text-3)] uppercase tracking-wider">
+                    {t('table.actionBar.min', { defaultValue: 'Min' })}: {formatChips(minAmount ?? 0)}
+                  </span>
+                  <span className="text-[9px] font-medium text-[var(--text-3)] uppercase tracking-wider">
+                    {t('table.actionBar.max', { defaultValue: 'Max' })}: {formatChips(maxAmount ?? 0)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={minAmount}
+                  max={maxAmount || minAmount || 1}
+                  value={betAmount}
+                  onChange={(event) => setBetAmount(Number(event.target.value))}
+                  disabled={isDisabled}
+                  className="action-range h-2 w-full"
+                  style={{
+                    background: `linear-gradient(90deg, rgba(74,222,128,0.95) ${sliderPercent}%, rgba(255,255,255,0.12) ${sliderPercent}%)`,
+                  }}
+                />
+              </div>
+              
+              {/* Confirm button */}
+              <button
+                type="button"
+                onClick={handleRaiseSubmit}
+                disabled={raiseDisabled}
+                className="w-full min-h-[44px] h-11 rounded-full bg-gradient-to-b from-blue-500 to-blue-700 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 motion-reduce:transition-none motion-reduce:active:scale-100"
+              >
+                <span className="action-label-safe">{confirmLabel}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PHASE 1: Minimal Action Strip - always anchored at bottom */}
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-5 sm:px-4"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+      >
+        <div className="pointer-events-auto">
+          {/* Minimal strip: 48-56px height, compact buttons */}
+          <div className="action-bar-minimal action-strip flex items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-2 py-1 shadow-xl shadow-emerald-900/30 backdrop-blur-lg">
+            {/* Fold - compact */}
+            <button
+              type="button"
+              onClick={handleFold}
+              disabled={foldDisabled}
+              className="action-btn-secondary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-rose-600/80 to-rose-800/80 px-4 text-[13px] font-bold uppercase tracking-wide text-white/95 shadow-md shadow-rose-900/40 transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 motion-reduce:transition-none motion-reduce:active:scale-100"
+            >
+              <span className="action-label-safe">{foldLabel}</span>
+            </button>
+
+            {/* Check/Call - compact primary */}
+            <button
+              type="button"
+              onClick={handleCenter}
+              disabled={centerDisabled}
+              className="action-btn-primary min-h-[44px] h-11 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-5 text-[13px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300/30 transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:ring-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 motion-reduce:transition-none motion-reduce:active:scale-100"
+            >
+              <span className="action-label-safe">{centerLabel}</span>
+            </button>
+
+            {/* Raise - verb only button that opens expanded panel */}
+            {sliderLabelAction && (
+              <button
+                type="button"
+                onClick={handleRaiseClick}
+                disabled={raiseDisabled}
+                className={clsx(
+                  'min-h-[44px] h-11 rounded-full px-4 text-[13px] font-bold uppercase tracking-wide text-white transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 motion-reduce:transition-none motion-reduce:active:scale-100',
+                  isExpanded
+                    ? 'bg-blue-600 shadow-lg shadow-blue-900/50 ring-2 ring-blue-400/50 focus-visible:ring-blue-400/60'
+                    : 'bg-gradient-to-b from-blue-500 to-blue-700 shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 focus-visible:ring-blue-400/60'
+                )}
+              >
+                <span className="flex items-center gap-1">
+                  <span className="action-label-safe">
+                    {sliderLabelAction.action_type === 'bet'
+                      ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
+                      : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
+                  </span>
+                  <ChevronUp size={14} className={clsx('transition-transform duration-150', isExpanded && 'rotate-180')} />
+                </span>
+              </button>
             )}
 
-            {/* Inline leave button only when NOT standing up */}
-            {!isStandingUp && renderStandUpButton(false)}
+            {/* Divider */}
+            <div className="h-6 w-px bg-white/10" />
+
+            {/* Leave toggle - integrated into strip */}
+            {renderLeaveToggle()}
           </div>
         </div>
       </div>
-      
-      {/* Floating compact leaving chip when standing up - positioned in safe zone */}
-      {isStandingUp && renderStandUpButton(true)}
     </>
   )
 }
