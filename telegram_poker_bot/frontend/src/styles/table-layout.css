@@ -171,12 +171,9 @@
 }
 
 /* ==================== RESPONSIVE SEAT LAYOUT ==================== */
-/* Responsive seat sizing using clamp() to scale with viewport */
-.player-seat {
-  /* Scale smoothly between viewport sizes */
-  --seat-scale: clamp(0.85, calc(0.7 + 0.15 * (100vw - 320px) / 400), 1.1);
-  transform: scale(var(--seat-scale));
-  transform-origin: center center;
+/* Responsive seat sizing using CSS custom properties that components can use */
+:root {
+  --seat-scale-factor: 1;
 }
 
 /* Ensure seats don't overlap with action bar on small viewports */
@@ -184,17 +181,14 @@
   :root {
     --action-bar-height: 64px;
     --seat-row-offset: 58vh;
-  }
-  
-  .player-seat {
-    --seat-scale: 0.8;
+    --seat-scale-factor: 0.85;
   }
 }
 
 /* Extra small devices need more compact layout */
 @media (max-width: 360px) {
-  .player-seat {
-    --seat-scale: 0.75;
+  :root {
+    --seat-scale-factor: 0.8;
   }
   
   .table-pot-pill {
@@ -209,8 +203,8 @@
 
 /* Large phones / tablets get slightly larger seats */
 @media (min-width: 768px) and (min-height: 700px) {
-  .player-seat {
-    --seat-scale: 1.05;
+  :root {
+    --seat-scale-factor: 1.1;
   }
 }
 

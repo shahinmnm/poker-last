@@ -193,12 +193,13 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         )}
         style={{
           // Use clamp() for responsive sizing that adapts to viewport
+          // --seat-scale-factor is set via CSS media queries in table-layout.css
           width: isHorizontal 
-            ? 'clamp(85px, 12vw, 110px)' 
-            : 'clamp(75px, 10vw, 95px)',
+            ? `calc(clamp(85px, 12vw, 110px) * var(--seat-scale-factor, 1))` 
+            : `calc(clamp(75px, 10vw, 95px) * var(--seat-scale-factor, 1))`,
           height: isHorizontal 
-            ? 'clamp(75px, 10vw, 95px)' 
-            : 'clamp(90px, 12vw, 115px)',
+            ? `calc(clamp(75px, 10vw, 95px) * var(--seat-scale-factor, 1))` 
+            : `calc(clamp(90px, 12vw, 115px) * var(--seat-scale-factor, 1))`,
           zIndex: isActive ? 30 : 20,
         }}
         aria-label={seatLabel}

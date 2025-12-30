@@ -550,7 +550,7 @@ a {
   box-shadow: 0 0 22px rgba(74, 222, 128, 0.8), 0 8px 18px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(18px);
   cursor: pointer;
-  /* Ensure 44px effective touch area via padding/margin in parent */
+  /* Offset to vertically center the 32px thumb on the 12px track: (32-12)/2 = 10px */
   margin-top: -10px;
 }
 

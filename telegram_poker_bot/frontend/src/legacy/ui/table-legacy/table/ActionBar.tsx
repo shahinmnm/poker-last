@@ -7,7 +7,7 @@
  *   - For raise actions: display as "Raise to {amount}"
  *   - For bet actions (first bet of street): display as "Bet {amount}"
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 
@@ -42,6 +42,16 @@ export default function ActionBar({
 }: ActionBarProps) {
   const { t } = useTranslation()
   const haptic = useHapticFeedback()
+  
+  // Throttle haptic feedback during rapid slider adjustments
+  const lastHapticTime = useRef(0)
+  const throttledHaptic = () => {
+    const now = Date.now()
+    if (now - lastHapticTime.current > 100) { // Max 10 haptics per second
+      haptic.selectionChanged()
+      lastHapticTime.current = now
+    }
+  }
 
   const foldAction = useMemo(
     () => allowedActions.find((action) => action.action_type === 'fold'),
@@ -286,8 +296,8 @@ export default function ActionBar({
     const span = Math.max(1, max - min)
     const step = Math.max(1, Math.round(span / 12))
 
-    // Haptic feedback on bet adjustment
-    haptic.selectionChanged()
+    // Throttled haptic feedback on bet adjustment (prevents excessive triggers)
+    throttledHaptic()
 
     setActiveBetAction(baseAction)
     setBetAmount((previous) => clampAmount((previous || min) + direction * step, min, max || myStack))
