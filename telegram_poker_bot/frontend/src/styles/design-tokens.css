@@ -27,19 +27,25 @@
 
   /* ==================== TYPOGRAPHY SCALE ==================== */
   /* Font sizes - optimized for mobile and Farsi support */
-  --fs-caption: 0.7rem;       /* 11px */
-  --fs-label: 0.75rem;        /* 12px */
-  --fs-body: 0.8125rem;       /* 13px */
-  --fs-title: 0.9375rem;      /* 15px */
-  --fs-large: 1.0625rem;      /* 17px */
-  --font-size-xs: 0.625rem;   /* 10px */
-  --font-size-sm: 0.75rem;    /* 12px */
+  /* IMPROVED: Raised minimum sizes for better mobile readability */
+  --fs-caption: 0.75rem;      /* 12px (was 11px) */
+  --fs-label: 0.8125rem;      /* 13px (was 12px) */
+  --fs-body: 0.875rem;        /* 14px (was 13px) */
+  --fs-title: 1rem;           /* 16px (was 15px) */
+  --fs-large: 1.125rem;       /* 18px (was 17px) */
+  --font-size-xs: 0.6875rem;  /* 11px (was 10px) */
+  --font-size-sm: 0.8125rem;  /* 13px (was 12px) */
   --font-size-base: 0.875rem; /* 14px */
-  --font-size-md: 0.9375rem;  /* 15px */
-  --font-size-lg: 1rem;       /* 16px */
-  --font-size-xl: 1.125rem;   /* 18px */
-  --font-size-2xl: 1.25rem;   /* 20px */
-  --font-size-3xl: 1.5rem;    /* 24px */
+  --font-size-md: 1rem;       /* 16px (was 15px) */
+  --font-size-lg: 1.0625rem;  /* 17px (was 16px) */
+  --font-size-xl: 1.1875rem;  /* 19px (was 18px) */
+  --font-size-2xl: 1.3125rem; /* 21px (was 20px) */
+  --font-size-3xl: 1.5625rem; /* 25px (was 24px) */
+  
+  /* ==================== TOUCH TARGETS ==================== */
+  /* Minimum touch target sizes for accessibility */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
 
   /* Font weights */
   --font-weight-normal: 400;

@@ -8,12 +8,17 @@
   --table-horizontal-padding: max(1.25vw, 10px); /* tighten/loosen horizontal breathing room */
   --table-vertical-gap: 1vh; /* vertical rhythm between clusters */
   --table-min-height: 94vh;
+  
+  /* ActionBar height reservation - prevents seat overlap */
+  --action-bar-height: 72px;
+  --action-bar-total-offset: calc(var(--action-bar-height) + env(safe-area-inset-bottom, 0px) + 16px);
 }
 
 @media (max-width: 400px) {
   :root {
     /* keep the bottom median clear for the action dock on narrow portraits */
     --seat-row-offset: 72vh;
+    --action-bar-height: 80px; /* Slightly larger on small screens for better touch */
   }
 }
 
@@ -25,8 +30,9 @@
   gap: var(--table-vertical-gap);
   padding-inline: var(--table-horizontal-padding);
   padding-top: var(--header-top-offset);
-  padding-bottom: calc(var(--start-button-bottom-offset) + 2vh);
-  font-size: 12px;
+  /* Reserve space for action bar to prevent overlap with seats */
+  padding-bottom: var(--action-bar-total-offset);
+  font-size: clamp(12px, 2.5vw, 14px); /* Responsive base font size */
 }
 
 .table-wrapper {
@@ -82,15 +88,17 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.65), transparent);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
   backdrop-filter: blur(16px);
   z-index: 20;
+  /* Ensure action dock doesn't get too close to content */
+  min-height: var(--action-bar-height, 72px);
 }
 
 .table-action-button {
   flex: 1 1 0;
-  min-height: 56px;
+  min-height: 48px; /* Increased for better touch targets */
   border-radius: 0.75rem;
   border: none;
   border-bottom: 4px solid transparent;
@@ -141,8 +149,8 @@
 }
 
 .table-pot-pill {
-  min-width: 96px;
-  padding: 4px 16px;
+  min-width: 100px;
+  padding: 6px 18px;
   border-radius: 999px;
   background: linear-gradient(135deg, #f5c15f, #f08b2b);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
@@ -151,13 +159,63 @@
 }
 
 .table-pot-pill-label {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.85;
 }
 
 .table-pot-pill-amount {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+}
+
+/* ==================== RESPONSIVE SEAT LAYOUT ==================== */
+/* Responsive seat sizing using clamp() to scale with viewport */
+.player-seat {
+  /* Scale smoothly between viewport sizes */
+  --seat-scale: clamp(0.85, calc(0.7 + 0.15 * (100vw - 320px) / 400), 1.1);
+  transform: scale(var(--seat-scale));
+  transform-origin: center center;
+}
+
+/* Ensure seats don't overlap with action bar on small viewports */
+@media (max-height: 600px) {
+  :root {
+    --action-bar-height: 64px;
+    --seat-row-offset: 58vh;
+  }
+  
+  .player-seat {
+    --seat-scale: 0.8;
+  }
+}
+
+/* Extra small devices need more compact layout */
+@media (max-width: 360px) {
+  .player-seat {
+    --seat-scale: 0.75;
+  }
+  
+  .table-pot-pill {
+    min-width: 80px;
+    padding: 4px 12px;
+  }
+  
+  .table-pot-pill-amount {
+    font-size: 13px;
+  }
+}
+
+/* Large phones / tablets get slightly larger seats */
+@media (min-width: 768px) and (min-height: 700px) {
+  .player-seat {
+    --seat-scale: 1.05;
+  }
+}
+
+/* ==================== ACTION BAR SAFE AREA ==================== */
+/* Reserve space for action bar so it doesn't overlap content */
+.table-content-area {
+  padding-bottom: var(--action-bar-total-offset);
 }
