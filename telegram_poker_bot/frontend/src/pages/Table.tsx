@@ -2173,13 +2173,13 @@ export default function TablePage() {
                 <div 
                   className="absolute left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none flex flex-col items-center"
                   style={{ 
-                    top: 'calc(var(--streets-row-offset, 18vh) + 20vh)',
+                    top: 'calc(var(--streets-row-offset, 18vh) + var(--winner-banner-offset, 20vh))',
                     zIndex: 'var(--z-overlays, 40)'
                   }}
                 >
                   {/* Winner Badge (Safe positioned below community cards) */}
                   {winnerDisplayInfo && (
-                    <div className="winner-banner-safe mb-4" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none' }}>
+                    <div className="winner-banner-safe winner-banner-safe--inline mb-4">
                       <div className="flex flex-col items-center">
                         <span className="winner-banner-safe__amount">
                           {formatByCurrency(winnerDisplayInfo.amount, currencyType)} Chips
