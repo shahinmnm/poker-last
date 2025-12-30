@@ -14,6 +14,27 @@
   --action-bar-height: 72px;
   --action-bar-slider-height: 60px; /* Extra space when raise slider is expanded */
   --action-bar-total-offset: calc(var(--action-bar-height) + var(--action-bar-slider-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  
+  /* ==================== SAFE ZONE SYSTEM ==================== */
+  /* Phase 2: Introduce deterministic layout zones to prevent overlaps */
+  
+  /* Zone: Player hand reserved height (above action bar for hole cards) */
+  --player-hand-reserved: 80px;
+  
+  /* Zone: Safe bottom for overlays (action bar + player hand) */
+  --overlay-safe-bottom: calc(var(--action-bar-total-offset) + var(--player-hand-reserved));
+  
+  /* Zone: Winner banner vertical offset from center */
+  --winner-offset: 60px;
+  
+  /* ==================== Z-INDEX HIERARCHY ==================== */
+  /* Strict z-index layers to prevent overlap conflicts */
+  --z-table-felt: 0;
+  --z-seats: 10;
+  --z-cards-chips: 20;
+  --z-board-hud: 30;
+  --z-overlays: 40;
+  --z-actionbar: 50;
 }
 
 @media (max-width: 400px) {
@@ -310,5 +331,251 @@
   
   .slider-label-safe {
     font-size: 9px;
+  }
+}
+
+/* ==================== OVERLAY STACK SYSTEM ==================== */
+/* Phase 2/4: Overlay stack layer for toasts, winner banner, leaving pill */
+
+.overlay-stack {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-overlays, 40);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: var(--action-bar-total-offset);
+}
+
+/* Interactive overlays within the stack */
+.overlay-stack__interactive {
+  pointer-events: auto;
+}
+
+/* ==================== LEAVING PILL (COMPACT STATUS CHIP) ==================== */
+/* Phase 3A: "Leaving after hand" converted to compact status chip */
+
+.leaving-status-chip {
+  position: fixed;
+  bottom: calc(var(--action-bar-total-offset) + 8px);
+  right: max(env(safe-area-inset-right, 0px), 12px);
+  z-index: var(--z-overlays, 40);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.9), rgba(245, 158, 11, 0.85));
+  border: 1px solid rgba(253, 224, 71, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 20px rgba(251, 191, 36, 0.3);
+  backdrop-filter: blur(12px);
+  color: #1a1a1a;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.leaving-status-chip:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 25px rgba(251, 191, 36, 0.4);
+}
+
+.leaving-status-chip:active {
+  transform: scale(0.98);
+}
+
+.leaving-status-chip__icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.leaving-status-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  animation: leaving-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes leaving-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ==================== WAITING TOAST ==================== */
+/* Phase 3B: "Waiting for opponent" toast - centered above action bar */
+
+.waiting-toast {
+  position: fixed;
+  bottom: calc(var(--action-bar-total-offset) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-overlays, 40);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.waiting-toast__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: waiting-spin 0.8s linear infinite;
+}
+
+@keyframes waiting-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==================== WINNER BANNER (SAFE POSITIONING) ==================== */
+/* Phase 3C: Winner banner anchored between board and player zones */
+
+.winner-banner-safe {
+  position: fixed;
+  left: 50%;
+  /* Position below board area but above player zone */
+  top: calc(var(--streets-row-offset) + 22vh);
+  transform: translateX(-50%);
+  z-index: var(--z-overlays, 40);
+  max-width: min(90vw, 400px);
+  padding: 12px 24px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(245, 158, 11, 0.9));
+  border: 2px solid rgba(253, 224, 71, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 40px rgba(251, 191, 36, 0.4);
+  backdrop-filter: blur(12px);
+  text-align: center;
+  pointer-events: none;
+  animation: winner-entrance 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes winner-entrance {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.8) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) translateY(0);
+  }
+}
+
+.winner-banner-safe__amount {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.winner-banner-safe__label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(26, 26, 26, 0.75);
+  margin-top: 2px;
+}
+
+/* ==================== TOP CLUSTER (POT + OPPONENT TAG) ==================== */
+/* Phase 3D: Vertical stack for top elements to prevent overlap */
+
+.top-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: var(--z-board-hud, 30);
+}
+
+.top-cluster__pot {
+  /* Pot label styling with readability backdrop */
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(234, 88, 12, 0.9));
+  border: 1px solid rgba(253, 186, 116, 0.5);
+  border-radius: 999px;
+  padding: 4px 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.top-cluster__opponent {
+  /* Opponent tag gets its own row below pot */
+  order: 1;
+}
+
+/* ==================== SMALL LANDSCAPE OVERRIDES ==================== */
+/* Tighter spacing on very small landscape screens */
+
+@media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
+  :root {
+    --player-hand-reserved: 60px;
+    --winner-offset: 40px;
+  }
+  
+  .leaving-status-chip {
+    padding: 4px 10px;
+    font-size: 10px;
+    max-width: 110px;
+  }
+  
+  .waiting-toast {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  
+  .winner-banner-safe {
+    padding: 8px 16px;
+    max-width: min(85vw, 320px);
+  }
+  
+  .winner-banner-safe__amount {
+    font-size: 16px;
+  }
+  
+  .winner-banner-safe__label {
+    font-size: 9px;
+  }
+}
+
+/* Very small portrait screens (568x320) */
+@media (max-width: 600px) and (max-height: 400px) {
+  :root {
+    --player-hand-reserved: 50px;
+    --winner-offset: 30px;
+  }
+  
+  .leaving-status-chip {
+    padding: 3px 8px;
+    font-size: 9px;
+    max-width: 90px;
+    gap: 4px;
+  }
+  
+  .leaving-status-chip__dot {
+    width: 6px;
+    height: 6px;
   }
 }

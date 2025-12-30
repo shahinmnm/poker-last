@@ -2168,17 +2168,23 @@ export default function TablePage() {
         {liveState ? (
           <div className="flex flex-1 flex-col gap-3">
             <div className="relative flex-1">
-              {/* Integrated Winner HUD & Next Hand Timer - On The Felt (no black overlay) */}
+              {/* Integrated Winner HUD & Next Hand Timer - Safe zone positioned below board */}
               {isInterHand && (
-                <div className="absolute top-[38%] left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none z-20 flex flex-col items-center">
-                  {/* Winner Badge (Floating on Felt) */}
+                <div 
+                  className="absolute left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none flex flex-col items-center"
+                  style={{ 
+                    top: 'calc(var(--streets-row-offset, 18vh) + 20vh)',
+                    zIndex: 'var(--z-overlays, 40)'
+                  }}
+                >
+                  {/* Winner Badge (Safe positioned below community cards) */}
                   {winnerDisplayInfo && (
-                    <div className="animate-in fade-in zoom-in duration-300 mb-4">
-                      <div className="bg-gradient-to-r from-amber-500/90 to-amber-600/90 px-6 py-2 rounded-full border-2 border-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.5)] backdrop-blur-md flex flex-col items-center">
-                        <span className="text-white font-bold text-lg leading-none drop-shadow-md">
+                    <div className="winner-banner-safe mb-4" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none' }}>
+                      <div className="flex flex-col items-center">
+                        <span className="winner-banner-safe__amount">
                           {formatByCurrency(winnerDisplayInfo.amount, currencyType)} Chips
                         </span>
-                        <span className="text-[10px] text-amber-100 uppercase tracking-widest font-semibold mt-1">
+                        <span className="winner-banner-safe__label">
                           Won by {winnerDisplayInfo.displayName}
                         </span>
                       </div>
@@ -2200,7 +2206,7 @@ export default function TablePage() {
                   className="table-area table-bottom-padding relative"
                   style={{ '--seat-row-offset': viewerIsSeated ? '72vh' : '68vh' } as CSSProperties}
                 >
-                  <div className="table-oval z-0">
+                  <div className="table-oval" style={{ zIndex: 'var(--z-table-felt, 0)' }}>
                     <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
                     <div className="absolute inset-[10px] rounded-[999px] border-[12px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
                     <div className="absolute inset-[22px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
@@ -2340,7 +2346,7 @@ export default function TablePage() {
                     </div>
                   ) : null}
 
-                  <div className="table-board-stack z-20 flex flex-col items-center gap-2 px-3 sm:px-4">
+                  <div className="table-board-stack flex flex-col items-center gap-2 px-3 sm:px-4" style={{ zIndex: 'var(--z-board-hud, 30)' }}>
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       currencyType={currencyType}
@@ -2420,7 +2426,7 @@ export default function TablePage() {
                             left: `${slot.xPercent}%`,
                             top: `${slot.yPercent}%`,
                             transform: 'translate(-50%, -50%)',
-                            zIndex: 25,
+                            zIndex: 'var(--z-seats, 10)',
                           }}
                         >
                           <div
