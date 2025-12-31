@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { formatByCurrency, type CurrencyType } from '@/utils/currency'
 import type { WinnerInfo } from '../../types/normalized'
 import { Trophy } from 'lucide-react'
+import MiniCard from './MiniCard'
 
 interface WinnerBannerProps {
   winners: WinnerInfo[]
@@ -42,32 +43,44 @@ export function WinnerBanner({
 
   return (
     <div className="winner-banner-safe">
-      <div className="flex items-center justify-center gap-2">
-        {/* Trophy icon - respects motion-reduce via CSS */}
-        <Trophy size={20} className="text-amber-400 flex-shrink-0" />
-        <div className="text-center">
-          <div className="winner-banner-safe__amount">
-            {isMultipleWinners ? (
-              <>
-                {formatByCurrency(
-                  winners.reduce((sum, w) => sum + w.amount, 0),
-                  currency
-                )}
-              </>
-            ) : (
-              formatByCurrency(mainWinner.amount, currency)
-            )}
+      <div className="flex flex-col items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2">
+          {/* Trophy icon - respects motion-reduce via CSS */}
+          <Trophy size={20} className="text-amber-400 flex-shrink-0" />
+          <div className="text-center">
+            <div className="winner-banner-safe__amount">
+              {isMultipleWinners ? (
+                <>
+                  {formatByCurrency(
+                    winners.reduce((sum, w) => sum + w.amount, 0),
+                    currency
+                  )}
+                </>
+              ) : (
+                formatByCurrency(mainWinner.amount, currency)
+              )}
+            </div>
+            <div className="winner-banner-safe__label">
+              {isMultipleWinners 
+                ? `Split ${winners.length}`
+                : mainWinner.hand_rank 
+                  ? mainWinner.hand_rank
+                  : 'Winner'
+              }
+            </div>
           </div>
-          <div className="winner-banner-safe__label">
-            {isMultipleWinners 
-              ? `Split ${winners.length}`
-              : mainWinner.hand_rank 
-                ? mainWinner.hand_rank
-                : 'Winner'
-            }
-          </div>
+          <Trophy size={20} className="text-amber-400 flex-shrink-0" />
         </div>
-        <Trophy size={20} className="text-amber-400 flex-shrink-0" />
+        {mainWinner.best_hand_cards && mainWinner.best_hand_cards.length > 0 && (
+          <div className="flex items-center justify-center gap-1.5">
+            {mainWinner.best_hand_cards.slice(0, 5).map((card, index) => {
+              const cardKey = typeof card === 'string'
+                ? `card-${card}-${index}`
+                : `card-${card.rank ?? 'X'}${card.suit ?? 'X'}-${index}`
+              return <MiniCard key={cardKey} card={card} size="sm" />
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
