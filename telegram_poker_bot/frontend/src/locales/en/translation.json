@@ -256,6 +256,71 @@
       "label": "Join via QR"
     }
   },
+  "lobbyNew": {
+    "title": "Lobby",
+    "quickSeat": {
+      "title": "Quick Seat",
+      "cta": "Play Now",
+      "button": "Quick Seat",
+      "recommendation": "Recommended: {{stakes}} - {{seats}} seats open"
+    },
+    "actions": {
+      "createTable": "Create Table",
+      "joinPrivate": "Join Private",
+      "refresh": "Refresh",
+      "filters": "Filters",
+      "sort": "Sort",
+      "resetFilters": "Reset filters",
+      "saveFilter": "Save as favorite filter",
+      "loadFilter": "Use saved filter",
+      "close": "Close"
+    },
+    "tabs": {
+      "cash": "Cash Tables",
+      "headsUp": "Heads-Up",
+      "private": "Private",
+      "history": "History"
+    },
+    "search": {
+      "placeholder": "Search tables"
+    },
+    "filters": {
+      "title": "Filters",
+      "stakesRange": "Stakes range",
+      "buyInRange": "Buy-in range",
+      "seats": "Seats",
+      "joinableOnly": "Only joinable",
+      "favoritesOnly": "Favorites only"
+    },
+    "sort": {
+      "recentlyActive": "Recently active",
+      "seatsAvailable": "Seats available",
+      "mostPlayers": "Most players",
+      "stakesHigh": "Stakes high to low"
+    },
+    "table": {
+      "buyInRange": "Buy-in {{min}}-{{max}}",
+      "join": "Join",
+      "watching": "Watching",
+      "favorite": "Favorite",
+      "private": "Private",
+      "turbo": "Turbo",
+      "deep": "Deep",
+      "headsUp": "Heads-Up"
+    },
+    "history": {
+      "title": "Recent tables",
+      "subtitle": "Last 5 tables you joined",
+      "rejoin": "Rejoin"
+    },
+    "empty": {
+      "title": "No tables match filters",
+      "subtitle": "Try adjusting filters or search."
+    },
+    "offline": {
+      "title": "Reconnecting..."
+    }
+  },
   "createGame": {
     "title": "Create Game",
     "description": "Configure blinds, stack, and visibility in a single flow.",

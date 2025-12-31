@@ -1,7 +1,5 @@
-import LobbyView from '../components/lobby-new/LobbyView'
+import LobbyPage from '../components/lobby-new/LobbyPage'
 
 export default function LobbyNewPage() {
-  // LobbyView handles navigation internally via LobbyRow's default behavior
-  // which navigates to /table/:tableId when a table is clicked
-  return <LobbyView />
+  return <LobbyPage />
 }
