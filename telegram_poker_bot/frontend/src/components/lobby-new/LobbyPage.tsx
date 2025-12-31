@@ -3,10 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faCirclePlus,
-  faLock,
   faMagnifyingGlass,
-  faRotateRight,
   faSliders,
   faSpinner,
 } from '@fortawesome/free-solid-svg-icons'
@@ -28,7 +25,6 @@ import {
   type TableSummary,
 } from './mockLobbyData'
 import { formatChips } from '../../utils/formatChips'
-import Button from '../ui/Button'
 
 const FAVORITES_KEY = 'poker.lobby.favorites'
 const FILTER_KEY = 'poker.lobby.favoriteFilter'
@@ -238,7 +234,7 @@ export default function LobbyPage() {
 
   const tabLabels = useMemo(
     () => ({
-      cash: t('lobbyNew.tabs.cash', 'Cash Tables'),
+      cash: t('lobbyNew.tabs.cash', 'Cash'),
       headsUp: t('lobbyNew.tabs.headsUp', 'Heads-Up'),
       private: t('lobbyNew.tabs.private', 'Private'),
       history: t('lobbyNew.tabs.history', 'History'),
@@ -249,6 +245,9 @@ export default function LobbyPage() {
   const handleJoinTable = (table: TableSummary) => {
     console.info('[Lobby] Join table requested', table.id)
   }
+
+  const handleCreateTable = () => navigate('/games/create')
+  const handleJoinPrivate = () => navigate('/games/join')
 
   const handleQuickSeat = () => {
     if (!recommendedTable) return
@@ -277,12 +276,15 @@ export default function LobbyPage() {
   }
 
   return (
-    <div className="space-y-4 pb-6">
+    <div
+      className="space-y-3 pb-4"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4px)' }}
+    >
       <LobbyHeader />
 
       {isOffline && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--border-2)] bg-[var(--surface-2)] px-4 py-3 text-sm text-[var(--text-2)]">
-          <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+        <div className="flex items-center gap-2 rounded-xl border border-[var(--border-2)] bg-[var(--surface-3)] px-3 py-2 text-[11px] text-[var(--text-2)]">
+          <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" />
           {t('lobbyNew.offline.title', 'Reconnecting...')}
         </div>
       )}
@@ -290,47 +292,20 @@ export default function LobbyPage() {
       <QuickSeatCard
         recommendation={quickSeatRecommendation}
         onQuickSeat={handleQuickSeat}
+        onCreate={handleCreateTable}
+        onJoinPrivate={handleJoinPrivate}
+        onRefresh={refreshTables}
         disabled={!recommendedTable}
       />
 
-      <div className="grid grid-cols-3 gap-2">
-        <Button
-          size="md"
-          variant="secondary"
-          className="min-h-[44px] gap-2"
-          onClick={() => navigate('/games/create')}
-        >
-          <FontAwesomeIcon icon={faCirclePlus} />
-          {t('lobbyNew.actions.createTable', 'Create Table')}
-        </Button>
-        <Button
-          size="md"
-          variant="secondary"
-          className="min-h-[44px] gap-2"
-          onClick={() => navigate('/games/join')}
-        >
-          <FontAwesomeIcon icon={faLock} />
-          {t('lobbyNew.actions.joinPrivate', 'Join Private')}
-        </Button>
-        <Button
-          size="md"
-          variant="secondary"
-          className="min-h-[44px] gap-2"
-          onClick={refreshTables}
-        >
-          <FontAwesomeIcon icon={faRotateRight} />
-          {t('lobbyNew.actions.refresh', 'Refresh')}
-        </Button>
-      </div>
-
       <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+      <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] p-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
             <FontAwesomeIcon
               icon={faMagnifyingGlass}
-              className="absolute top-1/2 -translate-y-1/2 text-xs text-[var(--text-3)]"
+              className="absolute top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-3)]"
               style={{ insetInlineStart: '0.75rem' }}
             />
             <input
@@ -338,49 +313,56 @@ export default function LobbyPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
-              className="w-full min-h-[44px] rounded-xl border border-[var(--border-2)] bg-[var(--surface-2)] pl-9 pr-3 text-sm text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-2 focus:ring-[var(--border-1)]"
+              className="w-full min-h-[44px] rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] pl-9 pr-3 text-[12px] text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-2 focus:ring-[var(--border-1)]"
               dir="auto"
             />
           </div>
+          <SortMenu
+            value={sort}
+            options={sortOptions}
+            onChange={setSort}
+            label={t('lobbyNew.actions.sort', 'Sort')}
+          />
           <button
             type="button"
             onClick={() => setFilterOpen(true)}
-            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border-2)] bg-[var(--surface-2)] px-4 text-xs font-semibold text-[var(--text-2)]"
+            className="group inline-flex min-h-[44px] items-center"
           >
-            <FontAwesomeIcon icon={faSliders} />
-            {t('lobbyNew.actions.filters', 'Filters')}
+            <span className="flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[11px] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]">
+              <FontAwesomeIcon icon={faSliders} className="text-[10px]" />
+              {t('lobbyNew.actions.filters', 'Filters')}
+            </span>
           </button>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <SortMenu value={sort} options={sortOptions} onChange={setSort} label={t('lobbyNew.actions.sort', 'Sort')} />
-          <span className="text-xs text-[var(--text-3)] tabular-nums">
+          <span
+            className="rounded-full border border-[var(--border-3)] bg-[var(--surface-3)] px-3 py-1 text-[11px] text-[var(--text-3)] tabular-nums"
+            style={{ marginInlineStart: 'auto' }}
+          >
             {listLoading ? t('common.loading', 'Loading...') : `${listTables.length}`}
           </span>
         </div>
       </div>
 
       {activeTab === 'history' && (
-        <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] px-4 py-3 text-sm text-[var(--text-2)]">
+        <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] px-3 py-2 text-[12px] text-[var(--text-2)]">
           <p className="font-semibold text-[var(--text-1)]">
             {t('lobbyNew.history.title', 'Recent tables')}
           </p>
-          <p className="text-xs text-[var(--text-3)]">
+          <p className="text-[11px] text-[var(--text-3)]">
             {t('lobbyNew.history.subtitle', 'Last 5 tables you joined')}
           </p>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {listLoading &&
           Array.from({ length: 6 }, (_, index) => <SkeletonRow key={`skeleton-${index}`} />)}
 
         {!listLoading && listTables.length === 0 && (
           <EmptyState
-            title={t('lobbyNew.empty.title', 'No tables match filters')}
-            description={t('lobbyNew.empty.subtitle', 'Try adjusting filters or search.')}
-            actionLabel={t('lobbyNew.actions.resetFilters', 'Reset filters')}
-            onAction={resetFilters}
+            title={t('lobbyNew.empty.available', 'No tables available')}
+            description={t('lobbyNew.empty.availableSubtitle', 'Create a table or refresh to find games.')}
+            actionLabel={t('lobbyNew.actions.createTable', 'Create Table')}
+            onAction={handleCreateTable}
           />
         )}
 
@@ -392,11 +374,6 @@ export default function LobbyPage() {
               isFavorite={favoriteSet.has(table.id)}
               onToggleFavorite={toggleFavorite}
               onJoin={handleJoinTable}
-              actionLabel={
-                activeTab === 'history'
-                  ? t('lobbyNew.history.rejoin', 'Rejoin')
-                  : undefined
-              }
             />
           ))}
       </div>

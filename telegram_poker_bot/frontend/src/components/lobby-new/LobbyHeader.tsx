@@ -22,31 +22,43 @@ export default function LobbyHeader() {
   const nextLanguage = supported[(currentIndex + 1) % supported.length]
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
-      <Link to="/profile" className="flex min-w-0 items-center gap-3">
+    <div className="flex h-11 items-center justify-between gap-2 rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] px-3 shadow-[0_8px_20px_rgba(0,0,0,0.2)]">
+      <Link
+        to="/profile"
+        className="flex min-h-[44px] min-w-0 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-2 py-1"
+      >
         <Avatar size="sm" showTurnIndicator={false} />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[var(--text-1)]" dir="auto">
+        <div className="min-w-0 leading-tight">
+          <p
+            className="truncate text-[clamp(13px,1.8vw,15px)] font-semibold text-[var(--text-1)]"
+            dir="auto"
+          >
             {displayName}
           </p>
-          <p className="text-xs text-[var(--text-3)] tabular-nums">{balanceLabel}</p>
+          <p className="text-[clamp(11px,1.5vw,12px)] text-[var(--text-3)] tabular-nums">
+            {balanceLabel}
+          </p>
         </div>
       </Link>
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => changeLanguage(nextLanguage.code)}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-2)] transition hover:text-[var(--text-1)]"
+          className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
           aria-label={t('settings.sections.language.title', 'Language')}
         >
-          {language.toUpperCase()}
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] text-[10px] font-semibold text-[var(--text-2)] transition group-active:scale-95">
+            {language.toUpperCase()}
+          </span>
         </button>
         <Link
           to="/settings"
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] text-[var(--text-2)] transition hover:text-[var(--text-1)]"
+          className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
           aria-label={t('menu.settings.label', 'Settings')}
         >
-          <FontAwesomeIcon icon={faGear} className="text-sm" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] text-[var(--text-2)] transition group-active:scale-95">
+            <FontAwesomeIcon icon={faGear} className="text-[12px]" />
+          </span>
         </Link>
       </div>
     </div>
