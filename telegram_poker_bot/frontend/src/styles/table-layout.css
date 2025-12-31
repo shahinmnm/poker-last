@@ -16,7 +16,10 @@
   --action-rail-hit-height: 48px;      /* Tap target wrapper height (>=44px) */
   --action-bar-height: var(--action-rail-hit-height);
   --action-bar-slider-height: 56px; /* Extra space when raise slider is expanded */
-  --action-bar-total-offset: calc(var(--action-rail-hit-height) + var(--hero-identity-reserved) + var(--action-bar-slider-height) + env(safe-area-inset-bottom, 0px) + 10px);
+  --action-bar-breathing-room: 10px;
+  --action-bar-safe-area: env(safe-area-inset-bottom, 0px);
+  /* total offset = hit band + hero identity gap + slider reserve + safe-area inset + breathing room */
+  --action-bar-total-offset: calc(var(--action-rail-hit-height) + var(--hero-identity-reserved) + var(--action-bar-slider-height) + var(--action-bar-safe-area) + var(--action-bar-breathing-room));
   
   /* ==================== SAFE ZONE SYSTEM ==================== */
   /* Phase 2: Introduce deterministic layout zones to prevent overlaps */
@@ -52,7 +55,7 @@
   /* Visual height is smaller for compact appearance, hit area ensures 44px tap targets */
   --action-strip-height-visual: var(--action-rail-visual-height, 38px);  /* Target visual bar height */
   --action-strip-height-hit: var(--action-rail-hit-height, 48px);        /* Hit area / tap target wrapper */
-  --action-strip-font: clamp(12px, 2vw, 13px);  /* Responsive font size, never below 12px */
+  --action-strip-font: clamp(12px, 2vw, 13px);  /* Responsive rail/strip font token */
   --action-strip-radius: 12px;         /* Border radius for buttons */
   --action-strip-gap: 6px;             /* Gap between action buttons */
   --action-strip-px: 6px;              /* Horizontal padding inside strip */
@@ -60,6 +63,7 @@
   --rail-chip-height: 34px;            /* Visual chip height inside rail */
   --rail-chip-radius: 10px;
   --rail-chip-gap: 6px;
+  --rail-icon-size: 14px;
   
   /* ==================== HERO DETAIL OVERLAY TOKENS (PHASE 2 REFACTOR) ==================== */
   --hero-overlay-timeout: 2500ms;      /* Auto-dismiss timeout */
@@ -1219,6 +1223,7 @@
 .action-rail::before {
   content: '';
   position: absolute;
+  /* Center the thinner visual rail inside the larger tap-hit envelope */
   inset: calc((var(--action-rail-hit-height, 48px) - var(--action-rail-visual-height, 38px)) / 2) var(--action-strip-px, 6px);
   border-radius: var(--action-strip-radius, 12px);
   background: var(--surface-2, rgba(1, 20, 15, 0.65));
@@ -1292,7 +1297,7 @@
   border: 1px solid var(--border-2, rgba(255, 255, 255, 0.18));
   background: linear-gradient(180deg, var(--surface-2, rgba(1, 20, 15, 0.6)) 0%, var(--surface-1, rgba(1, 15, 10, 0.7)) 100%);
   color: var(--text-1, #f9fafb);
-  font-size: clamp(12px, 2vw, 13px);
+  font-size: var(--action-strip-font, clamp(12px, 2vw, 13px));
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -1305,8 +1310,8 @@
 }
 
 .rail-chip svg {
-  width: 14px;
-  height: 14px;
+  width: var(--rail-icon-size, 14px);
+  height: var(--rail-icon-size, 14px);
 }
 
 .rail-chip--primary {
@@ -1365,7 +1370,7 @@
 
 @media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
   .rail-chip__label {
-    font-size: 12px;
+    font-size: clamp(12px, 2vw, 12.5px);
   }
 }
 

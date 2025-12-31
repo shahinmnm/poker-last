@@ -50,6 +50,8 @@ interface ActionBarProps {
 
 const clampAmount = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const sliderActions: AllowedAction['action_type'][] = ['bet', 'raise', 'all_in']
+const railIconSize = 14
+const railSafePadding = 'calc(env(safe-area-inset-bottom, 0px) + var(--hero-identity-reserved, 26px))'
 
 export default function ActionBar({
   allowedActions,
@@ -338,12 +340,11 @@ export default function ActionBar({
         disabled={standUpProcessing}
         aria-pressed={isStandingUp}
         className={clsx(
-          'rail-chip rail-chip--ghost ui-focus-ring',
-          isStandingUp && 'rail-chip--active'
+          'rail-chip rail-chip--ghost ui-focus-ring'
         )}
         title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
       >
-        <LogOut size={14} className={isStandingUp ? 'text-black' : 'text-white/80'} />
+        <LogOut size={railIconSize} className={isStandingUp ? 'text-black' : 'text-white/80'} />
         <span className="hidden sm:inline rail-chip__label action-label-safe">
           {isStandingUp 
             ? t('table.actions.leaving', { defaultValue: 'Leaving' })
@@ -371,7 +372,7 @@ export default function ActionBar({
         {/* During opponent action: show minimal strip with leave toggle */}
         <div
           className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--hero-identity-reserved, 26px))' }}
+          style={{ paddingBottom: railSafePadding }}
         >
           <div className="pointer-events-auto w-full flex justify-center">
             <div className={clsx('action-rail', isShowdown && 'action-rail--muted')}>
@@ -404,7 +405,7 @@ export default function ActionBar({
       {isExpanded && sliderLabelAction && (
         <div
           className="action-expanded-panel pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-3 sm:bottom-24 sm:px-4"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--hero-identity-reserved, 26px))' }}
+          style={{ paddingBottom: railSafePadding }}
         >
           <div className="pointer-events-auto relative w-full max-w-[var(--expanded-panel-max-width,400px)]">
             {/* Floating bet amount label */}
@@ -504,7 +505,7 @@ export default function ActionBar({
       {/* PHASE 1 REFACTOR: Thin Action Rail - compact visual with preserved 44px tap targets */}
       <div
         className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--hero-identity-reserved, 26px))' }}
+        style={{ paddingBottom: railSafePadding }}
       >
         <div className="pointer-events-auto w-full flex justify-center">
           <div className="action-rail">
@@ -548,7 +549,7 @@ export default function ActionBar({
                           ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
                           : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
                       </span>
-                      <ChevronUp size={14} className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
+                      <ChevronUp size={railIconSize} className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
                     </span>
                   </button>
                 </div>
