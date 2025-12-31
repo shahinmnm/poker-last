@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import clsx from 'clsx'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -204,6 +205,13 @@ export default function TablePage() {
   const { t } = useTranslation()
   const { refetchAll: refetchUserData } = useUserData()
   const { setShowBottomNav } = useLayout()
+  const isTelegramAndroidWebView = useMemo(() => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false
+    const userAgent = navigator.userAgent || ''
+    const isAndroid = /Android/i.test(userAgent)
+    const hasTelegramWebApp = Boolean(window.Telegram?.WebApp)
+    return isAndroid && hasTelegramWebApp
+  }, [])
 
   const [tableDetails, setTableDetails] = useState<TableDetails | null>(null)
   const [loading, setLoading] = useState(true)
@@ -2168,7 +2176,10 @@ export default function TablePage() {
         </div>
       )}
 
-      <div className="table-screen" data-ui-mode={uiMode}>
+      <div
+        className={clsx('table-screen', isTelegramAndroidWebView && 'is-low-transparency')}
+        data-ui-mode={uiMode}
+      >
         {/* Back to Lobby Button (Top-Left) */}
         <div className="absolute top-14 left-4 z-50">
           <button 
