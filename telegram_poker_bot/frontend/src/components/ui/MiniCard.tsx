@@ -28,7 +28,7 @@ const sizeMap: Record<MiniCardSize, { width: number; height: number; radius: num
 }
 
 export default function MiniCard({ card, size = 'sm', className }: MiniCardProps) {
-  const cardCode = card
+  const cardCode = card.trim()
   const rankKey = cardCode[0]?.toUpperCase() ?? ''
   const suitKey = cardCode[1]?.toLowerCase() ?? ''
 
