@@ -48,7 +48,7 @@ function MiniCard({ card, size = 'md', className = '' }: MiniCardProps) {
   const suitSymbol = suitSymbolMap[suitLower ?? ''] || '?'
 
   const isRed = ['h', 'd'].includes(suitLower || '')
-  const suitColor = isHidden || isUnknown ? 'text-gray-300' : isRed ? 'text-red-500' : 'text-gray-50'
+  const suitColor = isHidden || isUnknown ? 'text-gray-300' : isRed ? 'text-[#d6223a]' : 'text-gray-50'
 
   if (isHidden || isUnknown) {
     return (
