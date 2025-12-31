@@ -210,7 +210,10 @@ export default function TablePage() {
     const userAgent = navigator.userAgent || ''
     const isAndroid = /Android/i.test(userAgent)
     const telegramWebApp = window.Telegram?.WebApp
-    const hasTelegramWebApp = typeof telegramWebApp === 'object' && telegramWebApp !== null
+    const hasTelegramWebApp =
+      telegramWebApp &&
+      typeof telegramWebApp === 'object' &&
+      typeof (telegramWebApp as { ready?: unknown }).ready === 'function'
     return isAndroid && hasTelegramWebApp
   }, [])
 

@@ -29,8 +29,8 @@ const sizeMap: Record<MiniCardSize, { width: number; height: number; radius: num
 
 export default function MiniCard({ card, size = 'sm', className }: MiniCardProps) {
   const cardCode = card.trim()
-  const rankKey = cardCode[0]?.toUpperCase() ?? ''
-  const suitKey = cardCode[1]?.toLowerCase() ?? ''
+  const rankKey = cardCode.length > 0 ? cardCode[0]?.toUpperCase() ?? '' : ''
+  const suitKey = cardCode.length > 1 ? cardCode[1]?.toLowerCase() ?? '' : ''
 
   const rank = rankMap[rankKey] ?? (rankKey || '•')
   const suit = suitSymbols[suitKey] ?? { symbol: '', color: 'dark' }
