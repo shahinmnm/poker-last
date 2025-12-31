@@ -50,6 +50,8 @@ interface ActionBarProps {
 
 const clampAmount = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const sliderActions: AllowedAction['action_type'][] = ['bet', 'raise', 'all_in']
+const railIconSize = 14
+const railSafePadding = 'calc(env(safe-area-inset-bottom, 0px) + var(--hero-identity-reserved, 26px))'
 
 export default function ActionBar({
   allowedActions,
@@ -338,13 +340,12 @@ export default function ActionBar({
         disabled={standUpProcessing}
         aria-pressed={isStandingUp}
         className={clsx(
-          'action-btn-thin action-btn-thin--leave ui-focus-ring',
-          isStandingUp && 'action-btn-thin--leave[aria-pressed="true"]'
+          'rail-chip rail-chip--ghost ui-focus-ring'
         )}
         title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
       >
-        <LogOut size={14} className={isStandingUp ? 'text-black' : 'text-white/80'} />
-        <span className="hidden sm:inline action-label-safe">
+        <LogOut size={railIconSize} className={isStandingUp ? 'text-black' : 'text-white/80'} />
+        <span className="hidden sm:inline rail-chip__label action-label-safe">
           {isStandingUp 
             ? t('table.actions.leaving', { defaultValue: 'Leaving' })
             : t('table.actions.sitOut', { defaultValue: 'Leave' })}
@@ -371,16 +372,15 @@ export default function ActionBar({
         {/* During opponent action: show minimal strip with leave toggle */}
         <div
           className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+          style={{ paddingBottom: railSafePadding }}
         >
-          <div className="pointer-events-auto">
-            {/* Thin micro strip - uses action-strip-thin for consistent appearance */}
-            <div className={clsx(
-              'action-strip-thin action-strip action-strip--mode-aware',
-              isShowdown && 'opacity-80'  // Slightly muted during showdown
-            )}>
-              {/* Leave toggle - integrated into strip (always visible) */}
-              {renderLeaveToggle()}
+          <div className="pointer-events-auto w-full flex justify-center">
+            <div className={clsx('action-rail', isShowdown && 'action-rail--muted')}>
+              <div className="action-rail__group action-rail__group--secondary">
+                <div className="rail-hitbox rail-hitbox--secondary">
+                  {renderLeaveToggle()}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -405,7 +405,7 @@ export default function ActionBar({
       {isExpanded && sliderLabelAction && (
         <div
           className="action-expanded-panel pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-3 sm:bottom-24 sm:px-4"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+          style={{ paddingBottom: railSafePadding }}
         >
           <div className="pointer-events-auto relative w-full max-w-[var(--expanded-panel-max-width,400px)]">
             {/* Floating bet amount label */}
@@ -502,65 +502,67 @@ export default function ActionBar({
         </div>
       )}
 
-      {/* PHASE 1 REFACTOR: Thin Action Strip - 2x thinner visual, 44px tap targets preserved */}
+      {/* PHASE 1 REFACTOR: Thin Action Rail - compact visual with preserved 44px tap targets */}
       <div
         className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+        style={{ paddingBottom: railSafePadding }}
       >
-        <div className="pointer-events-auto">
-          {/* Thin strip: Uses action-strip-thin class for compact visual with preserved touch targets */}
-          <div className="action-strip-thin action-strip action-strip--mode-aware">
-            {/* Fold - thin variant */}
-            <button
-              type="button"
-              onClick={handleFold}
-              disabled={foldDisabled}
-              className="action-btn-thin action-btn-thin--fold ui-focus-ring"
-            >
-              <span className="action-label-safe">{foldLabel}</span>
-            </button>
+        <div className="pointer-events-auto w-full flex justify-center">
+          <div className="action-rail">
+            <div className="action-rail__group action-rail__group--primary">
+              <div className="rail-hitbox">
+                <button
+                  type="button"
+                  onClick={handleFold}
+                  disabled={foldDisabled}
+                  className="rail-chip rail-chip--danger ui-focus-ring"
+                >
+                  <span className="rail-chip__label action-label-safe">{foldLabel}</span>
+                </button>
+              </div>
 
-            {/* Check/Call - thin primary */}
-            <button
-              type="button"
-              onClick={handleCenter}
-              disabled={centerDisabled}
-              className={clsx(
-                'action-btn-thin ui-focus-ring',
-                checkAction ? 'action-btn-thin--check' : 'action-btn-thin--call'
+              <div className="rail-hitbox">
+                <button
+                  type="button"
+                  onClick={handleCenter}
+                  disabled={centerDisabled}
+                  className="rail-chip rail-chip--primary ui-focus-ring"
+                >
+                  <span className="rail-chip__label action-label-safe">{centerLabel}</span>
+                </button>
+              </div>
+
+              {sliderLabelAction && (
+                <div className="rail-hitbox">
+                  <button
+                    type="button"
+                    onClick={handleRaiseClick}
+                    disabled={raiseDisabled}
+                    className={clsx(
+                      'rail-chip rail-chip--accent ui-focus-ring',
+                      isExpanded && 'rail-chip--active'
+                    )}
+                  >
+                    <span className="flex items-center gap-1">
+                      <span className="rail-chip__label action-label-safe">
+                        {sliderLabelAction.action_type === 'bet'
+                          ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
+                          : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
+                      </span>
+                      <ChevronUp size={railIconSize} className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
+                    </span>
+                  </button>
+                </div>
               )}
-            >
-              <span className="action-label-safe">{centerLabel}</span>
-            </button>
+            </div>
 
-            {/* Raise/Bet - verb only button that opens expanded panel */}
-            {sliderLabelAction && (
-              <button
-                type="button"
-                onClick={handleRaiseClick}
-                disabled={raiseDisabled}
-                className={clsx(
-                  'action-btn-thin ui-focus-ring',
-                  sliderLabelAction.action_type === 'bet' ? 'action-btn-thin--bet' : 'action-btn-thin--raise',
-                  isExpanded && 'ring-2 ring-white/30'
-                )}
-              >
-                <span className="flex items-center gap-1">
-                  <span className="action-label-safe">
-                    {sliderLabelAction.action_type === 'bet'
-                      ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
-                      : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
-                  </span>
-                  <ChevronUp size={12} className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
-                </span>
-              </button>
-            )}
+            <div className="action-rail__divider" aria-hidden="true" />
 
-            {/* Divider */}
-            <div className="action-strip-thin__divider" aria-hidden="true" />
-
-            {/* Leave toggle - thin variant */}
-            {renderLeaveToggle()}
+            <div className="action-rail__group action-rail__group--secondary">
+              <div className="rail-hitbox rail-hitbox--secondary">
+                {renderLeaveToggle()}
+              </div>
+            </div>
           </div>
         </div>
       </div>

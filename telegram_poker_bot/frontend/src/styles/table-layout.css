@@ -10,10 +10,16 @@
   --table-min-height: 94vh;
   
   /* ActionBar height reservation - prevents seat overlap */
-  /* Base height + slider expanded height + safe-area + breathing room */
-  --action-bar-height: 72px;
-  --action-bar-slider-height: 60px; /* Extra space when raise slider is expanded */
-  --action-bar-total-offset: calc(var(--action-bar-height) + var(--action-bar-slider-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  /* Base height + slider expanded height + hero identity + safe-area + breathing room */
+  --hero-identity-reserved: 26px;
+  --action-rail-visual-height: 38px;   /* Rail visual band height (36-40px target) */
+  --action-rail-hit-height: 48px;      /* Tap target wrapper height (>=44px) */
+  --action-bar-height: var(--action-rail-hit-height);
+  --action-bar-slider-height: 56px; /* Extra space when raise slider is expanded */
+  --action-bar-breathing-room: 10px;
+  --action-bar-safe-area: env(safe-area-inset-bottom, 0px);
+  /* total offset = hit band + hero identity gap + slider reserve + safe-area inset + breathing room */
+  --action-bar-total-offset: calc(var(--action-rail-hit-height) + var(--hero-identity-reserved) + var(--action-bar-slider-height) + var(--action-bar-safe-area) + var(--action-bar-breathing-room));
   
   /* ==================== SAFE ZONE SYSTEM ==================== */
   /* Phase 2: Introduce deterministic layout zones to prevent overlaps */
@@ -47,13 +53,17 @@
   
   /* ==================== THIN ACTION STRIP TOKENS (PHASE 1 REFACTOR) ==================== */
   /* Visual height is smaller for compact appearance, hit area ensures 44px tap targets */
-  --action-strip-height-visual: 44px;  /* Target visual bar height */
-  --action-strip-height-hit: 56px;     /* Hit area / tap target wrapper */
-  --action-strip-font: clamp(11px, 2.2vw, 13px);  /* Responsive font size */
-  --action-strip-radius: 16px;         /* Border radius for buttons */
+  --action-strip-height-visual: var(--action-rail-visual-height, 38px);  /* Target visual bar height */
+  --action-strip-height-hit: var(--action-rail-hit-height, 48px);        /* Hit area / tap target wrapper */
+  --action-strip-font: clamp(12px, 2vw, 13px);  /* Responsive rail/strip font token */
+  --action-strip-radius: 12px;         /* Border radius for buttons */
   --action-strip-gap: 6px;             /* Gap between action buttons */
-  --action-strip-px: 10px;             /* Horizontal padding inside strip */
+  --action-strip-px: 6px;              /* Horizontal padding inside strip */
   --action-strip-py: 4px;              /* Vertical padding inside strip */
+  --rail-chip-height: 34px;            /* Visual chip height inside rail */
+  --rail-chip-radius: 10px;
+  --rail-chip-gap: 6px;
+  --rail-icon-size: 14px;
   
   /* ==================== HERO DETAIL OVERLAY TOKENS (PHASE 2 REFACTOR) ==================== */
   --hero-overlay-timeout: 2500ms;      /* Auto-dismiss timeout */
@@ -64,8 +74,9 @@
   :root {
     /* keep the bottom median clear for the action dock on narrow portraits */
     --seat-row-offset: 72vh;
-    --action-bar-height: 80px; /* Slightly larger on small screens for better touch */
-    --action-bar-slider-height: 56px; /* Compact slider on small screens */
+    --action-rail-hit-height: 50px;
+    --action-bar-height: var(--action-rail-hit-height); /* Slightly larger on small screens for better touch */
+    --action-bar-slider-height: 52px; /* Compact slider on small screens */
   }
 }
 
@@ -140,7 +151,7 @@
   backdrop-filter: blur(16px);
   z-index: 20;
   /* Ensure action dock doesn't get too close to content */
-  min-height: var(--action-bar-height, 72px);
+  min-height: var(--action-bar-height, 48px);
 }
 
 .table-action-button {
@@ -219,14 +230,15 @@
 
 /* ==================== RESPONSIVE SEAT LAYOUT ==================== */
 /* Responsive seat sizing using CSS custom properties that components can use */
-:root {
-  --seat-scale-factor: 1;
-}
+  :root {
+    --seat-scale-factor: 1;
+  }
 
 /* Ensure seats don't overlap with action bar on small viewports */
 @media (max-height: 600px) {
   :root {
-    --action-bar-height: 64px;
+    --action-rail-hit-height: 46px;
+    --action-bar-height: var(--action-rail-hit-height);
     --action-bar-slider-height: 48px; /* Compact slider on short screens */
     --seat-row-offset: 58vh;
     --seat-scale-factor: 0.88; /* Slightly larger for readability (was 0.85) */
@@ -253,7 +265,8 @@
 @media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
   :root {
     --seat-scale-factor: 0.82;
-    --action-bar-height: 60px;
+    --action-rail-hit-height: 46px;
+    --action-bar-height: var(--action-rail-hit-height);
     --action-bar-slider-height: 44px;
     --seat-row-offset: 55vh;
   }
@@ -1190,6 +1203,175 @@
 .ui-focus-ring:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--brand, #2cc57a), 0 0 0 4px rgba(44, 197, 122, 0.3);
+}
+
+/* ==================== THIN CONTROL RAIL (PRO MODE) ==================== */
+/* Visual rail 36-40px with explicit 44px+ tap targets */
+.action-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--rail-chip-gap, 6px) * 1.2);
+  min-height: var(--action-rail-hit-height, 48px);
+  padding: 0 var(--action-strip-px, 6px);
+  width: min(900px, 88vw);
+  max-width: 900px;
+  isolation: isolate;
+}
+
+.action-rail::before {
+  content: '';
+  position: absolute;
+  /* Center the thinner visual rail inside the larger tap-hit envelope */
+  inset: calc((var(--action-rail-hit-height, 48px) - var(--action-rail-visual-height, 38px)) / 2) var(--action-strip-px, 6px);
+  border-radius: var(--action-strip-radius, 12px);
+  background: var(--surface-2, rgba(1, 20, 15, 0.65));
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(16px);
+  z-index: 0;
+}
+
+.action-rail > * {
+  position: relative;
+  z-index: 1;
+}
+
+.action-rail__group {
+  display: flex;
+  align-items: center;
+  gap: var(--rail-chip-gap, 6px);
+}
+
+.action-rail__group--primary {
+  flex: 1;
+  justify-content: flex-start;
+}
+
+.action-rail__group--secondary {
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.action-rail__divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.14);
+  margin-inline: 2px;
+  flex-shrink: 0;
+}
+
+.action-rail--muted {
+  opacity: 0.85;
+}
+
+@media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
+  .action-rail {
+    width: min(860px, 92vw);
+    gap: var(--rail-chip-gap, 6px);
+  }
+}
+
+.rail-hitbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target-min, 44px);
+  padding-block: 4px;
+}
+
+.rail-hitbox--secondary {
+  min-width: 0;
+}
+
+.rail-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rail-chip-gap, 6px);
+  height: var(--rail-chip-height, 34px);
+  padding: 0 12px;
+  border-radius: var(--rail-chip-radius, 10px);
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(180deg, var(--surface-2, rgba(1, 20, 15, 0.6)) 0%, var(--surface-1, rgba(1, 15, 10, 0.7)) 100%);
+  color: var(--text-1, #f9fafb);
+  font-size: var(--action-strip-font, clamp(12px, 2vw, 13px));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  transition: transform 0.1s ease, filter 0.1s ease, box-shadow 0.15s ease;
+}
+
+.rail-chip svg {
+  width: var(--rail-icon-size, 14px);
+  height: var(--rail-icon-size, 14px);
+}
+
+.rail-chip--primary {
+  background: linear-gradient(180deg, rgba(44, 197, 122, 0.22) 0%, rgba(44, 197, 122, 0.12) 100%);
+  border-color: rgba(44, 197, 122, 0.45);
+  color: var(--text-1, #f9fafb);
+}
+
+.rail-chip--danger {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.32) 0%, rgba(239, 68, 68, 0.18) 100%);
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #ffe4e6;
+}
+
+.rail-chip--accent {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.28) 0%, rgba(59, 130, 246, 0.14) 100%);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #e0ecff;
+}
+
+.rail-chip--ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-2, #d1d5db);
+}
+
+.rail-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  filter: none;
+}
+
+.rail-chip:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(1.05);
+}
+
+.rail-chip--ghost[aria-pressed="true"] {
+  background: rgba(44, 197, 122, 0.16);
+  border-color: rgba(44, 197, 122, 0.45);
+  color: var(--text-1, #f9fafb);
+}
+
+.rail-chip--active {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.rail-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 8.5rem;
+}
+
+@media (max-width: 700px) and (max-height: 450px) and (orientation: landscape) {
+  .rail-chip__label {
+    font-size: clamp(12px, 2vw, 12.5px);
+  }
 }
 
 /* Menu item row - consistent menu row styling */
