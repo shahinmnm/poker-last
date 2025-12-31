@@ -309,6 +309,71 @@
       "finished": "به پایان رسیده"
     }
   },
+  "lobbyNew": {
+    "title": "لابی",
+    "quickSeat": {
+      "title": "نشستن سریع",
+      "cta": "همین حالا بازی کن",
+      "button": "نشستن سریع",
+      "recommendation": "پیشنهاد: {{stakes}} - {{seats}} صندلی خالی"
+    },
+    "actions": {
+      "createTable": "ساخت میز",
+      "joinPrivate": "ورود خصوصی",
+      "refresh": "به روزرسانی",
+      "filters": "فیلترها",
+      "sort": "مرتب سازی",
+      "resetFilters": "بازنشانی فیلترها",
+      "saveFilter": "ذخیره فیلتر محبوب",
+      "loadFilter": "استفاده از فیلتر ذخیره شده",
+      "close": "بستن"
+    },
+    "tabs": {
+      "cash": "میزهای کش",
+      "headsUp": "هدزآپ",
+      "private": "خصوصی",
+      "history": "تاریخچه"
+    },
+    "search": {
+      "placeholder": "جستجوی میزها"
+    },
+    "filters": {
+      "title": "فیلترها",
+      "stakesRange": "بازه بلایند",
+      "buyInRange": "بازه بای این",
+      "seats": "تعداد صندلی",
+      "joinableOnly": "فقط قابل ورود",
+      "favoritesOnly": "فقط علاقه مندی ها"
+    },
+    "sort": {
+      "recentlyActive": "آخرین فعالیت",
+      "seatsAvailable": "صندلی های خالی",
+      "mostPlayers": "بیشترین بازیکن",
+      "stakesHigh": "بلایند بالا به پایین"
+    },
+    "table": {
+      "buyInRange": "بای این {{min}}-{{max}}",
+      "join": "ورود",
+      "watching": "تماشا",
+      "favorite": "علاقه مندی",
+      "private": "خصوصی",
+      "turbo": "توربو",
+      "deep": "دیپ",
+      "headsUp": "هدزآپ"
+    },
+    "history": {
+      "title": "میزهای اخیر",
+      "subtitle": "آخرین 5 میزی که وارد شدی",
+      "rejoin": "ورود دوباره"
+    },
+    "empty": {
+      "title": "هیچ میزی با این فیلترها پیدا نشد",
+      "subtitle": "فیلترها یا جستجو را تغییر بده."
+    },
+    "offline": {
+      "title": "در حال اتصال مجدد..."
+    }
+  },
   "createGame": {
     "title": "ساخت بازی",
     "description": "بلایند، استک و نوع نمایش میز را در یک مرحله تنظیم کن.",

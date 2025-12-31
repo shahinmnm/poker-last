@@ -31,6 +31,7 @@ export default function MainLayout() {
 
   // Hide header and nav when on Table page for immersive full-screen experience
   const isTablePage = location.pathname.startsWith('/table/')
+  const isLobbyPage = location.pathname === '/lobby'
 
   const displayName = user?.first_name || user?.username || 'Player'
   const formatBalance = (bal: number) => formatByCurrency(bal, 'REAL')
@@ -39,7 +40,7 @@ export default function MainLayout() {
     <>
       <AppBackground />
       <div className="relative flex h-screen w-screen overflow-hidden flex-col text-[color:var(--color-text)]">
-        {!isTablePage && (
+        {!isTablePage && !isLobbyPage && (
           <header 
             className="sticky top-0 z-30 px-4 py-3"
             style={{
