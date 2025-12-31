@@ -28,7 +28,7 @@ const sizeMap: Record<MiniCardSize, { width: number; height: number; radius: num
 }
 
 export default function MiniCard({ card, size = 'sm', className }: MiniCardProps) {
-  const cardCode = card.trim()
+  const cardCode = (card ?? '').trim()
   const rankKey = cardCode.length > 0 ? cardCode[0]?.toUpperCase() ?? '' : ''
   const suitKey = cardCode.length > 1 ? cardCode[1]?.toLowerCase() ?? '' : ''
 
@@ -51,7 +51,7 @@ export default function MiniCard({ card, size = 'sm', className }: MiniCardProps
           height: `${dimensions.height}px`,
           borderRadius: `${dimensions.radius}px`,
         }}
-        aria-hidden={true}
+        aria-label={isHidden ? 'Hidden card' : 'Invalid card'}
       />
     )
   }
