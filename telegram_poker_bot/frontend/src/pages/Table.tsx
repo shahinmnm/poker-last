@@ -24,6 +24,7 @@ import CommunityBoard from '@/legacy/ui/table-legacy/table/CommunityBoard'
 import ActionBar from '@/legacy/ui/table-legacy/table/ActionBar'
 import DynamicPokerTable from '@/components/table/DynamicPokerTable'
 import PlayerSeat from '@/legacy/ui/table-legacy/table/PlayerSeat'
+import LeavingIndicator from '@/legacy/ui/table-legacy/table/LeavingIndicator'
 import { getSeatLayout } from '@/config/tableLayout'
 import { useGameVariant } from '@/utils/gameVariant'
 import { CurrencyType, formatByCurrency } from '@/utils/currency'
@@ -533,6 +534,17 @@ export default function TablePage() {
       heroCardsCacheRef.current.set(currentHandId, heroCards)
     }
   }, [heroCards, liveState?.hand_id])
+  const heroDisplayName =
+    heroPlayer?.display_name ||
+    heroPlayer?.username ||
+    t('table.players.youTag', { defaultValue: 'You' })
+  const heroIdentityCards =
+    heroCards.length > 0
+      ? heroCards
+      : heroPlayer?.hole_cards?.length
+        ? heroPlayer.hole_cards
+        : heroPlayer?.cards ?? []
+  const heroStackAmount = heroPlayer?.stack ?? 0
   
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
@@ -549,6 +561,11 @@ export default function TablePage() {
     () => (liveState?.ready_players ?? []).map((id) => id?.toString()),
     [liveState?.ready_players],
   )
+  const opponentTag = useMemo(() => {
+    if (!currentActorUserId || !heroIdString || currentActorUserId.toString() === heroIdString) return null
+    const opponent = liveState?.players?.find((p) => p.user_id?.toString() === currentActorUserId.toString())
+    return opponent?.display_name || opponent?.username || null
+  }, [currentActorUserId, heroIdString, liveState?.players])
   const formatLastActionText = useCallback(
     (userId?: string | number | null) => {
       if (!userId || !liveState?.last_action) return null
@@ -1998,6 +2015,10 @@ export default function TablePage() {
                 standUpProcessing={isTogglingSitOut}
                 isShowdown={normalizedStatus === 'showdown'}
                 isInterHand={isInterHand}
+                heroName={heroDisplayName}
+                heroCards={heroIdentityCards}
+                heroStack={heroStackAmount}
+                isHeroLeaving={heroIsStandingUp}
               />
             </div>
           </div>
@@ -2024,6 +2045,10 @@ export default function TablePage() {
               standUpProcessing={isTogglingSitOut}
               isShowdown={normalizedStatus === 'showdown'}
               isInterHand={isInterHand}
+              heroName={heroDisplayName}
+              heroCards={heroIdentityCards}
+              heroStack={heroStackAmount}
+              isHeroLeaving={heroIsStandingUp}
             />
           </div>
         </div>
@@ -2099,6 +2124,10 @@ export default function TablePage() {
               standUpProcessing={isTogglingSitOut}
               isShowdown={normalizedStatus === 'showdown'}
               isInterHand={isInterHand}
+              heroName={heroDisplayName}
+              heroCards={heroIdentityCards}
+              heroStack={heroStackAmount}
+              isHeroLeaving={heroIsStandingUp}
             />
           </div>
         </div>
@@ -2204,8 +2233,8 @@ export default function TablePage() {
 
                   {tableDetails && (
                     <div 
-                      className="table-header-capsule pointer-events-none z-30" 
-                      style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
+                      className="table-header-capsule pointer-events-none" 
+                      style={{ top: 'calc(env(safe-area-inset-top) + 12px)', zIndex: 60 }}
                     >
                       {/* Phase 3: Professional TableMenuCapsule with unified tokens */}
                       <TableMenuCapsule
@@ -2245,13 +2274,14 @@ export default function TablePage() {
                     </div>
                   ) : null}
 
-                  <div className="table-board-stack flex flex-col items-center gap-2 px-3 sm:px-4" style={{ zIndex: 'var(--z-board-hud, 30)' }}>
+                  <div className="table-board-stack flex flex-col items-center gap-2 px-3 sm:px-4">
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       currencyType={currencyType}
                       cards={liveState.board ?? []}
                       highlightedCards={winningBoardCards}
                       potRef={potAreaRef}
+                      opponentTag={opponentTag}
                     />
                     {liveState.hand_result && (
                       <div className="mt-0.5 flex justify-center">
@@ -2365,10 +2395,7 @@ export default function TablePage() {
 
                             {/* Leaving Badge - Shows when player is leaving after this hand */}
                             {player && isSittingOut && (
-                              <div className="absolute -top-2 -right-2 flex items-center gap-1 rounded-full bg-amber-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-lg">
-                                <span>🚪</span>
-                                <span>Leaving</span>
-                              </div>
+                              <LeavingIndicator className="absolute -top-1.5 -right-1.5" />
                             )}
 
                             {lastActionText && player?.in_hand && (
