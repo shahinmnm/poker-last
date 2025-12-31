@@ -32,6 +32,8 @@ import { LogOut, Minus, Plus, X, ChevronUp } from 'lucide-react'
 import type { AllowedAction } from '@/types/game'
 import { formatChips } from '@/utils/formatChips'
 import { useHapticFeedback } from '@/hooks/useHapticFeedback'
+import MiniCard from '@/components/ui/MiniCard'
+import LeavingIndicator from './LeavingIndicator'
 
 interface ActionBarProps {
   allowedActions: AllowedAction[]
@@ -46,12 +48,21 @@ interface ActionBarProps {
   isShowdown?: boolean
   /** Is inter-hand waiting period - suppresses waiting toast */
   isInterHand?: boolean
+  /** Hero display name for identity lane */
+  heroName?: string
+  /** Hero hole cards for identity lane */
+  heroCards?: string[]
+  /** Hero stack for identity lane */
+  heroStack?: number
+  /** Whether hero has enabled leave-after-hand */
+  isHeroLeaving?: boolean
 }
 
 const clampAmount = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const sliderActions: AllowedAction['action_type'][] = ['bet', 'raise', 'all_in']
 const railIconSize = 14
 const railSafePadding = 'calc(env(safe-area-inset-bottom, 0px) + var(--hero-identity-reserved, 26px))'
+const heroCardsFallback: string[] = []
 
 export default function ActionBar({
   allowedActions,
@@ -64,9 +75,19 @@ export default function ActionBar({
   standUpProcessing = false,
   isShowdown = false,
   isInterHand = false,
+  heroName,
+  heroCards,
+  heroStack,
+  isHeroLeaving = false,
 }: ActionBarProps) {
   const { t } = useTranslation()
   const haptic = useHapticFeedback()
+  const heroLaneCards = useMemo(
+    () => (heroCards ?? heroCardsFallback).filter(Boolean).slice(0, 2),
+    [heroCards],
+  )
+  const heroDisplayName = heroName || t('table.players.youTag', { defaultValue: 'You' })
+  const heroStackDisplay = formatChips(heroStack ?? myStack ?? 0)
   
   // PHASE 2: Expanded panel state - opens when user taps Raise
   const [isExpanded, setIsExpanded] = useState(false)
@@ -354,6 +375,28 @@ export default function ActionBar({
     )
   }
 
+  const renderHeroLane = () => {
+    if (!heroName && heroLaneCards.length === 0) return null
+    return (
+      <div className="hero-lane" dir="auto">
+        <div className="hero-lane__identity">
+          <div className="hero-lane__text">
+            <span className="hero-lane__name">{heroDisplayName}</span>
+            <span className="hero-lane__stack">{heroStackDisplay}</span>
+          </div>
+          {isHeroLeaving && <LeavingIndicator interactive className="hero-lane__leaving" />}
+        </div>
+        {heroLaneCards.length > 0 && (
+          <div className="hero-lane__cards">
+            {heroLaneCards.map((card) => (
+              <MiniCard key={card} card={card} size="sm" />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // PHASE 3: When not my turn - show minimal disabled strip or waiting UI
   if (!isMyTurn) {
     return (
@@ -375,10 +418,13 @@ export default function ActionBar({
           style={{ paddingBottom: railSafePadding }}
         >
           <div className="pointer-events-auto w-full flex justify-center">
-            <div className={clsx('action-rail', isShowdown && 'action-rail--muted')}>
-              <div className="action-rail__group action-rail__group--secondary">
-                <div className="rail-hitbox rail-hitbox--secondary">
-                  {renderLeaveToggle()}
+            <div className="action-rail-inset">
+              {renderHeroLane()}
+              <div className={clsx('action-rail', isShowdown && 'action-rail--muted')}>
+                <div className="action-rail__group action-rail__group--secondary">
+                  <div className="rail-hitbox rail-hitbox--secondary">
+                    {renderLeaveToggle()}
+                  </div>
                 </div>
               </div>
             </div>
@@ -508,59 +554,62 @@ export default function ActionBar({
         style={{ paddingBottom: railSafePadding }}
       >
         <div className="pointer-events-auto w-full flex justify-center">
-          <div className="action-rail">
-            <div className="action-rail__group action-rail__group--primary">
-              <div className="rail-hitbox">
-                <button
-                  type="button"
-                  onClick={handleFold}
-                  disabled={foldDisabled}
-                  className="rail-chip rail-chip--danger ui-focus-ring"
-                >
-                  <span className="rail-chip__label action-label-safe">{foldLabel}</span>
-                </button>
-              </div>
-
-              <div className="rail-hitbox">
-                <button
-                  type="button"
-                  onClick={handleCenter}
-                  disabled={centerDisabled}
-                  className="rail-chip rail-chip--primary ui-focus-ring"
-                >
-                  <span className="rail-chip__label action-label-safe">{centerLabel}</span>
-                </button>
-              </div>
-
-              {sliderLabelAction && (
+          <div className="action-rail-inset">
+            {renderHeroLane()}
+            <div className="action-rail">
+              <div className="action-rail__group action-rail__group--primary">
                 <div className="rail-hitbox">
                   <button
                     type="button"
-                    onClick={handleRaiseClick}
-                    disabled={raiseDisabled}
-                    className={clsx(
-                      'rail-chip rail-chip--accent ui-focus-ring',
-                      isExpanded && 'rail-chip--active'
-                    )}
+                    onClick={handleFold}
+                    disabled={foldDisabled}
+                    className="rail-chip rail-chip--danger ui-focus-ring"
                   >
-                    <span className="flex items-center gap-1">
-                      <span className="rail-chip__label action-label-safe">
-                        {sliderLabelAction.action_type === 'bet'
-                          ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
-                          : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
-                      </span>
-                      <ChevronUp size={railIconSize} className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
-                    </span>
+                    <span className="rail-chip__label action-label-safe">{foldLabel}</span>
                   </button>
                 </div>
-              )}
-            </div>
 
-            <div className="action-rail__divider" aria-hidden="true" />
+                <div className="rail-hitbox">
+                  <button
+                    type="button"
+                    onClick={handleCenter}
+                    disabled={centerDisabled}
+                    className="rail-chip rail-chip--primary ui-focus-ring"
+                  >
+                    <span className="rail-chip__label action-label-safe">{centerLabel}</span>
+                  </button>
+                </div>
 
-            <div className="action-rail__group action-rail__group--secondary">
-              <div className="rail-hitbox rail-hitbox--secondary">
-                {renderLeaveToggle()}
+                {sliderLabelAction && (
+                  <div className="rail-hitbox">
+                    <button
+                      type="button"
+                      onClick={handleRaiseClick}
+                      disabled={raiseDisabled}
+                      className={clsx(
+                        'rail-chip rail-chip--accent ui-focus-ring',
+                        isExpanded && 'rail-chip--active'
+                      )}
+                    >
+                      <span className="flex items-center gap-1">
+                        <span className="rail-chip__label action-label-safe">
+                          {sliderLabelAction.action_type === 'bet'
+                            ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
+                            : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
+                        </span>
+                        <ChevronUp size={railIconSize} className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="action-rail__divider" aria-hidden="true" />
+
+              <div className="action-rail__group action-rail__group--secondary">
+                <div className="rail-hitbox rail-hitbox--secondary">
+                  {renderLeaveToggle()}
+                </div>
               </div>
             </div>
           </div>

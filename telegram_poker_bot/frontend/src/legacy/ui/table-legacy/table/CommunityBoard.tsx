@@ -10,6 +10,7 @@ interface CommunityBoardProps {
   highlightedCards?: string[]
   potRef?: RefObject<HTMLDivElement>
   currencyType?: CurrencyType
+  opponentTag?: string | null
 }
 
 export default function CommunityBoard({
@@ -18,6 +19,7 @@ export default function CommunityBoard({
   highlightedCards = [],
   potRef,
   currencyType = 'REAL',
+  opponentTag = null,
 }: CommunityBoardProps) {
   const { t } = useTranslation()
   const [isPulsing, setIsPulsing] = useState(false)
@@ -41,17 +43,27 @@ export default function CommunityBoard({
     // Uses CSS gap from --board-cluster-gap variable (set by data-ui-mode)
     // Order: pot (0) -> cards (1) -> winner banner passed via parent
     <div className="board-cluster board-cluster--expanded" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
-      {/* Pot display - order: 0 (always first in cluster) */}
-      <div
-        ref={potRef}
-        className={`board-cluster__pot pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
-      >
-        <div className="inline-flex items-center gap-2 rounded-full border border-orange-300/50 bg-gradient-to-b from-orange-400 to-orange-600 px-4 py-1 shadow-lg shadow-orange-900/40 backdrop-blur-md">
-          <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/90">
-            {t('table.potLabel', { defaultValue: 'POT' })}:
-          </span>
-          {/* BETA HARDENING: tabular-nums prevents layout shift when pot changes */}
-          <div className="text-sm font-bold tracking-wide text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>{displayPot}</div>
+      <div className="top-hud top-hud--board">
+        {opponentTag && (
+          <div className="top-hud__lane top-hud__lane--opponent">
+            <div className="top-hud__pill" dir="auto" title={opponentTag}>
+              <span className="top-hud__pill-text">{opponentTag}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Pot display - order: 0 (always first in cluster) */}
+        <div
+          ref={potRef}
+          className={`board-cluster__pot pointer-events-none motion-reduce:animate-none top-hud__lane top-hud__lane--pot ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
+        >
+          <div className="table-pot-pill" title={displayPot}>
+            <span className="table-pot-pill-label">
+              {t('table.potLabel', { defaultValue: 'POT' })}:
+            </span>
+            {/* BETA HARDENING: tabular-nums prevents layout shift when pot changes */}
+            <div className="table-pot-pill-amount">{displayPot}</div>
+          </div>
         </div>
       </div>
 

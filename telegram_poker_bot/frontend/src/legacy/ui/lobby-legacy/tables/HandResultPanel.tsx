@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { TableState } from '@/types/game'
 import { formatCurrency } from '../../../../utils/currency'
+import MiniCard from '@/components/ui/MiniCard'
 
 interface HandResultPanelProps {
   liveState: TableState
@@ -134,11 +135,17 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
                 </span>
               </div>
               
-              <div className="text-[11px] mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
                 <span className="font-semibold text-sky-300">{handRankLabel}</span>
-                {formattedCards && (
-                  <span className="ml-2 text-[color:var(--text-muted)]">({formattedCards})</span>
-                )}
+                {bestCards.length > 0 ? (
+                  <div className="flex items-center gap-1" aria-label={formattedCards}>
+                    {bestCards.slice(0, 5).map((card) => (
+                      <MiniCard key={card} card={card} size="sm" />
+                    ))}
+                  </div>
+                ) : formattedCards ? (
+                  <span className="text-[color:var(--text-muted)]">({formattedCards})</span>
+                ) : null}
               </div>
 
               {potWinners.length > 1 && (
