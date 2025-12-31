@@ -209,7 +209,8 @@ export default function TablePage() {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return false
     const userAgent = navigator.userAgent || ''
     const isAndroid = /Android/i.test(userAgent)
-    const hasTelegramWebApp = Boolean(window.Telegram?.WebApp)
+    const telegramWebApp = window.Telegram?.WebApp
+    const hasTelegramWebApp = typeof telegramWebApp === 'object' && telegramWebApp !== null
     return isAndroid && hasTelegramWebApp
   }, [])
 

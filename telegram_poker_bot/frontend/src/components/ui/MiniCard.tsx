@@ -28,13 +28,14 @@ const sizeMap: Record<MiniCardSize, { width: number; height: number; radius: num
 }
 
 export default function MiniCard({ card, size = 'sm', className }: MiniCardProps) {
-  const rankKey = card?.[0]?.toUpperCase() ?? ''
-  const suitKey = card?.[1]?.toLowerCase() ?? ''
+  const cardCode = card ?? ''
+  const rankKey = cardCode[0]?.toUpperCase() ?? ''
+  const suitKey = cardCode[1]?.toLowerCase() ?? ''
 
   const rank = rankMap[rankKey] ?? (rankKey || '•')
   const suit = suitSymbols[suitKey] ?? { symbol: '', color: 'dark' }
   const dimensions = sizeMap[size]
-  const isHidden = card?.toUpperCase?.() === 'XX'
+  const isHidden = cardCode.toUpperCase() === 'XX'
   const hasValidFace = Boolean(rankKey || suit.symbol)
   const isRedSuit = suit.color === 'red'
 
@@ -70,7 +71,7 @@ export default function MiniCard({ card, size = 'sm', className }: MiniCardProps
         lineHeight: 1.08,
         fontVariantNumeric: 'tabular-nums',
       }}
-      aria-label={card}
+      aria-label={cardCode}
       dir="auto"
     >
       <span className="font-semibold leading-tight">{rank}</span>
