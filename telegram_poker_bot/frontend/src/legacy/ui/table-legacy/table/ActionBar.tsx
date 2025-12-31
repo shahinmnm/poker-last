@@ -28,12 +28,10 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 
-import { LogOut, Minus, Plus, X, ChevronUp } from 'lucide-react'
+import { ChevronUp, Clock, LogOut, Minus, Plus, X } from 'lucide-react'
 import type { AllowedAction } from '@/types/game'
 import { formatChips } from '@/utils/formatChips'
 import { useHapticFeedback } from '@/hooks/useHapticFeedback'
-import MiniCard from '@/components/ui/MiniCard'
-import LeavingIndicator from './LeavingIndicator'
 
 interface ActionBarProps {
   allowedActions: AllowedAction[]
@@ -48,21 +46,24 @@ interface ActionBarProps {
   isShowdown?: boolean
   /** Is inter-hand waiting period - suppresses waiting toast */
   isInterHand?: boolean
-  /** Hero display name for identity lane */
+  /** Hero display name for dock row */
   heroName?: string
-  /** Hero hole cards for identity lane */
-  heroCards?: string[]
-  /** Hero stack for identity lane */
+  /** Hero stack for dock row */
   heroStack?: number
+  /** Hero seat tags (D/SB/BB) for dock row */
+  heroSeatTags?: string[]
   /** Whether hero has enabled leave-after-hand */
   isHeroLeaving?: boolean
+  /** Whether hero is sitting out (status icon) */
+  isHeroSittingOut?: boolean
 }
 
 const clampAmount = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const sliderActions: AllowedAction['action_type'][] = ['bet', 'raise', 'all_in']
-const railIconSize = 14
-const railSafePadding = 'calc(env(safe-area-inset-bottom, 0px) + var(--hero-identity-reserved, 26px))'
-const heroCardsFallback: string[] = []
+const dockIconSize = 14
+const dockSafePadding = 'env(safe-area-inset-bottom, 0px)'
+const dockPanelOffset =
+  'calc(var(--player-dock-hit, 56px) + var(--player-dock-row-hero, 24px) + var(--player-dock-gap, 6px) + var(--action-bar-breathing-room, 10px))'
 
 export default function ActionBar({
   allowedActions,
@@ -76,18 +77,17 @@ export default function ActionBar({
   isShowdown = false,
   isInterHand = false,
   heroName,
-  heroCards,
   heroStack,
+  heroSeatTags,
   isHeroLeaving = false,
+  isHeroSittingOut = false,
 }: ActionBarProps) {
   const { t } = useTranslation()
   const haptic = useHapticFeedback()
-  const heroLaneCards = useMemo(
-    () => (heroCards ?? heroCardsFallback).filter(Boolean).slice(0, 2),
-    [heroCards],
-  )
   const heroDisplayName = heroName || t('table.players.youTag', { defaultValue: 'You' })
   const heroStackDisplay = formatChips(heroStack ?? myStack ?? 0)
+  const sessionStackDisplay = formatChips(myStack ?? heroStack ?? 0)
+  const seatTags = useMemo(() => (heroSeatTags ?? []).filter(Boolean).slice(0, 3), [heroSeatTags])
   
   // PHASE 2: Expanded panel state - opens when user taps Raise
   const [isExpanded, setIsExpanded] = useState(false)
@@ -328,6 +328,7 @@ export default function ActionBar({
   const foldDisabled = !isMyTurn || !foldAction
   const centerDisabled = isDisabled || !centerAction
   const raiseDisabled = isDisabled || !sliderLabelAction
+  const showBettingActions = !isShowdown
 
   const adjustBet = (direction: 1 | -1, actionOverride?: AllowedAction | null) => {
     const baseAction = actionOverride ?? activeBetAction ?? sliderLabelAction ?? primarySliderAction
@@ -361,12 +362,12 @@ export default function ActionBar({
         disabled={standUpProcessing}
         aria-pressed={isStandingUp}
         className={clsx(
-          'rail-chip rail-chip--ghost ui-focus-ring'
+          'dock-chip dock-chip--ghost dock-chip--icon ui-focus-ring'
         )}
         title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
       >
-        <LogOut size={railIconSize} className={isStandingUp ? 'text-black' : 'text-white/80'} />
-        <span className="hidden sm:inline rail-chip__label action-label-safe">
+        <LogOut size={dockIconSize} className={isStandingUp ? 'text-black' : 'text-white/80'} />
+        <span className="hidden sm:inline dock-chip__label action-label-safe">
           {isStandingUp 
             ? t('table.actions.leaving', { defaultValue: 'Leaving' })
             : t('table.actions.sitOut', { defaultValue: 'Leave' })}
@@ -375,66 +376,65 @@ export default function ActionBar({
     )
   }
 
-  const renderHeroLane = () => {
-    if (!heroName && heroLaneCards.length === 0) return null
-    return (
-      <div className="hero-lane" dir="auto">
-        <div className="hero-lane__identity">
-          <div className="hero-lane__text">
-            <span className="hero-lane__name">{heroDisplayName}</span>
-            <span className="hero-lane__stack">{heroStackDisplay}</span>
-          </div>
-          {isHeroLeaving && <LeavingIndicator interactive className="hero-lane__leaving" />}
-        </div>
-        {heroLaneCards.length > 0 && (
-          <div className="hero-lane__cards">
-            {heroLaneCards.map((card) => (
-              <MiniCard key={card} card={card} size="sm" />
+  const renderHeroRow = () => (
+    <div className="player-dock__row player-dock__row--hero" dir="auto">
+      <div className="player-dock__hero">
+        <span className="player-dock__name">{heroDisplayName}</span>
+        {seatTags.length > 0 && (
+          <div className="player-dock__badges">
+            {seatTags.map((tag) => (
+              <span key={tag} className="dock-badge">
+                {tag}
+              </span>
             ))}
           </div>
         )}
       </div>
-    )
-  }
-
-  // PHASE 3: When not my turn - show minimal disabled strip or waiting UI
-  if (!isMyTurn) {
-    return (
-      <>
-        {/* Waiting toast - centered above action bar safe zone */}
-        {/* PHASE 3: Only shown in OPPONENT_ACTION mode (NOT showdown, NOT inter-hand) */}
-        {showWaitingToast && (
-          <div className="waiting-toast">
-            <span className="waiting-toast__spinner" />
-            {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent…' })}
-          </div>
+      <div className="player-dock__stack" aria-label={t('table.players.stackLabel', { defaultValue: 'Stack' })}>
+        <span className="player-dock__stack-label">
+          {t('table.dock.stack', { defaultValue: 'STACK' })}
+        </span>
+        <span className="player-dock__stack-value">{heroStackDisplay}</span>
+        <span className="player-dock__stack-divider" aria-hidden="true">/</span>
+        <span className="player-dock__stack-label">
+          {t('table.dock.session', { defaultValue: 'SESSION' })}
+        </span>
+        <span className="player-dock__stack-value">{sessionStackDisplay}</span>
+      </div>
+      <div className="player-dock__status">
+        {isHeroLeaving && (
+          <span
+            className="dock-status dock-status--leave"
+            title={t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' })}
+            aria-label={t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' })}
+          >
+            <LogOut size={dockIconSize} className="dock-icon" />
+          </span>
         )}
-        
-        {/* PHASE 1 REFACTOR: Thin micro strip - always show safe controls */}
-        {/* During showdown: show compact strip with leave toggle (no betting actions) */}
-        {/* During opponent action: show minimal strip with leave toggle */}
-        <div
-          className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
-          style={{ paddingBottom: railSafePadding }}
-        >
-          <div className="pointer-events-auto w-full flex justify-center">
-            <div className="action-rail-inset">
-              {renderHeroLane()}
-              <div className={clsx('action-rail', isShowdown && 'action-rail--muted')}>
-                <div className="action-rail__group action-rail__group--secondary">
-                  <div className="rail-hitbox rail-hitbox--secondary">
-                    {renderLeaveToggle()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    )
-  }
+        {!isHeroLeaving && isHeroSittingOut && (
+          <span
+            className="dock-status dock-status--sitout"
+            title={t('table.actions.sittingOut', { defaultValue: 'Sitting out' })}
+            aria-label={t('table.actions.sittingOut', { defaultValue: 'Sitting out' })}
+          >
+            Zzz
+          </span>
+        )}
+        {isMyTurn && (
+          <span
+            className="dock-status dock-status--timer"
+            title={t('table.actions.yourTurn', { defaultValue: 'Your turn' })}
+            aria-label={t('table.actions.yourTurn', { defaultValue: 'Your turn' })}
+          >
+            <Clock size={dockIconSize} className="dock-icon" />
+          </span>
+        )}
+      </div>
+    </div>
+  )
 
-  // PHASE 1 & 2: Main rendering when it's my turn
+
+  // PHASE 1 & 2: Main rendering for the dock
   return (
     <>
       {/* PHASE 2: Backdrop for tap-outside-closes-panel */}
@@ -450,8 +450,8 @@ export default function ActionBar({
       {/* Only visible when isExpanded is true (user tapped Raise) */}
       {isExpanded && sliderLabelAction && (
         <div
-          className="action-expanded-panel pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-3 sm:bottom-24 sm:px-4"
-          style={{ paddingBottom: railSafePadding }}
+          className="action-expanded-panel pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 sm:px-4"
+          style={{ paddingBottom: dockSafePadding, bottom: dockPanelOffset }}
         >
           <div className="pointer-events-auto relative w-full max-w-[var(--expanded-panel-max-width,400px)]">
             {/* Floating bet amount label */}
@@ -548,66 +548,84 @@ export default function ActionBar({
         </div>
       )}
 
-      {/* PHASE 1 REFACTOR: Thin Action Rail - compact visual with preserved 44px tap targets */}
+      {/* Waiting toast - centered above action bar safe zone */}
+      {showWaitingToast && (
+        <div className="waiting-toast">
+          <span className="waiting-toast__spinner" />
+          {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent' })}
+        </div>
+      )}
+
+      {/* PLAYER CONTROL DOCK: Combined hero/status + actions */}
       <div
         className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
-        style={{ paddingBottom: railSafePadding }}
+        style={{ paddingBottom: dockSafePadding }}
       >
         <div className="pointer-events-auto w-full flex justify-center">
-          <div className="action-rail-inset">
-            {renderHeroLane()}
-            <div className="action-rail">
-              <div className="action-rail__group action-rail__group--primary">
-                <div className="rail-hitbox">
-                  <button
-                    type="button"
-                    onClick={handleFold}
-                    disabled={foldDisabled}
-                    className="rail-chip rail-chip--danger ui-focus-ring"
-                  >
-                    <span className="rail-chip__label action-label-safe">{foldLabel}</span>
-                  </button>
-                </div>
-
-                <div className="rail-hitbox">
-                  <button
-                    type="button"
-                    onClick={handleCenter}
-                    disabled={centerDisabled}
-                    className="rail-chip rail-chip--primary ui-focus-ring"
-                  >
-                    <span className="rail-chip__label action-label-safe">{centerLabel}</span>
-                  </button>
-                </div>
-
-                {sliderLabelAction && (
-                  <div className="rail-hitbox">
+          <div className="player-dock">
+            {renderHeroRow()}
+            <div
+              className={clsx(
+                'player-dock__row player-dock__row--actions',
+                !showBettingActions && 'player-dock__row--micro'
+              )}
+            >
+              {showBettingActions && (
+                <div className="player-dock__actions player-dock__actions--primary">
+                  <div className="dock-hitbox">
                     <button
                       type="button"
-                      onClick={handleRaiseClick}
-                      disabled={raiseDisabled}
-                      className={clsx(
-                        'rail-chip rail-chip--accent ui-focus-ring',
-                        isExpanded && 'rail-chip--active'
-                      )}
+                      onClick={handleFold}
+                      disabled={foldDisabled}
+                      className="dock-chip dock-chip--danger ui-focus-ring"
                     >
-                      <span className="flex items-center gap-1">
-                        <span className="rail-chip__label action-label-safe">
-                          {sliderLabelAction.action_type === 'bet'
-                            ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
-                            : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
-                        </span>
-                        <ChevronUp size={railIconSize} className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')} />
-                      </span>
+                      <span className="dock-chip__label action-label-safe">{foldLabel}</span>
                     </button>
                   </div>
-                )}
-              </div>
 
-              <div className="action-rail__divider" aria-hidden="true" />
+                  <div className="dock-hitbox">
+                    <button
+                      type="button"
+                      onClick={handleCenter}
+                      disabled={centerDisabled}
+                      className="dock-chip dock-chip--primary ui-focus-ring"
+                    >
+                      <span className="dock-chip__label action-label-safe">{centerLabel}</span>
+                    </button>
+                  </div>
 
-              <div className="action-rail__group action-rail__group--secondary">
-                <div className="rail-hitbox rail-hitbox--secondary">
+                  {sliderLabelAction && (
+                    <div className="dock-hitbox">
+                      <button
+                        type="button"
+                        onClick={handleRaiseClick}
+                        disabled={raiseDisabled}
+                        className={clsx(
+                          'dock-chip dock-chip--accent ui-focus-ring',
+                          isExpanded && 'dock-chip--active'
+                        )}
+                      >
+                        <span className="flex items-center gap-1">
+                          <span className="dock-chip__label action-label-safe">
+                            {sliderLabelAction.action_type === 'bet'
+                              ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
+                              : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
+                          </span>
+                          <ChevronUp
+                            size={dockIconSize}
+                            className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')}
+                          />
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showBettingActions && <div className="player-dock__divider" aria-hidden="true" />}
+
+              <div className="player-dock__actions player-dock__actions--secondary">
+                <div className="dock-hitbox dock-hitbox--secondary">
                   {renderLeaveToggle()}
                 </div>
               </div>

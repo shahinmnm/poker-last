@@ -550,13 +550,15 @@ export default function TablePage() {
     heroPlayer?.display_name ||
     heroPlayer?.username ||
     t('table.players.youTag', { defaultValue: 'You' })
-  const heroIdentityCards =
-    heroCards.length > 0
-      ? heroCards
-      : heroPlayer?.hole_cards?.length
-        ? heroPlayer.hole_cards
-        : heroPlayer?.cards ?? []
   const heroStackAmount = heroPlayer?.stack ?? 0
+  const heroSeatTags = useMemo(() => {
+    const tags: string[] = []
+    if (heroPlayer?.is_button) tags.push('D')
+    if (heroPlayer?.is_big_blind) tags.push('BB')
+    if (heroPlayer?.is_small_blind) tags.push('SB')
+    return tags
+  }, [heroPlayer?.is_big_blind, heroPlayer?.is_button, heroPlayer?.is_small_blind])
+  const heroIsSittingOut = Boolean(heroPlayer?.is_sitting_out_next_hand && !heroPlayer?.in_hand)
   
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
@@ -2028,9 +2030,10 @@ export default function TablePage() {
                 isShowdown={normalizedStatus === 'showdown'}
                 isInterHand={isInterHand}
                 heroName={heroDisplayName}
-                heroCards={heroIdentityCards}
                 heroStack={heroStackAmount}
+                heroSeatTags={heroSeatTags}
                 isHeroLeaving={heroIsStandingUp}
+                isHeroSittingOut={heroIsSittingOut}
               />
             </div>
           </div>
@@ -2058,9 +2061,10 @@ export default function TablePage() {
               isShowdown={normalizedStatus === 'showdown'}
               isInterHand={isInterHand}
               heroName={heroDisplayName}
-              heroCards={heroIdentityCards}
               heroStack={heroStackAmount}
+              heroSeatTags={heroSeatTags}
               isHeroLeaving={heroIsStandingUp}
+              isHeroSittingOut={heroIsSittingOut}
             />
           </div>
         </div>
@@ -2137,9 +2141,10 @@ export default function TablePage() {
               isShowdown={normalizedStatus === 'showdown'}
               isInterHand={isInterHand}
               heroName={heroDisplayName}
-              heroCards={heroIdentityCards}
               heroStack={heroStackAmount}
+              heroSeatTags={heroSeatTags}
               isHeroLeaving={heroIsStandingUp}
+              isHeroSittingOut={heroIsSittingOut}
             />
           </div>
         </div>
