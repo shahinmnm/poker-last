@@ -45,11 +45,19 @@ export default function SortMenu<T extends string>({ value, options, onChange, l
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] px-4 text-xs font-semibold text-[var(--text-2)] transition hover:text-[var(--text-1)]"
+        className="group inline-flex min-h-[44px] items-center"
         aria-expanded={open}
       >
-        <FontAwesomeIcon icon={faArrowUpWideShort} />
-        {label}
+        <span
+          className={cn(
+            'flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] px-3 text-[11px] font-semibold text-[var(--text-2)] transition',
+            'group-active:scale-[0.97]',
+            open && 'border-[var(--border-1)] text-[var(--text-1)] shadow-[0_0_12px_rgba(44,197,122,0.2)]',
+          )}
+        >
+          <FontAwesomeIcon icon={faArrowUpWideShort} className="text-[10px]" />
+          {label}
+        </span>
       </button>
       {open && (
         <div
