@@ -38,8 +38,8 @@ export default function MiniCard({ card, size = 'sm', className }: MiniCardProps
   return (
     <div
       className={clsx(
-        'flex flex-col items-center justify-center border bg-white/90 shadow-sm',
-        suit.color === 'red' ? 'text-rose-600 border-rose-200' : 'text-slate-800 border-slate-200/70',
+        'flex flex-col items-center justify-center bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.08)] border leading-none select-none',
+        suit.color === 'red' ? 'text-rose-600 border-rose-200' : 'border-slate-200',
         className,
       )}
       style={{
