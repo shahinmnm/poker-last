@@ -24,10 +24,13 @@ import ConnectionStatus from '../ui/ConnectionStatus'
 import { getSeatLayout } from '../../config/tableLayout'
 import type { ActionType, CardCode, TableDeltaMessage } from '../../types/normalized'
 import { apiFetch } from '@/utils/apiClient'
+import { formatByCurrency } from '@/utils/currency'
+import { useTranslation } from 'react-i18next'
 
 export function TableView() {
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { user, initData } = useTelegram()
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [buyInAmount, setBuyInAmount] = useState<number | null>(null)
@@ -223,6 +226,11 @@ export function TableView() {
     return state.seat_map.find((seat) => seat.user_id === heroUserId) || null
   }, [state, heroUserId])
 
+  const actingSeat = useMemo(() => {
+    if (!state || state.acting_seat_id === null) return null
+    return state.seat_map.find((seat) => seat.seat_index === state.acting_seat_id) || null
+  }, [state])
+
   // Calculate seat positions using elliptical layout with hero-centering
   const seatPositions = useMemo(() => {
     if (!state) return []
@@ -400,18 +408,24 @@ export function TableView() {
 
       {/* Main table area with strict Z-Index layering */}
       <div className="table-container relative h-full flex flex-col items-center justify-center">
-        {/* Pot display - Z-Index: board-hud (30) */}
-        <div 
-          ref={potRef} 
-          className="pot-display-container absolute top-[30%] left-1/2 -translate-x-1/2"
+        {/* Top HUD lanes: opponent tag + pot */}
+        <div
+          className="top-hud pointer-events-none absolute left-1/2 -translate-x-1/2 top-[14%] flex flex-col items-center gap-2"
           style={{ zIndex: 'var(--z-board-hud, 30)' }}
         >
-          <PotDisplay pots={pots} currency={table_metadata.currency as 'REAL' | 'PLAY'} />
+          {actingSeat && heroSeat && actingSeat.user_id !== heroSeat.user_id && (
+            <div className="pointer-events-auto px-3 py-1 rounded-full bg-black/60 backdrop-blur-lg border border-white/10 text-xs text-white/90 max-w-[240px] truncate" dir="auto">
+              {actingSeat.display_name || t('table.meta.opponent', { defaultValue: 'Opponent' })}
+            </div>
+          )}
+          <div ref={potRef} className="pointer-events-auto">
+            <PotDisplay pots={pots} currency={table_metadata.currency as 'REAL' | 'PLAY'} />
+          </div>
         </div>
 
         {/* Community cards - Z-Index: cards-chips (20) */}
         <div 
-          className="community-board-container absolute top-[42%] left-1/2 -translate-x-1/2"
+          className="community-board-container absolute top-[44%] left-1/2 -translate-x-1/2"
           style={{ zIndex: 'var(--z-cards-chips, 20)' }}
         >
           <CommunityBoard
@@ -422,7 +436,7 @@ export function TableView() {
 
         {/* Seats arranged in ellipse with tight spacing - Z-Index: seats (10) */}
         <div 
-          className="seats-container absolute inset-0 pb-36"
+          className="seats-container absolute inset-0 pb-40"
           style={{ zIndex: 'var(--z-seats, 10)' }}
         >
           {seatPositions.map(({ seat, xPercent, yPercent, isHero }) => {
@@ -448,21 +462,52 @@ export function TableView() {
           })}
         </div>
 
-        {/* Action panel at bottom - Z-Index: actionbar (50) */}
+        {/* Hero identity lane + action rail */}
         {heroSeat && (
-          <div 
-            className="action-panel-container fixed bottom-6 left-1/2 -translate-x-1/2"
+          <div
+            className="fixed inset-x-0 bottom-0 flex flex-col items-center gap-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)]"
             style={{ zIndex: 'var(--z-actionbar, 50)' }}
           >
-            <ActionPanel
-              legalActions={isHeroActing ? legal_actions : []}
-              onAction={handleAction}
-              currency={table_metadata.currency as 'REAL' | 'PLAY'}
-              disabled={!isHeroActing}
-              isSittingOut={heroSeat.is_sitting_out}
-              onSitOutToggle={handleSitOut}
-              showSitOutToggle={true}
-            />
+            <div className="min-h-[26px] px-3 py-1 rounded-full bg-black/60 backdrop-blur-lg border border-white/10 text-white flex items-center gap-2 max-w-[88vw] shadow-lg">
+              <span className="text-xs font-semibold truncate max-w-[160px]" dir="auto" title={heroSeat.display_name || ''}>
+                {heroSeat.display_name || 'You'}
+              </span>
+              <span className="text-xs font-semibold text-emerald-200 tabular-nums">
+                {formatByCurrency(heroSeat.stack_amount, table_metadata.currency as 'REAL' | 'PLAY')}
+              </span>
+              {heroSeat.is_acting && isHeroActing && (
+                <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" aria-hidden={true} />
+              )}
+              {heroSeat.is_sitting_out && (
+                <span className="flex items-center gap-1 text-[11px] text-amber-200" title="Leaving after hand">
+                  <span aria-hidden role="img">🚪</span>
+                </span>
+              )}
+            </div>
+
+            <div className="action-rail-shell w-full flex justify-center">
+              <div className="w-[88vw] max-w-2xl flex justify-center">
+                {discard_phase_active ? (
+                  <DrawRenderer
+                    holeCards={heroSeat.hole_cards}
+                    discardPhaseActive={discard_phase_active}
+                    discardLimits={discard_limits}
+                    onDiscard={handleDiscard}
+                    onStandPat={handleStandPat}
+                  />
+                ) : (
+                  <ActionPanel
+                    legalActions={isHeroActing ? legal_actions : []}
+                    onAction={handleAction}
+                    currency={table_metadata.currency as 'REAL' | 'PLAY'}
+                    disabled={!isHeroActing}
+                    isSittingOut={heroSeat.is_sitting_out}
+                    onSitOutToggle={handleSitOut}
+                    showSitOutToggle={true}
+                  />
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -479,22 +524,6 @@ export function TableView() {
             >
               {isJoining ? 'Joining...' : 'Join Table'}
             </button>
-          </div>
-        )}
-
-        {/* Draw phase UI (overlays action panel when active) - Z-Index: actionbar (50) */}
-        {discard_phase_active && heroSeat && (
-          <div 
-            className="draw-phase-container fixed bottom-6 left-1/2 -translate-x-1/2"
-            style={{ zIndex: 'var(--z-actionbar, 50)' }}
-          >
-            <DrawRenderer
-              holeCards={heroSeat.hole_cards}
-              discardPhaseActive={discard_phase_active}
-              discardLimits={discard_limits}
-              onDiscard={handleDiscard}
-              onStandPat={handleStandPat}
-            />
           </div>
         )}
       </div>

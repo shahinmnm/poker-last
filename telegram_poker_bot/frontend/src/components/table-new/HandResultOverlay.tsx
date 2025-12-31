@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { formatByCurrency, type CurrencyType } from '@/utils/currency'
 import type { HandResult } from '../../types/normalized'
+import MiniCard from './MiniCard'
 
 interface HandResultOverlayProps {
   handResult: HandResult
@@ -93,15 +94,13 @@ export function HandResultOverlay({ handResult, currency = 'PLAY', onClose }: Ha
 
               {/* Best hand cards */}
               {winner.best_hand_cards && winner.best_hand_cards.length > 0 && (
-                <div className="mt-2 flex gap-1">
-                  {winner.best_hand_cards.map((card, cardIndex) => (
-                    <div
-                      key={cardIndex}
-                      className="text-xs bg-gray-600 rounded px-2 py-1 font-mono"
-                    >
-                      {card.rank}{card.suit}
-                    </div>
-                  ))}
+                <div className="mt-2 flex gap-1.5">
+                  {winner.best_hand_cards.slice(0, 5).map((card, cardIndex) => {
+                    const key = typeof card === 'string'
+                      ? `card-${card}-${cardIndex}`
+                      : `card-${card.rank ?? 'X'}${card.suit ?? 'X'}-${cardIndex}`
+                    return <MiniCard key={key} card={card} size="sm" />
+                  })}
                 </div>
               )}
             </div>
@@ -118,12 +117,22 @@ export function HandResultOverlay({ handResult, currency = 'PLAY', onClose }: Ha
                   key={`${hand.user_id}-${index}`}
                   className="bg-gray-700 bg-opacity-50 rounded p-2 text-sm"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Player {hand.user_id}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-gray-300 truncate">Player {hand.user_id}</span>
                     {hand.hand_rank && (
-                      <span className="text-gray-400">{hand.hand_rank}</span>
+                      <span className="text-gray-400 text-xs">{hand.hand_rank}</span>
                     )}
                   </div>
+                  {hand.best_hand_cards && hand.best_hand_cards.length > 0 && (
+                    <div className="mt-2 flex gap-1.5">
+                      {hand.best_hand_cards.slice(0, 5).map((card, cardIndex) => {
+                        const key = typeof card === 'string'
+                          ? `card-${card}-${cardIndex}`
+                          : `card-${card.rank ?? 'X'}${card.suit ?? 'X'}-${cardIndex}`
+                        return <MiniCard key={key} card={card} size="sm" />
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
