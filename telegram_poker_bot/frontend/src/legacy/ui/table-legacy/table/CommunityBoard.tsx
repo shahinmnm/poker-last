@@ -43,27 +43,27 @@ export default function CommunityBoard({
     // Uses CSS gap from --board-cluster-gap variable (set by data-ui-mode)
     // Order: pot (0) -> cards (1) -> winner banner passed via parent
     <div className="board-cluster board-cluster--expanded" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
-      <div className="top-hud top-hud--board">
-        {opponentTag && (
+      {opponentTag && (
+        <div className="top-hud top-hud--board">
           <div className="top-hud__lane top-hud__lane--opponent">
             <div className="top-hud__pill" dir="auto" title={opponentTag}>
               <span className="top-hud__pill-text">{opponentTag}</span>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Pot display - order: 0 (always first in cluster) */}
-        <div
-          ref={potRef}
-          className={`board-cluster__pot pointer-events-none motion-reduce:animate-none top-hud__lane top-hud__lane--pot ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
-        >
-          <div className="table-pot-pill" title={displayPot}>
-            <span className="table-pot-pill-label">
-              {t('table.potLabel', { defaultValue: 'POT' })}:
-            </span>
-            {/* BETA HARDENING: tabular-nums prevents layout shift when pot changes */}
-            <div className="table-pot-pill-amount">{displayPot}</div>
-          </div>
+      {/* Pot display - board anchored above community cards */}
+      <div
+        ref={potRef}
+        className={`board-cluster__pot board-pot-anchor pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
+      >
+        <div className="table-pot-pill" title={displayPot}>
+          <span className="table-pot-pill-label">
+            {t('table.potLabel', { defaultValue: 'POT' })}:
+          </span>
+          {/* BETA HARDENING: tabular-nums prevents layout shift when pot changes */}
+          <div className="table-pot-pill-amount">{displayPot}</div>
         </div>
       </div>
 
