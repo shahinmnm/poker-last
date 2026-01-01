@@ -108,6 +108,7 @@ export default function LobbyPage() {
   const [isOffline, setIsOffline] = useState(
     typeof navigator !== 'undefined' ? !navigator.onLine : false,
   )
+  const [isCompact, setIsCompact] = useState(false)
   const authMissing = ready && !initData
 
   const publicTables = useMemo(
@@ -200,6 +201,21 @@ export default function LobbyPage() {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(max-width: 700px)')
+    const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
+      setIsCompact('matches' in event ? event.matches : media.matches)
+    }
+    handleChange(media)
+    if ('addEventListener' in media) {
+      media.addEventListener('change', handleChange)
+      return () => media.removeEventListener('change', handleChange)
+    }
+    media.addListener(handleChange)
+    return () => media.removeListener(handleChange)
   }, [])
 
   useEffect(() => {
@@ -382,12 +398,20 @@ export default function LobbyPage() {
 
   const tabLabels = useMemo(
     () => ({
-      cash: t('lobbyNew.tabs.cash', 'Cash'),
-      headsUp: t('lobbyNew.tabs.headsUp', 'Heads-Up'),
-      private: t('lobbyNew.tabs.private', 'Private'),
-      history: t('lobbyNew.tabs.history', 'History'),
+      cash: isCompact
+        ? t('lobbyNew.tabs.cashShort', 'Cash')
+        : t('lobbyNew.tabs.cash', 'Cash Tables'),
+      headsUp: isCompact
+        ? t('lobbyNew.tabs.headsUpShort', 'HU')
+        : t('lobbyNew.tabs.headsUp', 'Heads-Up'),
+      private: isCompact
+        ? t('lobbyNew.tabs.privateShort', 'Private')
+        : t('lobbyNew.tabs.private', 'Private'),
+      history: isCompact
+        ? t('lobbyNew.tabs.historyShort', 'Hist')
+        : t('lobbyNew.tabs.history', 'History'),
     }),
-    [t],
+    [isCompact, t],
   )
 
   const refreshTables = useCallback(async () => {
@@ -440,7 +464,6 @@ export default function LobbyPage() {
         defaultValue: '{{count}} tables',
         count: totalCount,
       })
-  const lobbyStatusTone = ready ? 'online' : 'muted'
 
   const emptyState = useMemo(() => {
     if (activeTab === 'history') {
@@ -499,11 +522,9 @@ export default function LobbyPage() {
 
   return (
     <div
-      className="lobby-screen space-y-3 pb-4"
+      className="lobby-screen space-y-1 pb-2"
     >
-      <div className="lobby-safe-header">
-        <LobbyHeader statusLabel={lobbyStatusLabel} statusTone={lobbyStatusTone} />
-      </div>
+      <LobbyHeader statusLabel={lobbyStatusLabel} />
 
       {isOffline && (
         <div className="flex items-center gap-2 rounded-xl border border-[var(--border-2)] bg-[var(--surface-3)] px-3 py-2 text-[11px] text-[var(--text-2)]">
@@ -531,9 +552,9 @@ export default function LobbyPage() {
 
       <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
 
-      <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] p-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px]">
+      <div className="lobby-panel lobby-search-panel">
+        <div className="lobby-search-row">
+          <div className="lobby-search">
             <FontAwesomeIcon
               icon={faMagnifyingGlass}
               className="absolute top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-3)]"
@@ -544,7 +565,7 @@ export default function LobbyPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
-              className="w-full min-h-[44px] rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] pl-9 pr-3 text-[12px] text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-2 focus:ring-[var(--border-1)]"
+              className="w-full min-h-[44px] rounded-xl border border-[var(--border-2)] bg-[var(--surface-2)] pl-9 pr-3 text-[12px] text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-2 focus:ring-[var(--border-1)]"
               dir="auto"
             />
           </div>
@@ -559,7 +580,9 @@ export default function LobbyPage() {
             >
               <span className="lobby-filter-button">
                 <FontAwesomeIcon icon={faSliders} className="text-[10px]" />
-                {t('lobbyNew.actions.filters', 'Filters')}
+                <span className="lobby-filter-label">
+                  {t('lobbyNew.actions.filters', 'Filters')}
+                </span>
                 {activeFilterCount > 0 && (
                   <span className="lobby-filter-indicator" aria-label={t('lobbyNew.filters.active', 'Active filters')}>
                     {activeFilterCount}
@@ -664,7 +687,7 @@ export default function LobbyPage() {
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         {activeError && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] px-3 py-2 text-[11px] text-[var(--text-2)]">
             <div>

@@ -48,7 +48,8 @@ export default function MainLayout() {
       <div
         className={cn(
           'app-shell relative flex h-screen w-screen flex-col overflow-hidden text-[color:var(--color-text)]',
-          !isTablePage && 'app-shell--safe',
+          !isTablePage && !isLobbyPage && 'app-shell--safe',
+          isLobbyPage && 'app-shell--lobby',
         )}
       >
         {!isTablePage && !isLobbyPage && (
