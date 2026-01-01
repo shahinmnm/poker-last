@@ -71,6 +71,13 @@ const parseTimestamp = (value?: string | null): number | null => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+const normalizePositive = (value?: number | null) => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return null
+  }
+  return value
+}
+
 export default function LobbyPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -125,8 +132,8 @@ export default function LobbyPage() {
     return {
       id: table.table_id,
       name,
-      stakesSmall: summary.stakes?.small ?? null,
-      stakesBig: summary.stakes?.big ?? null,
+      stakesSmall: normalizePositive(summary.stakes?.small ?? null),
+      stakesBig: normalizePositive(summary.stakes?.big ?? null),
       avgPot: null,
       currency: summary.currencyType || table.currency_type || null,
       players: table.player_count ?? 0,
@@ -203,13 +210,13 @@ export default function LobbyPage() {
   const filterBounds = useMemo(() => {
     const stakesValues = publicTables
       .map((table) => table.stakesBig)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
     const buyInMins = publicTables
       .map((table) => table.minBuyIn)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
     const buyInMaxs = publicTables
       .map((table) => table.maxBuyIn)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
 
     return {
       stakesMin: stakesValues.length
@@ -255,7 +262,9 @@ export default function LobbyPage() {
       typeof small !== 'number' ||
       typeof big !== 'number' ||
       !Number.isFinite(small) ||
-      !Number.isFinite(big)
+      !Number.isFinite(big) ||
+      small <= 0 ||
+      big <= 0
     ) {
       return '--'
     }
@@ -315,12 +324,17 @@ export default function LobbyPage() {
         if (filters.favoritesOnly && !favoriteSet.has(table.id)) return false
         if (
           typeof table.stakesBig === 'number' &&
+          table.stakesBig > 0 &&
           (table.stakesBig < filters.stakesMin || table.stakesBig > filters.stakesMax)
         ) {
           return false
         }
-        if (typeof table.minBuyIn === 'number' && table.minBuyIn > filters.buyInMax) return false
-        if (typeof table.maxBuyIn === 'number' && table.maxBuyIn < filters.buyInMin) return false
+        if (typeof table.minBuyIn === 'number' && table.minBuyIn > 0 && table.minBuyIn > filters.buyInMax) {
+          return false
+        }
+        if (typeof table.maxBuyIn === 'number' && table.maxBuyIn > 0 && table.maxBuyIn < filters.buyInMin) {
+          return false
+        }
 
         if (searchNeedle) {
           const stakesLabel =
@@ -372,12 +386,26 @@ export default function LobbyPage() {
     [applyFilters, myTables],
   )
 
+  useEffect(() => {
+    if (!import.meta.env?.DEV) {
+      return
+    }
+    console.debug('[Lobby] table counts', {
+      publicTables: publicTables.length,
+      filteredTables: filteredTables.length,
+    })
+  }, [filteredTables.length, publicTables.length])
+
   const listTables = activeTab === 'history' ? filteredMyTables : filteredTables
   const listLoading =
     !ready ||
     (activeTab === 'history'
       ? loadingMyTables
       : loadingPublic || refreshingPublic)
+  const totalCount = activeTab === 'history' ? myTables.length : publicTables.length
+  const visibleCount = listTables.length
+  const showSmallScopeHint =
+    !listLoading && activeTab !== 'history' && totalCount > 0 && totalCount <= 2
 
   const sortOptions = useMemo(
     () => [
@@ -515,10 +543,11 @@ export default function LobbyPage() {
 
   return (
     <div
-      className="space-y-3 pb-4"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4px)' }}
+      className="lobby-screen space-y-3 pb-4"
     >
-      <LobbyHeader />
+      <div className="lobby-safe-header">
+        <LobbyHeader />
+      </div>
 
       {isOffline && (
         <div className="flex items-center gap-2 rounded-xl border border-[var(--border-2)] bg-[var(--surface-3)] px-3 py-2 text-[11px] text-[var(--text-2)]">
@@ -583,10 +612,23 @@ export default function LobbyPage() {
             className="rounded-full border border-[var(--border-3)] bg-[var(--surface-3)] px-3 py-1 text-[11px] text-[var(--text-3)] tabular-nums"
             style={{ marginInlineStart: 'auto' }}
           >
-            {listLoading ? t('common.loading', 'Loading...') : `${listTables.length}`}
+            {listLoading
+              ? t('common.loading', 'Loading...')
+              : totalCount > 0
+                ? `${visibleCount}/${totalCount}`
+                : `${visibleCount}`}
           </span>
         </div>
       </div>
+
+      {showSmallScopeHint && (
+        <div className="rounded-xl border border-[var(--border-2)] bg-[var(--surface-3)] px-3 py-2 text-[11px] text-[var(--text-2)]">
+          {t('lobbyNew.hint.smallScope', {
+            defaultValue: 'Only {{count}} public tables available right now.',
+            count: totalCount,
+          })}
+        </div>
+      )}
 
       {activeTab === 'history' && (
         <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] px-3 py-2 text-[12px] text-[var(--text-2)]">

@@ -44,7 +44,9 @@ export default function TableCard({
       typeof small !== 'number' ||
       typeof big !== 'number' ||
       !Number.isFinite(small) ||
-      !Number.isFinite(big)
+      !Number.isFinite(big) ||
+      small <= 0 ||
+      big <= 0
     ) {
       return '--'
     }

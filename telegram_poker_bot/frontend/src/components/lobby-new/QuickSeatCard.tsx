@@ -46,7 +46,7 @@ export default function QuickSeatCard({
     : fallbackLabel ?? t('common.loading', 'Loading...')
 
   return (
-    <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] p-2 shadow-[0_10px_26px_rgba(0,0,0,0.24)]">
+    <div className="lobby-quickseat rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] p-2 shadow-[0_10px_26px_rgba(0,0,0,0.24)]">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
