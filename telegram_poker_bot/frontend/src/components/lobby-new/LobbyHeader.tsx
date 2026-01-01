@@ -8,14 +8,12 @@ import { useTelegram } from '../../hooks/useTelegram'
 import { useUserData } from '../../providers/UserDataProvider'
 import { formatByCurrency } from '../../utils/currency'
 import { useLocalization } from '../../providers/LocalizationProvider'
-import { cn } from '../../utils/cn'
 
 interface LobbyHeaderProps {
   statusLabel?: string
-  statusTone?: 'online' | 'muted'
 }
 
-export default function LobbyHeader({ statusLabel, statusTone = 'online' }: LobbyHeaderProps) {
+export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
   const { t } = useTranslation()
   const { user } = useTelegram()
   const { balance } = useUserData()
@@ -29,43 +27,44 @@ export default function LobbyHeader({ statusLabel, statusTone = 'online' }: Lobb
 
   return (
     <div className="lobby-header">
-      <Link to="/profile" className="lobby-header__identity">
-        <Avatar size="sm" showTurnIndicator={false} className="lobby-header__avatar" />
-        <div className="min-w-0 leading-tight">
-          <p className="lobby-header__name" dir="auto">
-            {displayName}
-          </p>
-          <p className="lobby-header__balance tabular-nums">{balanceLabel}</p>
-        </div>
-      </Link>
-
-      {statusLabel && (
-        <div className="lobby-header__status">
-          <span className={cn('lobby-header__dot', statusTone === 'online' && 'is-online')} aria-hidden />
-          <span className="lobby-header__status-label" dir="auto">
-            {statusLabel}
-          </span>
-        </div>
-      )}
-
-      <div className="lobby-header__actions">
-        <button
-          type="button"
-          onClick={() => changeLanguage(nextLanguage.code)}
-          className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
-          aria-label={t('settings.sections.language.title', 'Language')}
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] text-[10px] font-semibold text-[var(--text-2)] transition group-active:scale-95">
-            {language.toUpperCase()}
-          </span>
-        </button>
-        <Link
-          to="/settings"
-          className="app-header__icon-button"
-          aria-label={t('menu.settings.label', 'Settings')}
-        >
-          <FontAwesomeIcon icon={faGear} className="text-[12px]" />
+      <div className="lobby-header__bar">
+        <Link to="/profile" className="lobby-header__identity">
+          <Avatar size="sm" showTurnIndicator={false} className="lobby-header__avatar" />
+          <div className="min-w-0 leading-tight">
+            <p className="lobby-header__name" dir="auto">
+              {displayName}
+            </p>
+            <p className="lobby-header__balance tabular-nums">{balanceLabel}</p>
+          </div>
         </Link>
+
+        {statusLabel && (
+          <div className="lobby-header__status">
+            <span className="lobby-header__status-label" dir="auto">
+              {statusLabel}
+            </span>
+          </div>
+        )}
+
+        <div className="lobby-header__actions">
+          <button
+            type="button"
+            onClick={() => changeLanguage(nextLanguage.code)}
+            className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
+            aria-label={t('settings.sections.language.title', 'Language')}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] text-[10px] font-semibold text-[var(--text-2)] transition group-active:scale-95">
+              {language.toUpperCase()}
+            </span>
+          </button>
+          <Link
+            to="/settings"
+            className="app-header__icon-button"
+            aria-label={t('menu.settings.label', 'Settings')}
+          >
+            <FontAwesomeIcon icon={faGear} className="text-[12px]" />
+          </Link>
+        </div>
       </div>
     </div>
   )

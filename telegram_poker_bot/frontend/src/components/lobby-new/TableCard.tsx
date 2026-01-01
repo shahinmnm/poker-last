@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faStar as faStarSolid } from '@fortawesome/free-solid-svg-icons'
+import { faPlay, faStar as faStarSolid } from '@fortawesome/free-solid-svg-icons'
 import { faStar as faStarRegular } from '@fortawesome/free-regular-svg-icons'
 
 import { cn } from '../../utils/cn'
@@ -88,6 +88,9 @@ export default function TableCard({
     return items
   }, [isFull, table.format, table.isPrivate, table.speed, t])
 
+  const visibleBadges = badges.slice(0, 2)
+  const extraBadgeCount = Math.max(badges.length - visibleBadges.length, 0)
+
   const seatRatio = table.maxPlayers > 0 ? Math.min(table.players / table.maxPlayers, 1) : 0
   const seatPercent = Math.round(seatRatio * 100)
   const ringColor = isFull ? 'var(--chip-red)' : 'var(--chip-emerald)'
@@ -132,23 +135,27 @@ export default function TableCard({
       </div>
 
       <div className="table-card__main">
-        <div className="table-card__top">
+        <div className="table-card__headline">
           <p className="table-card__name" dir="auto">
             {table.name}
           </p>
-          <div className="table-card__badges">
-            {badges.map((badge) => (
-              <span
-                key={badge.key}
-                className={cn('table-card__badge', `table-card__badge--${badge.tone}`)}
-              >
-                {badge.label}
-              </span>
-            ))}
-          </div>
+          <span className="table-card__stakes tabular-nums">{stakesLabel}</span>
         </div>
-
-        <div className="table-card__stakes tabular-nums">{stakesLabel}</div>
+        <div className="table-card__badges">
+          {visibleBadges.map((badge) => (
+            <span
+              key={badge.key}
+              className={cn('table-card__badge', `table-card__badge--${badge.tone}`)}
+            >
+              {badge.label}
+            </span>
+          ))}
+          {extraBadgeCount > 0 && (
+            <span className="table-card__badge table-card__badge--muted">
+              +{extraBadgeCount}
+            </span>
+          )}
+        </div>
 
         <div className="table-card__meta">
           <span className="table-card__meta-item tabular-nums">{buyInLabel}</span>
@@ -171,9 +178,12 @@ export default function TableCard({
           className={cn('table-card__join', isFull && 'is-disabled')}
           disabled={isFull}
         >
-          {isFull
-            ? t('lobbyNew.table.status.full', 'Full')
-            : t('lobbyNew.table.join', 'Join')}
+          <FontAwesomeIcon icon={faPlay} className="table-card__join-icon" />
+          <span className="table-card__join-label">
+            {isFull
+              ? t('lobbyNew.table.status.full', 'Full')
+              : t('lobbyNew.table.join', 'Join')}
+          </span>
         </button>
         <button
           type="button"
