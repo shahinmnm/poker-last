@@ -24,19 +24,6 @@ export default function TableCard({
   const { t } = useTranslation()
   const isFull = table.players >= table.maxPlayers
 
-  const statusKey = isFull ? 'full' : table.isPrivate ? 'private' : 'joining'
-  const statusLabel = {
-    joining: t('lobbyNew.table.status.joining', 'Joining'),
-    full: t('lobbyNew.table.status.full', 'Full'),
-    private: t('lobbyNew.table.status.private', 'Private'),
-  }[statusKey]
-
-  const statusClass = {
-    joining: 'bg-[var(--color-success-bg)] text-[var(--color-success-text)]',
-    full: 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]',
-    private: 'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)]',
-  }[statusKey]
-
   const stakesLabel = useMemo(() => {
     const small = table.stakesSmall
     const big = table.stakesBig
@@ -56,8 +43,9 @@ export default function TableCard({
 
   const buyInLabel = useMemo(() => {
     if (typeof table.minBuyIn === 'number' && typeof table.maxBuyIn === 'number') {
-      const min = formatChips(table.minBuyIn)
-      const max = formatChips(table.maxBuyIn)
+      const symbol = table.currency === 'USD' ? '$' : ''
+      const min = `${symbol}${formatChips(table.minBuyIn)}`
+      const max = `${symbol}${formatChips(table.maxBuyIn)}`
       return t('lobbyNew.table.buyInRange', {
         defaultValue: 'Buy-in {{min}}-{{max}}',
         min,
@@ -65,18 +53,7 @@ export default function TableCard({
       })
     }
     return t('lobbyNew.table.buyInUnknown', { defaultValue: 'Buy-in --' })
-  }, [table.minBuyIn, table.maxBuyIn, t])
-
-  const avgPotLabel = useMemo(() => {
-    if (typeof table.avgPot !== 'number') {
-      return t('lobbyNew.table.avgPotUnknown', { defaultValue: 'Avg pot --' })
-    }
-    const symbol = table.currency === 'USD' ? '$' : ''
-    return t('lobbyNew.table.avgPot', {
-      defaultValue: 'Avg pot {{amount}}',
-      amount: `${symbol}${formatChips(table.avgPot)}`,
-    })
-  }, [table.avgPot, table.currency, t])
+  }, [table.currency, table.minBuyIn, table.maxBuyIn, t])
 
   const speedLabel = useMemo(() => {
     if (!table.speed || table.speed === 'standard') return null
@@ -85,53 +62,38 @@ export default function TableCard({
       : t('lobbyNew.table.deep', 'Deep')
   }, [table.speed, t])
 
-  const activity = useMemo(() => {
-    if (!table.lastActiveAt || !Number.isFinite(table.lastActiveAt)) {
-      return {
-        label: t('lobbyNew.table.activity.unknown', '--'),
-        dot: 'bg-[var(--border-3)]',
-        text: 'text-[var(--text-3)]',
-      }
-    }
-    const deltaMs = Date.now() - table.lastActiveAt
-    if (deltaMs <= 120000) {
-      return {
-        label: t('lobbyNew.table.activity.hot', 'Hot'),
-        dot: 'bg-[var(--success)]',
-        text: 'text-[var(--success)]',
-      }
-    }
-    if (deltaMs <= 420000) {
-      return {
-        label: t('lobbyNew.table.activity.active', 'Active'),
-        dot: 'bg-[var(--warning)]',
-        text: 'text-[var(--warning)]',
-      }
-    }
-    return {
-      label: t('lobbyNew.table.activity.idle', 'Idle'),
-      dot: 'bg-[var(--border-3)]',
-      text: 'text-[var(--text-3)]',
-    }
-  }, [table.lastActiveAt, t])
+  const statusLabel = useMemo(() => {
+    if (!table.status) return null
+    const normalized = table.status.replace(/_/g, ' ')
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+  }, [table.status])
 
-  const seatDots = useMemo(
-    () =>
-      Array.from({ length: table.maxPlayers }, (_, index) => {
-        const filled = index < table.players
-        const fillClass = isFull ? 'bg-[var(--danger)]' : 'bg-[var(--success)]'
-        return (
-          <span
-            key={`${table.id}-seat-${index}`}
-            className={cn(
-              'h-1.5 w-1.5 rounded-full',
-              filled ? fillClass : 'bg-[var(--border-3)]',
-            )}
-          />
-        )
-      }),
-    [isFull, table.id, table.maxPlayers, table.players],
-  )
+  const badges = useMemo(() => {
+    const items: Array<{ key: string; label: string; tone: 'amber' | 'red' | 'blue' }> = []
+    if (table.speed === 'turbo') {
+      items.push({ key: 'turbo', label: t('lobbyNew.table.turbo', 'Turbo'), tone: 'amber' })
+    }
+    if (table.speed === 'deep') {
+      items.push({ key: 'deep', label: t('lobbyNew.table.deep', 'Deep'), tone: 'blue' })
+    }
+    if (table.isPrivate) {
+      items.push({ key: 'private', label: t('lobbyNew.table.private', 'Private'), tone: 'amber' })
+    }
+    if (isFull) {
+      items.push({ key: 'full', label: t('lobbyNew.table.status.full', 'Full'), tone: 'red' })
+    }
+    if (table.format === 'headsUp') {
+      items.push({ key: 'headsUp', label: t('lobbyNew.table.headsUp', 'Heads-Up'), tone: 'blue' })
+    }
+    return items
+  }, [isFull, table.format, table.isPrivate, table.speed, t])
+
+  const seatRatio = table.maxPlayers > 0 ? Math.min(table.players / table.maxPlayers, 1) : 0
+  const seatPercent = Math.round(seatRatio * 100)
+  const ringColor = isFull ? 'var(--chip-red)' : 'var(--chip-emerald)'
+  const ringStyle = {
+    background: `conic-gradient(${ringColor} ${seatPercent}%, rgba(255,255,255,0.12) 0)`,
+  }
 
   const handleCardClick = () => {
     if (isFull) return
@@ -155,92 +117,75 @@ export default function TableCard({
       aria-disabled={isFull}
       aria-label={t('lobbyNew.table.open', { defaultValue: 'Open table {{name}}', name: table.name })}
       className={cn(
-        'group relative w-full min-h-[60px] rounded-2xl p-3 transition',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-1)]',
-        'active:translate-y-[1px] active:shadow-[0_6px_16px_rgba(0,0,0,0.3)]',
-        isFull ? 'cursor-not-allowed opacity-80' : 'cursor-pointer',
+        'table-card',
+        isFull ? 'table-card--full' : 'table-card--open',
       )}
-      style={{
-        background:
-          'linear-gradient(135deg, rgba(5, 36, 22, 0.95), rgba(2, 22, 14, 0.92) 55%, rgba(1, 16, 11, 0.98))',
-        boxShadow: '0 10px 24px rgba(0, 0, 0, 0.28)',
-      }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p
-              className="truncate text-[clamp(13px,1.8vw,15px)] font-semibold text-[var(--text-2)]"
-              dir="auto"
-            >
-              {table.name}
-            </p>
-            <span
-              className={cn(
-                'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]',
-                statusClass,
-              )}
-            >
-              {statusLabel}
-            </span>
-          </div>
-
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-[clamp(15px,2.3vw,17px)] font-semibold text-[var(--warning)] tabular-nums">
-              {stakesLabel}
-            </span>
-            <div className="flex items-center gap-2 text-[clamp(11px,1.6vw,13px)] text-[var(--text-2)] tabular-nums">
-              <span>
-                {table.players}/{table.maxPlayers}
-              </span>
-              <span className="flex items-center gap-1">{seatDots}</span>
-            </div>
-          </div>
-
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[clamp(11px,1.5vw,13px)] text-[var(--text-3)]">
-            <span className="tabular-nums">{buyInLabel}</span>
-            <span className="tabular-nums">{avgPotLabel}</span>
-            {speedLabel && (
-              <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-2)]">
-                {speedLabel}
-              </span>
-            )}
-            {table.isPrivate && statusKey !== 'private' && (
-              <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-2)]">
-                {t('lobbyNew.table.private', 'Private')}
-              </span>
-            )}
-            {table.format === 'headsUp' && (
-              <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-2)]">
-                {t('lobbyNew.table.headsUp', 'Heads-Up')}
-              </span>
-            )}
-            <span className={cn('flex items-center gap-1 font-semibold', activity.text)}>
-              <span className={cn('h-1.5 w-1.5 rounded-full', activity.dot)} aria-hidden />
-              {activity.label}
+      <div className="table-card__seat" aria-hidden>
+        <div className="table-card__seat-ring" style={ringStyle}>
+          <div className="table-card__seat-core">
+            <span className="table-card__seat-count tabular-nums">
+              {table.players}/{table.maxPlayers}
             </span>
           </div>
         </div>
+      </div>
 
+      <div className="table-card__main">
+        <div className="table-card__top">
+          <p className="table-card__name" dir="auto">
+            {table.name}
+          </p>
+          <div className="table-card__badges">
+            {badges.map((badge) => (
+              <span
+                key={badge.key}
+                className={cn('table-card__badge', `table-card__badge--${badge.tone}`)}
+              >
+                {badge.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="table-card__stakes tabular-nums">{stakesLabel}</div>
+
+        <div className="table-card__meta">
+          <span className="table-card__meta-item tabular-nums">{buyInLabel}</span>
+          <span className="table-card__meta-item tabular-nums">
+            {table.players}/{table.maxPlayers} {t('lobbyNew.table.players', 'players')}
+          </span>
+          {speedLabel && <span className="table-card__meta-item">{speedLabel}</span>}
+          {statusLabel && <span className="table-card__meta-item">{statusLabel}</span>}
+        </div>
+      </div>
+
+      <div className="table-card__actions">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            if (isFull) return
+            onJoin(table)
+          }}
+          className={cn('table-card__join', isFull && 'is-disabled')}
+          disabled={isFull}
+        >
+          {isFull
+            ? t('lobbyNew.table.status.full', 'Full')
+            : t('lobbyNew.table.join', 'Join')}
+        </button>
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation()
             onToggleFavorite(table.id)
           }}
-          className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
+          className="table-card__favorite"
           aria-label={t('lobbyNew.table.favorite', 'Favorite')}
           aria-pressed={isFavorite}
         >
-          <span
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] text-[12px] transition',
-              'group-active:scale-95',
-              isFavorite ? 'text-[var(--warning)]' : 'text-[var(--text-3)] hover:text-[var(--text-1)]',
-            )}
-          >
-            <FontAwesomeIcon icon={isFavorite ? faStarSolid : faStarRegular} />
-          </span>
+          <FontAwesomeIcon icon={isFavorite ? faStarSolid : faStarRegular} />
         </button>
       </div>
     </div>

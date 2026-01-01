@@ -9,6 +9,7 @@ import LanguageSelector from './LanguageSelector'
 import Avatar from './ui/Avatar'
 import PlaySheet from './layout/PlaySheet'
 import AppBackground from './background/AppBackground'
+import FloatingNavPill from './layout/FloatingNavPill'
 import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
 import { useUserData } from '../providers/UserDataProvider'
@@ -23,7 +24,7 @@ const bottomNavItems = bottomNavKeys
 
 export default function MainLayout() {
   const { t } = useTranslation()
-  const { user } = useTelegram()
+  const { user, ready } = useTelegram()
   const { balance } = useUserData()
   const { showBottomNav } = useLayout()
   const location = useLocation()
@@ -32,9 +33,14 @@ export default function MainLayout() {
   // Hide header and nav when on Table page for immersive full-screen experience
   const isTablePage = location.pathname.startsWith('/table/')
   const isLobbyPage = location.pathname === '/lobby'
+  const showFloatingNav = showBottomNav && !isTablePage
 
   const displayName = user?.first_name || user?.username || 'Player'
   const formatBalance = (bal: number) => formatByCurrency(bal, 'REAL')
+
+  const connectionLabel = ready
+    ? t('common.status.connected', 'Connected')
+    : t('common.status.connecting', 'Connecting')
 
   return (
     <>
@@ -42,53 +48,38 @@ export default function MainLayout() {
       <div
         className={cn(
           'app-shell relative flex h-screen w-screen flex-col overflow-hidden text-[color:var(--color-text)]',
-          isLobbyPage && 'app-shell--lobby',
+          !isTablePage && 'app-shell--safe',
         )}
       >
         {!isTablePage && !isLobbyPage && (
-          <header 
-            className="sticky top-0 z-30 px-4 py-3"
-            style={{
-              background: 'var(--glass-bg-elevated)',
-              borderBottom: '1px solid var(--glass-border)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <div className="mx-auto flex w-full max-w-4xl items-center gap-3">
-              <Link to="/profile" className="flex items-center gap-2.5">
-                <Avatar
-                  size="sm"
-                  className="relative"
-                  style={{ border: '1px solid rgba(255, 255, 255, 0.3)' }}
-                  showTurnIndicator={false}
-                />
-              </Link>
-
-              <div className="flex flex-1 items-center justify-between gap-3">
-                <Link to="/profile" className="flex flex-col leading-tight min-w-0">
-                  <span className="truncate max-w-[120px] font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
+          <header className="app-header">
+            <div className="app-header__content">
+              <Link to="/profile" className="app-header__identity">
+                <Avatar size="sm" className="app-header__avatar" showTurnIndicator={false} />
+                <div className="min-w-0 leading-tight">
+                  <span className="app-header__name" dir="auto">
                     {displayName}
                   </span>
-                  <span className="font-medium text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  <span className="app-header__balance">
                     {balance !== null ? formatBalance(balance) : '...'}
                   </span>
-                </Link>
-
-                <div className="flex items-center gap-2">
-                  <LanguageSelector variant="icon" />
-                  <Link
-                    to="/settings"
-                    className="flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 ease-out active:scale-95"
-                    style={{ 
-                      background: 'var(--glass-bg)',
-                      border: '1px solid var(--glass-border)',
-                      color: 'var(--color-text)',
-                    }}
-                    aria-label={t('menu.settings.label')}
-                  >
-                    <FontAwesomeIcon icon={faGear} className="text-sm" />
-                  </Link>
                 </div>
+              </Link>
+
+              <div className="app-header__status" aria-live="polite">
+                <span className={cn('app-header__dot', ready ? 'is-online' : 'is-offline')} aria-hidden />
+                <span className="app-header__status-label">{connectionLabel}</span>
+              </div>
+
+              <div className="app-header__actions">
+                <LanguageSelector variant="icon" />
+                <Link
+                  to="/settings"
+                  className="app-header__icon-button"
+                  aria-label={t('menu.settings.label')}
+                >
+                  <FontAwesomeIcon icon={faGear} className="text-sm" />
+                </Link>
               </div>
             </div>
           </header>
@@ -99,45 +90,14 @@ export default function MainLayout() {
             'relative mx-auto flex w-full flex-1 flex-col',
             isTablePage
               ? 'h-full w-full max-w-none overflow-hidden p-0'
-              : 'max-w-4xl overflow-y-auto px-4 pb-24 pt-6',
+              : 'app-main max-w-4xl overflow-y-auto px-4 pb-24 pt-4',
             isLobbyPage && 'lobby-main',
           )}
         >
           <Outlet />
         </main>
 
-        {showBottomNav && isLobbyPage && (
-          <div className="lobby-mini-nav" role="navigation" aria-label={t('nav.quick', 'Quick navigation')}>
-            {bottomNavItems
-              .filter((item) => item.key !== 'lobby')
-              .map((item) => (
-                <NavLink
-                  key={item.key}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    cn('lobby-mini-nav__item', isActive && 'is-active')
-                  }
-                  aria-label={t(item.labelKey)}
-                >
-                  {({ isActive }) => (
-                    <span className={cn('lobby-mini-nav__icon', isActive && 'is-active')}>
-                      <FontAwesomeIcon icon={item.icon} />
-                    </span>
-                  )}
-                </NavLink>
-              ))}
-            <button
-              type="button"
-              onClick={() => setIsPlaySheetOpen(true)}
-              className="lobby-mini-nav__item"
-              aria-label={t('nav.play', 'Play')}
-            >
-              <span className="lobby-mini-nav__icon is-play">
-                <FontAwesomeIcon icon={faPlay} />
-              </span>
-            </button>
-          </div>
-        )}
+        {showFloatingNav && <FloatingNavPill items={bottomNavItems} />}
 
         {showBottomNav && !isTablePage && (
           <nav 

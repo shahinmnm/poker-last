@@ -23,20 +23,11 @@ export interface TableSummary {
 }
 
 export interface LobbyFilters {
-  stakesMin: number
-  stakesMax: number
-  seats: number[]
-  buyInMin: number
-  buyInMax: number
   joinableOnly: boolean
   favoritesOnly: boolean
 }
 
-export type LobbySort =
-  | 'stakes_high'
-  | 'seats_available'
-  | 'most_players'
-  | 'recently_active'
+export type LobbySort = 'seats_available' | 'stakes_high' | 'most_players'
 
 const now = Date.now()
 
@@ -309,11 +300,6 @@ export const mockRecentTables: TableSummary[] = [
 ]
 
 export const defaultLobbyFilters: LobbyFilters = {
-  stakesMin: 0.1,
-  stakesMax: 50,
-  seats: [],
-  buyInMin: 15,
-  buyInMax: 15000,
   joinableOnly: false,
   favoritesOnly: false,
 }

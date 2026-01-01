@@ -8,8 +8,14 @@ import { useTelegram } from '../../hooks/useTelegram'
 import { useUserData } from '../../providers/UserDataProvider'
 import { formatByCurrency } from '../../utils/currency'
 import { useLocalization } from '../../providers/LocalizationProvider'
+import { cn } from '../../utils/cn'
 
-export default function LobbyHeader() {
+interface LobbyHeaderProps {
+  statusLabel?: string
+  statusTone?: 'online' | 'muted'
+}
+
+export default function LobbyHeader({ statusLabel, statusTone = 'online' }: LobbyHeaderProps) {
   const { t } = useTranslation()
   const { user } = useTelegram()
   const { balance } = useUserData()
@@ -22,25 +28,27 @@ export default function LobbyHeader() {
   const nextLanguage = supported[(currentIndex + 1) % supported.length]
 
   return (
-    <div className="flex h-11 items-center justify-between gap-2 rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] px-3 shadow-[0_8px_20px_rgba(0,0,0,0.2)]">
-      <Link
-        to="/profile"
-        className="flex min-h-[44px] min-w-0 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-2 py-1"
-      >
-        <Avatar size="sm" showTurnIndicator={false} />
+    <div className="lobby-header">
+      <Link to="/profile" className="lobby-header__identity">
+        <Avatar size="sm" showTurnIndicator={false} className="lobby-header__avatar" />
         <div className="min-w-0 leading-tight">
-          <p
-            className="truncate text-[clamp(13px,1.8vw,15px)] font-semibold text-[var(--text-1)]"
-            dir="auto"
-          >
+          <p className="lobby-header__name" dir="auto">
             {displayName}
           </p>
-          <p className="text-[clamp(11px,1.5vw,12px)] text-[var(--text-3)] tabular-nums">
-            {balanceLabel}
-          </p>
+          <p className="lobby-header__balance tabular-nums">{balanceLabel}</p>
         </div>
       </Link>
-      <div className="flex items-center gap-2">
+
+      {statusLabel && (
+        <div className="lobby-header__status">
+          <span className={cn('lobby-header__dot', statusTone === 'online' && 'is-online')} aria-hidden />
+          <span className="lobby-header__status-label" dir="auto">
+            {statusLabel}
+          </span>
+        </div>
+      )}
+
+      <div className="lobby-header__actions">
         <button
           type="button"
           onClick={() => changeLanguage(nextLanguage.code)}
@@ -53,12 +61,10 @@ export default function LobbyHeader() {
         </button>
         <Link
           to="/settings"
-          className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
+          className="app-header__icon-button"
           aria-label={t('menu.settings.label', 'Settings')}
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] text-[var(--text-2)] transition group-active:scale-95">
-            <FontAwesomeIcon icon={faGear} className="text-[12px]" />
-          </span>
+          <FontAwesomeIcon icon={faGear} className="text-[12px]" />
         </Link>
       </div>
     </div>

@@ -1,12 +1,7 @@
 export default function SkeletonRow() {
   return (
     <div
-      className="animate-pulse rounded-2xl p-3"
-      style={{
-        background:
-          'linear-gradient(135deg, rgba(5, 36, 22, 0.75), rgba(2, 22, 14, 0.7) 55%, rgba(1, 16, 11, 0.8))',
-        boxShadow: '0 8px 20px rgba(0, 0, 0, 0.22)',
-      }}
+      className="table-card table-card--skeleton animate-pulse"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 space-y-2">
