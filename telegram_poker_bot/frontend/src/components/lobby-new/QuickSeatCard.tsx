@@ -16,20 +16,24 @@ interface QuickSeatCardProps {
     seatsOpen: number
     tableName?: string
   } | null
+  fallbackLabel?: string
   onQuickSeat: () => void
   onCreate: () => void
   onJoinPrivate: () => void
   onRefresh: () => void
   disabled?: boolean
+  actionsDisabled?: boolean
 }
 
 export default function QuickSeatCard({
   recommendation,
+  fallbackLabel,
   onQuickSeat,
   onCreate,
   onJoinPrivate,
   onRefresh,
   disabled = false,
+  actionsDisabled = false,
 }: QuickSeatCardProps) {
   const { t } = useTranslation()
 
@@ -39,7 +43,7 @@ export default function QuickSeatCard({
         stakes: recommendation.stakesLabel,
         seats: recommendation.seatsOpen,
       })
-    : t('common.loading', 'Loading...')
+    : fallbackLabel ?? t('common.loading', 'Loading...')
 
   return (
     <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] p-2 shadow-[0_10px_26px_rgba(0,0,0,0.24)]">
@@ -80,36 +84,54 @@ export default function QuickSeatCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2" style={{ marginInlineStart: 'auto' }}>
-          <button
-            type="button"
-            onClick={onCreate}
-            className="group inline-flex min-h-[44px] items-center"
+        <button
+          type="button"
+          onClick={onCreate}
+          disabled={actionsDisabled}
+          className="group inline-flex min-h-[44px] items-center disabled:cursor-not-allowed"
+        >
+          <span
+            className={cn(
+              'flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[clamp(11px,1.5vw,12px)] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]',
+              actionsDisabled && 'opacity-60',
+            )}
           >
-            <span className="flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[clamp(11px,1.5vw,12px)] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]">
-              <FontAwesomeIcon icon={faCirclePlus} className="text-[10px]" />
-              {t('lobbyNew.actions.create', 'Create')}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={onJoinPrivate}
-            className="group inline-flex min-h-[44px] items-center"
+            <FontAwesomeIcon icon={faCirclePlus} className="text-[10px]" />
+            {t('lobbyNew.actions.create', 'Create')}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onJoinPrivate}
+          disabled={actionsDisabled}
+          className="group inline-flex min-h-[44px] items-center disabled:cursor-not-allowed"
+        >
+          <span
+            className={cn(
+              'flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[clamp(11px,1.5vw,12px)] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]',
+              actionsDisabled && 'opacity-60',
+            )}
           >
-            <span className="flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[clamp(11px,1.5vw,12px)] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]">
-              <FontAwesomeIcon icon={faLock} className="text-[10px]" />
-              {t('lobbyNew.actions.joinPrivateShort', 'Join Private')}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="group inline-flex min-h-[44px] items-center"
+            <FontAwesomeIcon icon={faLock} className="text-[10px]" />
+            {t('lobbyNew.actions.joinPrivateShort', 'Join Private')}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={actionsDisabled}
+          className="group inline-flex min-h-[44px] items-center disabled:cursor-not-allowed"
+        >
+          <span
+            className={cn(
+              'flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[clamp(11px,1.5vw,12px)] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]',
+              actionsDisabled && 'opacity-60',
+            )}
           >
-            <span className="flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[clamp(11px,1.5vw,12px)] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]">
-              <FontAwesomeIcon icon={faRotateRight} className="text-[10px]" />
-              {t('lobbyNew.actions.refresh', 'Refresh')}
-            </span>
-          </button>
+            <FontAwesomeIcon icon={faRotateRight} className="text-[10px]" />
+            {t('lobbyNew.actions.refresh', 'Refresh')}
+          </span>
+        </button>
         </div>
       </div>
     </div>
