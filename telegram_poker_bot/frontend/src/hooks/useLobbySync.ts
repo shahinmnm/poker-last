@@ -5,9 +5,9 @@
  * Provides incremental lobby updates.
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { createLobbyWebSocket, WebSocketManager } from '../services/WebSocketManager'
-import { resolveApiUrl } from '../utils/apiClient'
+import { apiFetch } from '../utils/apiClient'
 import type {
   ConnectionState,
   LobbyEntry,
@@ -18,6 +18,8 @@ import type {
 interface UseLobbySyncOptions {
   enabled?: boolean
   refreshInterval?: number // ms for periodic REST refresh
+  initData?: string | null
+  query?: Record<string, string | number | boolean | null | undefined>
 }
 
 interface UseLobbySyncReturn {
@@ -25,7 +27,10 @@ interface UseLobbySyncReturn {
   connectionState: ConnectionState
   isConnected: boolean
   reconnect: () => void
-  refresh: () => void
+  refresh: () => Promise<void>
+  loading: boolean
+  refreshing: boolean
+  error: string | null
 }
 
 // Raw table data shape from backend
@@ -33,7 +38,10 @@ interface RawTableData {
   table_id: number
   template?: {
     name?: string
-    config?: { stakes?: string }
+    config?: Record<string, any>
+    config_json?: {
+      backend?: Record<string, any>
+    }
     table_type?: string
   }
   table_name?: string
@@ -44,6 +52,14 @@ interface RawTableData {
   uptime?: number
   expires_at?: string
   is_private?: boolean
+  table_type?: string
+  currency?: string
+  currency_type?: string
+  buy_in_min?: number
+  buy_in_max?: number
+  rake?: number
+  turn_timer?: number
+  betting_structure?: string
 }
 
 // Helper to normalize table_type string to TableType
@@ -56,59 +72,120 @@ function normalizeTableType(tableType: string | undefined): TableType {
   return 'public'
 }
 
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return undefined
+}
+
 // Helper to convert raw table data to LobbyEntry
 function convertToLobbyEntry(t: RawTableData): LobbyEntry {
+  const templateConfig =
+    t.template?.config ||
+    t.template?.config_json?.backend ||
+    {}
+  const rawStakes =
+    typeof templateConfig?.stakes === 'string' ? templateConfig.stakes : undefined
+  const smallBlind = toNumber(templateConfig?.small_blind)
+  const bigBlind = toNumber(templateConfig?.big_blind)
+  const resolvedStakes =
+    rawStakes ||
+    (smallBlind !== undefined && bigBlind !== undefined
+      ? `${smallBlind}/${bigBlind}`
+      : 'Unknown')
+
   return {
     table_id: t.table_id,
     template_name: t.template?.name || t.table_name || 'Unknown',
     variant: t.game_variant || 'holdem',
-    stakes: t.template?.config?.stakes || 'Unknown',
+    stakes: resolvedStakes,
     player_count: t.player_count || 0,
     max_players: t.max_players || 9,
     waitlist_count: t.waitlist_count || 0,
     uptime: t.uptime,
     expiration: t.expires_at ? new Date(t.expires_at).getTime() : null,
-    table_type: normalizeTableType(t.template?.table_type),
+    table_type: normalizeTableType(t.template?.table_type || t.table_type),
     invite_only: t.is_private || false,
+    currency:
+      t.currency ||
+      t.currency_type ||
+      (templateConfig?.currency as string | undefined),
+    buy_in_min: toNumber(t.buy_in_min ?? templateConfig?.buy_in_min),
+    buy_in_max: toNumber(t.buy_in_max ?? templateConfig?.buy_in_max),
+    rake: t.rake,
+    turn_timer: t.turn_timer,
+    betting_structure: t.betting_structure as LobbyEntry['betting_structure'],
   }
 }
 
 export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncReturn {
-  const { enabled = true, refreshInterval = 25000 } = options
+  const { enabled = true, refreshInterval = 25000, initData, query } = options
+
+  const resolvedQuery = useMemo(() => query ?? { lobby_persistent: true }, [query])
+  const DEBUG = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true
 
   const [tables, setTables] = useState<LobbyEntry[]>([])
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected')
+  const [loading, setLoading] = useState(enabled)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const wsManagerRef = useRef<WebSocketManager | null>(null)
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   
   // Create a stable fetch function using useCallback
-  const fetchTables = useCallback(async () => {
+  const fetchTables = useCallback(async (mode: 'initial' | 'manual' | 'interval') => {
+    if (!enabled) {
+      return
+    }
+    if (mode === 'initial') {
+      setLoading(true)
+    }
+    if (mode === 'manual') {
+      setRefreshing(true)
+    }
     try {
-      const response = await fetch(resolveApiUrl('/tables', { lobby_persistent: true }))
-      if (!response.ok) {
-        throw new Error('Failed to fetch tables')
-      }
-      const data = await response.json()
+      const data = await apiFetch<unknown>('/tables', { initData, query: resolvedQuery })
+      const tablesData: RawTableData[] = Array.isArray(data)
+        ? (data as RawTableData[])
+        : (data && typeof data === 'object' && 'tables' in (data as Record<string, unknown>)
+            ? ((data as { tables?: RawTableData[] }).tables || [])
+            : [])
       
       // Transform to LobbyEntry format using helper
-      const lobbyTables: LobbyEntry[] = (data.tables || []).map((t: RawTableData) => convertToLobbyEntry(t))
+      const lobbyTables: LobbyEntry[] = tablesData.map((t: RawTableData) => convertToLobbyEntry(t))
       
       setTables(lobbyTables)
+      setError(null)
     } catch (error) {
-      console.error('[useLobbySync] Failed to fetch tables:', error)
+      if (DEBUG) {
+        console.error('[useLobbySync] Failed to fetch tables:', error)
+      }
+      setError(error instanceof Error ? error.message : 'Failed to fetch tables')
+    } finally {
+      if (mode === 'initial') {
+        setLoading(false)
+      }
+      if (mode === 'manual') {
+        setRefreshing(false)
+      }
     }
-  }, []) // Empty deps - function is stable across renders
+  }, [DEBUG, enabled, initData, resolvedQuery]) // Empty deps - function is stable across renders
 
   // Initialize WebSocket manager
   useEffect(() => {
     if (!enabled) return
 
     // Initial fetch
-    fetchTables()
+    fetchTables('initial')
 
     // Setup periodic refresh
-    refreshTimerRef.current = setInterval(fetchTables, refreshInterval)
+    refreshTimerRef.current = setInterval(() => {
+      fetchTables('interval')
+    }, refreshInterval)
 
     const wsManager = createLobbyWebSocket({
       onMessage: (message) => {
@@ -120,7 +197,11 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
           const lobbyEntries: LobbyEntry[] = snapshotTables.map(convertToLobbyEntry)
           
           setTables(lobbyEntries)
-          console.log('[useLobbySync] Received lobby snapshot', { tableCount: lobbyEntries.length })
+          setLoading(false)
+          setError(null)
+          if (DEBUG) {
+            console.log('[useLobbySync] Received lobby snapshot', { tableCount: lobbyEntries.length })
+          }
         } else if (lobbyMessage.type === 'lobby_update') {
           const entry = lobbyMessage.payload as LobbyEntry
           setTables((prev) => {
@@ -166,7 +247,9 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
         }
       },
       onStateChange: (newState) => {
-        console.log('[useLobbySync] Connection state:', newState)
+        if (DEBUG) {
+          console.log('[useLobbySync] Connection state:', newState)
+        }
         setConnectionState(newState)
       },
       autoReconnect: true,
@@ -183,16 +266,14 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
       wsManager.disconnect()
       wsManagerRef.current = null
     }
-    // fetchTables is stable (empty deps in useCallback), no need to include in deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, refreshInterval])
+  }, [enabled, fetchTables, refreshInterval])
 
   const reconnect = useCallback(() => {
     wsManagerRef.current?.connect()
   }, [])
 
-  const refresh = useCallback(() => {
-    fetchTables()
+  const refresh = useCallback(async () => {
+    await fetchTables('manual')
   }, [fetchTables])
 
   const isConnected = connectionState !== 'disconnected'
@@ -203,5 +284,8 @@ export function useLobbySync(options: UseLobbySyncOptions = {}): UseLobbySyncRet
     isConnected,
     reconnect,
     refresh,
+    loading,
+    refreshing,
+    error,
   }
 }

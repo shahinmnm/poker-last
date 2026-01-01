@@ -7,18 +7,19 @@ export type TableFormat = 'cash' | 'headsUp'
 export interface TableSummary {
   id: number
   name: string
-  stakesSmall: number
-  stakesBig: number
-  avgPot: number
-  currency: string
+  stakesSmall?: number | null
+  stakesBig?: number | null
+  avgPot?: number | null
+  currency?: string | null
   players: number
   maxPlayers: number
-  minBuyIn: number
-  maxBuyIn: number
-  speed: TableSpeed
-  format: TableFormat
+  minBuyIn?: number | null
+  maxBuyIn?: number | null
+  speed?: TableSpeed | null
+  format?: TableFormat | null
   isPrivate: boolean
-  lastActiveAt: number
+  lastActiveAt?: number | null
+  status?: string | null
 }
 
 export interface LobbyFilters {
@@ -327,28 +328,41 @@ export const fetchMockRecentTables = (delayMs = 450): Promise<TableSummary[]> =>
     setTimeout(() => resolve(mockRecentTables), delayMs)
   })
 
-export function adaptLobbyEntry(entry: LobbyEntry): TableSummary {
-  const stakesText = entry.stakes || '0/0'
+function parseStakes(stakesText?: string | null) {
+  if (!stakesText) {
+    return { small: null, big: null }
+  }
   const normalized = stakesText.replace(/[^0-9./]/g, '')
+  if (!normalized) {
+    return { small: null, big: null }
+  }
   const [smallRaw, bigRaw] = normalized.split('/')
-  const stakesSmall = Number(smallRaw || 0)
-  const stakesBig = Number(bigRaw || smallRaw || 0)
-  const avgPot = Math.max(8, Math.round(stakesBig * 12))
+  const small = smallRaw ? Number(smallRaw) : NaN
+  const big = bigRaw ? Number(bigRaw) : Number(smallRaw)
+  return {
+    small: Number.isFinite(small) ? small : null,
+    big: Number.isFinite(big) ? big : Number.isFinite(small) ? small : null,
+  }
+}
+
+export function adaptLobbyEntry(entry: LobbyEntry): TableSummary {
+  const { small, big } = parseStakes(entry.stakes)
 
   return {
     id: entry.table_id,
     name: entry.template_name,
-    stakesSmall,
-    stakesBig,
-    avgPot,
-    currency: entry.currency || 'CHIPS',
+    stakesSmall: small,
+    stakesBig: big,
+    avgPot: null,
+    currency: entry.currency ?? null,
     players: entry.player_count,
     maxPlayers: entry.max_players,
-    minBuyIn: entry.buy_in_min ?? 0,
-    maxBuyIn: entry.buy_in_max ?? 0,
-    speed: 'standard',
+    minBuyIn: entry.buy_in_min ?? null,
+    maxBuyIn: entry.buy_in_max ?? null,
+    speed: null,
     format: entry.max_players === 2 ? 'headsUp' : 'cash',
     isPrivate: entry.table_type === 'private' || Boolean(entry.invite_only),
-    lastActiveAt: now - (entry.uptime ?? 0) * 1000,
+    lastActiveAt: null,
+    status: null,
   }
 }

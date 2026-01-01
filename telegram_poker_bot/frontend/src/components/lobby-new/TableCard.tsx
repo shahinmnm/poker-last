@@ -38,21 +38,37 @@ export default function TableCard({
   }[statusKey]
 
   const stakesLabel = useMemo(() => {
+    const small = table.stakesSmall
+    const big = table.stakesBig
+    if (
+      typeof small !== 'number' ||
+      typeof big !== 'number' ||
+      !Number.isFinite(small) ||
+      !Number.isFinite(big)
+    ) {
+      return '--'
+    }
     const symbol = table.currency === 'USD' ? '$' : ''
-    return `${symbol}${formatChips(table.stakesSmall)}/${symbol}${formatChips(table.stakesBig)}`
+    return `${symbol}${formatChips(small)}/${symbol}${formatChips(big)}`
   }, [table.currency, table.stakesSmall, table.stakesBig])
 
   const buyInLabel = useMemo(() => {
-    const min = formatChips(table.minBuyIn)
-    const max = formatChips(table.maxBuyIn)
-    return t('lobbyNew.table.buyInRange', {
-      defaultValue: 'Buy-in {{min}}-{{max}}',
-      min,
-      max,
-    })
+    if (typeof table.minBuyIn === 'number' && typeof table.maxBuyIn === 'number') {
+      const min = formatChips(table.minBuyIn)
+      const max = formatChips(table.maxBuyIn)
+      return t('lobbyNew.table.buyInRange', {
+        defaultValue: 'Buy-in {{min}}-{{max}}',
+        min,
+        max,
+      })
+    }
+    return t('lobbyNew.table.buyInUnknown', { defaultValue: 'Buy-in --' })
   }, [table.minBuyIn, table.maxBuyIn, t])
 
   const avgPotLabel = useMemo(() => {
+    if (typeof table.avgPot !== 'number') {
+      return t('lobbyNew.table.avgPotUnknown', { defaultValue: 'Avg pot --' })
+    }
     const symbol = table.currency === 'USD' ? '$' : ''
     return t('lobbyNew.table.avgPot', {
       defaultValue: 'Avg pot {{amount}}',
@@ -61,13 +77,20 @@ export default function TableCard({
   }, [table.avgPot, table.currency, t])
 
   const speedLabel = useMemo(() => {
-    if (table.speed === 'standard') return null
+    if (!table.speed || table.speed === 'standard') return null
     return table.speed === 'turbo'
       ? t('lobbyNew.table.turbo', 'Turbo')
       : t('lobbyNew.table.deep', 'Deep')
   }, [table.speed, t])
 
   const activity = useMemo(() => {
+    if (!table.lastActiveAt || !Number.isFinite(table.lastActiveAt)) {
+      return {
+        label: t('lobbyNew.table.activity.unknown', '--'),
+        dot: 'bg-[var(--border-3)]',
+        text: 'text-[var(--text-3)]',
+      }
+    }
     const deltaMs = Date.now() - table.lastActiveAt
     if (deltaMs <= 120000) {
       return {
@@ -109,12 +132,14 @@ export default function TableCard({
   )
 
   const handleCardClick = () => {
+    if (isFull) return
     onJoin(table)
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
+      if (isFull) return
       onJoin(table)
     }
   }
@@ -125,12 +150,13 @@ export default function TableCard({
       tabIndex={0}
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
+      aria-disabled={isFull}
       aria-label={t('lobbyNew.table.open', { defaultValue: 'Open table {{name}}', name: table.name })}
       className={cn(
-        'group relative w-full min-h-[60px] rounded-2xl p-3 transition cursor-pointer',
+        'group relative w-full min-h-[60px] rounded-2xl p-3 transition',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-1)]',
         'active:translate-y-[1px] active:shadow-[0_6px_16px_rgba(0,0,0,0.3)]',
-        isFull && 'opacity-80',
+        isFull ? 'cursor-not-allowed opacity-80' : 'cursor-pointer',
       )}
       style={{
         background:
