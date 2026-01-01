@@ -39,7 +39,12 @@ export default function MainLayout() {
   return (
     <>
       <AppBackground />
-      <div className="relative flex h-screen w-screen overflow-hidden flex-col text-[color:var(--color-text)]">
+      <div
+        className={cn(
+          'app-shell relative flex h-screen w-screen flex-col overflow-hidden text-[color:var(--color-text)]',
+          isLobbyPage && 'app-shell--lobby',
+        )}
+      >
         {!isTablePage && !isLobbyPage && (
           <header 
             className="sticky top-0 z-30 px-4 py-3"
@@ -89,16 +94,54 @@ export default function MainLayout() {
           </header>
         )}
 
-        <main className={cn(
-          "relative mx-auto flex w-full flex-1 flex-col",
-          isTablePage ? "h-full w-full max-w-none overflow-hidden p-0" : "max-w-4xl overflow-y-auto px-4 pb-24 pt-6"
-        )}>
+        <main
+          className={cn(
+            'relative mx-auto flex w-full flex-1 flex-col',
+            isTablePage
+              ? 'h-full w-full max-w-none overflow-hidden p-0'
+              : 'max-w-4xl overflow-y-auto px-4 pb-24 pt-6',
+            isLobbyPage && 'lobby-main',
+          )}
+        >
           <Outlet />
         </main>
 
+        {showBottomNav && isLobbyPage && (
+          <div className="lobby-mini-nav" role="navigation" aria-label={t('nav.quick', 'Quick navigation')}>
+            {bottomNavItems
+              .filter((item) => item.key !== 'lobby')
+              .map((item) => (
+                <NavLink
+                  key={item.key}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    cn('lobby-mini-nav__item', isActive && 'is-active')
+                  }
+                  aria-label={t(item.labelKey)}
+                >
+                  {({ isActive }) => (
+                    <span className={cn('lobby-mini-nav__icon', isActive && 'is-active')}>
+                      <FontAwesomeIcon icon={item.icon} />
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            <button
+              type="button"
+              onClick={() => setIsPlaySheetOpen(true)}
+              className="lobby-mini-nav__item"
+              aria-label={t('nav.play', 'Play')}
+            >
+              <span className="lobby-mini-nav__icon is-play">
+                <FontAwesomeIcon icon={faPlay} />
+              </span>
+            </button>
+          </div>
+        )}
+
         {showBottomNav && !isTablePage && (
           <nav 
-            className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-safe pt-3"
+            className="app-bottom-nav fixed bottom-0 left-0 right-0 z-40 px-4 pb-safe pt-3"
             style={{ 
               height: '72px',
               background: 'var(--glass-bg-elevated)',

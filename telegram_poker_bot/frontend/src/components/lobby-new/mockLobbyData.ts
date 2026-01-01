@@ -328,6 +328,13 @@ export const fetchMockRecentTables = (delayMs = 450): Promise<TableSummary[]> =>
     setTimeout(() => resolve(mockRecentTables), delayMs)
   })
 
+function normalizePositive(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return null
+  }
+  return value
+}
+
 function parseStakes(stakesText?: string | null) {
   if (!stakesText) {
     return { small: null, big: null }
@@ -340,8 +347,10 @@ function parseStakes(stakesText?: string | null) {
   const small = smallRaw ? Number(smallRaw) : NaN
   const big = bigRaw ? Number(bigRaw) : Number(smallRaw)
   return {
-    small: Number.isFinite(small) ? small : null,
-    big: Number.isFinite(big) ? big : Number.isFinite(small) ? small : null,
+    small: normalizePositive(Number.isFinite(small) ? small : null),
+    big: normalizePositive(
+      Number.isFinite(big) ? big : Number.isFinite(small) ? small : null,
+    ),
   }
 }
 
@@ -351,14 +360,14 @@ export function adaptLobbyEntry(entry: LobbyEntry): TableSummary {
   return {
     id: entry.table_id,
     name: entry.template_name,
-    stakesSmall: small,
-    stakesBig: big,
+    stakesSmall: normalizePositive(small),
+    stakesBig: normalizePositive(big),
     avgPot: null,
     currency: entry.currency ?? null,
     players: entry.player_count,
     maxPlayers: entry.max_players,
-    minBuyIn: entry.buy_in_min ?? null,
-    maxBuyIn: entry.buy_in_max ?? null,
+    minBuyIn: normalizePositive(entry.buy_in_min ?? null),
+    maxBuyIn: normalizePositive(entry.buy_in_max ?? null),
     speed: null,
     format: entry.max_players === 2 ? 'headsUp' : 'cash',
     isPrivate: entry.table_type === 'private' || Boolean(entry.invite_only),
