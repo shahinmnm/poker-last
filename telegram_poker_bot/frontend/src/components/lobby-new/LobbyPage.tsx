@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
+  faCheck,
   faMagnifyingGlass,
   faSliders,
   faSpinner,
@@ -12,8 +13,6 @@ import LobbyHeader from './LobbyHeader'
 import QuickSeatCard from './QuickSeatCard'
 import LobbyTabs, { type LobbyTabKey } from './LobbyTabs'
 import TableCard from './TableCard'
-import FilterSheet from './FilterSheet'
-import SortMenu from './SortMenu'
 import EmptyState from './EmptyState'
 import SkeletonRow from './SkeletonRow'
 import {
@@ -31,7 +30,6 @@ import { extractRuleSummary } from '../../utils/tableRules'
 import type { TableSummary as BackendTableSummary } from '../../types'
 
 const FAVORITES_KEY = 'poker.lobby.favorites'
-const FILTER_KEY = 'poker.lobby.favoriteFilter'
 
 const readStorage = <T,>(key: string, fallback: T): T => {
   if (typeof window === 'undefined') return fallback
@@ -99,13 +97,14 @@ export default function LobbyPage() {
   const [loadingMyTables, setLoadingMyTables] = useState(false)
   const [errorMyTables, setErrorMyTables] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const filterButtonRef = useRef<HTMLButtonElement | null>(null)
+  const filterPopoverRef = useRef<HTMLDivElement | null>(null)
   const [activeTab, setActiveTab] = useState<LobbyTabKey>('cash')
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<LobbyFilters>(defaultLobbyFilters)
-  const [sort, setSort] = useState<LobbySort>('recently_active')
+  const [sort, setSort] = useState<LobbySort>('seats_available')
   const [filterOpen, setFilterOpen] = useState(false)
   const [favoriteIds, setFavoriteIds] = useState<number[]>(() => readStorage(FAVORITES_KEY, []))
-  const [savedFilter, setSavedFilter] = useState<LobbyFilters | null>(() => readStorage(FILTER_KEY, null))
   const [isOffline, setIsOffline] = useState(
     typeof navigator !== 'undefined' ? !navigator.onLine : false,
   )
@@ -204,54 +203,29 @@ export default function LobbyPage() {
   }, [])
 
   useEffect(() => {
-    writeStorage(FAVORITES_KEY, favoriteIds)
-  }, [favoriteIds])
-
-  const filterBounds = useMemo(() => {
-    const stakesValues = publicTables
-      .map((table) => table.stakesBig)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
-    const buyInMins = publicTables
-      .map((table) => table.minBuyIn)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
-    const buyInMaxs = publicTables
-      .map((table) => table.maxBuyIn)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
-
-    return {
-      stakesMin: stakesValues.length
-        ? Math.min(...stakesValues)
-        : defaultLobbyFilters.stakesMin,
-      stakesMax: stakesValues.length
-        ? Math.max(...stakesValues)
-        : defaultLobbyFilters.stakesMax,
-      buyInMin: buyInMins.length
-        ? Math.min(...buyInMins)
-        : defaultLobbyFilters.buyInMin,
-      buyInMax: buyInMaxs.length
-        ? Math.max(...buyInMaxs)
-        : defaultLobbyFilters.buyInMax,
+    if (!filterOpen) return
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (filterPopoverRef.current?.contains(target)) return
+      if (filterButtonRef.current?.contains(target)) return
+      setFilterOpen(false)
     }
-  }, [publicTables])
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setFilterOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [filterOpen])
 
   useEffect(() => {
-    if (!publicTables.length) return
-    const nextFilters = {
-      ...filters,
-      stakesMin: Math.max(filters.stakesMin, filterBounds.stakesMin),
-      stakesMax: Math.min(filters.stakesMax, filterBounds.stakesMax),
-      buyInMin: Math.max(filters.buyInMin, filterBounds.buyInMin),
-      buyInMax: Math.min(filters.buyInMax, filterBounds.buyInMax),
-    }
-    const changed =
-      nextFilters.stakesMin !== filters.stakesMin ||
-      nextFilters.stakesMax !== filters.stakesMax ||
-      nextFilters.buyInMin !== filters.buyInMin ||
-      nextFilters.buyInMax !== filters.buyInMax
-    if (changed) {
-      setFilters(nextFilters)
-    }
-  }, [filters, filterBounds, publicTables.length])
+    writeStorage(FAVORITES_KEY, favoriteIds)
+  }, [favoriteIds])
 
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds])
 
@@ -319,22 +293,8 @@ export default function LobbyPage() {
           if (activeTab === 'private' && !table.isPrivate) return false
         }
 
-        if (filters.seats.length > 0 && !filters.seats.includes(table.maxPlayers)) return false
         if (filters.joinableOnly && table.players >= table.maxPlayers) return false
         if (filters.favoritesOnly && !favoriteSet.has(table.id)) return false
-        if (
-          typeof table.stakesBig === 'number' &&
-          table.stakesBig > 0 &&
-          (table.stakesBig < filters.stakesMin || table.stakesBig > filters.stakesMax)
-        ) {
-          return false
-        }
-        if (typeof table.minBuyIn === 'number' && table.minBuyIn > 0 && table.minBuyIn > filters.buyInMax) {
-          return false
-        }
-        if (typeof table.maxBuyIn === 'number' && table.maxBuyIn > 0 && table.maxBuyIn < filters.buyInMin) {
-          return false
-        }
 
         if (searchNeedle) {
           const stakesLabel =
@@ -360,15 +320,14 @@ export default function LobbyPage() {
           sorted.sort((a, b) => {
             const seatsA = a.maxPlayers - a.players
             const seatsB = b.maxPlayers - b.players
-            return seatsB - seatsA
+            if (seatsB !== seatsA) return seatsB - seatsA
+            return b.players - a.players
           })
           break
         case 'most_players':
           sorted.sort((a, b) => b.players - a.players)
           break
-        case 'recently_active':
         default:
-          sorted.sort((a, b) => (b.lastActiveAt ?? 0) - (a.lastActiveAt ?? 0))
           break
       }
 
@@ -409,13 +368,17 @@ export default function LobbyPage() {
 
   const sortOptions = useMemo(
     () => [
-      { value: 'recently_active' as LobbySort, label: t('lobbyNew.sort.recentlyActive', 'Recently active') },
       { value: 'seats_available' as LobbySort, label: t('lobbyNew.sort.seatsAvailable', 'Seats available') },
-      { value: 'most_players' as LobbySort, label: t('lobbyNew.sort.mostPlayers', 'Most players') },
       { value: 'stakes_high' as LobbySort, label: t('lobbyNew.sort.stakesHigh', 'Stakes high to low') },
+      { value: 'most_players' as LobbySort, label: t('lobbyNew.sort.mostPlayers', 'Most players') },
     ],
     [t],
   )
+
+  const activeFilterCount =
+    Number(filters.joinableOnly) +
+    Number(filters.favoritesOnly) +
+    Number(sort !== 'seats_available')
 
   const tabLabels = useMemo(
     () => ({
@@ -467,24 +430,17 @@ export default function LobbyPage() {
     )
   }
 
-  const resetFilters = () => {
-    setFilters(defaultLobbyFilters)
-    setSearch('')
-  }
-
-  const saveFavoriteFilter = () => {
-    writeStorage(FILTER_KEY, filters)
-    setSavedFilter(filters)
-  }
-
-  const loadFavoriteFilter = () => {
-    if (!savedFilter) return
-    setFilters(savedFilter)
-  }
 
   const actionsDisabled = !ready
   const activeError =
     !ready || authMissing ? null : activeTab === 'history' ? errorMyTables : errorPublic
+  const lobbyStatusLabel = listLoading
+    ? t('common.loading', 'Loading...')
+    : t('lobbyNew.header.tablesCount', {
+        defaultValue: '{{count}} tables',
+        count: totalCount,
+      })
+  const lobbyStatusTone = ready ? 'online' : 'muted'
 
   const emptyState = useMemo(() => {
     if (activeTab === 'history') {
@@ -546,7 +502,7 @@ export default function LobbyPage() {
       className="lobby-screen space-y-3 pb-4"
     >
       <div className="lobby-safe-header">
-        <LobbyHeader />
+        <LobbyHeader statusLabel={lobbyStatusLabel} statusTone={lobbyStatusTone} />
       </div>
 
       {isOffline && (
@@ -592,22 +548,89 @@ export default function LobbyPage() {
               dir="auto"
             />
           </div>
-          <SortMenu
-            value={sort}
-            options={sortOptions}
-            onChange={setSort}
-            label={t('lobbyNew.actions.sort', 'Sort')}
-          />
-          <button
-            type="button"
-            onClick={() => setFilterOpen(true)}
-            className="group inline-flex min-h-[44px] items-center"
-          >
-            <span className="flex h-8 items-center gap-2 rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[11px] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]">
-              <FontAwesomeIcon icon={faSliders} className="text-[10px]" />
-              {t('lobbyNew.actions.filters', 'Filters')}
-            </span>
-          </button>
+          <div className="relative">
+            <button
+              ref={filterButtonRef}
+              type="button"
+              onClick={() => setFilterOpen((prev) => !prev)}
+              className="group inline-flex min-h-[44px] items-center"
+              aria-expanded={filterOpen}
+              aria-haspopup="dialog"
+            >
+              <span className="lobby-filter-button">
+                <FontAwesomeIcon icon={faSliders} className="text-[10px]" />
+                {t('lobbyNew.actions.filters', 'Filters')}
+                {activeFilterCount > 0 && (
+                  <span className="lobby-filter-indicator" aria-label={t('lobbyNew.filters.active', 'Active filters')}>
+                    {activeFilterCount}
+                  </span>
+                )}
+              </span>
+            </button>
+            {filterOpen && (
+              <div ref={filterPopoverRef} className="lobby-filter-popover">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
+                    {t('lobbyNew.filters.title', 'Filters')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setFilters((prev) => ({ ...prev, joinableOnly: !prev.joinableOnly }))}
+                    aria-pressed={filters.joinableOnly}
+                    className="lobby-filter-toggle"
+                  >
+                    <span className="text-[12px] font-medium text-[var(--text-2)]">
+                      {t('lobbyNew.filters.joinableOnly', 'Only joinable')}
+                    </span>
+                    <span
+                      className={`lobby-filter-switch ${filters.joinableOnly ? 'is-active' : ''}`}
+                      aria-hidden="true"
+                    >
+                      <span className="lobby-filter-thumb" />
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }))}
+                    aria-pressed={filters.favoritesOnly}
+                    className="lobby-filter-toggle"
+                  >
+                    <span className="text-[12px] font-medium text-[var(--text-2)]">
+                      {t('lobbyNew.filters.favoritesOnly', 'Favorites')}
+                    </span>
+                    <span
+                      className={`lobby-filter-switch ${filters.favoritesOnly ? 'is-active' : ''}`}
+                      aria-hidden="true"
+                    >
+                      <span className="lobby-filter-thumb" />
+                    </span>
+                  </button>
+                </div>
+                <div className="mt-3 border-t border-[var(--border-3)] pt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
+                    {t('lobbyNew.sort.title', 'Sort')}
+                  </p>
+                  <div className="mt-2 space-y-1">
+                    {sortOptions.map((option) => {
+                      const isActive = option.value === sort
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setSort(option.value)}
+                          className={`lobby-filter-option ${isActive ? 'is-active' : ''}`}
+                          style={{ textAlign: 'start' }}
+                        >
+                          <span dir="auto">{option.label}</span>
+                          {isActive && <FontAwesomeIcon icon={faCheck} className="text-[var(--chip-emerald)]" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <span
             className="rounded-full border border-[var(--border-3)] bg-[var(--surface-3)] px-3 py-1 text-[11px] text-[var(--text-3)] tabular-nums"
             style={{ marginInlineStart: 'auto' }}
@@ -675,28 +698,16 @@ export default function LobbyPage() {
           />
         )}
 
-        {listTables.map((table) => (
-          <TableCard
-            key={table.id}
-            table={table}
-            isFavorite={favoriteSet.has(table.id)}
-            onToggleFavorite={toggleFavorite}
-            onJoin={handleJoinTable}
-          />
-        ))}
-      </div>
-
-      <FilterSheet
-        isOpen={filterOpen}
-        filters={filters}
-        bounds={filterBounds}
-        onChange={setFilters}
-        onClose={() => setFilterOpen(false)}
-        onReset={resetFilters}
-        onSaveFavorite={saveFavoriteFilter}
-        onLoadFavorite={savedFilter ? loadFavoriteFilter : undefined}
-        hasSavedFilter={Boolean(savedFilter)}
-      />
+      {listTables.map((table) => (
+        <TableCard
+          key={table.id}
+          table={table}
+          isFavorite={favoriteSet.has(table.id)}
+          onToggleFavorite={toggleFavorite}
+          onJoin={handleJoinTable}
+        />
+      ))}
+    </div>
     </div>
   )
 }

@@ -22,10 +22,7 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  /* Center (Spotlight): #008f58 */
-  /* Mid (Body): #003d29 */
-  /* Edge (Void): #010b08 */
-  background: radial-gradient(circle at center, #008f58 0%, #003d29 50%, #010b08 100%);
+  background: var(--bg-felt);
 }
 
 /* ==================== LAYER 2: SUBTLE NOISE TEXTURE (VELVET FABRIC) ==================== */
