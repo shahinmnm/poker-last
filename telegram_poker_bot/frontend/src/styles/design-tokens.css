@@ -1,5 +1,5 @@
 /**
- * Design Tokens
+ * Design Tokens - Poker Theme System
  * Central design system tokens for the Telegram Poker Mini App
  * 
  * This file defines the foundational design values used throughout the application.
@@ -71,76 +71,111 @@
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-farsi: 'Vazirmatn', 'Outfit', -apple-system, system-ui, sans-serif;
 
+  /* ==================== POKER THEME TOKENS ==================== */
+  /* Base felt colors - deep green poker table */
+  --felt-0: #0d2818;  /* Deepest felt - edges/vignette */
+  --felt-1: #1a4d32;  /* Main felt green - visible table surface */
+
   /* ==================== SHADOWS ==================== */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
   --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.25);
+  
+  /* Poker-specific shadows */
+  --shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.18);
 
-  /* ==================== COLORS - PRO MODE THEME (ROYAL VELVET) ==================== */
+  /* ==================== COLORS - POKER THEME ==================== */
   color-scheme: dark;
   
   /* ==================== SEMANTIC SURFACE HIERARCHY ==================== */
-  /* Premium casino surface layers for depth and clarity */
-  --surface-1: rgba(11, 27, 21, 0.92);      /* Primary surface - cards, panels */
-  --surface-2: rgba(9, 22, 17, 0.82);       /* Secondary surface - overlays */
-  --surface-3: rgba(13, 34, 26, 0.64);      /* Tertiary surface - subtle backgrounds */
+  /* Dark green/charcoal panels - NOT black */
+  --surface-1: rgba(13, 40, 28, 0.88);      /* Primary surface - cards, panels */
+  --surface-2: rgba(10, 32, 22, 0.78);      /* Secondary surface - chips/controls background */
+  --surface-3: rgba(16, 48, 34, 0.72);      /* Tertiary surface - hover/active */
   
   /* ==================== SEMANTIC TEXT HIERARCHY ==================== */
   --text-1: #fff7ee;                        /* Primary text - headings, names */
   --text-2: #d5cbbd;                        /* Secondary text - labels, values */
   --text-3: #a39787;                        /* Tertiary text - hints, muted info */
+  --muted: #8a8070;                         /* Small meta text */
   
   /* ==================== SEMANTIC BORDER HIERARCHY ==================== */
+  /* Very low opacity borders (6-10%) + inset highlight */
+  --border-weak: rgba(255, 255, 255, 0.08); /* Subtle borders */
   --border-1: rgba(255, 214, 140, 0.4);    /* Strong borders - active states */
   --border-2: rgba(255, 214, 140, 0.22);   /* Medium borders - default */
-  --border-3: rgba(255, 255, 255, 0.08);   /* Subtle borders - disabled */
+  --border-3: rgba(255, 255, 255, 0.06);   /* Weakest borders */
+  
+  /* ==================== ACCENT COLORS ==================== */
+  /* Primary accent: Emerald (actions like Quick Seat / Join) */
+  --accent-emerald: #1ec678;
+  --accent-emerald-hover: #22d984;
+  --accent-emerald-gradient: linear-gradient(135deg, #23d07e 0%, #159a64 100%);
+  
+  /* Money accent: Amber/Gold (balance, stakes, buy-in) */
+  --accent-amber: #f6b454;
+  --accent-amber-soft: rgba(246, 180, 84, 0.15);
+  
+  /* Danger: Red (leave, fold, warnings) */
+  --accent-red: #ef4b4b;
+  --accent-red-soft: rgba(239, 75, 75, 0.15);
+  
+  /* Info: Cyan/Blue (system info) */
+  --accent-blue: #4b94ff;
+  --accent-blue-soft: rgba(75, 148, 255, 0.15);
   
   /* ==================== SEMANTIC ACTION COLORS ==================== */
-  --brand: var(--chip-emerald);             /* Brand accent - primary actions */
-  --brand-hover: #19b870;                   /* Brand hover state */
-  --success: var(--chip-emerald);           /* Success states */
-  --warning: var(--chip-amber);             /* Warning states */
-  --danger: var(--chip-red);                /* Danger/fold states */
+  --brand: var(--accent-emerald);           /* Brand accent - primary actions */
+  --brand-hover: var(--accent-emerald-hover);
+  --success: var(--accent-emerald);         /* Success states */
+  --warning: var(--accent-amber);           /* Warning states */
+  --danger: var(--accent-red);              /* Danger/fold states */
   --danger-hover: #dc2626;                  /* Danger hover */
-  --info: var(--chip-blue);                 /* Info/raise states */
+  --info: var(--accent-blue);               /* Info/raise states */
   
-  /* Background colors - Royal Velvet Gradient */
-  /* Center (Spotlight): #008f58 (Ref: 26017) */
-  /* Felt table background - spotlight + vignette */
-  --bg-felt: radial-gradient(120% 120% at 20% 15%, #1f7d4f 0%, #0f3a27 48%, #070f0b 100%);
+  /* ==================== FELT BACKGROUND ==================== */
+  /* Deep green gradient - NOT black. Subtle vignette (max 15-18% opacity) */
+  --bg-felt: radial-gradient(
+    ellipse 130% 140% at 25% 20%,
+    #1a5c3d 0%,         /* Bright center spotlight - visible felt green */
+    #134a30 35%,        /* Mid felt tone */
+    #0d2818 70%,        /* Darker edges */
+    #091a12 100%        /* Vignette edge - deep green, NOT black */
+  );
   --bg-app: var(--bg-felt);
-  --bg-app-soft: #07110c;
-  --color-bg: #07110c;
+  --bg-app-soft: #0d2818;
+  --color-bg: #0d2818;
   --color-bg-muted: #0a1711;
   --color-bg-gradient: var(--bg-felt);
 
-  /* Surface colors - Felt + charcoal glass */
-  --surface-elevated: rgba(10, 26, 20, 0.92);
-  --surface-muted: rgba(9, 22, 17, 0.82);
-  --color-surface: rgba(10, 26, 20, 0.78);
-  --color-surface-soft: rgba(8, 20, 15, 0.66);
-  --color-surface-overlay: rgba(11, 28, 22, 0.92);
-  --color-surface-muted: rgba(12, 30, 24, 0.58);
-  --bg-glass: rgba(10, 26, 20, 0.78);
-  --bg-elevated-glass: rgba(11, 28, 22, 0.88);
+  /* Surface colors - Felt + charcoal glass (using green undertones, NOT black) */
+  --surface-elevated: rgba(13, 40, 28, 0.92);
+  --surface-muted: rgba(10, 32, 22, 0.82);
+  --color-surface: rgba(13, 40, 28, 0.78);
+  --color-surface-soft: rgba(10, 32, 22, 0.66);
+  --color-surface-overlay: rgba(14, 42, 30, 0.92);
+  --color-surface-muted: rgba(16, 48, 34, 0.58);
+  --bg-glass: rgba(13, 40, 28, 0.78);
+  --bg-elevated-glass: rgba(14, 42, 30, 0.88);
 
-  /* Border colors - Warm casino edges */
-  --border-soft: rgba(255, 214, 140, 0.25);
+  /* Border colors - Subtle (6-10% opacity) */
+  --border-soft: rgba(255, 255, 255, 0.10);
   --border-strong: rgba(12, 18, 14, 0.9);
-  --color-border: rgba(255, 214, 140, 0.22);
-  --color-border-subtle: rgba(255, 214, 140, 0.16);
-  --color-border-glass: rgba(255, 214, 140, 0.2);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-glass: rgba(255, 255, 255, 0.08);
 
   /* ==================== UNIFIED GLASS SYSTEM ==================== */
   /* These tokens ensure consistent glassmorphism across ALL pages */
-  --glass-bg: rgba(10, 26, 20, 0.78);
-  --glass-bg-elevated: rgba(11, 28, 22, 0.9);
-  --glass-border: rgba(255, 214, 140, 0.14);
+  --glass-bg: rgba(13, 40, 28, 0.78);
+  --glass-bg-elevated: rgba(14, 42, 30, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.08);
   --glass-blur: 12px;
   --glass-radius: var(--radius-2xl);
-  --glass-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+  --glass-shadow: var(--shadow-panel);
 
   /* ==================== BUTTON SYSTEM ==================== */
   /* Unified button tokens matching Home page signature */
@@ -221,26 +256,26 @@
   --color-role-seated-bg: rgba(168, 85, 247, 0.22);
   --color-role-seated-text: #f3e8ff;
 
-  /* Component-specific shadows - Depthy felt */
-  --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.2);
-  --shadow-nav: 0 -4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.28);
-  --shadow-elevated: 0 12px 30px rgba(0, 0, 0, 0.32);
-  --shadow-button: 0 6px 18px rgba(0, 0, 0, 0.28);
-  --shadow-glow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  --shadow-strong: 0 12px 30px rgba(0, 0, 0, 0.35);
-  --shadow-accent-glow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  /* Component-specific shadows - Poker theme */
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --shadow-nav: 0 -4px 14px rgba(0, 0, 0, 0.28);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.22);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-button: 0 4px 12px rgba(0, 0, 0, 0.22);
+  --shadow-glow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-accent-glow: 0 0 12px rgba(30, 198, 120, 0.3);
 
   /* Navigation colors */
-  --color-nav-bg: rgba(10, 24, 18, 0.92);
-  --color-nav-border: rgba(255, 214, 140, 0.16);
+  --color-nav-bg: rgba(13, 40, 28, 0.92);
+  --color-nav-border: rgba(255, 255, 255, 0.08);
 }
 
 .is-low-transparency {
   --glass-blur: 0px;
-  --glass-bg: rgba(10, 24, 18, 0.96);
-  --glass-bg-elevated: rgba(11, 26, 20, 0.98);
-  --surface-1: rgba(12, 30, 24, 0.96);
-  --surface-2: rgba(10, 24, 19, 0.94);
-  --surface-3: rgba(12, 30, 24, 0.9);
+  --glass-bg: rgba(13, 40, 28, 0.96);
+  --glass-bg-elevated: rgba(14, 42, 30, 0.98);
+  --surface-1: rgba(13, 40, 28, 0.96);
+  --surface-2: rgba(10, 32, 22, 0.94);
+  --surface-3: rgba(16, 48, 34, 0.9);
 }
