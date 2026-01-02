@@ -83,14 +83,14 @@
   
   /* ==================== SEMANTIC SURFACE HIERARCHY ==================== */
   /* Premium casino surface layers for depth and clarity */
-  --surface-1: rgba(11, 27, 21, 0.92);      /* Primary surface - cards, panels */
-  --surface-2: rgba(9, 22, 17, 0.82);       /* Secondary surface - overlays */
-  --surface-3: rgba(13, 34, 26, 0.64);      /* Tertiary surface - subtle backgrounds */
+  --surface-1: rgba(12, 16, 14, 0.94);      /* Primary surface - cards, panels */
+  --surface-2: rgba(9, 13, 11, 0.86);       /* Secondary surface - overlays */
+  --surface-3: rgba(6, 9, 8, 0.72);      /* Tertiary surface - subtle backgrounds */
   
   /* ==================== SEMANTIC TEXT HIERARCHY ==================== */
   --text-1: #fff7ee;                        /* Primary text - headings, names */
-  --text-2: #d5cbbd;                        /* Secondary text - labels, values */
-  --text-3: #a39787;                        /* Tertiary text - hints, muted info */
+  --text-2: #d1c7b9;                        /* Secondary text - labels, values */
+  --text-3: #9d9287;                        /* Tertiary text - hints, muted info */
   
   /* ==================== SEMANTIC BORDER HIERARCHY ==================== */
   --border-1: rgba(255, 214, 140, 0.4);    /* Strong borders - active states */
@@ -117,17 +117,17 @@
   --color-bg-gradient: var(--bg-felt);
 
   /* Surface colors - Felt + charcoal glass */
-  --surface-elevated: rgba(10, 26, 20, 0.92);
-  --surface-muted: rgba(9, 22, 17, 0.82);
-  --color-surface: rgba(10, 26, 20, 0.78);
-  --color-surface-soft: rgba(8, 20, 15, 0.66);
-  --color-surface-overlay: rgba(11, 28, 22, 0.92);
-  --color-surface-muted: rgba(12, 30, 24, 0.58);
-  --bg-glass: rgba(10, 26, 20, 0.78);
-  --bg-elevated-glass: rgba(11, 28, 22, 0.88);
+  --surface-elevated: rgba(14, 18, 16, 0.94);
+  --surface-muted: rgba(10, 13, 12, 0.86);
+  --color-surface: rgba(10, 14, 12, 0.86);
+  --color-surface-soft: rgba(9, 12, 11, 0.72);
+  --color-surface-overlay: rgba(12, 16, 14, 0.94);
+  --color-surface-muted: rgba(9, 12, 11, 0.7);
+  --bg-glass: rgba(10, 14, 12, 0.82);
+  --bg-elevated-glass: rgba(12, 16, 14, 0.9);
 
   /* Border colors - Warm casino edges */
-  --border-soft: rgba(255, 214, 140, 0.25);
+  --border-soft: rgba(255, 255, 255, 0.12);
   --border-strong: rgba(12, 18, 14, 0.9);
   --color-border: rgba(255, 214, 140, 0.22);
   --color-border-subtle: rgba(255, 214, 140, 0.16);
@@ -173,6 +173,10 @@
   --chip-emerald: #1ec678;
   --chip-blue: #4b94ff;
   --chip-red: #ef4b4b;
+  --accent-emerald: var(--chip-emerald);
+  --accent-amber: var(--chip-amber);
+  --accent-blue: #6fb6ff;
+  --danger-rose: #f45d79;
 
   /* Accent colors */
   --accent-main: var(--chip-emerald);

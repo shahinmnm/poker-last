@@ -20,7 +20,8 @@ export default function LobbyTabs({ activeTab, onChange, labels }: LobbyTabsProp
             key={tab}
             type="button"
             onClick={() => onChange(tab)}
-            className={cn('lobby-tabs__button', isActive && 'is-active')}
+            className={cn('lobby-tabs__button ui-pill', isActive && 'is-active')}
+            aria-pressed={isActive}
           >
             <span
               className={cn(

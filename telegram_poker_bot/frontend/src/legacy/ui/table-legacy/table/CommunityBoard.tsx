@@ -11,6 +11,7 @@ interface CommunityBoardProps {
   potRef?: RefObject<HTMLDivElement>
   currencyType?: CurrencyType
   opponentTag?: string | null
+  showPotInBoard?: boolean
 }
 
 export default function CommunityBoard({
@@ -20,6 +21,7 @@ export default function CommunityBoard({
   potRef,
   currencyType = 'REAL',
   opponentTag = null,
+  showPotInBoard = true,
 }: CommunityBoardProps) {
   const { t } = useTranslation()
   const [isPulsing, setIsPulsing] = useState(false)
@@ -54,18 +56,20 @@ export default function CommunityBoard({
       )}
 
       {/* Pot display - board anchored above community cards */}
-      <div
-        ref={potRef}
-        className={`board-cluster__pot board-pot-anchor pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
-      >
-        <div className="table-pot-pill" title={displayPot}>
-          <span className="table-pot-pill-label">
-            {t('table.potLabel', { defaultValue: 'POT' })}:
-          </span>
-          {/* BETA HARDENING: tabular-nums prevents layout shift when pot changes */}
-          <div className="table-pot-pill-amount">{displayPot}</div>
+      {showPotInBoard && (
+        <div
+          ref={potRef}
+          className={`board-cluster__pot board-pot-anchor pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
+        >
+          <div className="table-pot-pill" title={displayPot}>
+            <span className="table-pot-pill-label">
+              {t('table.potLabel', { defaultValue: 'POT' })}:
+            </span>
+            {/* BETA HARDENING: tabular-nums prevents layout shift when pot changes */}
+            <div className="table-pot-pill-amount">{displayPot}</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* PHASE 3: Community cards - order: 1 (sacred zone, never overlapped) */}
       <div className="board-cluster__cards flex w-full items-center justify-center px-2 sm:px-4 community-cards-sacred">

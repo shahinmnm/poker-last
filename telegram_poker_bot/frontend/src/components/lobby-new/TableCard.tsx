@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlay, faStar as faStarSolid } from '@fortawesome/free-solid-svg-icons'
+import { faCircle, faCoins, faLock, faPlay, faStar as faStarSolid } from '@fortawesome/free-solid-svg-icons'
 import { faStar as faStarRegular } from '@fortawesome/free-regular-svg-icons'
 
 import { cn } from '../../utils/cn'
@@ -68,6 +68,16 @@ export default function TableCard({
     return normalized.charAt(0).toUpperCase() + normalized.slice(1)
   }, [table.status])
 
+  const normalizedSpeed = speedLabel ?? t('lobbyNew.table.standard', 'Standard')
+  const statusTone = useMemo(() => {
+    const normalized = table.status?.toLowerCase()
+    if (!normalized) return null
+    if (['active', 'running', 'in_progress'].includes(normalized)) return 'success'
+    if (['waiting', 'open'].includes(normalized)) return 'warning'
+    if (['full', 'closed', 'finished'].includes(normalized)) return 'muted'
+    return 'info'
+  }, [table.status])
+
   const badges = useMemo(() => {
     const items: Array<{ key: string; label: string; tone: 'amber' | 'red' | 'blue' }> = []
     if (table.speed === 'turbo') {
@@ -130,16 +140,34 @@ export default function TableCard({
             <span className="table-card__seat-count tabular-nums">
               {table.players}/{table.maxPlayers}
             </span>
+            <span className="table-card__seat-label">
+              {t('lobbyNew.table.seatsOpen', 'seats')}
+            </span>
           </div>
+        </div>
+        <div className="table-card__seat-meta">
+          <span className="table-card__speed">{normalizedSpeed}</span>
+          {statusTone && <FontAwesomeIcon icon={faCircle} className={cn('table-card__activity', `is-${statusTone}`)} />}
         </div>
       </div>
 
       <div className="table-card__main">
         <div className="table-card__headline">
-          <p className="table-card__name" dir="auto">
-            {table.name}
-          </p>
-          <span className="table-card__stakes tabular-nums">{stakesLabel}</span>
+          <div className="table-card__title-stack">
+            <p className="table-card__name" dir="auto">
+              {table.name}
+            </p>
+            <div className="table-card__status">
+              {statusTone && <span className={cn('table-card__status-dot', `is-${statusTone}`)} aria-hidden />}
+              <span className="table-card__status-label">
+                {statusLabel || normalizedSpeed}
+              </span>
+            </div>
+          </div>
+          <span className="table-card__stakes tabular-nums">
+            <FontAwesomeIcon icon={faCoins} className="table-card__stakes-icon" />
+            {stakesLabel}
+          </span>
         </div>
         <div className="table-card__badges">
           {visibleBadges.map((badge) => (
@@ -162,8 +190,7 @@ export default function TableCard({
           <span className="table-card__meta-item tabular-nums">
             {table.players}/{table.maxPlayers} {t('lobbyNew.table.players', 'players')}
           </span>
-          {speedLabel && <span className="table-card__meta-item">{speedLabel}</span>}
-          {statusLabel && <span className="table-card__meta-item">{statusLabel}</span>}
+          <span className="table-card__meta-item">{normalizedSpeed}</span>
         </div>
       </div>
 
@@ -178,11 +205,13 @@ export default function TableCard({
           className={cn('table-card__join', isFull && 'is-disabled')}
           disabled={isFull}
         >
-          <FontAwesomeIcon icon={faPlay} className="table-card__join-icon" />
+          <FontAwesomeIcon icon={table.isPrivate ? faLock : faPlay} className="table-card__join-icon" />
           <span className="table-card__join-label">
             {isFull
               ? t('lobbyNew.table.status.full', 'Full')
-              : t('lobbyNew.table.join', 'Join')}
+              : table.isPrivate
+                ? t('lobbyNew.table.private', 'Private')
+                : t('lobbyNew.table.join', 'Join')}
           </span>
         </button>
         <button

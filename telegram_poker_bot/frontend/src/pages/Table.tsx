@@ -1571,6 +1571,10 @@ export default function TablePage() {
     }
     return 0
   }, [liveState?.pot, liveState?.pots])
+  const potDisplayLabel = useMemo(
+    () => formatByCurrency(potDisplayAmount, currencyType, { withDecimals: currencyType === 'REAL' }),
+    [currencyType, potDisplayAmount],
+  )
   // Memoize winner display info to avoid find() on every render
   const winnerDisplayInfo = useMemo(() => {
     if (!lastHandResult?.winners?.length) return null
@@ -1995,8 +1999,8 @@ export default function TablePage() {
   }
 
   const renderActionDock = () => {
-    const dockBaseClass = 'pointer-events-none fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-4'
-    const dockStyle = { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }
+    const dockBaseClass = 'hero-control-rail pointer-events-none fixed inset-x-0 bottom-3 z-50 px-3'
+    const dockStyle = { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }
     // Log rendering decision
     const isActiveGameplayCheck = ACTIVE_GAMEPLAY_STREETS.includes(tableStatus) || tableStatus === 'active'
     console.log('[Table ActionDock] Render decision:', {
@@ -2190,7 +2194,13 @@ export default function TablePage() {
         data-ui-mode={uiMode}
       >
         {/* Back to Lobby Button (Top-Left) */}
-        <div className="absolute top-14 left-4 z-50">
+        <div
+          className="table-back"
+          style={{
+            insetInlineStart: 'max(env(safe-area-inset-left, 0px) + 10px, 12px)',
+            insetBlockStart: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+          }}
+        >
           <button 
             onClick={() => navigate('/lobby')}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white hover:bg-white/10 backdrop-blur-md border border-white/10 shadow-lg transition-all active:scale-95"
@@ -2254,19 +2264,33 @@ export default function TablePage() {
                   {tableDetails && (
                     <div 
                       className="table-header-capsule pointer-events-none" 
-                      style={{ top: 'calc(env(safe-area-inset-top) + 12px)', zIndex: 60 }}
+                      style={{ top: 'calc(env(safe-area-inset-top) + 8px)', zIndex: 60 }}
                     >
-                      {/* Phase 3: Professional TableMenuCapsule with unified tokens */}
-                      <TableMenuCapsule
-                        tableName={templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.defaultName', { defaultValue: 'Poker Table' })}
-                        stakesDisplay={stakesDisplay}
-                        connectionStatus={wsStatus === 'connected' ? 'connected' : wsStatus === 'connecting' ? 'connecting' : 'disconnected'}
-                        onLeaveTable={handleLeave}
-                        onRecentHands={() => setShowRecentHands(true)}
-                        canLeave={canLeave}
-                        isLeaving={isLeaving}
-                        className="pointer-events-auto"
-                      />
+                      <div className="table-top-hud">
+                        <TableMenuCapsule
+                          tableName={templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.defaultName', { defaultValue: 'Poker Table' })}
+                          stakesDisplay={stakesDisplay}
+                          connectionStatus={wsStatus === 'connected' ? 'connected' : wsStatus === 'connecting' ? 'connecting' : 'disconnected'}
+                          onLeaveTable={handleLeave}
+                          onRecentHands={() => setShowRecentHands(true)}
+                          canLeave={canLeave}
+                          isLeaving={isLeaving}
+                          className="pointer-events-auto"
+                        />
+                        <div className="table-top-hud__rail pointer-events-auto">
+                          <div className="table-top-hud__pill" ref={potAreaRef}>
+                            <span className="table-top-hud__label">
+                              {t('table.potLabel', { defaultValue: 'Pot' })}
+                            </span>
+                            <span className="table-top-hud__value tabular-nums">{potDisplayLabel}</span>
+                          </div>
+                          {opponentTag && (
+                            <div className="table-top-hud__pill table-top-hud__pill--muted" dir="auto">
+                              {t('table.hud.opponent', 'Opponent')} • {opponentTag}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -2301,7 +2325,8 @@ export default function TablePage() {
                       cards={liveState.board ?? []}
                       highlightedCards={winningBoardCards}
                       potRef={potAreaRef}
-                      opponentTag={opponentTag}
+                      opponentTag={null}
+                      showPotInBoard={false}
                     />
                     {liveState.hand_result && (
                       <div className="mt-0.5 flex justify-center">
