@@ -206,16 +206,12 @@ export default function LobbyPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const media = window.matchMedia('(max-width: 700px)')
-    const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
-      setIsCompact('matches' in event ? event.matches : media.matches)
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsCompact(event.matches)
     }
-    handleChange(media)
-    if ('addEventListener' in media) {
-      media.addEventListener('change', handleChange)
-      return () => media.removeEventListener('change', handleChange)
-    }
-    media.addListener(handleChange)
-    return () => media.removeListener(handleChange)
+    setIsCompact(media.matches)
+    media.addEventListener('change', handleChange)
+    return () => media.removeEventListener('change', handleChange)
   }, [])
 
   useEffect(() => {
