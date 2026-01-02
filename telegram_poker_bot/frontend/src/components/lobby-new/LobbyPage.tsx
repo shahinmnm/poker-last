@@ -518,19 +518,19 @@ export default function LobbyPage() {
 
   return (
     <div
-      className="lobby-screen space-y-1 pb-2"
+      className="lobby-screen space-y-1"
     >
       <LobbyHeader statusLabel={lobbyStatusLabel} />
 
       {isOffline && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--border-2)] bg-[var(--surface-3)] px-3 py-2 text-[11px] text-[var(--text-2)]">
+        <div className="mx-2 flex items-center gap-2 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-[11px] text-[var(--text-2)]">
           <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" />
           {t('lobbyNew.offline.title', 'Reconnecting...')}
         </div>
       )}
 
       {authMissing && (
-        <div className="rounded-xl border border-[var(--border-2)] bg-[var(--surface-3)] px-3 py-2 text-[11px] text-[var(--text-2)]">
+        <div className="mx-2 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-[11px] text-[var(--text-2)]">
           {t('lobbyNew.auth.required', 'Open inside Telegram to play.')}
         </div>
       )}
@@ -548,7 +548,7 @@ export default function LobbyPage() {
 
       <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
 
-      <div className="lobby-panel lobby-search-panel">
+      <div className="lobby-search-panel">
         <div className="lobby-search-row">
           <div className="lobby-search">
             <FontAwesomeIcon
@@ -561,7 +561,6 @@ export default function LobbyPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
-              className="w-full min-h-[44px] rounded-xl border border-[var(--border-2)] bg-[var(--surface-2)] pl-9 pr-3 text-[12px] text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:ring-2 focus:ring-[var(--border-1)]"
               dir="auto"
             />
           </div>
@@ -598,7 +597,7 @@ export default function LobbyPage() {
                     aria-pressed={filters.joinableOnly}
                     className="lobby-filter-toggle"
                   >
-                    <span className="text-[12px] font-medium text-[var(--text-2)]">
+                    <span className="text-[11px] font-medium text-[var(--text-2)]">
                       {t('lobbyNew.filters.joinableOnly', 'Only joinable')}
                     </span>
                     <span
@@ -614,7 +613,7 @@ export default function LobbyPage() {
                     aria-pressed={filters.favoritesOnly}
                     className="lobby-filter-toggle"
                   >
-                    <span className="text-[12px] font-medium text-[var(--text-2)]">
+                    <span className="text-[11px] font-medium text-[var(--text-2)]">
                       {t('lobbyNew.filters.favoritesOnly', 'Favorites')}
                     </span>
                     <span
@@ -625,7 +624,7 @@ export default function LobbyPage() {
                     </span>
                   </button>
                 </div>
-                <div className="mt-3 border-t border-[var(--border-3)] pt-3">
+                <div className="mt-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
                     {t('lobbyNew.sort.title', 'Sort')}
                   </p>
@@ -651,7 +650,7 @@ export default function LobbyPage() {
             )}
           </div>
           <span
-            className="rounded-full border border-[var(--border-3)] bg-[var(--surface-3)] px-3 py-1 text-[11px] text-[var(--text-3)] tabular-nums"
+            className="rounded-full bg-[var(--surface-2)] px-2 py-1 text-[10px] text-[var(--text-3)] tabular-nums"
             style={{ marginInlineStart: 'auto' }}
           >
             {listLoading
@@ -664,7 +663,7 @@ export default function LobbyPage() {
       </div>
 
       {showSmallScopeHint && (
-        <div className="rounded-xl border border-[var(--border-2)] bg-[var(--surface-3)] px-3 py-2 text-[11px] text-[var(--text-2)]">
+        <div className="mx-2 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-[11px] text-[var(--text-2)]">
           {t('lobbyNew.hint.smallScope', {
             defaultValue: 'Only {{count}} public tables available right now.',
             count: totalCount,
@@ -673,31 +672,31 @@ export default function LobbyPage() {
       )}
 
       {activeTab === 'history' && (
-        <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] px-3 py-2 text-[12px] text-[var(--text-2)]">
+        <div className="mx-2 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-[11px]">
           <p className="font-semibold text-[var(--text-1)]">
             {t('lobbyNew.history.title', 'Your tables')}
           </p>
-          <p className="text-[11px] text-[var(--text-3)]">
+          <p className="text-[10px] text-[var(--text-3)]">
             {t('lobbyNew.history.subtitle', 'Tables you have joined recently.')}
           </p>
         </div>
       )}
 
-      <div className="space-y-1">
+      <div className="space-y-1 px-2">
         {activeError && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] px-3 py-2 text-[11px] text-[var(--text-2)]">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-[11px] text-[var(--text-2)]">
             <div>
-              <p className="text-[12px] font-semibold text-[var(--text-1)]">
+              <p className="text-[11px] font-semibold text-[var(--text-1)]">
                 {t('lobbyNew.error.title', 'Unable to load tables')}
               </p>
-              <p className="text-[11px] text-[var(--text-3)]">{activeError}</p>
+              <p className="text-[10px] text-[var(--text-3)]">{activeError}</p>
             </div>
             <button
               type="button"
               onClick={refreshTables}
               className="group inline-flex min-h-[36px] items-center"
             >
-              <span className="flex h-7 items-center rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-3 text-[11px] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]">
+              <span className="flex h-7 items-center rounded-full bg-[var(--surface-1)] px-3 text-[10px] font-semibold text-[var(--text-2)] transition group-active:scale-[0.97]">
                 {t('common.actions.retry', 'Retry')}
               </span>
             </button>
