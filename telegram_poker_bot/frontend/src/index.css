@@ -1357,7 +1357,7 @@ a {
   flex-wrap: wrap;
   gap: 4px;
   font-size: 0.58rem;
-  color: var(--muted);
+  color: var(--text-3);
 }
 
 .table-card__meta-item {
