@@ -28,7 +28,7 @@ export default function LeavingIndicator({ interactive = false, className }: Lea
         title={label}
         onClick={interactive ? () => setShowTip(true) : undefined}
       >
-        <span aria-hidden>🚪</span>
+        <span aria-hidden>{'\uD83D\uDEAA'}</span>
       </button>
       {showTip && (
         <div className="leaving-indicator__tooltip" role="status" dir="auto">

@@ -45,39 +45,56 @@ export default function QuickSeatCard({
     : fallbackLabel ?? t('common.loading', 'Loading...')
 
   return (
-    <div className="quickseat-strip">
-      <button
-        type="button"
-        onClick={onQuickSeat}
-        disabled={disabled}
-        className="quickseat-strip__primary"
-        aria-label={t('lobbyNew.quickSeat.button', 'Quick Seat')}
-      >
-        <FontAwesomeIcon icon={faPlay} />
-        <span className="quickseat-strip__primary-label">
-          {t('lobbyNew.quickSeat.button', 'Quick Seat')}
-        </span>
-      </button>
-
-      <div className="quickseat-strip__details">
-        <span className="quickseat-strip__label">
+    <div className="quickseat-card ui-panel">
+      <div className="quickseat-card__hero">
+        <div className="quickseat-card__eyebrow">
           <FontAwesomeIcon icon={faBolt} />
-        </span>
-        <span className="quickseat-strip__text" dir="auto">
-          {recommendationLabel}
-          {recommendation?.tableName ? ` - ${recommendation.tableName}` : ''}
-        </span>
+          <span>{t('lobbyNew.quickSeat.eyebrow', 'Play now')}</span>
+        </div>
+        <div className="quickseat-card__headline">
+          <div className="quickseat-card__title">
+            <h2 className="quickseat-card__title-text">{t('lobbyNew.quickSeat.button', 'Quick Seat')}</h2>
+            <p className="quickseat-card__subtitle" dir="auto">
+              {recommendation?.tableName ?? t('lobbyNew.quickSeat.subtitle', 'Best open seat right now')}
+            </p>
+          </div>
+          <div className="quickseat-card__tag">
+            <span className="quickseat-card__tag-label">
+              {recommendation ? t('lobbyNew.quickSeat.seats', '{{count}} open', { count: recommendation.seatsOpen }) : '—'}
+            </span>
+          </div>
+        </div>
+
+        <div className="quickseat-card__cta-row">
+          <button
+            type="button"
+            onClick={onQuickSeat}
+            disabled={disabled}
+            className="quickseat-card__cta ui-cta"
+            aria-label={t('lobbyNew.quickSeat.button', 'Quick Seat')}
+          >
+            <FontAwesomeIcon icon={faPlay} />
+            <span>{t('lobbyNew.quickSeat.button', 'Quick Seat')}</span>
+          </button>
+          <div className="quickseat-card__meta" dir="auto">
+            <span className="quickseat-card__meta-label">{t('lobbyNew.quickSeat.recommendationShort', 'Recommended table')}</span>
+            <span className="quickseat-card__meta-value">
+              {recommendationLabel}
+              {recommendation?.tableName ? ` • ${recommendation.tableName}` : ''}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <div className="quickseat-strip__actions">
+      <div className="quickseat-card__actions">
         <button
           type="button"
           onClick={onCreate}
           disabled={actionsDisabled}
-          className="quickseat-strip__action"
+          className="quickseat-card__action ui-pill"
         >
           <FontAwesomeIcon icon={faCirclePlus} />
-          <span className="quickseat-strip__action-label">
+          <span className="quickseat-card__action-label">
             {t('lobbyNew.actions.create', 'Create')}
           </span>
         </button>
@@ -85,10 +102,10 @@ export default function QuickSeatCard({
           type="button"
           onClick={onJoinPrivate}
           disabled={actionsDisabled}
-          className="quickseat-strip__action"
+          className="quickseat-card__action ui-pill"
         >
           <FontAwesomeIcon icon={faLock} />
-          <span className="quickseat-strip__action-label">
+          <span className="quickseat-card__action-label">
             {t('lobbyNew.actions.joinPrivateShort', 'Join Private')}
           </span>
         </button>
@@ -96,10 +113,10 @@ export default function QuickSeatCard({
           type="button"
           onClick={onRefresh}
           disabled={actionsDisabled}
-          className="quickseat-strip__action"
+          className="quickseat-card__action ui-pill"
         >
           <FontAwesomeIcon icon={faRotateRight} />
-          <span className="quickseat-strip__action-label">
+          <span className="quickseat-card__action-label">
             {t('lobbyNew.actions.refresh', 'Refresh')}
           </span>
         </button>

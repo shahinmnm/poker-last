@@ -11,8 +11,8 @@
   
   /* ActionBar height reservation - prevents seat overlap */
   /* Base height + slider expanded height + hero identity + safe-area + breathing room */
-  --player-dock-row-hero: 24px; /* Hero row visual height (24-28px target) */
-  --player-dock-row-actions-visual: 38px; /* Action row visual height (36-40px target) */
+  --player-dock-row-hero: 28px; /* Hero row visual height (24-28px target) */
+  --player-dock-row-actions-visual: 34px; /* Action row visual height (36-40px target) */
   --player-dock-gap: 6px;
   --player-dock-hit: 56px; /* Action row touch height (>=44px) */
   --player-dock-visual: calc(var(--player-dock-row-hero) + var(--player-dock-row-actions-visual) + var(--player-dock-gap));
@@ -100,6 +100,11 @@
   font-size: clamp(12px, 2.5vw, 14px); /* Responsive base font size */
 }
 
+.table-back {
+  position: absolute;
+  z-index: var(--z-top-hud, 60);
+}
+
 .table-wrapper {
   position: relative;
   flex: 1;
@@ -131,12 +136,64 @@
   left: 50%;
   top: var(--header-top-offset);
   transform: translateX(-50%);
-  width: min(92vw, 440px);
+  width: min(94vw, 560px);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--table-vertical-gap);
   z-index: var(--z-top-hud, 60);
+}
+
+.table-top-hud {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(12, 18, 15, 0.96), rgba(8, 12, 10, 0.9));
+  border: 1px solid var(--border-2);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(var(--glass-blur));
+  pointer-events: auto;
+}
+
+.table-top-hud__rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-top-hud__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-1);
+  background: radial-gradient(circle at 22% 24%, rgba(246, 180, 84, 0.2), rgba(8, 12, 10, 0.9));
+  color: var(--text-1);
+  font-size: 0.82rem;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
+}
+
+.table-top-hud__pill--muted {
+  color: var(--text-2);
+  background: var(--surface-3);
+  border-color: var(--border-3);
+}
+
+.table-top-hud__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.table-top-hud__value {
+  font-weight: 700;
+  color: var(--accent-amber);
 }
 
 /* ==================== TOP HUD LANES ==================== */
@@ -276,9 +333,9 @@
   min-width: 96px;
   padding: 5px 12px;
   border-radius: 999px;
-  background: var(--surface-1, rgba(9, 14, 12, 0.7));
-  border: 1px solid rgba(251, 146, 60, 0.5);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  background: linear-gradient(135deg, rgba(246, 180, 84, 0.18), rgba(9, 14, 12, 0.86));
+  border: 1px solid rgba(251, 146, 60, 0.6);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   color: var(--text-1, #f9fafb);
   text-align: center;
 }
@@ -299,6 +356,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  color: var(--accent-amber, #f6b454);
 }
 
 /* ==================== RESPONSIVE SEAT LAYOUT ==================== */
@@ -1376,6 +1434,17 @@
 
 /* ==================== PLAYER CONTROL DOCK ==================== */
 
+.hero-control-rail {
+  display: flex;
+  justify-content: center;
+  padding-inline: max(10px, env(safe-area-inset-left, 0px));
+}
+
+.hero-control-rail > .w-full {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
 .player-dock {
   width: min(92vw, 900px);
   max-width: 920px;
@@ -1384,6 +1453,11 @@
   align-items: stretch;
   gap: var(--player-dock-gap, 6px);
   margin: 0 auto;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(7, 11, 9, 0.82), rgba(5, 8, 7, 0.86));
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
 }
 
 .player-dock__row {
@@ -1396,9 +1470,9 @@
   min-height: var(--player-dock-row-hero, 24px);
   padding: 2px 8px;
   border-radius: 10px;
-  background: var(--surface-2, rgba(10, 14, 12, 0.55));
-  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.12));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  background: linear-gradient(135deg, rgba(30, 198, 120, 0.16), rgba(9, 13, 11, 0.9));
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.16));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -1522,9 +1596,9 @@
   position: absolute;
   inset: calc((var(--player-dock-hit, 56px) - var(--player-dock-row-actions-visual, 38px)) / 2) var(--action-strip-px, 6px);
   border-radius: var(--action-strip-radius, 12px);
-  background: var(--surface-1, rgba(9, 14, 12, 0.55));
-  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.14));
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  background: linear-gradient(135deg, rgba(15, 23, 19, 0.92), rgba(8, 12, 10, 0.88));
+  border: 1px solid var(--border-2, rgba(255, 255, 255, 0.16));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(6px);
   z-index: 0;
 }

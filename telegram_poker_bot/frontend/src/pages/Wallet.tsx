@@ -54,15 +54,9 @@ function WalletPageInner() {
   if (loading || !balances) {
     return (
       <div
-        className="flex min-h-[40vh] items-center justify-center rounded-2xl"
-        style={{
-          background: 'var(--glass-bg)',
-          backdropFilter: 'blur(var(--glass-blur))',
-          WebkitBackdropFilter: 'blur(var(--glass-blur))',
-          border: '1px solid var(--glass-border)',
-        }}
+        className="wallet-panel flex min-h-[40vh] items-center justify-center"
       >
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-sm ui-muted">
           {t('common.loading')}
         </p>
       </div>
@@ -102,14 +96,7 @@ function WalletPageInner() {
 
   return (
     <div className="space-y-6">
-      <div
-        className="rounded-2xl p-5"
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-          boxShadow: 'var(--glass-shadow)',
-        }}
-      >
+      <div className="wallet-panel p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
@@ -146,7 +133,7 @@ function WalletPageInner() {
               key={card.key}
               type="button"
               onClick={() => setActiveCurrency(card.key)}
-              className="w-full rounded-2xl p-5 text-left transition-transform active:scale-[0.99] focus:outline-none"
+              className="wallet-panel w-full p-5 text-left transition-transform active:scale-[0.99] focus:outline-none"
               style={{
                 background: card.accent,
                 border: `1px solid ${card.border}`,

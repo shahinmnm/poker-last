@@ -63,39 +63,18 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div
-        className="flex min-h-[40vh] items-center justify-center rounded-2xl"
-        style={{
-          background: 'var(--glass-bg)',
-          backdropFilter: 'blur(var(--glass-blur))',
-          WebkitBackdropFilter: 'blur(var(--glass-blur))',
-          border: '1px solid var(--glass-border)',
-        }}
+        className="ui-panel profile-panel flex min-h-[40vh] items-center justify-center"
       >
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
+        <p className="text-sm ui-muted">{t('common.loading')}</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div
-        className="rounded-2xl p-6"
-        style={{
-          background: 'var(--glass-bg)',
-          backdropFilter: 'blur(var(--glass-blur))',
-          WebkitBackdropFilter: 'blur(var(--glass-blur))',
-          border: '1px solid var(--glass-border)',
-          boxShadow: 'var(--glass-shadow)',
-        }}
-      >
+      <div className="ui-panel profile-panel p-6">
         <div className="flex items-center gap-4">
-          <div
-            className="flex h-16 w-16 items-center justify-center rounded-xl"
-            style={{
-              background: 'var(--glass-bg-elevated)',
-              border: '1px solid var(--glass-border)',
-            }}
-          >
+          <div className="profile-tile flex h-16 w-16 items-center justify-center">
             <FontAwesomeIcon icon={faUser} className="text-2xl" style={{ color: 'var(--color-text)' }} />
           </div>
           <div className="flex-1">
@@ -110,19 +89,14 @@ export default function ProfilePage() {
           </div>
           <button
             disabled
-            className="rounded-xl px-3 py-2 text-xs font-medium opacity-50 cursor-not-allowed"
-            style={{
-              background: 'var(--glass-bg)',
-              border: '1px solid var(--glass-border)',
-              color: 'var(--color-text)',
-            }}
+            className="profile-tile px-3 py-2 text-xs font-medium opacity-50 cursor-not-allowed"
           >
             {t('profile.edit')}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="profile-stats-grid">
         {[
           {
             icon: faTrophy,
@@ -151,11 +125,7 @@ export default function ProfilePage() {
         ].map((stat, idx) => (
           <div
             key={idx}
-            className="rounded-xl p-4"
-            style={{
-              background: 'var(--glass-bg)',
-              border: '1px solid var(--glass-border)',
-            }}
+            className="profile-tile p-4"
           >
             <FontAwesomeIcon
               icon={stat.icon}
@@ -175,13 +145,7 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      <div
-        className="rounded-2xl p-4"
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-        }}
-      >
+      <div className="ui-panel profile-panel p-4">
         <h2 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
           {t('profile.achievements.title')}
         </h2>
@@ -193,12 +157,8 @@ export default function ProfilePage() {
           ].map((badge, idx) => (
             <div
               key={idx}
-              className="flex flex-col items-center gap-2 rounded-xl p-3"
-              style={{
-                background: 'var(--glass-bg-elevated)',
-                border: '1px solid var(--glass-border)',
-                opacity: badge.locked ? 0.5 : 1,
-              }}
+              className="profile-tile flex flex-col items-center gap-2 p-3"
+              style={{ opacity: badge.locked ? 0.5 : 1 }}
             >
               <FontAwesomeIcon
                 icon={badge.locked ? faLock : faMedal}
