@@ -45,7 +45,7 @@ export default function QuickSeatCard({
     : fallbackLabel ?? t('common.loading', 'Loading...')
 
   return (
-    <div className="quickseat-strip lobby-panel">
+    <div className="quickseat-strip">
       <button
         type="button"
         onClick={onQuickSeat}
