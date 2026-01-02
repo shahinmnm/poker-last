@@ -711,6 +711,10 @@ a {
   color: var(--text-3);
 }
 
+.lobby-header__status-label--secondary {
+  margin-inline-start: 4px;
+}
+
 .lobby-header__actions {
   display: inline-flex;
   align-items: center;
@@ -1161,23 +1165,19 @@ a {
   position: relative;
 }
 
-/* Chevron tap affordance */
+/* Chevron tap affordance - using CSS borders for cross-browser compatibility */
 .table-card--open::after {
   content: '';
   position: absolute;
-  inset-inline-end: 6px;
+  inset-inline-end: 8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 6px;
-  height: 10px;
-  opacity: 0.25;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    var(--text-3) 50%,
-    transparent 100%
-  );
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 5px;
+  border-color: transparent transparent transparent var(--text-3);
+  opacity: 0.3;
 }
 
 .table-card--open {

@@ -45,7 +45,7 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
               {statusLabel}
             </span>
             {ready && (
-              <span className="lobby-header__status-label" style={{ marginInlineStart: '4px' }}>
+              <span className="lobby-header__status-label lobby-header__status-label--secondary">
                 {t('common.status.online', 'Online')}
               </span>
             )}
