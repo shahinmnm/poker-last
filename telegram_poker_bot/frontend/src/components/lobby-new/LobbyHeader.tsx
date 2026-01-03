@@ -15,7 +15,7 @@ interface LobbyHeaderProps {
 
 export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
   const { t } = useTranslation()
-  const { user } = useTelegram()
+  const { user, ready } = useTelegram()
   const { balance } = useUserData()
   const { language, supported, changeLanguage } = useLocalization()
 
@@ -40,9 +40,15 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
 
         {statusLabel && (
           <div className="lobby-header__status">
+            <span className="lobby-header__status-dot" aria-hidden="true" />
             <span className="lobby-header__status-label" dir="auto">
               {statusLabel}
             </span>
+            {ready && (
+              <span className="lobby-header__status-label lobby-header__status-label--secondary">
+                {t('common.status.online', 'Online')}
+              </span>
+            )}
           </div>
         )}
 
@@ -53,16 +59,18 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
             className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
             aria-label={t('settings.sections.language.title', 'Language')}
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-2)] bg-[var(--surface-2)] text-[10px] font-semibold text-[var(--text-2)] transition group-active:scale-95">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-2)] text-[10px] font-semibold text-[var(--text-2)] transition group-active:scale-95">
               {language.toUpperCase()}
             </span>
           </button>
           <Link
             to="/settings"
-            className="app-header__icon-button"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
             aria-label={t('menu.settings.label', 'Settings')}
           >
-            <FontAwesomeIcon icon={faGear} className="text-[12px]" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-2)] transition active:scale-95">
+              <FontAwesomeIcon icon={faGear} className="text-[11px]" />
+            </span>
           </Link>
         </div>
       </div>

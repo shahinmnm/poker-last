@@ -1,8 +1,8 @@
 /**
- * AppBackground Styles - Royal Velvet Casino Arena
+ * AppBackground Styles - Poker Felt Theme
  * 
- * High-end casino table aesthetic with crisp, sharp render
- * No blurs, no light mode - Pro Mode only
+ * Deep green felt background with subtle vignette and noise texture.
+ * NO black overlay - felt must be visible and the UI should "pop".
  */
 
 /* ==================== BASE CONTAINER ==================== */
@@ -17,7 +17,8 @@
   pointer-events: none;
 }
 
-/* ==================== LAYER 1: ROYAL VELVET GRADIENT ==================== */
+/* ==================== LAYER 1: POKER FELT GRADIENT ==================== */
+/* Deep green gradient - NOT black. Subtle vignette (max 15-18% opacity) */
 .app-background__base {
   position: absolute;
   inset: 0;
@@ -25,25 +26,26 @@
   background: var(--bg-felt);
 }
 
-/* ==================== LAYER 2: SUBTLE NOISE TEXTURE (VELVET FABRIC) ==================== */
+/* ==================== LAYER 2: SUBTLE NOISE TEXTURE ==================== */
+/* Very low opacity (3-6%) - doesn't dim content */
 .app-background__noise {
   position: absolute;
   inset: 0;
   z-index: 2;
-  opacity: 0.05;
+  opacity: 0.04;
   mix-blend-mode: overlay;
   pointer-events: none;
   background-image: 
     repeating-radial-gradient(
       circle at 20% 30%,
       transparent 0,
-      rgba(255, 255, 255, 0.08) 1px,
+      rgba(255, 255, 255, 0.06) 1px,
       transparent 2px
     ),
     repeating-radial-gradient(
       circle at 80% 70%,
       transparent 0,
-      rgba(255, 255, 255, 0.06) 1px,
+      rgba(255, 255, 255, 0.04) 1px,
       transparent 2px
     );
   background-size: 3px 3px, 4px 4px;
