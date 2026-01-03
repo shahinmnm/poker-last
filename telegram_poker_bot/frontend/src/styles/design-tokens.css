@@ -17,34 +17,41 @@
   --space-2xl: 2rem;      /* 32px */
   --space-3xl: 2.5rem;    /* 40px */
 
-  /* ==================== BORDER RADIUS SCALE ==================== */
-  --radius-sm: 0.25rem;   /* 4px - chips, small badges */
-  --radius-md: 0.5rem;    /* 8px - buttons, inputs */
-  --radius-lg: 0.75rem;   /* 12px - cards, tiles */
-  --radius-xl: 1rem;      /* 16px - large cards */
-  --radius-2xl: 1.625rem; /* 26px - app cards */
-  --radius-panel: 16px;
-  --radius-card: 14px;
-  --radius-button: 10px;
-  --radius-pill: 999px;   /* full rounded - pills, segmented controls */
-  --radius-chip: var(--radius-pill);
+  /* ==================== BORDER RADIUS SCALE (UNIFIED) ==================== */
+  /* Enforced global radius scale per design system:
+   * Large containers: 16px
+   * Cards / panels: 14px  
+   * Chips / buttons: 10-12px
+   * Icons / mini buttons: 8px
+   */
+  --radius-sm: 8px;       /* Icons, mini buttons */
+  --radius-md: 10px;      /* Chips, small buttons */
+  --radius-lg: 12px;      /* Buttons, inputs */
+  --radius-xl: 14px;      /* Cards, panels */
+  --radius-2xl: 16px;     /* Large containers */
+  --radius-panel: 16px;   /* Large containers */
+  --radius-card: 14px;    /* Cards / panels */
+  --radius-button: 10px;  /* Buttons */
+  --radius-chip: 10px;    /* Chips */
+  --radius-pill: 999px;   /* Pills only where appropriate */
+  --radius-icon: 8px;     /* Icon buttons */
 
-  /* ==================== TYPOGRAPHY SCALE ==================== */
-  /* Font sizes - optimized for mobile and Farsi support */
-  /* IMPROVED: Raised minimum sizes for better mobile readability */
-  --fs-caption: 0.75rem;      /* 12px (was 11px) */
-  --fs-label: 0.8125rem;      /* 13px (was 12px) */
-  --fs-body: 0.875rem;        /* 14px (was 13px) */
-  --fs-title: 1rem;           /* 16px (was 15px) */
-  --fs-large: 1.125rem;       /* 18px (was 17px) */
-  --font-size-xs: 0.6875rem;  /* 11px (was 10px) */
-  --font-size-sm: 0.8125rem;  /* 13px (was 12px) */
-  --font-size-base: 0.875rem; /* 14px */
-  --font-size-md: 1rem;       /* 16px (was 15px) */
-  --font-size-lg: 1.0625rem;  /* 17px (was 16px) */
-  --font-size-xl: 1.1875rem;  /* 19px (was 18px) */
-  --font-size-2xl: 1.3125rem; /* 21px (was 20px) */
-  --font-size-3xl: 1.5625rem; /* 25px (was 24px) */
+  /* ==================== TYPOGRAPHY SCALE (REDUCED BY 15-20%) ==================== */
+  /* Font sizes - optimized for mobile, Farsi support, and reduced visual density */
+  /* Minimum 11px maintained for readability per accessibility guidelines */
+  --fs-caption: 0.6875rem;    /* 11px - smallest readable text */
+  --fs-label: 0.6875rem;      /* 11px - labels */
+  --fs-body: 0.75rem;         /* 12px - body text */
+  --fs-title: 0.8125rem;      /* 13px - section titles */
+  --fs-large: 0.9375rem;      /* 15px - large headings */
+  --font-size-xs: 0.6875rem;  /* 11px - minimum readable size */
+  --font-size-sm: 0.6875rem;  /* 11px - small text */
+  --font-size-base: 0.75rem;  /* 12px - base text */
+  --font-size-md: 0.8125rem;  /* 13px - medium text */
+  --font-size-lg: 0.875rem;   /* 14px - large text */
+  --font-size-xl: 0.9375rem;  /* 15px - extra large */
+  --font-size-2xl: 1.0625rem; /* 17px - 2xl text */
+  --font-size-3xl: 1.25rem;   /* 20px - 3xl text */
   
   /* ==================== TOUCH TARGETS ==================== */
   /* Minimum touch target sizes for accessibility */

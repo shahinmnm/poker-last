@@ -736,6 +736,7 @@ a {
 }
 
 /* ==================== LOBBY HEADER ==================== */
+/* Compact identity header with no empty space */
 .lobby-header {
   padding-top: var(--tg-safe-top);
   padding-inline-start: var(--tg-safe-inline-start);
@@ -746,38 +747,38 @@ a {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 4px 2px;
-  border-radius: var(--radius-panel);
+  gap: 6px;
+  min-height: 36px;
+  padding: 2px;
+  border-radius: var(--radius-card);
   background: transparent;
 }
 
 .lobby-header__identity {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 4px 8px;
+  gap: 6px;
+  min-height: 36px;
+  padding: 3px 6px;
   border-radius: var(--radius-button);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-3);
   color: var(--text-1);
 }
 
 .lobby-header__avatar {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
   border: 1px solid var(--border-weak);
 }
 
 .lobby-header__name {
   display: block;
-  font-size: 0.58rem;
+  font-size: 0.5625rem;
   font-weight: 600;
   color: var(--text-1);
-  max-width: 96px;
+  max-width: 80px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -786,46 +787,48 @@ a {
 /* Balance - money accent (amber/gold) */
 .lobby-header__balance {
   display: block;
-  font-size: 0.52rem;
+  font-size: 0.5625rem;
   color: var(--accent-amber);
-  font-weight: 600;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .lobby-header__status {
   justify-self: center;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 4px;
+  border-radius: var(--radius-chip);
 }
 
 /* Status dot - subtle emerald glow */
 .lobby-header__status-dot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 999px;
   background: var(--accent-emerald);
-  box-shadow: 0 0 4px rgba(30, 198, 120, 0.35);
+  box-shadow: 0 0 3px rgba(30, 198, 120, 0.3);
 }
 
 .lobby-header__status-label {
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-2);
+  color: var(--text-3);
+  white-space: nowrap;
 }
 
 .lobby-header__status-label--secondary {
-  margin-inline-start: 4px;
+  margin-inline-start: 3px;
 }
 
 .lobby-header__actions {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .app-shell {
@@ -1029,38 +1032,39 @@ a {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-card);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(12, 16, 14, 0.5);
-  padding: 10px;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(12, 16, 14, 0.6);
+  padding: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .quickseat-card__hero {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .quickseat-card__eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgba(246, 180, 84, 0.16);
-  background: rgba(246, 180, 84, 0.06);
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-chip);
+  border: 1px solid rgba(246, 180, 84, 0.18);
+  background: rgba(246, 180, 84, 0.08);
   color: var(--chip-amber);
-  font-size: 0.56rem;
+  font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  width: fit-content;
 }
 
 .quickseat-card__headline {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: nowrap;
 }
 
@@ -1071,28 +1075,30 @@ a {
 
 .quickseat-card__title-text {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   line-height: 1.2;
   color: var(--text-1);
 }
 
 .quickseat-card__subtitle {
-  margin: 2px 0 0;
+  margin: 1px 0 0;
   color: var(--text-2);
-  font-size: 0.76rem;
+  font-size: 0.6875rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .quickseat-card__tag {
-  padding: 4px 8px;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
+  padding: 2px 6px;
+  border-radius: var(--radius-chip);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-1);
-  font-size: 0.62rem;
+  font-size: 0.5625rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .quickseat-card__cta-row {
@@ -1202,17 +1208,16 @@ a {
 }
 
 /* ==================== LOBBY TABS ==================== */
-/* Clean chips, active = bright text + subtle underline/glow */
+/* Visually separated tab selector - NOT pills stuck to search bar */
 .lobby-tabs {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 6px;
-  padding: 4px;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  background: transparent;
-  box-shadow: none;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-button);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -1224,7 +1229,7 @@ a {
 .lobby-tabs__button {
   display: inline-flex;
   align-items: center;
-  min-height: var(--touch-target-min);
+  min-height: 36px;
   padding: 0;
   flex: 0 0 auto;
 }
@@ -1233,26 +1238,25 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: var(--radius-pill);
-  font-size: 0.6rem;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--radius-icon);
+  font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
   border: none;
   color: var(--text-3);
   background: transparent;
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-/* Active tab: brighter text + subtle glow */
+/* Active tab: clear visual state */
 .lobby-tabs__chip.is-active {
   color: var(--text-1);
-  background: rgba(30, 198, 120, 0.12);
-  border: 1px solid rgba(30, 198, 120, 0.22);
-  box-shadow: none;
+  background: rgba(30, 198, 120, 0.14);
+  border: 1px solid rgba(30, 198, 120, 0.24);
 }
 
 .lobby-browse {
@@ -1691,14 +1695,14 @@ a {
 .table-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  gap: 4px;
+  padding: 6px 8px;
   border-radius: var(--radius-card);
-  min-height: 64px;
+  min-height: 52px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(13, 16, 15, 0.66);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
 .table-card--open {
@@ -1865,23 +1869,23 @@ a {
 }
 
 .table-card__name {
-  font-size: 0.76rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 160px;
 }
 
 .table-card__status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   color: var(--text-3);
-  font-size: 0.66rem;
-  font-weight: 700;
-  flex-wrap: wrap;
-  row-gap: 2px;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  flex-wrap: nowrap;
   min-width: 0;
 }
 
@@ -1922,17 +1926,17 @@ a {
 }
 
 .table-card__stakes {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: rgba(246, 180, 84, 0.85);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: rgba(246, 180, 84, 0.9);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: var(--radius-pill);
-  background: rgba(246, 180, 84, 0.06);
-  border: 1px solid rgba(246, 180, 84, 0.14);
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-chip);
+  background: rgba(246, 180, 84, 0.08);
+  border: 1px solid rgba(246, 180, 84, 0.16);
   min-width: 0;
   overflow: hidden;
 }
@@ -2009,36 +2013,35 @@ a {
   flex: 1 1 auto;
 }
 
-/* Join button - emerald gradient */
+/* Join button - emerald gradient, compact */
 .table-card__join {
   position: relative;
-  min-height: var(--touch-target-min);
-  min-width: 96px;
-  padding: 0 12px;
+  min-height: 36px;
+  min-width: 72px;
+  padding: 0 10px;
   border-radius: var(--radius-button);
   border: none;
   background: transparent;
   color: #0b1b12;
-  font-size: 0.64rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  box-shadow: none;
+  gap: 4px;
 }
 
 .table-card__join::before {
   content: '';
   position: absolute;
-  inset: 6px 0;
+  inset: 4px 0;
   border-radius: var(--radius-button);
-  border: 1px solid rgba(30, 198, 120, 0.18);
+  border: 1px solid rgba(30, 198, 120, 0.2);
   background: linear-gradient(135deg, #1fb06f, #158457);
-  box-shadow: 0 2px 6px rgba(16, 60, 42, 0.2);
+  box-shadow: 0 1px 4px rgba(16, 60, 42, 0.15);
 }
 
 .table-card__join > * {
@@ -2404,4 +2407,81 @@ a {
 
 .seat-enter {
   animation: seatFadeSlideIn 320ms ease-out;
+}
+
+/* ==================== GLOBAL TEXT TRUNCATION & NO-WRAP ENFORCEMENT ==================== */
+/* CRITICAL: No text wrapping anywhere in the UI per design requirements */
+
+/* Global truncation utility - use on any element that should truncate */
+.truncate,
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Enforce no-wrap on buttons, labels, badges, chips */
+button,
+.ui-pill,
+.ui-chip,
+.ui-cta,
+.app-button,
+.lobby-tabs__chip,
+.table-card__badge,
+.table-card__name,
+.table-card__stakes,
+.quickseat-card__cta-label,
+.quickseat-card__action-label,
+.lobby-filter-button,
+.dock-chip__label,
+.rail-chip__label,
+.action-label-safe,
+.your-table-row__name,
+.your-table-row__stakes,
+.player-dock__name,
+.hero-lane__name,
+.lobby-header__name,
+.section-eyebrow,
+.section-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tabular figures for all numeric values */
+.tabular-nums,
+[class*="__stakes"],
+[class*="__balance"],
+[class*="__stack"],
+[class*="__amount"],
+[class*="__count"],
+[class*="__value"],
+.table-pot-pill-amount,
+.raise-cluster__value,
+.player-dock__stack-value,
+.hero-lane__stack {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==================== REDUCED VISUAL NOISE ==================== */
+/* Reduce gradients, glows, and shadows globally */
+
+/* Softer shadows */
+.ui-panel,
+.glass-card,
+.table-card,
+.quickseat-card,
+.lobby-panel,
+.player-dock {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Reduce glow effects */
+.ui-glow-emerald {
+  box-shadow: 0 0 0 1px rgba(30, 198, 120, 0.08), 0 4px 8px rgba(30, 198, 120, 0.08);
+}
+
+.ui-glow-amber {
+  box-shadow: 0 0 0 1px rgba(246, 180, 84, 0.08), 0 4px 8px rgba(246, 180, 84, 0.08);
 }
