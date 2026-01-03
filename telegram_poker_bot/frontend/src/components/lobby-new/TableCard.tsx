@@ -188,7 +188,9 @@ export default function TableCard({
                     className={cn('table-card__activity', `is-${statusTone}`)}
                   />
                 )}
-                <span className="table-card__speed">{statusLabel || normalizedSpeed}</span>
+                {statusLabel && <span className="table-card__speed">{statusLabel}</span>}
+                {statusLabel && <span className="table-card__status-separator">•</span>}
+                <span className="table-card__speed">{normalizedSpeed}</span>
               </div>
             </div>
             <div className="table-card__badges">
@@ -215,7 +217,6 @@ export default function TableCard({
                 ? t('lobbyNew.tabs.headsUpShort', 'HU')
                 : t('lobbyNew.tabs.cashShort', 'Cash')}
             </span>
-            <span className="table-card__meta-item">{normalizedSpeed}</span>
           </div>
         </div>
 
