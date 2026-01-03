@@ -103,7 +103,7 @@ export default function TableCard({
 
   const seatRatio = table.maxPlayers > 0 ? Math.min(table.players / table.maxPlayers, 1) : 0
   const seatPercent = Math.round(seatRatio * 100)
-  const ringColor = isFull ? 'rgba(239, 75, 75, 0.85)' : 'rgba(30, 198, 120, 0.85)'
+  const ringColor = isFull ? 'rgba(239, 75, 75, 0.7)' : 'rgba(30, 198, 120, 0.7)'
   const ringStyle = {
     backgroundImage: `conic-gradient(${ringColor} ${seatPercent}%, rgba(255,255,255,0.08) 0)`,
   }
@@ -129,102 +129,108 @@ export default function TableCard({
       onKeyDown={handleKeyDown}
       aria-disabled={isFull}
       aria-label={t('lobbyNew.table.open', { defaultValue: 'Open table {{name}}', name: table.name })}
-      className={cn(
-        'table-card',
-        isFull ? 'table-card--full' : 'table-card--open',
-      )}
+      className={cn('table-card', isFull ? 'table-card--full' : 'table-card--open')}
     >
-      <div className="table-card__seat" aria-hidden>
-        <div className="table-card__seat-ring" style={ringStyle}>
-          <div className="table-card__seat-core">
-            <span className="table-card__seat-count tabular-nums">
-              {table.players}/{table.maxPlayers}
-            </span>
-            <span className="table-card__seat-label">
-              {t('lobbyNew.table.seatsOpen', 'seats')}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="table-card__main">
-      <div className="table-card__headline">
-        <div className="table-card__title-stack">
-          <p className="table-card__name" dir="auto">
-            {table.name}
-          </p>
-          <div className="table-card__status">
-            <span className="table-card__status-label">
-              {table.players}/{table.maxPlayers} {t('lobbyNew.table.players', 'players')}
-            </span>
-          </div>
-        </div>
-        <div className="table-card__seat-meta">
-          {statusTone && <FontAwesomeIcon icon={faCircle} className={cn('table-card__activity', `is-${statusTone}`)} />}
-          <span className="table-card__speed">{statusLabel || normalizedSpeed}</span>
-        </div>
-      </div>
-        <div className="table-card__badges">
-          {visibleBadges.map((badge) => (
-            <span
-              key={badge.key}
-              className={cn('table-card__badge', `table-card__badge--${badge.tone}`)}
-            >
-              {badge.label}
-            </span>
-          ))}
-          {extraBadgeCount > 0 && (
-            <span className="table-card__badge table-card__badge--muted">
-              +{extraBadgeCount}
-            </span>
-          )}
-        </div>
-
-        <div className="table-card__meta">
-          <span className="table-card__meta-item tabular-nums">{buyInLabel}</span>
-          <span className="table-card__meta-item tabular-nums">
-            {table.players}/{table.maxPlayers} {t('lobbyNew.table.players', 'players')}
-          </span>
-          <span className="table-card__meta-item">{normalizedSpeed}</span>
-        </div>
-      </div>
-
-      <div className="table-card__actions">
+      <div className="table-card__topline">
         <div className="table-card__stakes tabular-nums">
           <FontAwesomeIcon icon={faCoins} className="table-card__stakes-icon" />
           <span className="table-card__stakes-value">{stakesLabel}</span>
         </div>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation()
-            if (isFull) return
-            onJoin(table)
-          }}
-          className={cn('table-card__join', isFull && 'is-disabled')}
-          disabled={isFull}
-        >
-          <FontAwesomeIcon icon={table.isPrivate ? faLock : faPlay} className="table-card__join-icon" />
-          <span className="table-card__join-label">
-            {isFull
-              ? t('lobbyNew.table.status.full', 'Full')
-              : table.isPrivate
-                ? t('lobbyNew.table.private', 'Private')
-                : t('lobbyNew.table.join', 'Join')}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation()
-            onToggleFavorite(table.id)
-          }}
-          className="table-card__favorite"
-          aria-label={t('lobbyNew.table.favorite', 'Favorite')}
-          aria-pressed={isFavorite}
-        >
-          <FontAwesomeIcon icon={isFavorite ? faStarSolid : faStarRegular} />
-        </button>
+        <div className="table-card__cta-group">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (isFull) return
+              onJoin(table)
+            }}
+            className={cn('table-card__join', isFull && 'is-disabled')}
+            disabled={isFull}
+          >
+            <FontAwesomeIcon icon={table.isPrivate ? faLock : faPlay} className="table-card__join-icon" />
+            <span className="table-card__join-label">
+              {isFull
+                ? t('lobbyNew.table.status.full', 'Full')
+                : table.isPrivate
+                  ? t('lobbyNew.table.private', 'Private')
+                  : t('lobbyNew.table.join', 'Join')}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleFavorite(table.id)
+            }}
+            className="table-card__favorite"
+            aria-label={t('lobbyNew.table.favorite', 'Favorite')}
+            aria-pressed={isFavorite}
+          >
+            <FontAwesomeIcon icon={isFavorite ? faStarSolid : faStarRegular} />
+          </button>
+        </div>
+      </div>
+
+      <div className="table-card__body">
+        <div className="table-card__main">
+          <div className="table-card__headline">
+            <div className="table-card__title-stack">
+              <p className="table-card__name" dir="auto">
+                {table.name}
+              </p>
+              <div className="table-card__status">
+                <span className="table-card__status-label">
+                  {table.players}/{table.maxPlayers} {t('lobbyNew.table.players', 'players')}
+                </span>
+                {statusTone && (
+                  <FontAwesomeIcon
+                    icon={faCircle}
+                    className={cn('table-card__activity', `is-${statusTone}`)}
+                  />
+                )}
+                <span className="table-card__speed">{statusLabel || normalizedSpeed}</span>
+              </div>
+            </div>
+            <div className="table-card__badges">
+              {visibleBadges.map((badge) => (
+                <span
+                  key={badge.key}
+                  className={cn('table-card__badge', `table-card__badge--${badge.tone}`)}
+                >
+                  {badge.label}
+                </span>
+              ))}
+              {extraBadgeCount > 0 && (
+                <span className="table-card__badge table-card__badge--muted">
+                  +{extraBadgeCount}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="table-card__meta">
+            <span className="table-card__meta-item tabular-nums">{buyInLabel}</span>
+            <span className="table-card__meta-item">
+              {table.format === 'headsUp'
+                ? t('lobbyNew.tabs.headsUpShort', 'HU')
+                : t('lobbyNew.tabs.cashShort', 'Cash')}
+            </span>
+            <span className="table-card__meta-item">{normalizedSpeed}</span>
+          </div>
+        </div>
+
+        <div className="table-card__seat" aria-hidden>
+          <div className="table-card__seat-ring" style={ringStyle}>
+            <div className="table-card__seat-core">
+              <span className="table-card__seat-count tabular-nums">
+                {table.players}/{table.maxPlayers}
+              </span>
+              <span className="table-card__seat-label">
+                {t('lobbyNew.table.seatsOpen', 'seats')}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
