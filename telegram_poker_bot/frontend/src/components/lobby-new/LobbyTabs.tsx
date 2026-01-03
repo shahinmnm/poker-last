@@ -12,7 +12,7 @@ export default function LobbyTabs({ activeTab, onChange, labels }: LobbyTabsProp
   const tabs: LobbyTabKey[] = ['cash', 'headsUp', 'private', 'history']
 
   return (
-    <div className="lobby-tabs lobby-panel">
+    <div className="lobby-tabs">
       {tabs.map((tab) => {
         const isActive = tab === activeTab
         return (
@@ -20,7 +20,7 @@ export default function LobbyTabs({ activeTab, onChange, labels }: LobbyTabsProp
             key={tab}
             type="button"
             onClick={() => onChange(tab)}
-            className={cn('lobby-tabs__button ui-pill', isActive && 'is-active')}
+            className={cn('lobby-tabs__button', isActive && 'is-active')}
             aria-pressed={isActive}
           >
             <span

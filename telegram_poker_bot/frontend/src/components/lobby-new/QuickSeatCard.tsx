@@ -8,7 +8,6 @@ import {
   faRotateRight,
 } from '@fortawesome/free-solid-svg-icons'
 
-
 interface QuickSeatCardProps {
   recommendation?: {
     stakesLabel: string
@@ -43,6 +42,7 @@ export default function QuickSeatCard({
         seats: recommendation.seatsOpen,
       })
     : fallbackLabel ?? t('common.loading', 'Loading...')
+  const recommendationSuffix = recommendation?.tableName ? ` - ${recommendation.tableName}` : ''
 
   return (
     <div className="quickseat-card ui-panel">
@@ -51,16 +51,22 @@ export default function QuickSeatCard({
           <FontAwesomeIcon icon={faBolt} />
           <span>{t('lobbyNew.quickSeat.eyebrow', 'Play now')}</span>
         </div>
+
         <div className="quickseat-card__headline">
           <div className="quickseat-card__title">
-            <h2 className="quickseat-card__title-text">{t('lobbyNew.quickSeat.button', 'Quick Seat')}</h2>
+            <h2 className="quickseat-card__title-text">
+              {t('lobbyNew.quickSeat.button', 'Quick Seat')}
+            </h2>
             <p className="quickseat-card__subtitle" dir="auto">
-              {recommendation?.tableName ?? t('lobbyNew.quickSeat.subtitle', 'Best open seat right now')}
+              {recommendation?.tableName ??
+                t('lobbyNew.quickSeat.subtitle', 'Best open seat right now')}
             </p>
           </div>
-          <div className="quickseat-card__tag">
+          <div className="quickseat-card__tag" aria-live="polite">
             <span className="quickseat-card__tag-label">
-              {recommendation ? t('lobbyNew.quickSeat.seats', '{{count}} open', { count: recommendation.seatsOpen }) : '—'}
+              {recommendation
+                ? t('lobbyNew.quickSeat.seats', '{{count}} open', { count: recommendation.seatsOpen })
+                : t('lobbyNew.quickSeat.empty', 'Finding seats...')}
             </span>
           </div>
         </div>
@@ -74,19 +80,23 @@ export default function QuickSeatCard({
             aria-label={t('lobbyNew.quickSeat.button', 'Quick Seat')}
           >
             <FontAwesomeIcon icon={faPlay} />
-            <span>{t('lobbyNew.quickSeat.button', 'Quick Seat')}</span>
+            <span className="quickseat-card__cta-label">
+              {t('lobbyNew.quickSeat.button', 'Quick Seat')}
+            </span>
           </button>
           <div className="quickseat-card__meta" dir="auto">
-            <span className="quickseat-card__meta-label">{t('lobbyNew.quickSeat.recommendationShort', 'Recommended table')}</span>
+            <span className="quickseat-card__meta-label">
+              {t('lobbyNew.quickSeat.recommendationShort', 'Recommended table')}
+            </span>
             <span className="quickseat-card__meta-value">
               {recommendationLabel}
-              {recommendation?.tableName ? ` • ${recommendation.tableName}` : ''}
+              {recommendationSuffix}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="quickseat-card__actions">
+      <div className="quickseat-card__actions" aria-label={t('lobbyNew.quickSeat.moreActions', 'More actions')}>
         <button
           type="button"
           onClick={onCreate}

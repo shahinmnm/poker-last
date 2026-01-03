@@ -103,9 +103,9 @@ export default function TableCard({
 
   const seatRatio = table.maxPlayers > 0 ? Math.min(table.players / table.maxPlayers, 1) : 0
   const seatPercent = Math.round(seatRatio * 100)
-  const ringColor = isFull ? 'var(--chip-red)' : 'var(--chip-emerald)'
+  const ringColor = isFull ? 'rgba(239, 75, 75, 0.85)' : 'rgba(30, 198, 120, 0.85)'
   const ringStyle = {
-    background: `conic-gradient(${ringColor} ${seatPercent}%, rgba(255,255,255,0.12) 0)`,
+    backgroundImage: `conic-gradient(${ringColor} ${seatPercent}%, rgba(255,255,255,0.08) 0)`,
   }
 
   const handleCardClick = () => {
@@ -145,30 +145,25 @@ export default function TableCard({
             </span>
           </div>
         </div>
-        <div className="table-card__seat-meta">
-          <span className="table-card__speed">{normalizedSpeed}</span>
-          {statusTone && <FontAwesomeIcon icon={faCircle} className={cn('table-card__activity', `is-${statusTone}`)} />}
-        </div>
       </div>
 
       <div className="table-card__main">
-        <div className="table-card__headline">
-          <div className="table-card__title-stack">
-            <p className="table-card__name" dir="auto">
-              {table.name}
-            </p>
-            <div className="table-card__status">
-              {statusTone && <span className={cn('table-card__status-dot', `is-${statusTone}`)} aria-hidden />}
-              <span className="table-card__status-label">
-                {statusLabel || normalizedSpeed}
-              </span>
-            </div>
+      <div className="table-card__headline">
+        <div className="table-card__title-stack">
+          <p className="table-card__name" dir="auto">
+            {table.name}
+          </p>
+          <div className="table-card__status">
+            <span className="table-card__status-label">
+              {table.players}/{table.maxPlayers} {t('lobbyNew.table.players', 'players')}
+            </span>
           </div>
-          <span className="table-card__stakes tabular-nums">
-            <FontAwesomeIcon icon={faCoins} className="table-card__stakes-icon" />
-            {stakesLabel}
-          </span>
         </div>
+        <div className="table-card__seat-meta">
+          {statusTone && <FontAwesomeIcon icon={faCircle} className={cn('table-card__activity', `is-${statusTone}`)} />}
+          <span className="table-card__speed">{statusLabel || normalizedSpeed}</span>
+        </div>
+      </div>
         <div className="table-card__badges">
           {visibleBadges.map((badge) => (
             <span
@@ -195,6 +190,10 @@ export default function TableCard({
       </div>
 
       <div className="table-card__actions">
+        <div className="table-card__stakes tabular-nums">
+          <FontAwesomeIcon icon={faCoins} className="table-card__stakes-icon" />
+          <span className="table-card__stakes-value">{stakesLabel}</span>
+        </div>
         <button
           type="button"
           onClick={(event) => {
