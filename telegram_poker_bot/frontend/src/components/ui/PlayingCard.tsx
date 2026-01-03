@@ -88,7 +88,12 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
   if (hidden) {
     return (
       <div
-        className={`${sizeClasses} relative overflow-hidden rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.25)]`}
+        className={clsx(
+          sizeClasses,
+          'playing-card',
+          `playing-card--${size}`,
+          'relative overflow-hidden rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.25)]',
+        )}
       >
         <div
           className="absolute inset-0 opacity-75"
@@ -112,9 +117,14 @@ export default function PlayingCard({ card, size = 'sm', hidden = false, highlig
 
   return (
     <div
-      className={`${sizeClasses} rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.2)] flex items-center justify-center font-semibold tracking-tight ${color} relative ${
-        highlighted ? 'ring-2 ring-emerald-400/80 shadow-emerald-500/30' : ''
-      }`}
+      className={clsx(
+        sizeClasses,
+        'playing-card',
+        `playing-card--${size}`,
+        'rounded-[6px] bg-white shadow-[0_8px_18px_rgba(0,0,0,0.2)] flex items-center justify-center font-semibold tracking-tight relative',
+        color,
+        highlighted ? 'ring-2 ring-emerald-400/80 shadow-emerald-500/30' : '',
+      )}
       style={{
         backgroundImage: 'linear-gradient(180deg, #ffffff 0%, #f4f4f5 100%)',
       }}

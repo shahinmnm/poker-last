@@ -35,8 +35,8 @@ export default function CommunityBoard({
     return () => window.clearTimeout(timer)
   }, [potAmount])
 
-  const cardHeight = 'clamp(56px, 12vw, 84px)'
-  const cardWidth = 'clamp(40px, 9vw, 60px)'
+  const cardHeight = 'clamp(68px, 13vw, 100px)'
+  const cardWidth = 'clamp(48px, 9.5vw, 72px)'
   const safePotAmount = Number.isFinite(potAmount) ? potAmount : 0
   const displayPot = formatByCurrency(safePotAmount, currencyType, { withDecimals: currencyType === 'REAL' })
 
@@ -44,7 +44,7 @@ export default function CommunityBoard({
     // PHASE 3: Board cluster container - semantic wrapper for pot + cards
     // Uses CSS gap from --board-cluster-gap variable (set by data-ui-mode)
     // Order: pot (0) -> cards (1) -> winner banner passed via parent
-    <div className="board-cluster board-cluster--expanded" style={{ minHeight: 'clamp(120px, 18vh, 190px)' }}>
+    <div className="board-cluster board-cluster--expanded" style={{ minHeight: 'clamp(140px, 20vh, 220px)' }}>
       {opponentTag && (
         <div className="top-hud top-hud--board">
           <div className="top-hud__lane top-hud__lane--opponent">
@@ -62,6 +62,7 @@ export default function CommunityBoard({
           className={`board-cluster__pot board-pot-anchor pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
         >
           <div className="table-pot-pill" title={displayPot}>
+            <span className="table-pot-pill__chip" aria-hidden="true" />
             <span className="table-pot-pill-label">
               {t('table.potLabel', { defaultValue: 'POT' })}:
             </span>
@@ -80,7 +81,7 @@ export default function CommunityBoard({
               className="flex items-center justify-center"
               style={{ height: cardHeight, width: cardWidth }}
             >
-              <PlayingCard card={card} size="md" highlighted={highlightedCards.includes(card)} />
+              <PlayingCard card={card} size="lg" highlighted={highlightedCards.includes(card)} />
             </div>
           ))}
         </div>

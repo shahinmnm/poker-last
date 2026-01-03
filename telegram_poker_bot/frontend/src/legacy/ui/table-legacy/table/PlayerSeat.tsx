@@ -44,32 +44,32 @@ const layoutConfig: Record<SideDirection, {
 }> = {
   bottom: {
     container: 'flex-col-reverse items-center justify-end',
-    cardWrapper: '-mb-3 -translate-y-4 z-0',
+    cardWrapper: 'player-seat__cards player-seat__cards--bottom',
     badge: '-top-1 -right-1',
     infoPill: 'left-1/2 top-full -translate-y-2',
   },
   top: {
     container: 'flex-col items-center justify-start',
-    cardWrapper: '-mt-3 translate-y-4 z-0',
+    cardWrapper: 'player-seat__cards player-seat__cards--top',
     badge: '-bottom-1 -right-1',
     infoPill: 'left-1/2 top-full -translate-y-2',
   },
   left: {
     container: 'flex-row items-center',
-    cardWrapper: '-ml-3 translate-x-3 z-0',
+    cardWrapper: 'player-seat__cards player-seat__cards--left',
     badge: '-top-1 -right-1',
     infoPill: 'left-1/2 -translate-x-1/2 top-full -translate-y-2',
   },
   right: {
     container: 'flex-row-reverse items-center',
-    cardWrapper: '-mr-3 -translate-x-3 z-0',
+    cardWrapper: 'player-seat__cards player-seat__cards--right',
     badge: '-top-1 -left-1',
     infoPill: 'left-1/2 -translate-x-1/2 top-full -translate-y-2',
   },
 }
 
 /** Translate offset for card fanning (equivalent to Tailwind's translate-1) */
-const CARD_FAN_OFFSET = 4
+const CARD_FAN_OFFSET = 6
 
 /** Calculate card rotation based on side direction - Perspective Fix */
 const getCardRotation = (side: SideDirection, index: number): { rotation: number; translateX: number; translateY: number } => {
@@ -163,12 +163,13 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     )
 
     const layout = layoutConfig[side]
+    const seatSideClass = `player-seat--${side}`
 
     if (isEmpty) {
       return (
         <div
           ref={ref}
-          className={clsx('relative inline-flex flex-col items-center group cursor-pointer m-1.5', className)}
+          className={clsx('player-seat__empty relative inline-flex flex-col items-center group cursor-pointer m-1.5', className)}
           onClick={onClick}
           role="button"
           tabIndex={0}
@@ -180,8 +181,8 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             }
           }}
         >
-          <div className="h-12 w-12 rounded-full border border-dashed border-white/30 flex items-center justify-center bg-white/5 transition-all duration-300 group-hover:border-emerald-400 group-hover:bg-emerald-500/20 group-hover:scale-105 shadow-inner">
-            <Plus className="w-5 h-5 text-white/50 group-hover:text-emerald-300 transition-colors" strokeWidth={3} />
+          <div className="player-seat__empty-ring h-12 w-12 rounded-full border border-dashed border-white/30 flex items-center justify-center bg-white/5 transition-all duration-300 group-hover:border-emerald-400 group-hover:bg-emerald-500/20 group-hover:scale-105 shadow-inner">
+            <Plus className="player-seat__empty-icon w-5 h-5 text-white/50 group-hover:text-emerald-300 transition-colors" strokeWidth={3} />
           </div>
           <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
             <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-300 bg-black/80 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
@@ -215,57 +216,56 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       <div
         ref={ref}
         className={clsx(
-          'relative flex items-center transition-all duration-300 m-1 player-seat',
+          'player-seat relative flex items-center transition-all duration-300 m-1',
           layout.container,
-          mutedState && 'grayscale opacity-50',
+          seatSideClass,
+          isHero && 'player-seat--hero',
+          isActive && 'player-seat--active',
+          mutedState && 'player-seat--muted',
           heroScaleClass,
           className,
         )}
         style={{
           // Use clamp() for responsive sizing that adapts to viewport
           // --seat-scale-factor is set via CSS media queries in table-layout.css
-          // Min values raised to ensure readability on small screens (min 64px effective)
-          width: isHorizontal 
-            ? `calc(clamp(80px, 12vw, 110px) * var(--seat-scale-factor, 1))` 
-            : `calc(clamp(72px, 10vw, 95px) * var(--seat-scale-factor, 1))`,
-          height: isHorizontal 
-            ? `calc(clamp(72px, 10vw, 95px) * var(--seat-scale-factor, 1))` 
-            : `calc(clamp(85px, 12vw, 115px) * var(--seat-scale-factor, 1))`,
+          width: isHorizontal
+            ? `calc(clamp(88px, 13vw, 124px) * var(--seat-scale-factor, 1))`
+            : `calc(clamp(80px, 11vw, 112px) * var(--seat-scale-factor, 1))`,
+          height: isHorizontal
+            ? `calc(clamp(78px, 11vw, 108px) * var(--seat-scale-factor, 1))`
+            : `calc(clamp(96px, 13vw, 132px) * var(--seat-scale-factor, 1))`,
           zIndex: isActive ? 30 : 20,
         }}
         aria-label={seatLabel}
       >
         {/* AVATAR (The Centerpiece) */}
-        <div className="relative z-20 flex items-center justify-center">
-          <div className="relative flex items-center justify-center" style={{ width: 'clamp(38px, 6vw, 52px)', height: 'clamp(38px, 6vw, 52px)' }}>
+        <div className="player-seat__avatar relative z-20 flex items-center justify-center">
+          <div
+            className="player-seat__avatar-frame relative flex items-center justify-center"
+            style={{ width: 'clamp(42px, 6.5vw, 58px)', height: 'clamp(42px, 6.5vw, 58px)' }}
+          >
             {showTimer && turnDeadline && totalTime !== null && (
               <PlayerCircularTimer
                 deadline={turnDeadline}
                 totalSeconds={totalTime}
-                size={48}
+                size={54}
                 strokeWidth={3}
-                className="absolute inset-0 drop-shadow-[0_0_10px_rgba(16,185,129,0.55)]"
+                className="player-seat__timer absolute inset-0"
               />
             )}
 
             <div
               className={clsx(
-                'relative flex items-center justify-center rounded-full text-sm font-bold text-white shadow-xl',
-                /* Premium surface with subtle gradient */
-                'bg-gradient-to-b from-slate-800/95 to-slate-900/95',
-                /* Default state ring */
-                'ring-2 ring-[var(--border-2)]',
-                /* Active player glow */
-                isActive && 'ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.4)]',
-                /* Hero highlight */
-                isHero && !isActive && 'ring-amber-300/80 shadow-amber-500/20',
+                'player-seat__avatar-core relative flex items-center justify-center rounded-full text-sm font-bold',
+                isActive && 'is-active',
+                isHero && 'is-hero',
               )}
-              style={{ width: 'clamp(40px, 6vw, 52px)', height: 'clamp(40px, 6vw, 52px)' }}
+              style={{ width: 'clamp(44px, 6.8vw, 60px)', height: 'clamp(44px, 6.8vw, 60px)' }}
             >
-              <span className="text-[var(--text-1)]">{initial}</span>
+              <span className="player-seat__initial">{initial}</span>
 
               {isAllIn && (
-                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 z-20 border border-rose-400/50">
+                <span className="player-seat__allin absolute -bottom-2 left-1/2 -translate-x-1/2">
                   ALL-IN
                 </span>
               )}
@@ -273,20 +273,20 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
             {/* Dealer/Blind Badge (Dynamic Position) */}
             {positionLabel === 'BTN' && (
-              <span className={clsx('absolute z-30 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-black text-slate-900 shadow-md', layout.badge)}>
+              <span className={clsx('player-seat__badge player-seat__badge--dealer absolute z-30 flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-black shadow-md', layout.badge)}>
                 D
               </span>
             )}
 
             {positionLabel && positionLabel !== 'BTN' && (
-              <span className={clsx('absolute z-30 flex h-4 min-w-[18px] items-center justify-center rounded-full bg-white/90 px-1 text-[8px] font-black uppercase tracking-wide text-slate-900 shadow', layout.badge)}>
+              <span className={clsx('player-seat__badge absolute z-30 flex h-4 min-w-[18px] items-center justify-center rounded-full px-1 text-[8px] font-black uppercase tracking-wide shadow', layout.badge)}>
                 {positionLabel}
               </span>
             )}
 
             {isSittingOut && (
-              <div className="absolute -top-1.5 -right-1.5 z-30">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 shadow-lg ring ring-black/60">
+              <div className="player-seat__status absolute -top-1.5 -right-1.5 z-30">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full shadow-lg">
                   <span className="text-[8px] font-bold text-black">Zz</span>
                 </div>
               </div>
@@ -298,7 +298,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
           {/* For opponents: show full info as before */}
           <div
             className={clsx(
-              'absolute z-30 flex -translate-x-1/2 items-center justify-center',
+              'player-seat__info absolute z-30 flex -translate-x-1/2 items-center justify-center',
               layout.infoPill,
               isHero ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'
             )}
@@ -314,27 +314,27 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             aria-label={isHero ? 'Tap for player details' : undefined}
           >
             <div className={clsx(
-              'flex flex-col items-center rounded-xl border border-[var(--border-2)] bg-[var(--surface-1)] px-3 py-1.5 shadow-lg shadow-black/40 backdrop-blur-md',
-              isHero && 'ui-pressable hover:bg-[var(--surface-2)]'
+              'player-seat__info-card flex flex-col items-center rounded-xl px-3 py-1.5',
+              isHero && 'ui-pressable'
             )}>
               {/* Player name - primary text, truncated for hero */}
               <div 
-                className="text-[11px] font-bold text-[var(--text-1)] leading-tight overflow-hidden text-ellipsis whitespace-nowrap tracking-tight"
-                style={{ maxWidth: isHero ? 'clamp(48px, 8vw, 64px)' : 'clamp(56px, 10vw, 76px)' }}
+                className="player-seat__name text-[11px] font-bold leading-tight overflow-hidden text-ellipsis whitespace-nowrap tracking-tight"
+                style={{ maxWidth: isHero ? 'clamp(68px, 12vw, 96px)' : 'clamp(80px, 14vw, 110px)' }}
                 dir="auto"
                 title={playerName || seatLabel}
               >
                 {playerName || seatLabel}
               </div>
               {/* Stack - secondary text, muted but readable */}
-              <div className="text-[11px] font-semibold text-emerald-400 leading-tight tabular-nums mt-0.5">
+              <div className="player-seat__stack text-[11px] font-semibold leading-tight tabular-nums mt-0.5">
                 {formatChips(chipCount)}
               </div>
               {/* Tiny status badge for hero only if needed */}
               {isHero && (positionLabel === 'BTN' || isSittingOut || isActive) && (
                 <div className="flex items-center gap-1 mt-1">
                   {isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse motion-reduce:animate-none" />
+                    <span className="player-seat__pulse w-1.5 h-1.5 rounded-full animate-pulse motion-reduce:animate-none" />
                   )}
                 </div>
               )}
@@ -361,8 +361,8 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
         {/* CARDS (The Dynamic Layer) */}
         {safeCards.length > 0 && (
-          <div className={clsx('relative z-10 transform scale-90 pointer-events-none drop-shadow-md', layout.cardWrapper)}>
-            <div className={clsx('flex items-center justify-center gap-1.5', isHorizontal && 'flex-col')}>
+          <div className={clsx('relative pointer-events-none', layout.cardWrapper)}>
+            <div className={clsx('player-seat__cards-stack flex items-center justify-center gap-2', isHorizontal && 'flex-col')}>
               {safeCards.map((card, index) => {
                 const { rotation, translateX, translateY } = getCardRotation(side, index)
                 return (
@@ -375,7 +375,7 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
                     <PlayingCard
                       card={cardsHidden ? 'XX' : card}
                       hidden={cardsHidden}
-                      size="sm"
+                      size={isHero ? 'md' : 'sm'}
                     />
                   </div>
                 )
