@@ -344,7 +344,7 @@
 }
 
 .table-pot-pill-label {
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-3, #cbd5e1);
@@ -352,7 +352,7 @@
 }
 
 .table-pot-pill-amount {
-  font-size: clamp(0.625rem, 2.3vw, 0.75rem);
+  font-size: clamp(0.6875rem, 2.3vw, 0.75rem);
   font-weight: 700;
   max-width: 120px;
   overflow: hidden;
@@ -1491,7 +1491,7 @@
 }
 
 .player-dock__name {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--text-1, #f9fafb);
   max-width: 140px;
@@ -1519,7 +1519,7 @@
   border: 1px solid var(--border-2, rgba(255, 255, 255, 0.14));
   background: var(--surface-2, rgba(9, 14, 12, 0.5));
   color: var(--text-2, #d1d5db);
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -1537,20 +1537,20 @@
 }
 
 .player-dock__stack-label {
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 700;
   color: var(--text-3, #9d9287);
   letter-spacing: 0.06em;
 }
 
 .player-dock__stack-value {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: var(--accent-amber, #f6b454);
 }
 
 .player-dock__stack-divider {
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   color: var(--text-3, #9ca3af);
 }
 
@@ -1572,7 +1572,7 @@
   border: 1px solid var(--border-2, rgba(255, 255, 255, 0.12));
   background: var(--surface-1, rgba(1, 15, 10, 0.5));
   color: var(--text-2, #d1d5db);
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 700;
   line-height: 1;
 }

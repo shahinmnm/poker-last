@@ -787,7 +787,7 @@ a {
 /* Balance - money accent (amber/gold) */
 .lobby-header__balance {
   display: block;
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   color: var(--accent-amber);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -813,7 +813,7 @@ a {
 }
 
 .lobby-header__status-label {
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1053,7 +1053,7 @@ a {
   border: 1px solid rgba(246, 180, 84, 0.18);
   background: rgba(246, 180, 84, 0.08);
   color: var(--chip-amber);
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1084,7 +1084,7 @@ a {
 .quickseat-card__subtitle {
   margin: 1px 0 0;
   color: var(--text-2);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1096,7 +1096,7 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-1);
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1241,7 +1241,7 @@ a {
   height: 26px;
   padding: 0 8px;
   border-radius: var(--radius-icon);
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;

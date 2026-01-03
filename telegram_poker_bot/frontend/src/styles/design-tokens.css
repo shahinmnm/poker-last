@@ -36,21 +36,22 @@
   --radius-pill: 999px;   /* Pills only where appropriate */
   --radius-icon: 8px;     /* Icon buttons */
 
-  /* ==================== TYPOGRAPHY SCALE (REDUCED BY 20-25%) ==================== */
+  /* ==================== TYPOGRAPHY SCALE (REDUCED BY 15-20%) ==================== */
   /* Font sizes - optimized for mobile, Farsi support, and reduced visual density */
-  --fs-caption: 0.625rem;     /* 10px (was 12px) - smallest text */
-  --fs-label: 0.6875rem;      /* 11px (was 13px) - labels */
-  --fs-body: 0.75rem;         /* 12px (was 14px) - body text */
-  --fs-title: 0.8125rem;      /* 13px (was 16px) - section titles */
-  --fs-large: 0.9375rem;      /* 15px (was 18px) - large headings */
-  --font-size-xs: 0.5625rem;  /* 9px (was 11px) - tiny text */
-  --font-size-sm: 0.6875rem;  /* 11px (was 13px) - small text */
-  --font-size-base: 0.75rem;  /* 12px (was 14px) - base text */
-  --font-size-md: 0.8125rem;  /* 13px (was 16px) - medium text */
-  --font-size-lg: 0.875rem;   /* 14px (was 17px) - large text */
-  --font-size-xl: 0.9375rem;  /* 15px (was 19px) - extra large */
-  --font-size-2xl: 1.0625rem; /* 17px (was 21px) - 2xl text */
-  --font-size-3xl: 1.25rem;   /* 20px (was 25px) - 3xl text */
+  /* Minimum 11px maintained for readability per accessibility guidelines */
+  --fs-caption: 0.6875rem;    /* 11px - smallest readable text */
+  --fs-label: 0.6875rem;      /* 11px - labels */
+  --fs-body: 0.75rem;         /* 12px - body text */
+  --fs-title: 0.8125rem;      /* 13px - section titles */
+  --fs-large: 0.9375rem;      /* 15px - large headings */
+  --font-size-xs: 0.6875rem;  /* 11px - minimum readable size */
+  --font-size-sm: 0.6875rem;  /* 11px - small text */
+  --font-size-base: 0.75rem;  /* 12px - base text */
+  --font-size-md: 0.8125rem;  /* 13px - medium text */
+  --font-size-lg: 0.875rem;   /* 14px - large text */
+  --font-size-xl: 0.9375rem;  /* 15px - extra large */
+  --font-size-2xl: 1.0625rem; /* 17px - 2xl text */
+  --font-size-3xl: 1.25rem;   /* 20px - 3xl text */
   
   /* ==================== TOUCH TARGETS ==================== */
   /* Minimum touch target sizes for accessibility */
