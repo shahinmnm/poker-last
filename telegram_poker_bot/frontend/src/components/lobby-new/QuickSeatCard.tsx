@@ -45,7 +45,7 @@ export default function QuickSeatCard({
   const recommendationSuffix = recommendation?.tableName ? ` - ${recommendation.tableName}` : ''
 
   return (
-    <div className="quickseat-card ui-panel">
+    <div className="quickseat-card">
       <div className="quickseat-card__hero">
         <div className="quickseat-card__eyebrow">
           <FontAwesomeIcon icon={faBolt} />
