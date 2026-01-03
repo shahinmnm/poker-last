@@ -24,6 +24,9 @@
   --radius-xl: 1rem;      /* 16px - large cards */
   --radius-2xl: 1.625rem; /* 26px - app cards */
   --radius-pill: 9999px;  /* full rounded - pills, segmented controls */
+  --radius-panel: 16px;
+  --radius-card: 14px;
+  --radius-chip: 999px;
 
   /* ==================== TYPOGRAPHY SCALE ==================== */
   /* Font sizes - optimized for mobile and Farsi support */
