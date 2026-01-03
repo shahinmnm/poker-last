@@ -567,7 +567,7 @@ export default function LobbyPage() {
               actionsDisabled={actionsDisabled}
             />
 
-            <div className="ui-panel your-tables-card">
+            <div className="your-tables-card">
               <div className="section-header">
                 <div>
                   <p className="section-eyebrow">{t('lobbyNew.history.title', 'Your tables')}</p>
@@ -624,7 +624,7 @@ export default function LobbyPage() {
           </div>
 
           <div className="lobby-column lobby-column--list">
-            <div className="ui-panel lobby-browse">
+            <div className="lobby-browse">
               <div className="lobby-browse__row lobby-toolbar">
                 <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
 
