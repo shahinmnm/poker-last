@@ -538,7 +538,7 @@ export default function LobbyPage() {
 
   return (
     <div className="lobby-screen">
-      <div className="lobby-shell">
+      <div className="lobby-shell page-stack">
         <LobbyHeader statusLabel={lobbyStatusLabel} />
 
         <div className="lobby-grid">

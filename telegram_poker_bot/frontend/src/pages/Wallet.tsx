@@ -27,7 +27,7 @@ class WalletErrorBoundary extends Component<{ children: React.ReactNode }, { has
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-[40vh] items-center justify-center rounded-2xl" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+        <div className="poker-panel flex min-h-[40vh] items-center justify-center">
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             Something went wrong loading Wallet. Please refresh.
           </p>
@@ -95,7 +95,7 @@ function WalletPageInner() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-stack">
       <div className="wallet-panel p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -110,12 +110,7 @@ function WalletPageInner() {
             {helperPills.map((pill) => (
               <span
                 key={pill.label}
-                className="hidden md:inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold"
-                style={{
-                  background: 'var(--glass-bg-elevated)',
-                  border: '1px solid var(--glass-border)',
-                  color: 'var(--color-text-muted)',
-                }}
+                className="poker-tile hidden md:inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-[color:var(--color-text-muted)]"
               >
                 <FontAwesomeIcon icon={pill.icon} className="text-[11px]" />
                 {pill.label}
@@ -187,12 +182,7 @@ function WalletPageInner() {
       </div>
 
       <div
-        className="rounded-2xl p-6 space-y-4"
-        style={{
-          background: 'var(--glass-bg-elevated)',
-          border: '1px solid var(--glass-border)',
-          boxShadow: 'var(--glass-shadow)',
-        }}
+        className="poker-panel poker-panel--elevated p-6 space-y-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -206,7 +196,7 @@ function WalletPageInner() {
               {activeCurrency === 'REAL' ? '$1.00 = 100 chips' : 'Chips for practice tables'}
             </p>
           </div>
-          <div className="inline-flex gap-2 rounded-full p-1" style={{ background: 'var(--glass-bg)' }}>
+          <div className="poker-tile poker-tile--flat inline-flex gap-2 rounded-full p-1">
             <button
               type="button"
               onClick={() => setActiveCurrency('REAL')}
@@ -239,7 +229,7 @@ function WalletPageInner() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl p-4" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+          <div className="poker-tile poker-tile--flat p-4">
             <p className="text-xs uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
               {t('wallet.about.title', 'About Chips')}
             </p>
@@ -247,7 +237,7 @@ function WalletPageInner() {
               1 chip = 1 cent. All bets and pots are tracked in whole chips for engine accuracy.
             </p>
           </div>
-          <div className="rounded-xl p-4" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+          <div className="poker-tile poker-tile--flat p-4">
             <p className="text-xs uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
               {t('wallet.actions.topUp', 'Buy-ins')}
             </p>
@@ -255,7 +245,7 @@ function WalletPageInner() {
               Use the selected wallet when joining a table. Funds lock in before seating and return when you leave.
             </p>
           </div>
-          <div className="rounded-xl p-4" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+          <div className="poker-tile poker-tile--flat p-4">
             <p className="text-xs uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
               {t('wallet.transactions.title', 'Ledger')}
             </p>
@@ -267,11 +257,7 @@ function WalletPageInner() {
       </div>
 
       <div
-        className="rounded-2xl p-4"
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-        }}
+        className="poker-panel p-4"
       >
         <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
           {t('wallet.transactions.title', 'Transaction History')}

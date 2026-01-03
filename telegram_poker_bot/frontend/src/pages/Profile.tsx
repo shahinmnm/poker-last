@@ -63,7 +63,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div
-        className="ui-panel profile-panel flex min-h-[40vh] items-center justify-center"
+        className="profile-panel flex min-h-[40vh] items-center justify-center"
       >
         <p className="text-sm ui-muted">{t('common.loading')}</p>
       </div>
@@ -71,8 +71,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="ui-panel profile-panel p-6">
+    <div className="space-y-6 page-stack">
+      <div className="profile-panel p-6">
         <div className="flex items-center gap-4">
           <div className="profile-tile flex h-16 w-16 items-center justify-center">
             <FontAwesomeIcon icon={faUser} className="text-2xl" style={{ color: 'var(--color-text)' }} />
@@ -145,7 +145,7 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      <div className="ui-panel profile-panel p-4">
+      <div className="profile-panel p-4">
         <h2 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
           {t('profile.achievements.title')}
         </h2>
@@ -174,20 +174,14 @@ export default function ProfilePage() {
       </div>
 
       <div
-        className="rounded-2xl p-4"
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-        }}
+        className="poker-panel p-4"
       >
         <h2 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
           {t('profile.missions.title')}
         </h2>
         <div
-          className="rounded-xl p-3"
+          className="poker-tile p-3"
           style={{
-            background: 'var(--glass-bg-elevated)',
-            border: '1px solid var(--glass-border)',
             opacity: 0.6,
           }}
         >
@@ -207,11 +201,7 @@ export default function ProfilePage() {
       </div>
 
       <div
-        className="rounded-2xl p-4"
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-        }}
+        className="poker-panel p-4"
       >
         <h2 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
           {t('profile.settings.title')}
@@ -220,11 +210,7 @@ export default function ProfilePage() {
           <div>
             <button
               onClick={() => toggleDropdown('language')}
-              className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-transform active:scale-98"
-              style={{
-                background: 'var(--glass-bg-elevated)',
-                border: '1px solid var(--glass-border)',
-              }}
+              className="poker-tile flex w-full items-center justify-between p-3 text-left transition-transform active:scale-98"
             >
               <div className="flex items-center gap-3">
                 <FontAwesomeIcon icon={faLanguage} style={{ color: 'var(--color-text-muted)' }} />
@@ -266,11 +252,7 @@ export default function ProfilePage() {
           <div>
             <button
               onClick={() => toggleDropdown('theme')}
-              className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-transform active:scale-98"
-              style={{
-                background: 'var(--glass-bg-elevated)',
-                border: '1px solid var(--glass-border)',
-              }}
+              className="poker-tile flex w-full items-center justify-between p-3 text-left transition-transform active:scale-98"
             >
               <div className="flex items-center gap-3">
                 <FontAwesomeIcon icon={faPalette} style={{ color: 'var(--color-text-muted)' }} />
@@ -311,11 +293,7 @@ export default function ProfilePage() {
 
           <button
             onClick={toggleSound}
-            className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-transform active:scale-98"
-            style={{
-              background: 'var(--glass-bg-elevated)',
-              border: '1px solid var(--glass-border)',
-            }}
+            className="poker-tile flex w-full items-center justify-between p-3 text-left transition-transform active:scale-98"
           >
             <div className="flex items-center gap-3">
               <FontAwesomeIcon icon={faVolumeHigh} style={{ color: 'var(--color-text-muted)' }} />
@@ -343,11 +321,7 @@ export default function ProfilePage() {
           <div>
             <button
               onClick={() => toggleDropdown('help')}
-              className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-transform active:scale-98"
-              style={{
-                background: 'var(--glass-bg-elevated)',
-                border: '1px solid var(--glass-border)',
-              }}
+              className="poker-tile flex w-full items-center justify-between p-3 text-left transition-transform active:scale-98"
             >
               <div className="flex items-center gap-3">
                 <FontAwesomeIcon icon={faCircleQuestion} style={{ color: 'var(--color-text-muted)' }} />
@@ -359,7 +333,7 @@ export default function ProfilePage() {
             </button>
             {openDropdown === 'help' && (
               <div className="mt-2 space-y-3 px-2">
-                <div className="rounded-lg p-3" style={{ background: 'var(--glass-bg)' }}>
+                <div className="poker-tile p-3">
                   <h4 className="text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
                     {t('profile.settings.helpRules')}
                   </h4>
@@ -367,7 +341,7 @@ export default function ProfilePage() {
                     {t('profile.settings.helpRulesText')}
                   </p>
                 </div>
-                <div className="rounded-lg p-3" style={{ background: 'var(--glass-bg)' }}>
+                <div className="poker-tile p-3">
                   <h4 className="text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
                     {t('profile.settings.helpGroupPlay')}
                   </h4>
@@ -375,7 +349,7 @@ export default function ProfilePage() {
                     {t('profile.settings.helpGroupPlayText')}
                   </p>
                 </div>
-                <div className="rounded-lg p-3" style={{ background: 'var(--glass-bg)' }}>
+                <div className="poker-tile p-3">
                   <h4 className="text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
                     {t('profile.settings.helpSupport')}
                   </h4>
