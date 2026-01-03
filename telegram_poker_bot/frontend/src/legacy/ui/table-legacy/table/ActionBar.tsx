@@ -456,7 +456,7 @@ export default function ActionBar({
           <div className="pointer-events-auto relative w-full max-w-[var(--expanded-panel-max-width,400px)]">
             {/* Floating bet amount label */}
             <div className="pointer-events-none absolute -top-10" style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}>
-              <div className="rounded-full border border-emerald-400/60 bg-emerald-600/95 px-4 py-1.5 shadow-lg shadow-emerald-900/50 backdrop-blur-lg">
+              <div className="action-panel__bubble rounded-full px-4 py-1.5 backdrop-blur-lg">
                 <span className="text-[13px] font-bold text-white tabular-nums tracking-tight">
                   {formatChips(betAmount ?? 0)}
                 </span>
@@ -464,7 +464,7 @@ export default function ActionBar({
             </div>
 
             {/* Expanded panel container */}
-            <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] p-4 shadow-xl backdrop-blur-lg">
+            <div className="action-panel rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] p-4 shadow-xl backdrop-blur-lg">
               {/* Close button */}
               <button
                 type="button"

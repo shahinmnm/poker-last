@@ -7,15 +7,13 @@ interface PokerFeltBackgroundProps {
 
 export default function PokerFeltBackground({ children, className }: PokerFeltBackgroundProps) {
   return (
-    <div className={`fixed inset-0 h-full w-full overflow-hidden ${className ?? ''}`}>
-      {/* Layer 1: Royal Emerald base */}
-      <div
-        className="absolute inset-0"
-        style={{ background: 'radial-gradient(circle at center, #134E2A 0%, #0B3A20 55%, #0B3A20 100%)' }}
-      />
+    <div className={`table-backdrop fixed inset-0 h-full w-full overflow-hidden ${className ?? ''}`}>
+      {/* Layer 1: Midnight base */}
+      <div className="table-backdrop__base" />
+      <div className="table-backdrop__glow" />
 
       {/* Layer 2: Poker suits line art pattern */}
-      <svg className="absolute inset-0 h-full w-full" aria-hidden focusable="false" role="presentation">
+      <svg className="table-backdrop__pattern absolute inset-0 h-full w-full" aria-hidden focusable="false" role="presentation">
         <defs>
           <symbol id="suit-spade" viewBox="0 0 64 64">
             <path
@@ -38,7 +36,7 @@ export default function PokerFeltBackground({ children, className }: PokerFeltBa
           </symbol>
 
           <pattern id="poker-suits-pattern" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(45 60 60)">
-            <g stroke="white" strokeWidth="2" strokeOpacity="0.05" fill="none" strokeLinejoin="round" strokeLinecap="round">
+            <g stroke="currentColor" strokeWidth="2" strokeOpacity="0.07" fill="none" strokeLinejoin="round" strokeLinecap="round">
               <use href="#suit-spade" x="12" y="12" width="32" height="32" />
               <use href="#suit-heart" x="76" y="12" width="32" height="32" />
               <use href="#suit-club" x="12" y="76" width="32" height="32" />
@@ -50,8 +48,8 @@ export default function PokerFeltBackground({ children, className }: PokerFeltBa
         <rect width="100%" height="100%" fill="url(#poker-suits-pattern)" />
       </svg>
 
-      {/* Layer 3: Glassy vignette to deepen edges */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(0,0,0,0.8)_100%)]" />
+      {/* Layer 3: Vignette to deepen edges */}
+      <div className="table-backdrop__vignette pointer-events-none absolute inset-0" />
 
       {/* Content */}
       <div className="relative z-10 h-full">{children}</div>

@@ -1571,10 +1571,6 @@ export default function TablePage() {
     }
     return 0
   }, [liveState?.pot, liveState?.pots])
-  const potDisplayLabel = useMemo(
-    () => formatByCurrency(potDisplayAmount, currencyType, { withDecimals: currencyType === 'REAL' }),
-    [currencyType, potDisplayAmount],
-  )
   // Memoize winner display info to avoid find() on every render
   const winnerDisplayInfo = useMemo(() => {
     if (!lastHandResult?.winners?.length) return null
@@ -2203,7 +2199,7 @@ export default function TablePage() {
         >
           <button 
             onClick={() => navigate('/lobby')}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white hover:bg-white/10 backdrop-blur-md border border-white/10 shadow-lg transition-all active:scale-95"
+            className="table-back__button flex items-center justify-center w-10 h-10 rounded-full text-white transition-all active:scale-95"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 18l-6-6 6-6" />
@@ -2253,12 +2249,14 @@ export default function TablePage() {
               <div className="table-wrapper">
                 <div
                   className="table-area table-bottom-padding relative"
-                  style={{ '--seat-row-offset': viewerIsSeated ? '72vh' : '68vh' } as CSSProperties}
+                  style={{ '--seat-row-offset': viewerIsSeated ? '70vh' : '66vh' } as CSSProperties}
                 >
                   <div className="table-oval" style={{ zIndex: 'var(--z-table-felt, 0)' }}>
-                    <div className="absolute inset-0 rounded-[999px] bg-[radial-gradient(circle_at_30%_30%,_rgba(34,197,94,0.16)_0%,_rgba(6,78,59,0.65)_55%,_rgba(6,47,26,0.9)_100%)] shadow-[0_40px_120px_rgba(0,0,0,0.45)] ring-4 ring-emerald-500/35" />
-                    <div className="absolute inset-[10px] rounded-[999px] border-[12px] border-emerald-200/35 shadow-inner shadow-emerald-900/50" />
-                    <div className="absolute inset-[22px] rounded-[999px] bg-gradient-to-b from-white/15 via-transparent to-white/10 opacity-80" />
+                    <div className="table-oval__rail" />
+                    <div className="table-oval__rim" />
+                    <div className="table-oval__felt" />
+                    <div className="table-oval__pattern" />
+                    <div className="table-oval__sheen" />
                   </div>
 
                   {tableDetails && (
@@ -2278,11 +2276,13 @@ export default function TablePage() {
                           className="pointer-events-auto"
                         />
                         <div className="table-top-hud__rail pointer-events-auto">
-                          <div className="table-top-hud__pill" ref={potAreaRef}>
+                          <div className="table-top-hud__pill table-top-hud__pill--info">
                             <span className="table-top-hud__label">
-                              {t('table.potLabel', { defaultValue: 'Pot' })}
+                              {t('table.meta.players', { defaultValue: 'Players' })}
                             </span>
-                            <span className="table-top-hud__value tabular-nums">{potDisplayLabel}</span>
+                            <span className="table-top-hud__value tabular-nums">
+                              {tableDetails.player_count}/{tableMaxPlayers}
+                            </span>
                           </div>
                           {opponentTag && (
                             <div className="table-top-hud__pill table-top-hud__pill--muted" dir="auto">
@@ -2326,7 +2326,7 @@ export default function TablePage() {
                       highlightedCards={winningBoardCards}
                       potRef={potAreaRef}
                       opponentTag={null}
-                      showPotInBoard={false}
+                      showPotInBoard
                     />
                     {liveState.hand_result && (
                       <div className="mt-0.5 flex justify-center">
