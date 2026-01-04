@@ -125,10 +125,41 @@
 
 .table-oval {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 4%;
+  right: 4%;
+  bottom: 6%;
   top: var(--table-top-offset);
+  border-radius: 999px;
+  pointer-events: none;
+  transform: perspective(1400px) rotateX(16deg) scale(1.06);
+  transform-origin: center 80%;
+  background:
+    radial-gradient(circle at 50% 62%, var(--table-felt-core) 0%, var(--table-felt-mid) 48%, var(--table-felt-deep) 100%),
+    radial-gradient(circle at 50% 72%, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 58%);
+  box-shadow:
+    inset 0 18px 40px rgba(7, 12, 18, 0.55),
+    inset 0 0 32px rgba(86, 200, 255, 0.18),
+    0 38px 120px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.table-oval--portrait::after {
+  content: '';
+  position: absolute;
+  inset: 8% 10% auto;
+  height: 28%;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 10%, rgba(120, 220, 255, 0.25), rgba(12, 24, 36, 0));
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.table-oval__rail,
+.table-oval__rim,
+.table-oval__felt,
+.table-oval__pattern,
+.table-oval__sheen {
+  display: none;
 }
 
 .table-header-capsule {
@@ -2791,7 +2822,7 @@ button:disabled {
   color: #f8f2e6;
   --header-top-offset: calc(env(safe-area-inset-top, 0px) + 12px);
   --table-top-offset: 6vh;
-  --streets-row-offset: 20vh;
+  --streets-row-offset: 26vh;
   --table-min-height: 96vh;
   --table-horizontal-padding: max(1.8vw, 14px);
   --table-vertical-gap: 1.2vh;
@@ -2822,7 +2853,7 @@ button:disabled {
 
 .table-oval {
   border-radius: 999px;
-  overflow: visible;
+  overflow: hidden;
   filter: drop-shadow(0 45px 90px rgba(0, 0, 0, 0.55));
   animation: tableReveal 0.5s ease-out;
 }

@@ -2251,13 +2251,11 @@ export default function TablePage() {
                   className="table-area table-bottom-padding relative"
                   style={{ '--seat-row-offset': viewerIsSeated ? '70vh' : '66vh' } as CSSProperties}
                 >
-                  <div className="table-oval" style={{ zIndex: 'var(--z-table-felt, 0)' }}>
-                    <div className="table-oval__rail" />
-                    <div className="table-oval__rim" />
-                    <div className="table-oval__felt" />
-                    <div className="table-oval__pattern" />
-                    <div className="table-oval__sheen" />
-                  </div>
+                  <div
+                    className="table-oval table-oval--portrait"
+                    style={{ zIndex: 'var(--z-table-felt, 0)' }}
+                    aria-hidden="true"
+                  />
 
                   {tableDetails && (
                     <div 
@@ -2382,7 +2380,15 @@ export default function TablePage() {
                         : heroPlayer?.hole_cards?.length
                           ? heroPlayer.hole_cards
                           : heroPlayer?.cards ?? []
-                    const seatSide = getSeatSide(slot.xPercent, slot.yPercent)
+                    const baseX = slot.xPercent
+                    const baseY = slot.yPercent
+                    const seatXPercent = isHeroSlot
+                      ? baseX
+                      : 50 + (baseX - 50) * 0.78
+                    const seatYPercent = isHeroSlot
+                      ? Math.min(baseY + 4, 86)
+                      : Math.max(Math.min(baseY - 12, 58), 26)
+                    const seatSide = getSeatSide(seatXPercent, seatYPercent)
                     const isBottomSeat = seatSide === 'bottom'
                     const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
                     const seatHoleCards = isHeroPlayer
@@ -2391,15 +2397,18 @@ export default function TablePage() {
                         ? playerCards
                         : []
                     const showCardBacks = isHeroPlayer ? false : showOpponentBacks
+                    const seatScale = isHeroSlot ? 1 : seatSide === 'top' ? 0.75 : 0.82
+                    const seatDepthTranslate = isHeroSlot ? '2%' : seatSide === 'top' ? '-6%' : '-3%'
+                    const seatTransform = `translate(-50%, -50%) translateY(${seatDepthTranslate}) scale(${seatScale})`
 
                     return (
                       <Fragment key={`seat-server-${serverIndex}`}>
                         <div
                           className={`absolute ${player ? 'seat-enter' : ''}`}
                           style={{
-                            left: `${slot.xPercent}%`,
-                            top: `${slot.yPercent}%`,
-                            transform: 'translate(-50%, -50%)',
+                            left: `${seatXPercent}%`,
+                            top: `${seatYPercent}%`,
+                            transform: seatTransform,
                             zIndex: 'var(--z-seats, 10)',
                           }}
                         >
