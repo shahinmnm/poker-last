@@ -201,6 +201,9 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     const cardsHidden = !showFaces
     const mutedState = hasFolded || isSittingOut
     const isHorizontal = side === 'left' || side === 'right'
+    const heroScale = heroScaleReduced ? 0.9 : 1
+    const seatScale = isHero ? heroScale : 1
+    const depthTranslate = '0%'
 
     // PHASE 5: Compute hero seat scale class based on UI mode
     // - Hero with full scale (isMyTurn): 'player-seat--hero-action'
@@ -235,6 +238,8 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             ? `calc(clamp(78px, 11vw, 108px) * var(--seat-scale-factor, 1))`
             : `calc(clamp(96px, 13vw, 132px) * var(--seat-scale-factor, 1))`,
           zIndex: isActive ? 30 : 20,
+          transform: `scale(${seatScale}) translateY(${depthTranslate})`,
+          transformOrigin: 'center bottom',
         }}
         aria-label={seatLabel}
       >

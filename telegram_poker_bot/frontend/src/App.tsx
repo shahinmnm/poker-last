@@ -5,7 +5,6 @@ import { LocalizationProvider } from './providers/LocalizationProvider'
 import { ThemeProvider } from './providers/ThemeProvider'
 import { UserDataProvider } from './providers/UserDataProvider'
 import { LayoutProvider } from './providers/LayoutProvider'
-import { OrientationGuard } from './components/ui/OrientationGuard'
 import MainLayout from './components/MainLayout'
 import HomePage from './pages/Home'
 import LobbyNewPage from './pages/LobbyNew'
@@ -56,51 +55,49 @@ function App() {
         <ThemeProvider>
           <UserDataProvider>
             <LayoutProvider>
-              <OrientationGuard>
-                <BrowserRouter>
-                  <StartParamBridge />
-                  <Routes>
-                    <Route element={<MainLayout />}>
-                      <Route index element={<HomePage />} />
-                      <Route path="lobby" element={<LobbyNewPage />} />
-                      <Route path="ui-demo" element={<UIDemoPage />} />
-                      <Route path="games">
-                        <Route path="create" element={<CreateGamePage />} />
-                        <Route path="join" element={<JoinGamePage />} />
-                      </Route>
-                      <Route path="group">
-                        <Route path="invite" element={<GroupInvitePage />} />
-                        <Route path="join">
-                          <Route index element={<GroupJoinPage />} />
-                          <Route path=":gameId" element={<GroupJoinPage />} />
-                        </Route>
-                      </Route>
-                      <Route path="profile">
-                        <Route index element={<ProfilePage />} />
-                        <Route path="stats" element={<StatsPage />} />
-                      </Route>
-                      <Route path="wallet" element={<WalletPage />} />
-                      <Route path="table/:tableId" element={<TablePage />} />
+              <BrowserRouter>
+                <StartParamBridge />
+                <Routes>
+                  <Route element={<MainLayout />}>
+                    <Route index element={<HomePage />} />
+                    <Route path="lobby" element={<LobbyNewPage />} />
+                    <Route path="ui-demo" element={<UIDemoPage />} />
+                    <Route path="games">
+                      <Route path="create" element={<CreateGamePage />} />
+                      <Route path="join" element={<JoinGamePage />} />
                     </Route>
-                    <Route path="admin" element={<AdminDashboard />}>
-                      <Route index element={<Navigate to="/admin/analytics" replace />} />
-                      <Route path="panel" element={<Navigate to="/admin/analytics" replace />} />
-                      <Route path="analytics" element={<AdminAnalytics />} />
-                      <Route path="insights" element={<AdminInsights />} />
-                      <Route path="tables" element={<AdminTables />} />
-                      <Route path="table-templates" element={<AdminTableTemplates />} />
-                      <Route path="players" element={<AdminPlayers />} />
-                      <Route path="banking" element={<AdminBanking />} />
-                      <Route path="audit-logs" element={<AdminAuditLogs />} />
+                    <Route path="group">
+                      <Route path="invite" element={<GroupInvitePage />} />
+                      <Route path="join">
+                        <Route index element={<GroupJoinPage />} />
+                        <Route path=":gameId" element={<GroupJoinPage />} />
+                      </Route>
                     </Route>
-                    {/* Admin enter page - standalone, handles token redemption */}
-                    <Route path="admin/enter" element={<AdminEnter />} />
-                    {/* Admin expired page - standalone, not inside AdminDashboard layout */}
-                    <Route path="admin/expired" element={<AdminExpired />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </BrowserRouter>
-              </OrientationGuard>
+                    <Route path="profile">
+                      <Route index element={<ProfilePage />} />
+                      <Route path="stats" element={<StatsPage />} />
+                    </Route>
+                    <Route path="wallet" element={<WalletPage />} />
+                    <Route path="table/:tableId" element={<TablePage />} />
+                  </Route>
+                  <Route path="admin" element={<AdminDashboard />}>
+                    <Route index element={<Navigate to="/admin/analytics" replace />} />
+                    <Route path="panel" element={<Navigate to="/admin/analytics" replace />} />
+                    <Route path="analytics" element={<AdminAnalytics />} />
+                    <Route path="insights" element={<AdminInsights />} />
+                    <Route path="tables" element={<AdminTables />} />
+                    <Route path="table-templates" element={<AdminTableTemplates />} />
+                    <Route path="players" element={<AdminPlayers />} />
+                    <Route path="banking" element={<AdminBanking />} />
+                    <Route path="audit-logs" element={<AdminAuditLogs />} />
+                  </Route>
+                  {/* Admin enter page - standalone, handles token redemption */}
+                  <Route path="admin/enter" element={<AdminEnter />} />
+                  {/* Admin expired page - standalone, not inside AdminDashboard layout */}
+                  <Route path="admin/expired" element={<AdminExpired />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </BrowserRouter>
             </LayoutProvider>
           </UserDataProvider>
         </ThemeProvider>
