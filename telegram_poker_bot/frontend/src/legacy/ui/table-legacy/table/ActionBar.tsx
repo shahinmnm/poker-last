@@ -1,34 +1,7 @@
-/**
- * ActionBar - Main poker action UI component
- *
- * ARCHITECTURE (Phase 5 + Beta Safety Pass):
- * - Minimal Strip: 48-56px height, always visible when seated
- *   - Contains: Fold, Check/Call, Raise (verb), Leave toggle
- * - Micro Strip: 44-48px height, shown during SHOWDOWN
- *   - Contains: Leave toggle only (safe controls)
- *   - No betting actions (Fold/Call/Raise hidden)
- * - Expanded Panel: Opens on Raise tap, contains slider/presets
- *   - Auto-closes after action submission
- *   - Dismissible with X button, tap-outside, or Escape key
- *   - Auto-closes on mode transition (SHOWDOWN/OPPONENT_ACTION)
- *
- * OVERLAY PRIORITY (useUIMode):
- * - SHOWDOWN: micro strip visible (safe controls only), winner visible
- * - PLAYER_ACTION: strip + panel enabled
- * - OPPONENT_ACTION: strip disabled, waiting toast allowed
- * - WAITING: strip hidden if not seated
- *
- * SEMANTICS CONTRACT:
- * - call_amount: INCREMENTAL (chips to add to match current bet) - display as "Call {amount}"
- * - min_amount/max_amount for raise/bet: TOTAL-TO (total committed for street)
- *   - For raise actions: display as "Raise to {amount}"
- *   - For bet actions (first bet of street): display as "Bet {amount}"
- */
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import clsx from 'clsx'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { LogOut, Minus, Plus } from 'lucide-react'
 
-import { ChevronUp, Clock, LogOut, Minus, Plus, X } from 'lucide-react'
 import type { AllowedAction } from '@/types/game'
 import { formatChips } from '@/utils/formatChips'
 import { useHapticFeedback } from '@/hooks/useHapticFeedback'
@@ -42,28 +15,17 @@ interface ActionBarProps {
   onToggleStandUp?: (standUp: boolean) => void
   isStandingUp?: boolean
   standUpProcessing?: boolean
-  /** Is the hand in showdown phase - suppresses waiting toast */
   isShowdown?: boolean
-  /** Is inter-hand waiting period - suppresses waiting toast */
   isInterHand?: boolean
-  /** Hero display name for dock row */
   heroName?: string
-  /** Hero stack for dock row */
   heroStack?: number
-  /** Hero seat tags (D/SB/BB) for dock row */
   heroSeatTags?: string[]
-  /** Whether hero has enabled leave-after-hand */
   isHeroLeaving?: boolean
-  /** Whether hero is sitting out (status icon) */
   isHeroSittingOut?: boolean
 }
 
 const clampAmount = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
-const sliderActions: AllowedAction['action_type'][] = ['bet', 'raise', 'all_in']
-const dockIconSize = 14
-const dockSafePadding = 'env(safe-area-inset-bottom, 0px)'
-const dockPanelOffset =
-  'calc(var(--player-dock-hit, 56px) + var(--player-dock-row-hero, 24px) + var(--player-dock-gap, 6px) + var(--action-bar-breathing-room, 10px))'
+const multiplierPresets = [2.5, 3, 4] as const
 
 export default function ActionBar({
   allowedActions,
@@ -84,24 +46,6 @@ export default function ActionBar({
 }: ActionBarProps) {
   const { t } = useTranslation()
   const haptic = useHapticFeedback()
-  const heroDisplayName = heroName || t('table.players.youTag', { defaultValue: 'You' })
-  const heroStackDisplay = formatChips(heroStack ?? myStack ?? 0)
-  const sessionStackDisplay = formatChips(myStack ?? heroStack ?? 0)
-  const seatTags = useMemo(() => (heroSeatTags ?? []).filter(Boolean).slice(0, 3), [heroSeatTags])
-  
-  // PHASE 2: Expanded panel state - opens when user taps Raise
-  const [isExpanded, setIsExpanded] = useState(false)
-  
-  // Throttle haptic feedback during rapid slider adjustments
-  // Use 200ms interval (max 5 haptics/sec) to avoid UI slowdown and excessive vibration
-  const lastHapticTime = useRef(0)
-  const throttledHaptic = () => {
-    const now = Date.now()
-    if (now - lastHapticTime.current > 200) { // Max 5 haptics per second
-      haptic.selectionChanged()
-      lastHapticTime.current = now
-    }
-  }
 
   const foldAction = useMemo(
     () => allowedActions.find((action) => action.action_type === 'fold'),
@@ -115,524 +59,239 @@ export default function ActionBar({
     () => allowedActions.find((action) => action.action_type === 'call'),
     [allowedActions],
   )
-  const betAction = useMemo(
-    () => allowedActions.find((action) => action.action_type === 'bet'),
-    [allowedActions],
-  )
   const raiseAction = useMemo(
-    () => allowedActions.find((action) => ['raise', 'all_in'].includes(action.action_type)),
+    () => allowedActions.find((action) => ['bet', 'raise', 'all_in'].includes(action.action_type)),
     [allowedActions],
   )
 
-  const primarySliderAction = betAction ?? raiseAction ?? null
-  const [activeBetAction, setActiveBetAction] = useState<AllowedAction | null>(primarySliderAction)
+  const heroDisplayName = heroName || t('table.players.youTag', { defaultValue: 'You' })
+  const heroStackDisplay = formatChips(heroStack ?? myStack ?? 0)
+  const seatTags = useMemo(() => (heroSeatTags ?? []).filter(Boolean).slice(0, 3), [heroSeatTags])
 
-  const minAmount = activeBetAction?.min_amount ?? primarySliderAction?.min_amount ?? 0
-  const maxAmount = activeBetAction?.max_amount ?? primarySliderAction?.max_amount ?? myStack
-  const [betAmount, setBetAmount] = useState(() => clampAmount(minAmount || 0, minAmount, maxAmount || myStack))
-  const [isAdjustingBet, setIsAdjustingBet] = useState(false)
-  
-  // PHASE 2: Collapse expanded panel when turn changes
-  const collapsePanel = useCallback(() => {
-    setIsExpanded(false)
-    setIsAdjustingBet(false)
-  }, [])
-  
-  // PHASE 2: Auto-close panel on showdown or opponent action mode change
-  useEffect(() => {
-    if (isShowdown || !isMyTurn) {
-      collapsePanel()
-    }
-  }, [isShowdown, isMyTurn, collapsePanel])
-  
-  // PHASE 2: Escape key closes expanded panel (desktop)
-  useEffect(() => {
-    if (!isExpanded) return
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        collapsePanel()
-      }
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isExpanded, collapsePanel])
-
-  // TASK 3/6: Reset UI state when turn changes or becomes invalid
-  useEffect(() => {
-    if (!isMyTurn) {
-      collapsePanel()
-      // Reset bet amount to minimum when not our turn
-      if (primarySliderAction) {
-        const min = primarySliderAction.min_amount ?? 0
-        const max = primarySliderAction.max_amount ?? myStack
-        setBetAmount(clampAmount(min || 0, min, max || myStack))
-      }
-    }
-  }, [isMyTurn, primarySliderAction, myStack, collapsePanel])
+  const minAmount = raiseAction?.min_amount ?? 0
+  const maxAmount = raiseAction?.max_amount ?? myStack ?? 0
+  const upperBound = maxAmount > 0 ? maxAmount : Math.max(minAmount, myStack ?? 0, 0)
+  const [amount, setAmount] = useState(() => clampAmount(minAmount || 0, minAmount, upperBound))
 
   useEffect(() => {
-    if (activeBetAction && allowedActions.every((action) => action.action_type !== activeBetAction.action_type)) {
-      setActiveBetAction(primarySliderAction)
-      setIsAdjustingBet(false)
-    }
-  }, [activeBetAction, allowedActions, primarySliderAction])
+    setAmount(clampAmount(minAmount || 0, minAmount, upperBound))
+  }, [minAmount, upperBound, raiseAction])
 
-  useEffect(() => {
-    setBetAmount((previous) => clampAmount(previous || minAmount, minAmount, maxAmount))
-  }, [minAmount, maxAmount, activeBetAction])
-
-  // TASK 5: DEV-only validation for invalid raise bounds
-  useEffect(() => {
-    if (import.meta.env.DEV && primarySliderAction) {
-      const min = primarySliderAction.min_amount ?? 0
-      const max = primarySliderAction.max_amount ?? myStack
-      if (max < min && max > 0) {
-        console.warn('[ActionBar] Invalid raise bounds detected:', {
-          minRaise: min,
-          maxRaise: max,
-          myStack,
-          action: primarySliderAction.action_type,
-        })
-      }
-    }
-  }, [primarySliderAction, myStack])
-
-  const sliderPercent = useMemo(() => {
-    if (!maxAmount || maxAmount === minAmount) return 0
-    return ((betAmount - minAmount) / (maxAmount - minAmount)) * 100
-  }, [betAmount, maxAmount, minAmount])
-
-  const labelPercent = clampAmount(sliderPercent, 5, 95)
   const isDisabled = isProcessing || !isMyTurn
+  const hasBetting = !!raiseAction && !isShowdown
+  const step = useMemo(() => Math.max(1, Math.round(Math.abs(upperBound - minAmount) / 8)), [upperBound, minAmount])
 
-  // TASK 3: Add disabled check to prevent actions when not allowed
-  const handleStartAdjusting = (action: AllowedAction | null) => {
-    // Gate: must be my turn and not processing
-    if (!action || isDisabled) return
-    const min = action.min_amount ?? 0
-    const max = action.max_amount ?? myStack
-    // TASK 5: Validate bounds before allowing slider
-    if (max > 0 && max < min) {
-      if (import.meta.env.DEV) {
-        console.debug('[ActionBar] Blocked slider - invalid bounds:', { min, max })
-      }
+  const adjustAmount = (direction: 1 | -1) => {
+    if (!hasBetting) return
+    haptic.selectionChanged()
+    setAmount((previous) => clampAmount((previous || minAmount) + direction * step, minAmount, upperBound))
+  }
+
+  const applyMultiplier = (multiplier: number | 'all-in') => {
+    if (!hasBetting) return
+    if (multiplier === 'all-in') {
+      setAmount(clampAmount(upperBound, minAmount, upperBound))
       return
     }
-    setActiveBetAction(action)
-    setBetAmount(clampAmount(min || 0, min, max || myStack))
-    setIsAdjustingBet(true)
+    const base = minAmount || upperBound
+    setAmount(clampAmount(Math.round(base * multiplier), minAmount, upperBound))
+    haptic.selectionChanged()
   }
-
-  // TASK 3: Add disabled check to bet submission
-  const handleBetSubmit = (action: AllowedAction | null) => {
-    if (!action || isDisabled) return
-    // TASK 7: DEV log submission
-    if (import.meta.env.DEV) {
-      console.debug('[ActionBar] Submitting bet:', {
-        action: action.action_type,
-        amount: betAmount,
-        isMyTurn,
-        isProcessing,
-      })
-    }
-    onAction(action.action_type, betAmount)
-    setIsAdjustingBet(false)
-  }
-
-  const centerAction = useMemo(() => {
-    if (checkAction) return checkAction
-    if (callAction) return callAction
-    if (betAction) return betAction
-    if (raiseAction) return raiseAction
-    return null
-  }, [betAction, callAction, checkAction, raiseAction])
-
-  const centerLabel = useMemo(() => {
-    if (checkAction) {
-      return t('table.actionBar.check', { defaultValue: 'CHECK' }).toUpperCase()
-    }
-
-    if (callAction) {
-      return `CALL ${formatChips(callAction.amount ?? 0)}`
-    }
-
-    return t('table.actionBar.check', { defaultValue: 'CHECK' }).toUpperCase()
-  }, [callAction, checkAction, t])
-
-  const sliderLabelAction = raiseAction ?? betAction ?? null
-  // SEMANTICS: raise/bet amounts are TOTAL-TO values
-  // Button shows only action verb (no amount) - amount is shown in the center cluster
-  const confirmLabel = (
-    sliderLabelAction?.action_type === 'all_in'
-      ? t('table.actions.allIn', { defaultValue: 'ALL-IN' })
-      : sliderLabelAction?.action_type === 'bet'
-        ? t('table.actionBar.betLabel', { defaultValue: 'Bet' })
-        : t('table.actions.raise', { defaultValue: 'Raise' })
-  ).toUpperCase()
 
   const handleFold = () => {
-    if (!foldAction || !isMyTurn) return
-    if (isProcessing) return
+    if (!foldAction || isDisabled) return
     haptic.impact('medium')
     onAction('fold')
-    collapsePanel()
   }
 
-  const handleCenter = () => {
-    if (!centerAction || isDisabled) return
-    if (sliderActions.includes(centerAction.action_type)) {
-      // Open expanded panel for bet/raise
-      if (!isExpanded) {
-        haptic.impact('light')
-        setIsExpanded(true)
-        handleStartAdjusting(centerAction)
-        return
-      }
-      // If expanded, submit the bet
-      haptic.notification('success')
-      handleBetSubmit(centerAction)
-      collapsePanel()
-      return
-    }
-
-    haptic.impact('light')
-    if (centerAction.action_type === 'check') {
+  const handleCallOrCheck = () => {
+    if (isDisabled) return
+    if (checkAction) {
+      haptic.impact('light')
       onAction('check')
-    } else if (centerAction.action_type === 'call') {
-      onAction('call', centerAction.amount)
-    }
-    collapsePanel()
-  }
-
-  // PHASE 1: Raise button in minimal strip opens expanded panel
-  const handleRaiseClick = () => {
-    if (!sliderLabelAction || isDisabled) return
-    haptic.impact('light')
-    setIsExpanded(true)
-    handleStartAdjusting(sliderLabelAction)
-  }
-
-  // PHASE 2: Submit raise from expanded panel
-  const handleRaiseSubmit = () => {
-    if (!sliderLabelAction || isDisabled) return
-    if (!isAdjustingBet) {
-      handleStartAdjusting(sliderLabelAction)
       return
     }
+    if (callAction) {
+      haptic.impact('light')
+      onAction('call', callAction.amount)
+    }
+  }
+
+  const handleRaise = () => {
+    if (!hasBetting || isDisabled) return
+    const actionType =
+      raiseAction?.action_type === 'bet'
+        ? 'bet'
+        : raiseAction?.action_type === 'all_in' || amount >= upperBound
+          ? 'all_in'
+          : 'raise'
     haptic.notification('success')
-    handleBetSubmit(sliderLabelAction)
-    collapsePanel()
+    onAction(actionType, amount)
   }
 
   const foldLabel = t('table.actionBar.fold', { defaultValue: 'Fold' }).toUpperCase()
-  const foldDisabled = !isMyTurn || !foldAction
-  const centerDisabled = isDisabled || !centerAction
-  const raiseDisabled = isDisabled || !sliderLabelAction
-  const showBettingActions = !isShowdown
+  const callLabel = callAction
+    ? `${t('table.actions.call', { defaultValue: 'Call' }).toUpperCase()} ${formatChips(callAction.amount ?? 0)}`
+    : t('table.actions.call', { defaultValue: 'Call' }).toUpperCase()
+  const checkLabel = t('table.actionBar.check', { defaultValue: 'Check' }).toUpperCase()
+  const raiseLabel =
+    raiseAction?.action_type === 'bet'
+      ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
+      : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()
 
-  const adjustBet = (direction: 1 | -1, actionOverride?: AllowedAction | null) => {
-    const baseAction = actionOverride ?? activeBetAction ?? sliderLabelAction ?? primarySliderAction
-    if (!baseAction) return
-    const min = baseAction.min_amount ?? 0
-    const max = baseAction.max_amount ?? myStack
-    const span = Math.max(1, max - min)
-    const step = Math.max(1, Math.round(span / 12))
-
-    // Throttled haptic feedback on bet adjustment (prevents excessive triggers)
-    throttledHaptic()
-
-    setActiveBetAction(baseAction)
-    setBetAmount((previous) => clampAmount((previous || min) + direction * step, min, max || myStack))
-    setIsAdjustingBet(true)
-  }
-
-  // PHASE 4: Waiting toast suppression during showdown
-  // Only show waiting toast when: NOT showdown AND NOT inter-hand AND NOT my turn
   const showWaitingToast = !isMyTurn && !isShowdown && !isInterHand
 
-  // PHASE 4: Compact leave toggle for minimal strip (integrated, not separate chip)
-  const renderLeaveToggle = () => {
-    if (!onToggleStandUp) return null
-    const nextState = !isStandingUp
-    
-    return (
-      <button
-        type="button"
-        onClick={() => onToggleStandUp(nextState)}
-        disabled={standUpProcessing}
-        aria-pressed={isStandingUp}
-        className={clsx(
-          'dock-chip dock-chip--ghost dock-chip--icon ui-focus-ring'
-        )}
-        title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : t('table.actions.leaveAfterHand', { defaultValue: 'Leave after hand' })}
-      >
-        <LogOut size={dockIconSize} className={isStandingUp ? 'text-black' : 'text-white/80'} />
-        <span className="hidden sm:inline dock-chip__label action-label-safe">
-          {isStandingUp 
-            ? t('table.actions.leaving', { defaultValue: 'Leaving' })
-            : t('table.actions.sitOut', { defaultValue: 'Leave' })}
-        </span>
-      </button>
-    )
-  }
-
-  const renderHeroRow = () => (
-    <div className="player-dock__row player-dock__row--hero" dir="auto">
-      <div className="player-dock__hero">
-        <span className="player-dock__name">{heroDisplayName}</span>
-        {seatTags.length > 0 && (
-          <div className="player-dock__badges">
-            {seatTags.map((tag) => (
-              <span key={tag} className="dock-badge">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="player-dock__stack" aria-label={t('table.players.stackLabel', { defaultValue: 'Stack' })}>
-        <span className="player-dock__stack-label">
-          {t('table.dock.stack', { defaultValue: 'STACK' })}
-        </span>
-        <span className="player-dock__stack-value">{heroStackDisplay}</span>
-        <span className="player-dock__stack-divider" aria-hidden="true">/</span>
-        <span className="player-dock__stack-label">
-          {t('table.dock.session', { defaultValue: 'SESSION' })}
-        </span>
-        <span className="player-dock__stack-value">{sessionStackDisplay}</span>
-      </div>
-      <div className="player-dock__status">
-        {isHeroLeaving && (
-          <span
-            className="dock-status dock-status--leave"
-            title={t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' })}
-            aria-label={t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' })}
-          >
-            <LogOut size={dockIconSize} className="dock-icon" />
-          </span>
-        )}
-        {!isHeroLeaving && isHeroSittingOut && (
-          <span
-            className="dock-status dock-status--sitout"
-            title={t('table.actions.sittingOut', { defaultValue: 'Sitting out' })}
-            aria-label={t('table.actions.sittingOut', { defaultValue: 'Sitting out' })}
-          >
-            Zzz
-          </span>
-        )}
-        {isMyTurn && (
-          <span
-            className="dock-status dock-status--timer"
-            title={t('table.actions.yourTurn', { defaultValue: 'Your turn' })}
-            aria-label={t('table.actions.yourTurn', { defaultValue: 'Your turn' })}
-          >
-            <Clock size={dockIconSize} className="dock-icon" />
-          </span>
-        )}
-      </div>
-    </div>
-  )
-
-
-  // PHASE 1 & 2: Main rendering for the dock
   return (
-    <>
-      {/* PHASE 2: Backdrop for tap-outside-closes-panel */}
-      {isExpanded && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={collapsePanel}
-          aria-hidden="true"
-        />
-      )}
-      
-      {/* PHASE 2: Expanded Action Panel - opens above minimal strip */}
-      {/* Only visible when isExpanded is true (user tapped Raise) */}
-      {isExpanded && sliderLabelAction && (
-        <div
-          className="action-expanded-panel pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 sm:px-4"
-          style={{ paddingBottom: dockSafePadding, bottom: dockPanelOffset }}
-        >
-          <div className="pointer-events-auto relative w-full max-w-[var(--expanded-panel-max-width,400px)]">
-            {/* Floating bet amount label */}
-            <div className="pointer-events-none absolute -top-10" style={{ left: `${labelPercent}%`, transform: 'translateX(-50%)' }}>
-              <div className="action-panel__bubble rounded-full px-4 py-1.5 backdrop-blur-lg">
-                <span className="text-[13px] font-bold text-white tabular-nums tracking-tight">
-                  {formatChips(betAmount ?? 0)}
-                </span>
-              </div>
-            </div>
-
-            {/* Expanded panel container */}
-            <div className="action-panel rounded-2xl border border-[var(--border-2)] bg-[var(--surface-1)] p-4 shadow-xl backdrop-blur-lg">
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={collapsePanel}
-                aria-label={t('common.cancel', { defaultValue: 'Close' })}
-                className="absolute top-2 right-2 min-h-[36px] min-w-[36px] h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 motion-reduce:transition-none"
-              >
-                <X size={16} />
-              </button>
-              
-              {/* Raise cluster - +/- buttons with amount display */}
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <button
-                  type="button"
-                  onClick={() => adjustBet(-1, sliderLabelAction)}
-                  disabled={raiseDisabled}
-                  aria-label={t('table.actionBar.decreaseAmount', { defaultValue: 'Decrease amount' })}
-                  className="raise-cluster__btn flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 motion-reduce:transition-none motion-reduce:active:scale-100"
-                >
-                  <Minus size={20} />
-                </button>
-                
-                {/* Amount display */}
-                <div className="raise-cluster__amount min-w-[100px] px-3 text-center">
-                  <span className="raise-cluster__label block text-[10px] uppercase tracking-wider text-[var(--text-3)] leading-none mb-1">
-                    {sliderLabelAction.action_type === 'bet' 
-                      ? t('table.actionBar.betLabel', { defaultValue: 'Bet' })
-                      : t('table.actionBar.raiseToLabel', { defaultValue: 'Raise to' })}
-                  </span>
-                  <span className="raise-cluster__value block text-[22px] font-bold text-emerald-300 tabular-nums leading-none">
-                    {formatChips(betAmount ?? 0)}
-                  </span>
-                </div>
-                
-                <button
-                  type="button"
-                  onClick={() => adjustBet(1, sliderLabelAction)}
-                  disabled={raiseDisabled}
-                  aria-label={t('table.actionBar.increaseAmount', { defaultValue: 'Increase amount' })}
-                  className="raise-cluster__btn flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-150 hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 motion-reduce:transition-none motion-reduce:active:scale-100"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
-              
-              {/* Slider */}
-              <div className="mb-3">
-                <div className="flex justify-between mb-1.5 px-1">
-                  <span className="text-[9px] font-medium text-[var(--text-3)] uppercase tracking-wider">
-                    {t('table.actionBar.min', { defaultValue: 'Min' })}: {formatChips(minAmount ?? 0)}
-                  </span>
-                  <span className="text-[9px] font-medium text-[var(--text-3)] uppercase tracking-wider">
-                    {t('table.actionBar.max', { defaultValue: 'Max' })}: {formatChips(maxAmount ?? 0)}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={minAmount}
-                  max={maxAmount || minAmount || 1}
-                  value={betAmount}
-                  onChange={(event) => setBetAmount(Number(event.target.value))}
-                  disabled={isDisabled}
-                  className="action-range h-2 w-full"
-                  style={{
-                    background: `linear-gradient(90deg, rgba(74,222,128,0.95) ${sliderPercent}%, rgba(255,255,255,0.12) ${sliderPercent}%)`,
-                  }}
-                />
-              </div>
-              
-              {/* Confirm button */}
-              <button
-                type="button"
-                onClick={handleRaiseSubmit}
-                disabled={raiseDisabled}
-                className="w-full min-h-[44px] h-11 rounded-full bg-gradient-to-b from-blue-500 to-blue-700 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-900/50 ring-1 ring-blue-400/30 transition-all duration-150 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 motion-reduce:transition-none motion-reduce:active:scale-100"
-              >
-                <span className="action-label-safe">{confirmLabel}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Waiting toast - centered above action bar safe zone */}
+    <div className="w-full">
       {showWaitingToast && (
-        <div className="waiting-toast">
-          <span className="waiting-toast__spinner" />
+        <div className="mb-2 flex items-center justify-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 text-xs font-semibold text-white/80">
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400" aria-hidden />
           {t('table.actions.waitingForTurn', { defaultValue: 'Waiting for opponent' })}
         </div>
       )}
 
-      {/* PLAYER CONTROL DOCK: Combined hero/status + actions */}
-      <div
-        className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 sm:bottom-4 sm:px-4"
-        style={{ paddingBottom: dockSafePadding }}
-      >
-        <div className="pointer-events-auto w-full flex justify-center">
-          <div className="player-dock">
-            {renderHeroRow()}
-            <div
-              className={clsx(
-                'player-dock__row player-dock__row--actions',
-                !showBettingActions && 'player-dock__row--micro'
-              )}
-            >
-              {showBettingActions && (
-                <div className="player-dock__actions player-dock__actions--primary">
-                  <div className="dock-hitbox">
-                    <button
-                      type="button"
-                      onClick={handleFold}
-                      disabled={foldDisabled}
-                      className="dock-chip dock-chip--danger ui-focus-ring"
-                    >
-                      <span className="dock-chip__label action-label-safe">{foldLabel}</span>
-                    </button>
-                  </div>
+      <div className="mx-auto flex w-full max-w-md flex-col gap-3 rounded-2xl border border-white/10 bg-[#0d1115] p-3 shadow-2xl">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="truncate text-sm font-semibold text-white">{heroDisplayName}</span>
+            {seatTags.length > 0 && (
+              <div className="flex items-center gap-1">
+                {seatTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase text-white/80"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-300">
+            <span className="whitespace-nowrap">{heroStackDisplay}</span>
+            {(isHeroLeaving || isHeroSittingOut) && (
+              <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-white/70">
+                {isHeroLeaving && (
+                  <span className="rounded-md bg-white/10 px-2 py-0.5">
+                    {t('table.actions.leavingAfterHand', { defaultValue: 'Leaving' })}
+                  </span>
+                )}
+                {!isHeroLeaving && isHeroSittingOut && (
+                  <span className="rounded-md bg-white/10 px-2 py-0.5">
+                    {t('table.actions.sittingOut', { defaultValue: 'Sitting out' })}
+                  </span>
+                )}
+              </div>
+            )}
+            {onToggleStandUp && (
+              <button
+                type="button"
+                onClick={() => onToggleStandUp(!isStandingUp)}
+                disabled={standUpProcessing}
+                aria-pressed={isStandingUp}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white transition-colors disabled:opacity-50"
+                title={isStandingUp ? t('table.actions.leavingAfterHand', { defaultValue: 'Leaving after hand' }) : undefined}
+              >
+                <LogOut size={16} />
+              </button>
+            )}
+          </div>
+        </div>
 
-                  <div className="dock-hitbox">
-                    <button
-                      type="button"
-                      onClick={handleCenter}
-                      disabled={centerDisabled}
-                      className="dock-chip dock-chip--primary ui-focus-ring"
-                    >
-                      <span className="dock-chip__label action-label-safe">{centerLabel}</span>
-                    </button>
-                  </div>
+        <div className="flex flex-col gap-2" aria-label="Primary actions">
+          <button
+            type="button"
+            onClick={handleFold}
+            disabled={!foldAction || isDisabled}
+            className="h-12 w-full rounded-xl border border-red-500/40 bg-[#1a1012] text-sm font-semibold uppercase tracking-wide text-red-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="whitespace-nowrap">{foldLabel}</span>
+          </button>
 
-                  {sliderLabelAction && (
-                    <div className="dock-hitbox">
-                      <button
-                        type="button"
-                        onClick={handleRaiseClick}
-                        disabled={raiseDisabled}
-                        className={clsx(
-                          'dock-chip dock-chip--accent ui-focus-ring',
-                          isExpanded && 'dock-chip--active'
-                        )}
-                      >
-                        <span className="flex items-center gap-1">
-                          <span className="dock-chip__label action-label-safe">
-                            {sliderLabelAction.action_type === 'bet'
-                              ? t('table.actionBar.betLabel', { defaultValue: 'Bet' }).toUpperCase()
-                              : t('table.actions.raise', { defaultValue: 'Raise' }).toUpperCase()}
-                          </span>
-                          <ChevronUp
-                            size={dockIconSize}
-                            className={clsx('transition-transform duration-150 motion-reduce:transition-none', isExpanded && 'rotate-180')}
-                          />
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+          <button
+            type="button"
+            onClick={handleCallOrCheck}
+            disabled={!(checkAction || callAction) || isDisabled}
+            className="h-12 w-full rounded-xl border border-emerald-500/50 bg-[#102016] text-sm font-semibold uppercase tracking-wide text-emerald-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="whitespace-nowrap">{checkAction ? checkLabel : callLabel}</span>
+          </button>
 
-              {showBettingActions && <div className="player-dock__divider" aria-hidden="true" />}
+          <button
+            type="button"
+            onClick={handleRaise}
+            disabled={!hasBetting || isDisabled}
+            className="h-12 w-full rounded-xl border border-white/20 bg-[#111722] text-sm font-semibold uppercase tracking-wide text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="whitespace-nowrap">{raiseLabel}</span>
+          </button>
+        </div>
 
-              <div className="player-dock__actions player-dock__actions--secondary">
-                <div className="dock-hitbox dock-hitbox--secondary">
-                  {renderLeaveToggle()}
-                </div>
+        {hasBetting && (
+          <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#0b0f13] p-3" aria-label="Raise control">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                {raiseLabel}
+              </span>
+              <span className="text-lg font-bold text-emerald-300 tabular-nums">{formatChips(amount ?? 0)}</span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => adjustAmount(-1)}
+                  disabled={isDisabled}
+                  aria-label={t('table.actionBar.decreaseAmount', { defaultValue: 'Decrease amount' })}
+                  className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/15 bg-[#161b20] text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Minus size={18} />
+                </button>
+                <input
+                  type="range"
+                  min={minAmount}
+                  max={upperBound || minAmount || 1}
+                  value={amount}
+                  onChange={(event) => setAmount(Number(event.target.value))}
+                  disabled={isDisabled}
+                  className="h-2 flex-1 accent-emerald-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => adjustAmount(1)}
+                  disabled={isDisabled}
+                  aria-label={t('table.actionBar.increaseAmount', { defaultValue: 'Increase amount' })}
+                  className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/15 bg-[#161b20] text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {multiplierPresets.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => applyMultiplier(value)}
+                    disabled={isDisabled}
+                    className="h-10 w-full rounded-lg border border-white/10 bg-[#121821] text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className="whitespace-nowrap">{`${value}×`}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => applyMultiplier('all-in')}
+                  disabled={isDisabled}
+                  className="h-10 w-full rounded-lg border border-emerald-500/40 bg-[#0f1b13] text-sm font-semibold text-emerald-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="whitespace-nowrap">{t('table.actions.allIn', { defaultValue: 'All-in' }).toUpperCase()}</span>
+                </button>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
-    </>
+    </div>
   )
 }
