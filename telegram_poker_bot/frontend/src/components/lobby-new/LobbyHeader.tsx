@@ -50,6 +50,7 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
   // Format status display - show table count or status
   const statusDisplay = statusLabel || (ready ? t('common.status.online', 'Online') : t('common.loading', 'Loading...'))
   const isNumeric = /^\d+$/.test(statusDisplay)
+  const tableCount = isNumeric ? parseInt(statusDisplay, 10) : 0
 
   return (
     <div className="lobby-header-capsule" ref={panelRef}>
@@ -72,7 +73,7 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
           <span className="lobby-header-v2__dot" aria-hidden="true" />
           <span className="lobby-header-v2__center-label ui-nowrap">
             {isNumeric
-              ? t('lobbyNew.header.tablesOnline', '{{count}} Tables', { count: statusDisplay })
+              ? t('lobbyNew.header.tablesCount', '{{count}} Tables', { count: tableCount })
               : statusDisplay}
           </span>
           <FontAwesomeIcon
@@ -105,6 +106,7 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
             className="lobby-header-v2__panel-item"
             onClick={() => {
               changeLanguage(nextLanguage.code)
+              setIsExpanded(false)
             }}
           >
             <FontAwesomeIcon icon={faGlobe} className="lobby-header-v2__panel-icon" />
