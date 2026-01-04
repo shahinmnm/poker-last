@@ -19,22 +19,22 @@
 
   /* ==================== BORDER RADIUS SCALE (UNIFIED) ==================== */
   /* UNIFIED radius scale per design system:
-   * Card/Panel: 18px
-   * Chips: 14px
-   * Buttons: 14px  
-   * Small badges: 999px (pill)
+   * Panel: 16px
+   * Card: 14px
+   * Chips/Buttons: 10-12px
+   * Icon buttons: 999px (circle)
    */
   --radius-sm: 8px;       /* Icons, mini buttons */
-  --radius-md: 14px;      /* Chips, buttons */
-  --radius-lg: 14px;      /* Buttons, inputs */
-  --radius-xl: 18px;      /* Cards, panels */
-  --radius-2xl: 18px;     /* Large containers */
-  --radius-panel: 18px;   /* Large containers / panels */
-  --radius-card: 18px;    /* Cards / panels */
-  --radius-button: 14px;  /* Buttons */
-  --radius-chip: 14px;    /* Chips */
+  --radius-md: 12px;      /* Chips, buttons */
+  --radius-lg: 12px;      /* Buttons, inputs */
+  --radius-xl: 16px;      /* Panels */
+  --radius-2xl: 16px;     /* Large containers */
+  --radius-panel: 16px;   /* Panels */
+  --radius-card: 14px;    /* Cards */
+  --radius-button: 12px;  /* Buttons */
+  --radius-chip: 12px;    /* Chips */
   --radius-pill: 999px;   /* Pills / badges only */
-  --radius-icon: 8px;     /* Icon buttons */
+  --radius-icon: 999px;   /* Icon buttons */
 
   /* ==================== TYPOGRAPHY SCALE (REDUCED BY 15-20%) ==================== */
   /* Font sizes - optimized for mobile, Farsi support, and reduced visual density */
@@ -107,6 +107,9 @@
   --surface-1: rgba(10, 14, 12, 0.55);      /* Primary surface overlay */
   --surface-2: rgba(10, 14, 12, 0.70);      /* Secondary surface overlay */
   --surface-3: rgba(6, 9, 8, 0.50);         /* Tertiary surface - subtle */
+  --surface-panel: rgba(5, 8, 7, 0.58);     /* Panel surface */
+  --surface-panel-strong: rgba(5, 8, 7, 0.72); /* Strong panel surface */
+  --border-panel: rgba(255, 255, 255, 0.10);   /* Panel border */
   
   /* ==================== SEMANTIC TEXT HIERARCHY ==================== */
   --text-1: #fff7ee;                        /* Primary text - headings, names */
@@ -293,4 +296,7 @@
   --surface-1: rgba(13, 40, 28, 0.96);
   --surface-2: rgba(10, 32, 22, 0.94);
   --surface-3: rgba(16, 48, 34, 0.9);
+  --surface-panel: rgba(13, 40, 28, 0.96);
+  --surface-panel-strong: rgba(10, 32, 22, 0.94);
+  --border-panel: rgba(255, 255, 255, 0.12);
 }

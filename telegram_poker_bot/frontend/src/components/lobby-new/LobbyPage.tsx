@@ -422,12 +422,13 @@ export default function LobbyPage() {
   const actionsDisabled = !ready
   const activeError =
     !ready || authMissing ? null : activeTab === 'history' ? errorMyTables : errorPublic
-  const lobbyStatusLabel = listLoading
-    ? t('common.loading', 'Loading...')
-    : t('lobbyNew.header.tablesCount', {
-        defaultValue: '{{count}} tables',
-        count: totalCount,
-      })
+  const lobbyStatusLabel =
+    !ready || loadingPublic
+      ? t('common.loading', 'Loading...')
+      : t('lobbyNew.header.tablesOnlineCount', {
+          defaultValue: '{{count}}',
+          count: publicTables.length,
+        })
 
   const emptyState = useMemo(() => {
     if (activeTab === 'history') {
@@ -493,13 +494,15 @@ export default function LobbyPage() {
       {isOffline && (
         <div className="lobby-v2__banner">
           <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
-          <span>{t('lobbyNew.offline.title', 'Reconnecting...')}</span>
+          <span className="ui-nowrap">{t('lobbyNew.offline.title', 'Reconnecting...')}</span>
         </div>
       )}
 
       {authMissing && (
         <div className="lobby-v2__banner">
-          {t('lobbyNew.auth.required', 'Open inside Telegram to play.')}
+          <span className="ui-nowrap">
+            {t('lobbyNew.auth.required', 'Open inside Telegram to play.')}
+          </span>
         </div>
       )}
 
@@ -515,84 +518,86 @@ export default function LobbyPage() {
         actionsDisabled={actionsDisabled}
       />
 
-      {/* 4. Category Selector (Segmented Control) */}
-      <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
+      {/* 4. Lobby Controls Row */}
+      <section className="lobby-v2__controls">
+        <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
 
-      {/* 5. Search + Filter Row */}
-      <div className="lobby-v2__search-row">
-        <div className="lobby-v2__search">
-          <FontAwesomeIcon icon={faMagnifyingGlass} className="lobby-v2__search-icon" />
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
-            className="lobby-v2__search-input"
-          />
-        </div>
+        <div className="lobby-v2__search-row">
+          <div className="lobby-v2__search">
+            <FontAwesomeIcon icon={faMagnifyingGlass} className="lobby-v2__search-icon" />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
+              className="lobby-v2__search-input ui-nowrap"
+            />
+          </div>
 
-        <div className="lobby-v2__filter-wrap">
-          <button
-            ref={filterButtonRef}
-            type="button"
-            onClick={() => setFilterOpen((prev) => !prev)}
-            className="lobby-v2__filter-btn"
-            aria-expanded={filterOpen}
-          >
-            <FontAwesomeIcon icon={faSliders} />
-            {activeFilterCount > 0 && (
-              <span className="lobby-v2__filter-count">{activeFilterCount}</span>
+          <div className="lobby-v2__filter-wrap">
+            <button
+              ref={filterButtonRef}
+              type="button"
+              onClick={() => setFilterOpen((prev) => !prev)}
+              className="lobby-v2__filter-btn"
+              aria-expanded={filterOpen}
+              aria-label={t('lobbyNew.actions.filters', 'Filters')}
+            >
+              <FontAwesomeIcon icon={faSliders} />
+              {activeFilterCount > 0 && (
+                <span className="lobby-v2__filter-count">{activeFilterCount}</span>
+              )}
+            </button>
+
+            {filterOpen && (
+              <div ref={filterPopoverRef} className="lobby-v2__filter-popover">
+                <p className="lobby-v2__filter-title">{t('lobbyNew.filters.title', 'Filters')}</p>
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, joinableOnly: !prev.joinableOnly }))}
+                  aria-pressed={filters.joinableOnly}
+                  className="lobby-v2__filter-toggle"
+                >
+                  <span className="ui-nowrap">{t('lobbyNew.filters.joinableOnly', 'Only joinable')}</span>
+                  <span className={`lobby-v2__toggle ${filters.joinableOnly ? 'is-on' : ''}`}>
+                    <span className="lobby-v2__toggle-thumb" />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }))}
+                  aria-pressed={filters.favoritesOnly}
+                  className="lobby-v2__filter-toggle"
+                >
+                  <span className="ui-nowrap">{t('lobbyNew.filters.favoritesOnly', 'Favorites')}</span>
+                  <span className={`lobby-v2__toggle ${filters.favoritesOnly ? 'is-on' : ''}`}>
+                    <span className="lobby-v2__toggle-thumb" />
+                  </span>
+                </button>
+
+                <div className="lobby-v2__filter-divider" />
+                <p className="lobby-v2__filter-title">{t('lobbyNew.sort.title', 'Sort')}</p>
+                {sortOptions.map((option) => {
+                  const isActive = option.value === sort
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setSort(option.value)}
+                      className={`lobby-v2__sort-option ${isActive ? 'is-active' : ''}`}
+                    >
+                      <span className="ui-nowrap">{option.label}</span>
+                      {isActive && <FontAwesomeIcon icon={faCheck} />}
+                    </button>
+                  )
+                })}
+              </div>
             )}
-          </button>
 
-          {filterOpen && (
-            <div ref={filterPopoverRef} className="lobby-v2__filter-popover">
-              <p className="lobby-v2__filter-title">{t('lobbyNew.filters.title', 'Filters')}</p>
-              <button
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, joinableOnly: !prev.joinableOnly }))}
-                aria-pressed={filters.joinableOnly}
-                className="lobby-v2__filter-toggle"
-              >
-                <span>{t('lobbyNew.filters.joinableOnly', 'Only joinable')}</span>
-                <span className={`lobby-v2__toggle ${filters.joinableOnly ? 'is-on' : ''}`}>
-                  <span className="lobby-v2__toggle-thumb" />
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }))}
-                aria-pressed={filters.favoritesOnly}
-                className="lobby-v2__filter-toggle"
-              >
-                <span>{t('lobbyNew.filters.favoritesOnly', 'Favorites')}</span>
-                <span className={`lobby-v2__toggle ${filters.favoritesOnly ? 'is-on' : ''}`}>
-                  <span className="lobby-v2__toggle-thumb" />
-                </span>
-              </button>
-
-              <div className="lobby-v2__filter-divider" />
-              <p className="lobby-v2__filter-title">{t('lobbyNew.sort.title', 'Sort')}</p>
-              {sortOptions.map((option) => {
-                const isActive = option.value === sort
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setSort(option.value)}
-                    className={`lobby-v2__sort-option ${isActive ? 'is-active' : ''}`}
-                  >
-                    <span>{option.label}</span>
-                    {isActive && <FontAwesomeIcon icon={faCheck} />}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          <span className="lobby-v2__count">{visibleCount}/{totalCount}</span>
+            <span className="lobby-v2__count ui-nowrap">{visibleCount}/{totalCount}</span>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* 6. Table List */}
       <div className="lobby-v2__list" role="list">

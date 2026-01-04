@@ -4,7 +4,6 @@ import {
   faBolt,
   faCirclePlus,
   faLock,
-  faPlay,
   faRotateRight,
 } from '@fortawesome/free-solid-svg-icons'
 
@@ -36,8 +35,8 @@ export default function QuickSeatCard({
   const { t } = useTranslation()
 
   const subtext = recommendation
-    ? t('lobbyNew.quickSeat.recommendation', {
-        defaultValue: '{{stakes}} • {{seats}} seats open',
+    ? t('lobbyNew.quickSeat.recommendationCompact', {
+        defaultValue: 'Recommended: {{stakes}} • {{seats}} seats open',
         stakes: recommendation.stakesLabel,
         seats: recommendation.seatsOpen,
       })
@@ -45,13 +44,15 @@ export default function QuickSeatCard({
 
   return (
     <section className="quickseat-v2">
-      {/* Hero: Play Now Section */}
       <div className="quickseat-v2__hero">
-        <div className="quickseat-v2__label">
-          <FontAwesomeIcon icon={faBolt} className="quickseat-v2__label-icon" />
-          <span>{t('lobbyNew.quickSeat.eyebrow', 'Play Now')}</span>
+        <div className="quickseat-v2__info">
+          <div className="quickseat-v2__label ui-nowrap">
+            <FontAwesomeIcon icon={faBolt} className="quickseat-v2__label-icon" />
+            <span className="ui-nowrap">{t('lobbyNew.quickSeat.title', 'Quick Seat')}</span>
+          </div>
+          <p className="quickseat-v2__subtext ui-nowrap" dir="auto">{subtext}</p>
         </div>
-        
+
         <button
           type="button"
           onClick={onQuickSeat}
@@ -59,14 +60,13 @@ export default function QuickSeatCard({
           className="quickseat-v2__cta"
           aria-label={t('lobbyNew.quickSeat.button', 'Quick Seat')}
         >
-          <FontAwesomeIcon icon={faPlay} className="quickseat-v2__cta-icon" />
-          <span className="quickseat-v2__cta-text">{t('lobbyNew.quickSeat.button', 'Quick Seat')}</span>
+          <FontAwesomeIcon icon={faBolt} className="quickseat-v2__cta-icon" />
+          <span className="quickseat-v2__cta-text ui-nowrap">
+            {t('lobbyNew.quickSeat.button', 'Quick Seat')}
+          </span>
         </button>
-        
-        <p className="quickseat-v2__subtext">{subtext}</p>
       </div>
 
-      {/* Secondary Action Strip */}
       <div className="quickseat-v2__actions">
         <button
           type="button"
@@ -75,7 +75,7 @@ export default function QuickSeatCard({
           className="quickseat-v2__action"
         >
           <FontAwesomeIcon icon={faCirclePlus} />
-          <span>{t('lobbyNew.actions.create', 'Create')}</span>
+          <span className="ui-nowrap">{t('lobbyNew.actions.create', 'Create')}</span>
         </button>
         <button
           type="button"
@@ -84,7 +84,7 @@ export default function QuickSeatCard({
           className="quickseat-v2__action"
         >
           <FontAwesomeIcon icon={faLock} />
-          <span>{t('lobbyNew.actions.joinPrivateShort', 'Private')}</span>
+          <span className="ui-nowrap">{t('lobbyNew.actions.joinPrivateShort', 'Private')}</span>
         </button>
         <button
           type="button"
@@ -93,7 +93,7 @@ export default function QuickSeatCard({
           className="quickseat-v2__action"
         >
           <FontAwesomeIcon icon={faRotateRight} />
-          <span>{t('lobbyNew.actions.refresh', 'Refresh')}</span>
+          <span className="ui-nowrap">{t('lobbyNew.actions.refresh', 'Refresh')}</span>
         </button>
       </div>
     </section>

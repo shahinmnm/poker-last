@@ -30,14 +30,17 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
       <Link to="/profile" className="lobby-header-v2__identity">
         <Avatar size="sm" showTurnIndicator={false} className="lobby-header-v2__avatar" />
         <div className="lobby-header-v2__user">
-          <span className="lobby-header-v2__name">{displayName}</span>
-          <span className="lobby-header-v2__balance">{balanceLabel}</span>
+          <span className="lobby-header-v2__name ui-nowrap" dir="auto">{displayName}</span>
+          <span className="lobby-header-v2__balance ui-nowrap">{balanceLabel}</span>
         </div>
       </Link>
 
       <div className="lobby-header-v2__center">
         <span className="lobby-header-v2__dot" aria-hidden="true" />
-        <span className="lobby-header-v2__status">
+        <span className="lobby-header-v2__center-label ui-nowrap">
+          {t('lobbyNew.header.tablesOnline', 'Tables Online')}
+        </span>
+        <span className="lobby-header-v2__status ui-nowrap">
           {statusLabel || (ready ? t('common.status.online', 'Online') : '')}
         </span>
       </div>
@@ -49,7 +52,7 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
           className="lobby-header-v2__icon-btn"
           aria-label={t('settings.sections.language.title', 'Language')}
         >
-          <span className="lobby-header-v2__lang">{language.toUpperCase()}</span>
+          <span className="lobby-header-v2__lang ui-nowrap">{language.toUpperCase()}</span>
         </button>
         <Link
           to="/settings"

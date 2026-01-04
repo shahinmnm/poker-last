@@ -21,7 +21,7 @@ export default function LobbyTabs({ activeTab, onChange, labels }: LobbyTabsProp
             type="button"
             role="tab"
             onClick={() => onChange(tab)}
-            className={cn('segmented-control__option', isActive && 'is-active')}
+            className={cn('segmented-control__option ui-nowrap', isActive && 'is-active')}
             aria-selected={isActive}
           >
             {labels[tab]}
