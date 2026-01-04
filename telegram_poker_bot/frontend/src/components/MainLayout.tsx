@@ -1,13 +1,11 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGear, faPlay } from '@fortawesome/free-solid-svg-icons'
+import { faGear } from '@fortawesome/free-solid-svg-icons'
 
 import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
 import Avatar from './ui/Avatar'
-import PlaySheet from './layout/PlaySheet'
 import AppBackground from './background/AppBackground'
 import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
@@ -15,7 +13,7 @@ import { useUserData } from '../providers/UserDataProvider'
 import { useLayout } from '../providers/LayoutProvider'
 import { formatByCurrency } from '../utils/currency'
 
-const bottomNavKeys = ['lobby', 'wallet', 'profile'] as const
+const bottomNavKeys = ['home', 'lobby', 'wallet', 'profile'] as const
 
 const bottomNavItems = bottomNavKeys
   .map((key) => menuTree.find((item) => item.key === key))
@@ -27,11 +25,11 @@ export default function MainLayout() {
   const { balance } = useUserData()
   const { showBottomNav } = useLayout()
   const location = useLocation()
-  const [isPlaySheetOpen, setIsPlaySheetOpen] = useState(false)
 
   // Hide header and nav when on Table page for immersive full-screen experience
   const isTablePage = location.pathname.startsWith('/table/')
   const isLobbyPage = location.pathname.startsWith('/lobby')
+  const isHomePage = location.pathname === '/'
   const showBottomBar = showBottomNav && !isTablePage
   const dockOffset = 'calc(88px + env(safe-area-inset-bottom, 0px))'
   const basePaddingBottom = showBottomBar ? dockOffset : 'calc(48px + env(safe-area-inset-bottom, 0px))'
@@ -49,11 +47,12 @@ export default function MainLayout() {
       <div
         className={cn(
           'app-shell ui-shell relative flex h-screen w-screen flex-col overflow-hidden text-[color:var(--color-text)]',
-          !isTablePage && !isLobbyPage && 'app-shell--safe',
+          !isTablePage && !isLobbyPage && !isHomePage && 'app-shell--safe',
+          isHomePage && 'app-shell--home',
           isLobbyPage && 'app-shell--lobby',
         )}
       >
-        {!isTablePage && !isLobbyPage && (
+        {!isTablePage && !isLobbyPage && !isHomePage && (
           <header className="app-header ui-panel">
             <div className="app-header__content">
               <Link to="/profile" className="app-header__identity">
@@ -92,8 +91,13 @@ export default function MainLayout() {
             'relative mx-auto flex w-full flex-1 flex-col',
             isTablePage
               ? 'h-full w-full max-w-none overflow-hidden p-0'
-              : 'app-main max-w-5xl overflow-y-auto px-4 pt-4',
+              : isLobbyPage
+                ? 'app-main max-w-none overflow-y-auto px-0 pt-0'
+                : isHomePage
+                  ? 'app-main max-w-none overflow-y-auto px-0 pt-0'
+                  : 'app-main max-w-5xl overflow-y-auto px-4 pt-4',
             isLobbyPage && 'lobby-main',
+            isHomePage && 'home-main',
           )}
           style={
             isTablePage
@@ -106,12 +110,12 @@ export default function MainLayout() {
 
         {showBottomBar && (
           <nav
-            className="app-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border-weak)] backdrop-blur-xl"
+            className="app-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border-weak)]"
             role="navigation"
             aria-label={t('nav.main', 'Main navigation')}
-            style={{ background: 'var(--surface-1)' }}
+            style={{ background: 'var(--surface-panel-strong)' }}
           >
-            <div className="mx-auto flex max-w-5xl items-center justify-around gap-2 px-3 py-2">
+            <div className="mx-auto flex w-full max-w-none items-center justify-around gap-2 px-3 py-2">
               {bottomNavItems.map((item) => (
                 <NavLink
                   key={item.key}
@@ -129,21 +133,10 @@ export default function MainLayout() {
                   <span className="truncate">{t(item.labelKey)}</span>
                 </NavLink>
               ))}
-              <button
-                type="button"
-                onClick={() => setIsPlaySheetOpen(true)}
-                className="app-bottom-nav__link"
-                aria-label={t('nav.play', 'Play')}
-              >
-                <FontAwesomeIcon icon={faPlay} />
-                <span className="truncate">{t('nav.play', 'Play')}</span>
-              </button>
             </div>
           </nav>
         )}
       </div>
-
-      <PlaySheet isOpen={isPlaySheetOpen} onClose={() => setIsPlaySheetOpen(false)} />
     </>
   )
 }

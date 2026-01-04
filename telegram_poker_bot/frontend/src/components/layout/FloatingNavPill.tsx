@@ -11,10 +11,9 @@ const AUTO_COLLAPSE_MS = 2500
 
 interface FloatingNavPillProps {
   items: MenuNode[]
-  onQuickPlay?: () => void
 }
 
-export default function FloatingNavPill({ items, onQuickPlay }: FloatingNavPillProps) {
+export default function FloatingNavPill({ items }: FloatingNavPillProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const navRef = useRef<HTMLDivElement | null>(null)
@@ -100,18 +99,6 @@ export default function FloatingNavPill({ items, onQuickPlay }: FloatingNavPillP
         <FontAwesomeIcon icon={faCoins} />
       </button>
       <div className="floating-nav-pill__items" role="menu" aria-label={t('nav.quick', 'Quick navigation')}>
-        {onQuickPlay && (
-          <button
-            type="button"
-            className="floating-nav-pill__cta"
-            onClick={() => {
-              onQuickPlay()
-              setOpen(false)
-            }}
-          >
-            <span className="floating-nav-pill__cta-label">{t('nav.play', 'Play')}</span>
-          </button>
-        )}
         {items.map((item) => (
           <NavLink
             key={item.key}
@@ -125,7 +112,7 @@ export default function FloatingNavPill({ items, onQuickPlay }: FloatingNavPillP
             role="menuitem"
           >
             <FontAwesomeIcon icon={item.icon} />
-            <span className="floating-nav-pill__item-label">{t(item.labelKey)}</span>
+            <span className="floating-nav-pill__item-label ui-nowrap">{t(item.labelKey)}</span>
           </NavLink>
         ))}
       </div>

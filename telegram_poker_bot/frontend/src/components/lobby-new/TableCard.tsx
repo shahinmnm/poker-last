@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCoins, faLock, faPlay } from '@fortawesome/free-solid-svg-icons'
+import { faCoins, faLock, faPlay, faStar } from '@fortawesome/free-solid-svg-icons'
 
 import { cn } from '../../utils/cn'
 import { formatChips } from '../../utils/formatChips'
@@ -16,11 +16,34 @@ interface TableCardProps {
 
 export default function TableCard({
   table,
+  isFavorite = false,
+  onToggleFavorite,
   onJoin,
 }: TableCardProps) {
   const { t } = useTranslation()
   const isFull = table.players >= table.maxPlayers
   const seatsOpen = Math.max(table.maxPlayers - table.players, 0)
+
+  const occupancyPercent = useMemo(() => {
+    if (!table.maxPlayers) return 0
+    const ratio = Math.min(Math.max(table.players / table.maxPlayers, 0), 1)
+    return Math.round(ratio * 100)
+  }, [table.maxPlayers, table.players])
+
+  const occupancyColor = useMemo(() => {
+    if (occupancyPercent < 40) return 'var(--accent-emerald)'
+    if (occupancyPercent < 80) return 'var(--accent-amber)'
+    return 'var(--accent-red)'
+  }, [occupancyPercent])
+
+  const ringStyle = useMemo(
+    () =>
+      ({
+        '--occupancy': `${occupancyPercent}%`,
+        '--occupancy-color': occupancyColor,
+      }) as CSSProperties,
+    [occupancyColor, occupancyPercent],
+  )
 
   const stakesLabel = useMemo(() => {
     const small = table.stakesSmall
@@ -33,7 +56,7 @@ export default function TableCard({
       small <= 0 ||
       big <= 0
     ) {
-      return '—'
+      return '--'
     }
     const symbol = table.currency === 'USD' ? '$' : ''
     return `${symbol}${formatChips(small)}/${symbol}${formatChips(big)}`
@@ -45,6 +68,72 @@ export default function TableCard({
     if (table.speed === 'deep') return t('lobbyNew.table.deep', 'Deep')
     return t('lobbyNew.table.standard', 'Standard')
   }, [table.format, table.speed, t])
+
+  const buyInLabel = useMemo(() => {
+    if (!table.minBuyIn && !table.maxBuyIn) return null
+    const symbol = table.currency === 'USD' ? '$' : ''
+    const min = typeof table.minBuyIn === 'number' ? `${symbol}${formatChips(table.minBuyIn)}` : null
+    const max = typeof table.maxBuyIn === 'number' ? `${symbol}${formatChips(table.maxBuyIn)}` : null
+    if (min && max) {
+      return t('lobbyNew.table.buyInRangeShort', {
+        defaultValue: 'Buy-in {{min}}-{{max}}',
+        min,
+        max,
+      })
+    }
+    if (min) {
+      return t('lobbyNew.table.buyInMinShort', {
+        defaultValue: 'Buy-in {{min}}+',
+        min,
+      })
+    }
+    if (max) {
+      return t('lobbyNew.table.buyInMaxShort', {
+        defaultValue: 'Buy-in <={{max}}',
+        max,
+      })
+    }
+    return null
+  }, [table.currency, table.maxBuyIn, table.minBuyIn, t])
+
+  const seatsLabel = t('lobbyNew.table.seatsOpenShort', {
+    defaultValue: '{{count}} open',
+    count: seatsOpen,
+  })
+
+  const metaLine = [typeLabel, buyInLabel, seatsLabel].filter(Boolean).join(' • ')
+
+  const normalizedStatus = table.status?.toLowerCase()
+  const badges = useMemo(() => {
+    const next: Array<{ label: string; tone: string }> = []
+    if (table.isPrivate) {
+      next.push({
+        label: t('lobbyNew.table.status.private', 'PRIVATE'),
+        tone: 'private',
+      })
+    }
+    if (isFull) {
+      next.push({
+        label: t('lobbyNew.table.status.full', 'FULL'),
+        tone: 'full',
+      })
+      return next
+    }
+    if (normalizedStatus && ['joining', 'starting'].includes(normalizedStatus)) {
+      next.push({
+        label: t('lobbyNew.table.status.joining', 'JOINING'),
+        tone: 'joining',
+      })
+      return next
+    }
+    if (normalizedStatus && ['active', 'running', 'waiting'].includes(normalizedStatus)) {
+      next.push({
+        label: t('lobbyNew.table.status.running', 'RUNNING'),
+        tone: 'running',
+      })
+    }
+    return next
+  }, [isFull, normalizedStatus, table.isPrivate, t])
 
   const handleCardClick = () => {
     if (isFull) return
@@ -59,10 +148,7 @@ export default function TableCard({
     }
   }
 
-  // Occupancy text: show seats or -- if no data
-  const occupancyText = table.maxPlayers > 0
-    ? `${table.players}/${table.maxPlayers}`
-    : '—'
+  const occupancyText = table.maxPlayers > 0 ? `${table.players}/${table.maxPlayers}` : '--/--'
 
   return (
     <div
@@ -74,59 +160,72 @@ export default function TableCard({
       aria-label={t('lobbyNew.table.open', { defaultValue: 'Open table {{name}}', name: table.name })}
       className={cn('table-card-v2', isFull && 'table-card-v2--full')}
     >
-      {/* Occupancy Ring */}
       <div className="table-card-v2__occupancy">
-        <div className="table-card-v2__occupancy-ring">
-          <span className="table-card-v2__occupancy-text">{occupancyText}</span>
-          {!isFull && seatsOpen > 0 && (
-            <span className="table-card-v2__occupancy-label">{t('lobbyNew.table.open', 'open')}</span>
-          )}
+        <div className="table-card-v2__occupancy-ring" style={ringStyle}>
+          <span className="table-card-v2__occupancy-text ui-nowrap">{occupancyText}</span>
+          <span className="table-card-v2__occupancy-label ui-nowrap">{t('lobbyNew.table.seats', 'SEATS')}</span>
         </div>
       </div>
 
-      {/* Content: Name, Stakes, Meta */}
       <div className="table-card-v2__content">
-        {/* Top row: Name + Stakes pill */}
         <div className="table-card-v2__top">
-          <span className="table-card-v2__name">{table.name}</span>
-          <span className="table-card-v2__stakes">
+          <span className="table-card-v2__name ui-nowrap" dir="auto">{table.name}</span>
+          <span className="table-card-v2__stakes ui-nowrap">
             <FontAwesomeIcon icon={faCoins} className="table-card-v2__stakes-icon" />
             {stakesLabel}
           </span>
         </div>
 
-        {/* Bottom row: Info */}
         <div className="table-card-v2__bottom">
-          <div className="table-card-v2__info">
-            <span className="table-card-v2__seats">
-              {!isFull && seatsOpen > 0 && (
-                <span className="table-card-v2__open">{seatsOpen} {t('lobbyNew.table.seatsOpenShort', 'open')}</span>
-              )}
-              {isFull && <span>{t('lobbyNew.table.status.full', 'Full')}</span>}
-            </span>
-            <span className="table-card-v2__type">{typeLabel}</span>
-          </div>
+          <span className="table-card-v2__meta ui-nowrap">{metaLine}</span>
+          {badges.length > 0 && (
+            <div className="table-card-v2__badges">
+              {badges.map((badge) => (
+                <span
+                  key={badge.label}
+                  className={cn('table-card-v2__badge ui-nowrap', `table-card-v2__badge--${badge.tone}`)}
+                >
+                  {badge.label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Join Button */}
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation()
-          if (isFull) return
-          onJoin(table)
-        }}
-        disabled={isFull}
-        className={cn('table-card-v2__join', isFull && 'table-card-v2__join--disabled')}
-      >
-        <FontAwesomeIcon icon={table.isPrivate ? faLock : faPlay} className="table-card-v2__join-icon" />
-        <span className="table-card-v2__join-text">
-          {isFull
-            ? t('lobbyNew.table.status.full', 'Full')
-            : t('lobbyNew.table.join', 'Join')}
-        </span>
-      </button>
+      <div className="table-card-v2__actions">
+        {onToggleFavorite && (
+          <button
+            type="button"
+            className={cn('table-card-v2__fav', isFavorite && 'is-active')}
+            aria-pressed={isFavorite}
+            aria-label={t('lobbyNew.table.favorite', 'Favorite')}
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleFavorite(table.id)
+            }}
+          >
+            <FontAwesomeIcon icon={faStar} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            if (isFull) return
+            onJoin(table)
+          }}
+          disabled={isFull}
+          className={cn('table-card-v2__join', isFull && 'table-card-v2__join--disabled')}
+        >
+          <FontAwesomeIcon icon={table.isPrivate ? faLock : faPlay} className="table-card-v2__join-icon" />
+          <span className="table-card-v2__join-text ui-nowrap">
+            {isFull
+              ? t('lobbyNew.table.status.full', 'FULL')
+              : t('lobbyNew.table.join', 'Join')}
+          </span>
+        </button>
+      </div>
     </div>
   )
 }
