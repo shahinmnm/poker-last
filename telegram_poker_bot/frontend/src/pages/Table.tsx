@@ -25,7 +25,6 @@ import CommunityBoard from '@/legacy/ui/table-legacy/table/CommunityBoard'
 import ActionBar from '@/legacy/ui/table-legacy/table/ActionBar'
 import DynamicPokerTable from '@/components/table/DynamicPokerTable'
 import PlayerSeat from '@/legacy/ui/table-legacy/table/PlayerSeat'
-import LeavingIndicator from '@/legacy/ui/table-legacy/table/LeavingIndicator'
 import { getSeatLayout } from '@/config/tableLayout'
 import { useGameVariant } from '@/utils/gameVariant'
 import { CurrencyType, formatByCurrency } from '@/utils/currency'
@@ -2389,8 +2388,6 @@ export default function TablePage() {
                       ? Math.min(baseY + 4, 86)
                       : Math.max(Math.min(baseY - 12, 58), 26)
                     const seatSide = getSeatSide(seatXPercent, seatYPercent)
-                    const isBottomSeat = seatSide === 'bottom'
-                    const lastActionSpacingClass = isBottomSeat ? 'mt-0.5' : ''
                     const seatHoleCards = isHeroPlayer
                       ? heroSeatCards
                       : showShowdownCards
@@ -2400,6 +2397,12 @@ export default function TablePage() {
                     const seatScale = isHeroSlot ? 1 : seatSide === 'top' ? 0.75 : 0.82
                     const seatDepthTranslate = isHeroSlot ? '2%' : seatSide === 'top' ? '-6%' : '-3%'
                     const seatTransform = `translate(-50%, -50%) translateY(${seatDepthTranslate}) scale(${seatScale})`
+                    const isLastActor = player && liveState?.last_action?.user_id?.toString() === player.user_id?.toString()
+                    const actionTrigger = isLastActor
+                      ? liveState?.last_action?.created_at ??
+                        `${liveState?.last_action?.action ?? ''}-${liveState?.last_action?.amount ?? ''}`
+                      : null
+                    const actionLabel = isLastActor ? lastActionText : null
 
                     return (
                       <Fragment key={`seat-server-${serverIndex}`}>
@@ -2445,20 +2448,9 @@ export default function TablePage() {
                               side={seatSide}
                               heroScaleReduced={isHeroPlayer && !isMyTurn}
                               seatIndex={serverIndex}
+                              actionLabel={actionLabel}
+                              actionTrigger={actionTrigger}
                             />
-
-                            {/* Leaving Badge - Shows when player is leaving after this hand */}
-                            {player && isSittingOut && (
-                              <LeavingIndicator className="absolute -top-1.5 -right-1.5" />
-                            )}
-
-                            {lastActionText && player?.in_hand && (
-                              <p
-                                className={`text-[9px] font-semibold uppercase tracking-wide text-emerald-200/90 ${lastActionSpacingClass}`}
-                              >
-                                {lastActionText}
-                              </p>
-                            )}
                           </div>
                         </div>
 

@@ -1,4 +1,4 @@
-import { forwardRef, useMemo, useCallback } from 'react'
+import { forwardRef, useMemo, useCallback, useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { Plus } from 'lucide-react'
 import PlayerCircularTimer from './PlayerCircularTimer'
@@ -6,6 +6,7 @@ import PlayingCard from '../../../../components/ui/PlayingCard'
 import HeroDetailPopover from '../../../../components/table/HeroDetailPopover'
 import useAutoDismissOverlay from '../../../../hooks/useAutoDismissOverlay'
 import { formatChips } from '../../../../utils/formatChips'
+import LeavingIndicator from './LeavingIndicator'
 
 type PositionLabel = 'BTN' | 'SB' | 'BB' | null | undefined
 type SideDirection = 'top' | 'bottom' | 'left' | 'right'
@@ -20,6 +21,8 @@ export interface PlayerSeatProps {
   hasFolded: boolean
   isSittingOut: boolean
   isAllIn: boolean
+  actionLabel?: string | null
+  actionTrigger?: string | number | null
   turnDeadline?: string | null
   turnTotalSeconds?: number | null
   holeCards?: string[]
@@ -70,6 +73,7 @@ const layoutConfig: Record<SideDirection, {
 
 /** Translate offset for card fanning (equivalent to Tailwind's translate-1) */
 const CARD_FAN_OFFSET = 6
+const HERO_CARD_OVERLAP_Y = -8
 
 /** Calculate card rotation based on side direction - Perspective Fix */
 const getCardRotation = (side: SideDirection, index: number): { rotation: number; translateX: number; translateY: number } => {
@@ -127,6 +131,8 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
       hasFolded,
       isSittingOut,
       isAllIn,
+      actionLabel,
+      actionTrigger,
       turnDeadline = null,
       turnTotalSeconds = null,
       holeCards = [],
@@ -164,6 +170,37 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
     const layout = layoutConfig[side]
     const seatSideClass = `player-seat--${side}`
+    const [visibleAction, setVisibleAction] = useState<string | null>(null)
+    const [isActionVisible, setIsActionVisible] = useState(false)
+    const actionState = useMemo(() => {
+      if (hasFolded) return 'Fold'
+      if (isAllIn) return 'All-in'
+      return null
+    }, [hasFolded, isAllIn])
+
+    // PHASE 5: Compute hero seat scale class based on UI mode
+    // - Hero with full scale (isMyTurn): 'player-seat--hero-action'
+    // - Hero with reduced scale (not isMyTurn): 'player-seat--hero-reduced'
+    // - Non-hero: no additional class
+    const getHeroScaleClass = (): string => {
+      if (!isHero) return ''
+      return heroScaleReduced ? 'player-seat--hero-reduced' : 'player-seat--hero-action'
+    }
+
+    // Show a transient action chip above the seat when an action is received
+    useEffect(() => {
+      if (!actionLabel) return
+      setVisibleAction(actionLabel)
+      setIsActionVisible(true)
+
+      const fadeTimer = window.setTimeout(() => setIsActionVisible(false), 1200)
+      const clearTimer = window.setTimeout(() => setVisibleAction(null), 1600)
+
+      return () => {
+        window.clearTimeout(fadeTimer)
+        window.clearTimeout(clearTimer)
+      }
+    }, [actionLabel, actionTrigger])
 
     if (isEmpty) {
       return (
@@ -204,15 +241,6 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
     const heroScale = heroScaleReduced ? 0.9 : 1
     const seatScale = isHero ? heroScale : 1
     const depthTranslate = '0%'
-
-    // PHASE 5: Compute hero seat scale class based on UI mode
-    // - Hero with full scale (isMyTurn): 'player-seat--hero-action'
-    // - Hero with reduced scale (not isMyTurn): 'player-seat--hero-reduced'
-    // - Non-hero: no additional class
-    const getHeroScaleClass = (): string => {
-      if (!isHero) return ''
-      return heroScaleReduced ? 'player-seat--hero-reduced' : 'player-seat--hero-action'
-    }
     const heroScaleClass = getHeroScaleClass()
 
     return (
@@ -243,6 +271,20 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
         }}
         aria-label={seatLabel}
       >
+        {visibleAction && (
+          <div
+            className={clsx(
+              'player-seat__action-callout pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide tabular-nums shadow-lg bg-black/80 backdrop-blur-sm transition-all duration-300',
+              isActionVisible ? 'opacity-100 -translate-y-1' : 'opacity-0 -translate-y-2',
+            )}
+          >
+            <span
+              className="player-seat__action-chip h-3 w-3 rounded-full bg-gradient-to-br from-amber-200 via-amber-500 to-amber-700 shadow"
+              aria-hidden
+            />
+            <span className="max-w-[96px] truncate">{visibleAction}</span>
+          </div>
+        )}
         {/* AVATAR (The Centerpiece) */}
         <div className="player-seat__avatar relative z-20 flex items-center justify-center">
           <div
@@ -290,10 +332,8 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
             )}
 
             {isSittingOut && (
-              <div className="player-seat__status absolute -top-1.5 -right-1.5 z-30">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full shadow-lg">
-                  <span className="text-[8px] font-bold text-black">Zz</span>
-                </div>
+              <div className="player-seat__status absolute -top-1.5 -left-1.5 z-30">
+                <LeavingIndicator />
               </div>
             )}
           </div>
@@ -335,6 +375,11 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
               <div className="player-seat__stack text-[11px] font-semibold leading-tight tabular-nums mt-0.5">
                 {formatChips(chipCount)}
               </div>
+              {actionState && (
+                <div className="player-seat__state text-[9px] font-semibold uppercase tracking-wide text-emerald-200 mt-0.5">
+                  {actionState}
+                </div>
+              )}
               {/* Tiny status badge for hero only if needed */}
               {isHero && (positionLabel === 'BTN' || isSittingOut || isActive) && (
                 <div className="flex items-center gap-1 mt-1">
@@ -366,7 +411,10 @@ const PlayerSeat = forwardRef<HTMLDivElement, PlayerSeatProps>(
 
         {/* CARDS (The Dynamic Layer) */}
         {safeCards.length > 0 && (
-          <div className={clsx('relative pointer-events-none', layout.cardWrapper)}>
+          <div
+            className={clsx('relative pointer-events-none', layout.cardWrapper)}
+            style={{ marginTop: isHero && side === 'bottom' ? `${HERO_CARD_OVERLAP_Y}px` : undefined }}
+          >
             <div className={clsx('player-seat__cards-stack flex items-center justify-center gap-2', isHorizontal && 'flex-col')}>
               {safeCards.map((card, index) => {
                 const { rotation, translateX, translateY } = getCardRotation(side, index)
