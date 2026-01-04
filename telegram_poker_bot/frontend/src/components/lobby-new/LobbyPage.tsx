@@ -108,7 +108,6 @@ export default function LobbyPage() {
   const [isOffline, setIsOffline] = useState(
     typeof navigator !== 'undefined' ? !navigator.onLine : false,
   )
-  const [isCompact, setIsCompact] = useState(false)
   const authMissing = ready && !initData
 
   const publicTables = useMemo(
@@ -201,17 +200,6 @@ export default function LobbyPage() {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const media = window.matchMedia('(max-width: 700px)')
-    const handleChange = (event: MediaQueryListEvent) => {
-      setIsCompact(event.matches)
-    }
-    setIsCompact(media.matches)
-    media.addEventListener('change', handleChange)
-    return () => media.removeEventListener('change', handleChange)
   }, [])
 
   useEffect(() => {
@@ -357,16 +345,6 @@ export default function LobbyPage() {
     [applyFilters, myTables],
   )
 
-  useEffect(() => {
-    if (!import.meta.env?.DEV) {
-      return
-    }
-    console.debug('[Lobby] table counts', {
-      publicTables: publicTables.length,
-      filteredTables: filteredTables.length,
-    })
-  }, [filteredTables.length, publicTables.length])
-
   const listTables = activeTab === 'history' ? filteredMyTables : filteredTables
   const listLoading =
     !ready ||
@@ -375,8 +353,6 @@ export default function LobbyPage() {
       : loadingPublic || refreshingPublic)
   const totalCount = activeTab === 'history' ? myTables.length : publicTables.length
   const visibleCount = listTables.length
-  const showSmallScopeHint =
-    !listLoading && activeTab !== 'history' && totalCount > 0 && totalCount <= 2
 
   const sortOptions = useMemo(
     () => [
@@ -394,20 +370,12 @@ export default function LobbyPage() {
 
   const tabLabels = useMemo(
     () => ({
-      cash: isCompact
-        ? t('lobbyNew.tabs.cashShort', 'Cash')
-        : t('lobbyNew.tabs.cash', 'Cash Tables'),
-      headsUp: isCompact
-        ? t('lobbyNew.tabs.headsUpShort', 'HU')
-        : t('lobbyNew.tabs.headsUp', 'Heads-Up'),
-      private: isCompact
-        ? t('lobbyNew.tabs.privateShort', 'Private')
-        : t('lobbyNew.tabs.private', 'Private'),
-      history: isCompact
-        ? t('lobbyNew.tabs.historyShort', 'Hist')
-        : t('lobbyNew.tabs.history', 'History'),
+      cash: t('lobbyNew.tabs.cashShort', 'Cash'),
+      headsUp: t('lobbyNew.tabs.headsUpShort', 'HU'),
+      private: t('lobbyNew.tabs.privateShort', 'Private'),
+      history: t('lobbyNew.tabs.historyShort', 'History'),
     }),
-    [isCompact, t],
+    [t],
   )
 
   const refreshTables = useCallback(async () => {
@@ -516,294 +484,160 @@ export default function LobbyPage() {
     }
   }, [activeTab, authMissing, handleCreateTable, handleJoinPrivate, t])
 
-  const formatPreviewStakes = useCallback(
-    (table: TableSummary) => {
-      if (
-        typeof table.stakesSmall === 'number' &&
-        typeof table.stakesBig === 'number' &&
-        Number.isFinite(table.stakesSmall) &&
-        Number.isFinite(table.stakesBig) &&
-        table.stakesSmall > 0 &&
-        table.stakesBig > 0
-      ) {
-        const symbol = table.currency === 'USD' ? '$' : ''
-        return `${symbol}${formatChips(table.stakesSmall)}/${symbol}${formatChips(table.stakesBig)}`
-      }
-      return t('lobbyNew.table.stakesUnknown', 'Blinds --')
-    },
-    [t],
-  )
-
-  const myTablePreview = filteredMyTables.slice(0, 2)
-
   return (
-    <div className="lobby-screen">
-      <div className="lobby-shell page-stack">
-        <LobbyHeader statusLabel={lobbyStatusLabel} />
+    <div className="lobby-v2">
+      {/* 1. Safe Header - Fixed 44px max */}
+      <LobbyHeader statusLabel={lobbyStatusLabel} />
 
-        <div className="lobby-column">
-          {isOffline && (
-            <div className="ui-pill lobby-banner">
-              <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" />
-              {t('lobbyNew.offline.title', 'Reconnecting...')}
-            </div>
-          )}
+      {/* Banners */}
+      {isOffline && (
+        <div className="lobby-v2__banner">
+          <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+          <span>{t('lobbyNew.offline.title', 'Reconnecting...')}</span>
+        </div>
+      )}
 
-          {authMissing && (
-            <div className="ui-pill lobby-banner">
-              {t('lobbyNew.auth.required', 'Open inside Telegram to play.')}
-            </div>
-          )}
+      {authMissing && (
+        <div className="lobby-v2__banner">
+          {t('lobbyNew.auth.required', 'Open inside Telegram to play.')}
+        </div>
+      )}
 
-          <QuickSeatCard
-            recommendation={quickSeatRecommendation}
-            fallbackLabel={quickSeatFallbackLabel}
-            onQuickSeat={handleQuickSeat}
-            onCreate={handleCreateTable}
-            onJoinPrivate={handleJoinPrivate}
-            onRefresh={refreshTables}
-            disabled={!recommendedTable || actionsDisabled}
-            actionsDisabled={actionsDisabled}
+      {/* 2 & 3. Play Now Hero + Secondary Actions */}
+      <QuickSeatCard
+        recommendation={quickSeatRecommendation}
+        fallbackLabel={quickSeatFallbackLabel}
+        onQuickSeat={handleQuickSeat}
+        onCreate={handleCreateTable}
+        onJoinPrivate={handleJoinPrivate}
+        onRefresh={refreshTables}
+        disabled={!recommendedTable || actionsDisabled}
+        actionsDisabled={actionsDisabled}
+      />
+
+      {/* 4. Category Selector (Segmented Control) */}
+      <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
+
+      {/* 5. Search + Filter Row */}
+      <div className="lobby-v2__search-row">
+        <div className="lobby-v2__search">
+          <FontAwesomeIcon icon={faMagnifyingGlass} className="lobby-v2__search-icon" />
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
+            className="lobby-v2__search-input"
           />
+        </div>
 
-          <div className="your-tables-card">
-            <div className="section-header">
-              <div>
-                <p className="section-eyebrow">{t('lobbyNew.history.title', 'Your tables')}</p>
-                <p className="section-sub">
-                  {t('lobbyNew.history.subtitle', 'Active or recent seats appear here.')}
-                </p>
-              </div>
+        <div className="lobby-v2__filter-wrap">
+          <button
+            ref={filterButtonRef}
+            type="button"
+            onClick={() => setFilterOpen((prev) => !prev)}
+            className="lobby-v2__filter-btn"
+            aria-expanded={filterOpen}
+          >
+            <FontAwesomeIcon icon={faSliders} />
+            {activeFilterCount > 0 && (
+              <span className="lobby-v2__filter-count">{activeFilterCount}</span>
+            )}
+          </button>
+
+          {filterOpen && (
+            <div ref={filterPopoverRef} className="lobby-v2__filter-popover">
+              <p className="lobby-v2__filter-title">{t('lobbyNew.filters.title', 'Filters')}</p>
               <button
                 type="button"
-                className="section-action ui-pill"
-                onClick={() => setActiveTab('history')}
+                onClick={() => setFilters((prev) => ({ ...prev, joinableOnly: !prev.joinableOnly }))}
+                aria-pressed={filters.joinableOnly}
+                className="lobby-v2__filter-toggle"
               >
-                {t('lobbyNew.history.viewAll', 'See all')}
+                <span>{t('lobbyNew.filters.joinableOnly', 'Only joinable')}</span>
+                <span className={`lobby-v2__toggle ${filters.joinableOnly ? 'is-on' : ''}`}>
+                  <span className="lobby-v2__toggle-thumb" />
+                </span>
               </button>
-            </div>
+              <button
+                type="button"
+                onClick={() => setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }))}
+                aria-pressed={filters.favoritesOnly}
+                className="lobby-v2__filter-toggle"
+              >
+                <span>{t('lobbyNew.filters.favoritesOnly', 'Favorites')}</span>
+                <span className={`lobby-v2__toggle ${filters.favoritesOnly ? 'is-on' : ''}`}>
+                  <span className="lobby-v2__toggle-thumb" />
+                </span>
+              </button>
 
-            <div className="your-tables-list">
-              {loadingMyTables &&
-                Array.from({ length: 2 }, (_, index) => <SkeletonRow key={`my-skeleton-${index}`} />)}
-
-              {!loadingMyTables && myTablePreview.length === 0 && (
-                <div className="your-tables-empty ui-muted">
-                  {t('lobbyNew.history.empty', 'No active tables yet')}
-                </div>
-              )}
-
-              {myTablePreview.map((table) => (
-                <button
-                  key={`mytable-${table.id}`}
-                  type="button"
-                  className="your-table-row"
-                  onClick={() => handleJoinTable(table)}
-                >
-                  <div className="your-table-row__main">
-                    <p className="your-table-row__name" dir="auto">
-                      {table.name}
-                    </p>
-                    <span className="your-table-row__stakes">{formatPreviewStakes(table)}</span>
-                  </div>
-                  <div className="your-table-row__meta">
-                    <span className="your-table-row__pill tabular-nums">
-                      {table.players}/{table.maxPlayers}
-                    </span>
-                    {table.status && (
-                      <span className="your-table-row__status" dir="auto">
-                        {table.status}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="lobby-browse">
-            <div className="lobby-browse__row lobby-toolbar">
-              <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
-
-              <div className="lobby-search-wrap">
-                <div className="lobby-search">
-                  <FontAwesomeIcon
-                    icon={faMagnifyingGlass}
-                    className="lobby-search__icon"
-                    aria-hidden
-                  />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
-                    className="lobby-search__input"
-                    dir="auto"
-                  />
-                </div>
-
-                <div className="lobby-filter-group">
-                  <div className="relative">
-                    <button
-                      ref={filterButtonRef}
-                      type="button"
-                      onClick={() => setFilterOpen((prev) => !prev)}
-                      className="lobby-filter-button"
-                      aria-expanded={filterOpen}
-                      aria-haspopup="dialog"
-                    >
-                      <FontAwesomeIcon icon={faSliders} className="text-[11px]" />
-                      <span className="lobby-filter-label">
-                        {t('lobbyNew.actions.filters', 'Filters')}
-                      </span>
-                      {activeFilterCount > 0 && (
-                        <span className="lobby-filter-indicator" aria-label={t('lobbyNew.filters.active', 'Active filters')}>
-                          {activeFilterCount}
-                        </span>
-                      )}
-                    </button>
-
-                    {filterOpen && (
-                      <div ref={filterPopoverRef} className="lobby-filter-popover">
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
-                            {t('lobbyNew.filters.title', 'Filters')}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setFilters((prev) => ({ ...prev, joinableOnly: !prev.joinableOnly }))}
-                            aria-pressed={filters.joinableOnly}
-                            className="lobby-filter-toggle"
-                          >
-                            <span className="text-[12px] font-medium text-[var(--text-2)]">
-                              {t('lobbyNew.filters.joinableOnly', 'Only joinable')}
-                            </span>
-                            <span
-                              className={`lobby-filter-switch ${filters.joinableOnly ? 'is-active' : ''}`}
-                              aria-hidden="true"
-                            >
-                              <span className="lobby-filter-thumb" />
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }))}
-                            aria-pressed={filters.favoritesOnly}
-                            className="lobby-filter-toggle"
-                          >
-                            <span className="text-[12px] font-medium text-[var(--text-2)]">
-                              {t('lobbyNew.filters.favoritesOnly', 'Favorites')}
-                            </span>
-                            <span
-                              className={`lobby-filter-switch ${filters.favoritesOnly ? 'is-active' : ''}`}
-                              aria-hidden="true"
-                            >
-                              <span className="lobby-filter-thumb" />
-                            </span>
-                          </button>
-                        </div>
-                        <div className="mt-3 border-t border-[var(--border-3)] pt-3">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
-                            {t('lobbyNew.sort.title', 'Sort')}
-                          </p>
-                          <div className="mt-2 space-y-1">
-                            {sortOptions.map((option) => {
-                              const isActive = option.value === sort
-                              return (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onClick={() => setSort(option.value)}
-                                  className={`lobby-filter-option ${isActive ? 'is-active' : ''}`}
-                                  style={{ textAlign: 'start' }}
-                                >
-                                  <span dir="auto">{option.label}</span>
-                                  {isActive && <FontAwesomeIcon icon={faCheck} className="text-[var(--chip-emerald)]" />}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <span className="lobby-count-pill tabular-nums">
-                    {listLoading
-                      ? t('common.loading', 'Loading...')
-                      : totalCount > 0
-                        ? `${visibleCount}/${totalCount}`
-                        : `${visibleCount}`}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {showSmallScopeHint && (
-              <div className="lobby-scope-hint ui-pill">
-                {t('lobbyNew.hint.smallScope', {
-                  defaultValue: 'Only {{count}} public tables available right now.',
-                  count: totalCount,
-                })}
-              </div>
-            )}
-
-            {activeTab === 'history' && (
-              <div className="lobby-info ui-muted">
-                <p className="font-semibold text-[var(--text-1)]">
-                  {t('lobbyNew.history.title', 'Your tables')}
-                </p>
-                <p className="text-[11px] text-[var(--text-3)]">
-                  {t('lobbyNew.history.subtitle', 'Tables you have joined recently.')}
-                </p>
-              </div>
-            )}
-
-            <div className="lobby-list" role="list">
-              {activeError && (
-                <div className="lobby-error ui-panel">
-                  <div>
-                    <p className="text-[12px] font-semibold text-[var(--text-1)]">
-                      {t('lobbyNew.error.title', 'Unable to load tables')}
-                    </p>
-                    <p className="text-[11px] text-[var(--text-3)]">{activeError}</p>
-                  </div>
+              <div className="lobby-v2__filter-divider" />
+              <p className="lobby-v2__filter-title">{t('lobbyNew.sort.title', 'Sort')}</p>
+              {sortOptions.map((option) => {
+                const isActive = option.value === sort
+                return (
                   <button
+                    key={option.value}
                     type="button"
-                    onClick={refreshTables}
-                    className="ui-pill lobby-error__action"
+                    onClick={() => setSort(option.value)}
+                    className={`lobby-v2__sort-option ${isActive ? 'is-active' : ''}`}
                   >
-                    {t('common.actions.retry', 'Retry')}
+                    <span>{option.label}</span>
+                    {isActive && <FontAwesomeIcon icon={faCheck} />}
                   </button>
-                </div>
-              )}
-
-              {listLoading &&
-                Array.from({ length: 6 }, (_, index) => <SkeletonRow key={`skeleton-${index}`} />)}
-
-              {!listLoading && !activeError && listTables.length === 0 && (
-                <EmptyState
-                  title={emptyState.title}
-                  description={emptyState.description}
-                  actionLabel={emptyState.actionLabel}
-                  onAction={emptyState.onAction}
-                  actionDisabled={actionsDisabled}
-                />
-              )}
-
-              {listTables.map((table) => (
-                <TableCard
-                  key={table.id}
-                  table={table}
-                  isFavorite={favoriteSet.has(table.id)}
-                  onToggleFavorite={toggleFavorite}
-                  onJoin={handleJoinTable}
-                />
-              ))}
+                )
+              })}
             </div>
-          </div>
+          )}
+
+          <span className="lobby-v2__count">{visibleCount}/{totalCount}</span>
         </div>
       </div>
+
+      {/* 6. Table List */}
+      <div className="lobby-v2__list" role="list">
+        {activeError && (
+          <div className="lobby-v2__error">
+            <div>
+              <p className="lobby-v2__error-title">{t('lobbyNew.error.title', 'Unable to load tables')}</p>
+              <p className="lobby-v2__error-text">{activeError}</p>
+            </div>
+            <button type="button" onClick={refreshTables} className="lobby-v2__error-btn">
+              {t('common.actions.retry', 'Retry')}
+            </button>
+          </div>
+        )}
+
+        {listLoading &&
+          Array.from({ length: 5 }, (_, index) => <SkeletonRow key={`skeleton-${index}`} />)}
+
+        {!listLoading && !activeError && listTables.length === 0 && (
+          <EmptyState
+            title={emptyState.title}
+            description={emptyState.description}
+            actionLabel={emptyState.actionLabel}
+            onAction={emptyState.onAction}
+            actionDisabled={actionsDisabled}
+          />
+        )}
+
+        {listTables.map((table) => (
+          <TableCard
+            key={table.id}
+            table={table}
+            isFavorite={favoriteSet.has(table.id)}
+            onToggleFavorite={toggleFavorite}
+            onJoin={handleJoinTable}
+          />
+        ))}
+      </div>
+
+      {/* 7. Recent Tables (only in history tab context) */}
+      {activeTab === 'history' && filteredMyTables.length > 0 && (
+        <div className="lobby-v2__recent">
+          <p className="lobby-v2__recent-title">{t('lobbyNew.history.title', 'Your tables')}</p>
+        </div>
+      )}
     </div>
   )
 }

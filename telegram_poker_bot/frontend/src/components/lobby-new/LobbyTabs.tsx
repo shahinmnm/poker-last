@@ -12,25 +12,19 @@ export default function LobbyTabs({ activeTab, onChange, labels }: LobbyTabsProp
   const tabs: LobbyTabKey[] = ['cash', 'headsUp', 'private', 'history']
 
   return (
-    <div className="lobby-tabs">
+    <div className="segmented-control" role="tablist">
       {tabs.map((tab) => {
         const isActive = tab === activeTab
         return (
           <button
             key={tab}
             type="button"
+            role="tab"
             onClick={() => onChange(tab)}
-            className={cn('lobby-tabs__button', isActive && 'is-active')}
-            aria-pressed={isActive}
+            className={cn('segmented-control__option', isActive && 'is-active')}
+            aria-selected={isActive}
           >
-            <span
-              className={cn(
-                'lobby-tabs__chip',
-                isActive ? 'is-active' : 'is-inactive',
-              )}
-            >
-              {labels[tab]}
-            </span>
+            {labels[tab]}
           </button>
         )
       })}
