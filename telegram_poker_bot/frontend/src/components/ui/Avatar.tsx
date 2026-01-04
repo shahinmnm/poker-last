@@ -5,7 +5,7 @@ import { formatChips } from '../../utils/formatChips'
 import PlayingCard from './PlayingCard'
 
 interface AvatarProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   className?: string
   wrapperClassName?: string
   style?: CSSProperties
@@ -24,6 +24,7 @@ interface AvatarProps {
 }
 
 const sizeClasses: Record<NonNullable<AvatarProps['size']>, string> = {
+  xs: 'h-6 w-6 text-[0.75rem]',
   sm: 'h-10 w-10 text-[1.25rem]',
   md: 'h-12 w-12 text-[1.5rem]',
   lg: 'h-16 w-16 text-[2rem]',
