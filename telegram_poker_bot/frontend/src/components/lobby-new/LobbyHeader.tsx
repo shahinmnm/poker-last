@@ -26,54 +26,39 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
   const nextLanguage = supported[(currentIndex + 1) % supported.length]
 
   return (
-    <div className="lobby-header">
-      <div className="lobby-header__bar">
-        <Link to="/profile" className="lobby-header__identity">
-          <Avatar size="sm" showTurnIndicator={false} className="lobby-header__avatar" />
-          <div className="min-w-0 leading-tight">
-            <p className="lobby-header__name" dir="auto">
-              {displayName}
-            </p>
-            <p className="lobby-header__balance tabular-nums">{balanceLabel}</p>
-          </div>
-        </Link>
-
-        {statusLabel && (
-          <div className="lobby-header__status">
-            <span className="lobby-header__status-dot" aria-hidden="true" />
-            <span className="lobby-header__status-label" dir="auto">
-              {statusLabel}
-            </span>
-            {ready && (
-              <span className="lobby-header__status-label lobby-header__status-label--secondary">
-                {t('common.status.online', 'Online')}
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="lobby-header__actions">
-          <button
-            type="button"
-            onClick={() => changeLanguage(nextLanguage.code)}
-            className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
-            aria-label={t('settings.sections.language.title', 'Language')}
-          >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-[9px] font-semibold text-[var(--text-2)] transition group-active:scale-95">
-              {language.toUpperCase()}
-            </span>
-          </button>
-          <Link
-            to="/settings"
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
-            aria-label={t('menu.settings.label', 'Settings')}
-          >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-2)] transition active:scale-95">
-              <FontAwesomeIcon icon={faGear} className="text-[10px]" />
-            </span>
-          </Link>
+    <header className="lobby-header-v2">
+      <Link to="/profile" className="lobby-header-v2__identity">
+        <Avatar size="sm" showTurnIndicator={false} className="lobby-header-v2__avatar" />
+        <div className="lobby-header-v2__user">
+          <span className="lobby-header-v2__name">{displayName}</span>
+          <span className="lobby-header-v2__balance">{balanceLabel}</span>
         </div>
+      </Link>
+
+      <div className="lobby-header-v2__center">
+        <span className="lobby-header-v2__dot" aria-hidden="true" />
+        <span className="lobby-header-v2__status">
+          {statusLabel || (ready ? t('common.status.online', 'Online') : '')}
+        </span>
       </div>
-    </div>
+
+      <div className="lobby-header-v2__actions">
+        <button
+          type="button"
+          onClick={() => changeLanguage(nextLanguage.code)}
+          className="lobby-header-v2__icon-btn"
+          aria-label={t('settings.sections.language.title', 'Language')}
+        >
+          <span className="lobby-header-v2__lang">{language.toUpperCase()}</span>
+        </button>
+        <Link
+          to="/settings"
+          className="lobby-header-v2__icon-btn"
+          aria-label={t('menu.settings.label', 'Settings')}
+        >
+          <FontAwesomeIcon icon={faGear} className="lobby-header-v2__gear" />
+        </Link>
+      </div>
+    </header>
   )
 }
