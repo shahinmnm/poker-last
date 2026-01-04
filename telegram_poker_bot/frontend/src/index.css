@@ -2654,18 +2654,26 @@ button,
   overflow-x: hidden;
 }
 
-/* ==================== HEADER V2 ==================== */
+/* ==================== HEADER V2 - FLOATING IDENTITY CAPSULE ==================== */
+/* Centered floating capsule that does NOT touch screen edges */
+/* Floats below Telegram chrome using safe-area variables */
 .lobby-header-v2 {
+  position: sticky;
+  top: calc(var(--tg-safe-top) + 4px);
+  z-index: 30;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  max-height: 52px;
-  padding: 4px 6px;
+  width: min(88vw, 360px);
+  min-height: 40px;
+  max-height: 44px;
+  margin: 0 auto;
+  padding: 4px 10px;
   background: var(--surface-panel-strong);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-panel);
+  box-shadow: var(--shadow-soft);
 }
 
 .lobby-header-v2__identity {
@@ -2673,16 +2681,16 @@ button,
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding: 4px 8px 4px 4px;
-  border-radius: var(--radius-button);
+  padding: 2px 6px 2px 2px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-panel);
-  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 32px;
 }
 
 .lobby-header-v2__avatar {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
 }
 
@@ -2715,9 +2723,23 @@ button,
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   overflow: hidden;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.lobby-header-v2__center:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.lobby-header-v2__center:active {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .lobby-header-v2__dot {
@@ -2754,15 +2776,15 @@ button,
 }
 
 .lobby-header-v2__icon-btn {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-2);
   transition: transform 0.15s ease;
 }
@@ -2778,6 +2800,81 @@ button,
 
 .lobby-header-v2__gear {
   font-size: 0.75rem;
+}
+
+.lobby-header-v2__chevron {
+  font-size: 0.5rem;
+  color: var(--text-3);
+  margin-inline-start: 2px;
+  transition: transform 0.2s ease;
+}
+
+/* ==================== FLOATING CAPSULE CONTAINER ==================== */
+.lobby-header-capsule {
+  position: relative;
+  width: min(88vw, 360px);
+  margin: 0 auto;
+  z-index: 30;
+}
+
+/* ==================== EXPANDABLE PANEL ==================== */
+.lobby-header-v2__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(85vw, 320px);
+  padding: 8px;
+  border-radius: var(--radius-card);
+  background: var(--surface-panel-strong);
+  border: 1px solid var(--border-panel);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: fadeInSlideDown 0.15s ease-out;
+}
+
+@keyframes fadeInSlideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.lobby-header-v2__panel-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-button);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-height: var(--touch-target-min);
+  transition: background 0.15s ease;
+  text-decoration: none;
+}
+
+.lobby-header-v2__panel-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lobby-header-v2__panel-item:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lobby-header-v2__panel-icon {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  width: 18px;
+  text-align: center;
 }
 
 /* ==================== BANNER ==================== */
