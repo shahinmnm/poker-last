@@ -18,22 +18,22 @@
   --space-3xl: 2.5rem;    /* 40px */
 
   /* ==================== BORDER RADIUS SCALE (UNIFIED) ==================== */
-  /* Enforced global radius scale per design system:
-   * Large containers: 16px
-   * Cards / panels: 14px  
-   * Chips / buttons: 10-12px
-   * Icons / mini buttons: 8px
+  /* UNIFIED radius scale per design system:
+   * Card/Panel: 18px
+   * Chips: 14px
+   * Buttons: 14px  
+   * Small badges: 999px (pill)
    */
   --radius-sm: 8px;       /* Icons, mini buttons */
-  --radius-md: 10px;      /* Chips, small buttons */
-  --radius-lg: 12px;      /* Buttons, inputs */
-  --radius-xl: 14px;      /* Cards, panels */
-  --radius-2xl: 16px;     /* Large containers */
-  --radius-panel: 16px;   /* Large containers */
-  --radius-card: 14px;    /* Cards / panels */
-  --radius-button: 10px;  /* Buttons */
-  --radius-chip: 10px;    /* Chips */
-  --radius-pill: 999px;   /* Pills only where appropriate */
+  --radius-md: 14px;      /* Chips, buttons */
+  --radius-lg: 14px;      /* Buttons, inputs */
+  --radius-xl: 18px;      /* Cards, panels */
+  --radius-2xl: 18px;     /* Large containers */
+  --radius-panel: 18px;   /* Large containers / panels */
+  --radius-card: 18px;    /* Cards / panels */
+  --radius-button: 14px;  /* Buttons */
+  --radius-chip: 14px;    /* Chips */
+  --radius-pill: 999px;   /* Pills / badges only */
   --radius-icon: 8px;     /* Icon buttons */
 
   /* ==================== TYPOGRAPHY SCALE (REDUCED BY 15-20%) ==================== */
@@ -88,24 +88,25 @@
   --felt-1: #1a4d32;  /* Main felt green - visible table surface */
 
   /* ==================== SHADOWS ==================== */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
-  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.25);
+  /* Unified shadow recipes for professional poker look */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.40);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.45);
   
   /* Poker-specific shadows */
-  --shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --shadow-panel: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-soft: 0 6px 16px rgba(0, 0, 0, 0.28);
 
   /* ==================== COLORS - POKER THEME ==================== */
   color-scheme: dark;
   
   /* ==================== SEMANTIC SURFACE HIERARCHY ==================== */
-  /* Premium casino surface layers for depth and clarity */
-  --surface-1: rgba(10, 14, 12, 0.94);      /* Primary surface - cards, panels */
-  --surface-2: rgba(8, 12, 10, 0.9);       /* Secondary surface - overlays */
-  --surface-3: rgba(6, 9, 8, 0.68);      /* Tertiary surface - subtle backgrounds */
+  /* Semi-transparent surface overlays for section separation (NOT separate backgrounds) */
+  --surface-1: rgba(10, 14, 12, 0.55);      /* Primary surface overlay */
+  --surface-2: rgba(10, 14, 12, 0.70);      /* Secondary surface overlay */
+  --surface-3: rgba(6, 9, 8, 0.50);         /* Tertiary surface - subtle */
   
   /* ==================== SEMANTIC TEXT HIERARCHY ==================== */
   --text-1: #fff7ee;                        /* Primary text - headings, names */
@@ -113,11 +114,11 @@
   --text-3: #9d9287;                        /* Tertiary text - hints, muted info */
   
   /* ==================== SEMANTIC BORDER HIERARCHY ==================== */
-  /* Very low opacity borders (6-10%) + inset highlight */
-  --border-weak: rgba(255, 255, 255, 0.08); /* Subtle borders */
-  --border-1: rgba(255, 214, 140, 0.4);    /* Strong borders - active states */
-  --border-2: rgba(255, 214, 140, 0.22);   /* Medium borders - default */
-  --border-3: rgba(255, 255, 255, 0.06);   /* Weakest borders */
+  /* Very low opacity borders (10-14%) for subtle separation */
+  --border-weak: rgba(255, 255, 255, 0.10); /* Subtle borders */
+  --border-1: rgba(255, 214, 140, 0.35);    /* Strong borders - active states */
+  --border-2: rgba(255, 214, 140, 0.18);    /* Medium borders - default */
+  --border-3: rgba(255, 255, 255, 0.10);    /* Weakest borders */
   
   /* ==================== ACCENT COLORS ==================== */
   /* Primary accent: Emerald (actions like Quick Seat / Join) */
