@@ -541,269 +541,265 @@ export default function LobbyPage() {
       <div className="lobby-shell page-stack">
         <LobbyHeader statusLabel={lobbyStatusLabel} />
 
-        <div className="lobby-grid">
-          <div className="lobby-column lobby-column--primary">
-            {isOffline && (
-              <div className="ui-pill lobby-banner">
-                <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" />
-                {t('lobbyNew.offline.title', 'Reconnecting...')}
+        <div className="lobby-column">
+          {isOffline && (
+            <div className="ui-pill lobby-banner">
+              <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" />
+              {t('lobbyNew.offline.title', 'Reconnecting...')}
+            </div>
+          )}
+
+          {authMissing && (
+            <div className="ui-pill lobby-banner">
+              {t('lobbyNew.auth.required', 'Open inside Telegram to play.')}
+            </div>
+          )}
+
+          <QuickSeatCard
+            recommendation={quickSeatRecommendation}
+            fallbackLabel={quickSeatFallbackLabel}
+            onQuickSeat={handleQuickSeat}
+            onCreate={handleCreateTable}
+            onJoinPrivate={handleJoinPrivate}
+            onRefresh={refreshTables}
+            disabled={!recommendedTable || actionsDisabled}
+            actionsDisabled={actionsDisabled}
+          />
+
+          <div className="your-tables-card">
+            <div className="section-header">
+              <div>
+                <p className="section-eyebrow">{t('lobbyNew.history.title', 'Your tables')}</p>
+                <p className="section-sub">
+                  {t('lobbyNew.history.subtitle', 'Active or recent seats appear here.')}
+                </p>
               </div>
-            )}
+              <button
+                type="button"
+                className="section-action ui-pill"
+                onClick={() => setActiveTab('history')}
+              >
+                {t('lobbyNew.history.viewAll', 'See all')}
+              </button>
+            </div>
 
-            {authMissing && (
-              <div className="ui-pill lobby-banner">
-                {t('lobbyNew.auth.required', 'Open inside Telegram to play.')}
-              </div>
-            )}
+            <div className="your-tables-list">
+              {loadingMyTables &&
+                Array.from({ length: 2 }, (_, index) => <SkeletonRow key={`my-skeleton-${index}`} />)}
 
-            <QuickSeatCard
-              recommendation={quickSeatRecommendation}
-              fallbackLabel={quickSeatFallbackLabel}
-              onQuickSeat={handleQuickSeat}
-              onCreate={handleCreateTable}
-              onJoinPrivate={handleJoinPrivate}
-              onRefresh={refreshTables}
-              disabled={!recommendedTable || actionsDisabled}
-              actionsDisabled={actionsDisabled}
-            />
-
-            <div className="your-tables-card">
-              <div className="section-header">
-                <div>
-                  <p className="section-eyebrow">{t('lobbyNew.history.title', 'Your tables')}</p>
-                  <p className="section-sub">
-                    {t('lobbyNew.history.subtitle', 'Active or recent seats appear here.')}
-                  </p>
+              {!loadingMyTables && myTablePreview.length === 0 && (
+                <div className="your-tables-empty ui-muted">
+                  {t('lobbyNew.history.empty', 'No active tables yet')}
                 </div>
+              )}
+
+              {myTablePreview.map((table) => (
                 <button
+                  key={`mytable-${table.id}`}
                   type="button"
-                  className="section-action ui-pill"
-                  onClick={() => setActiveTab('history')}
+                  className="your-table-row"
+                  onClick={() => handleJoinTable(table)}
                 >
-                  {t('lobbyNew.history.viewAll', 'See all')}
-                </button>
-              </div>
-
-              <div className="your-tables-list">
-                {loadingMyTables &&
-                  Array.from({ length: 2 }, (_, index) => <SkeletonRow key={`my-skeleton-${index}`} />)}
-
-                {!loadingMyTables && myTablePreview.length === 0 && (
-                  <div className="your-tables-empty ui-muted">
-                    {t('lobbyNew.history.empty', 'No active tables yet')}
+                  <div className="your-table-row__main">
+                    <p className="your-table-row__name" dir="auto">
+                      {table.name}
+                    </p>
+                    <span className="your-table-row__stakes">{formatPreviewStakes(table)}</span>
                   </div>
-                )}
-
-                {myTablePreview.map((table) => (
-                  <button
-                    key={`mytable-${table.id}`}
-                    type="button"
-                    className="your-table-row"
-                    onClick={() => handleJoinTable(table)}
-                  >
-                    <div className="your-table-row__main">
-                      <p className="your-table-row__name" dir="auto">
-                        {table.name}
-                      </p>
-                      <span className="your-table-row__stakes">{formatPreviewStakes(table)}</span>
-                    </div>
-                    <div className="your-table-row__meta">
-                      <span className="your-table-row__pill tabular-nums">
-                        {table.players}/{table.maxPlayers}
+                  <div className="your-table-row__meta">
+                    <span className="your-table-row__pill tabular-nums">
+                      {table.players}/{table.maxPlayers}
+                    </span>
+                    {table.status && (
+                      <span className="your-table-row__status" dir="auto">
+                        {table.status}
                       </span>
-                      {table.status && (
-                        <span className="your-table-row__status" dir="auto">
-                          {table.status}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="lobby-column lobby-column--list">
-            <div className="lobby-browse">
-              <div className="lobby-browse__row lobby-toolbar">
-                <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
+          <div className="lobby-browse">
+            <div className="lobby-browse__row lobby-toolbar">
+              <LobbyTabs activeTab={activeTab} onChange={setActiveTab} labels={tabLabels} />
 
-                <div className="lobby-search-wrap">
-                  <div className="lobby-search">
-                    <FontAwesomeIcon
-                      icon={faMagnifyingGlass}
-                      className="lobby-search__icon"
-                      aria-hidden
-                    />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
-                      className="lobby-search__input"
-                      dir="auto"
-                    />
-                  </div>
+              <div className="lobby-search-wrap">
+                <div className="lobby-search">
+                  <FontAwesomeIcon
+                    icon={faMagnifyingGlass}
+                    className="lobby-search__icon"
+                    aria-hidden
+                  />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder={t('lobbyNew.search.placeholder', 'Search tables')}
+                    className="lobby-search__input"
+                    dir="auto"
+                  />
+                </div>
 
-                  <div className="lobby-filter-group">
-                    <div className="relative">
-                      <button
-                        ref={filterButtonRef}
-                        type="button"
-                        onClick={() => setFilterOpen((prev) => !prev)}
-                        className="lobby-filter-button"
-                        aria-expanded={filterOpen}
-                        aria-haspopup="dialog"
-                      >
-                        <FontAwesomeIcon icon={faSliders} className="text-[11px]" />
-                        <span className="lobby-filter-label">
-                          {t('lobbyNew.actions.filters', 'Filters')}
+                <div className="lobby-filter-group">
+                  <div className="relative">
+                    <button
+                      ref={filterButtonRef}
+                      type="button"
+                      onClick={() => setFilterOpen((prev) => !prev)}
+                      className="lobby-filter-button"
+                      aria-expanded={filterOpen}
+                      aria-haspopup="dialog"
+                    >
+                      <FontAwesomeIcon icon={faSliders} className="text-[11px]" />
+                      <span className="lobby-filter-label">
+                        {t('lobbyNew.actions.filters', 'Filters')}
+                      </span>
+                      {activeFilterCount > 0 && (
+                        <span className="lobby-filter-indicator" aria-label={t('lobbyNew.filters.active', 'Active filters')}>
+                          {activeFilterCount}
                         </span>
-                        {activeFilterCount > 0 && (
-                          <span className="lobby-filter-indicator" aria-label={t('lobbyNew.filters.active', 'Active filters')}>
-                            {activeFilterCount}
-                          </span>
-                        )}
-                      </button>
+                      )}
+                    </button>
 
-                      {filterOpen && (
-                        <div ref={filterPopoverRef} className="lobby-filter-popover">
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
-                              {t('lobbyNew.filters.title', 'Filters')}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => setFilters((prev) => ({ ...prev, joinableOnly: !prev.joinableOnly }))}
-                              aria-pressed={filters.joinableOnly}
-                              className="lobby-filter-toggle"
+                    {filterOpen && (
+                      <div ref={filterPopoverRef} className="lobby-filter-popover">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
+                            {t('lobbyNew.filters.title', 'Filters')}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setFilters((prev) => ({ ...prev, joinableOnly: !prev.joinableOnly }))}
+                            aria-pressed={filters.joinableOnly}
+                            className="lobby-filter-toggle"
+                          >
+                            <span className="text-[12px] font-medium text-[var(--text-2)]">
+                              {t('lobbyNew.filters.joinableOnly', 'Only joinable')}
+                            </span>
+                            <span
+                              className={`lobby-filter-switch ${filters.joinableOnly ? 'is-active' : ''}`}
+                              aria-hidden="true"
                             >
-                              <span className="text-[12px] font-medium text-[var(--text-2)]">
-                                {t('lobbyNew.filters.joinableOnly', 'Only joinable')}
-                              </span>
-                              <span
-                                className={`lobby-filter-switch ${filters.joinableOnly ? 'is-active' : ''}`}
-                                aria-hidden="true"
-                              >
-                                <span className="lobby-filter-thumb" />
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }))}
-                              aria-pressed={filters.favoritesOnly}
-                              className="lobby-filter-toggle"
+                              <span className="lobby-filter-thumb" />
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }))}
+                            aria-pressed={filters.favoritesOnly}
+                            className="lobby-filter-toggle"
+                          >
+                            <span className="text-[12px] font-medium text-[var(--text-2)]">
+                              {t('lobbyNew.filters.favoritesOnly', 'Favorites')}
+                            </span>
+                            <span
+                              className={`lobby-filter-switch ${filters.favoritesOnly ? 'is-active' : ''}`}
+                              aria-hidden="true"
                             >
-                              <span className="text-[12px] font-medium text-[var(--text-2)]">
-                                {t('lobbyNew.filters.favoritesOnly', 'Favorites')}
-                              </span>
-                              <span
-                                className={`lobby-filter-switch ${filters.favoritesOnly ? 'is-active' : ''}`}
-                                aria-hidden="true"
-                              >
-                                <span className="lobby-filter-thumb" />
-                              </span>
-                            </button>
-                          </div>
-                          <div className="mt-3 border-t border-[var(--border-3)] pt-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
-                              {t('lobbyNew.sort.title', 'Sort')}
-                            </p>
-                            <div className="mt-2 space-y-1">
-                              {sortOptions.map((option) => {
-                                const isActive = option.value === sort
-                                return (
-                                  <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => setSort(option.value)}
-                                    className={`lobby-filter-option ${isActive ? 'is-active' : ''}`}
-                                    style={{ textAlign: 'start' }}
-                                  >
-                                    <span dir="auto">{option.label}</span>
-                                    {isActive && <FontAwesomeIcon icon={faCheck} className="text-[var(--chip-emerald)]" />}
-                                  </button>
-                                )
-                              })}
-                            </div>
+                              <span className="lobby-filter-thumb" />
+                            </span>
+                          </button>
+                        </div>
+                        <div className="mt-3 border-t border-[var(--border-3)] pt-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">
+                            {t('lobbyNew.sort.title', 'Sort')}
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {sortOptions.map((option) => {
+                              const isActive = option.value === sort
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => setSort(option.value)}
+                                  className={`lobby-filter-option ${isActive ? 'is-active' : ''}`}
+                                  style={{ textAlign: 'start' }}
+                                >
+                                  <span dir="auto">{option.label}</span>
+                                  {isActive && <FontAwesomeIcon icon={faCheck} className="text-[var(--chip-emerald)]" />}
+                                </button>
+                              )
+                            })}
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    <span className="lobby-count-pill tabular-nums">
-                      {listLoading
-                        ? t('common.loading', 'Loading...')
-                        : totalCount > 0
-                          ? `${visibleCount}/${totalCount}`
-                          : `${visibleCount}`}
-                    </span>
+                      </div>
+                    )}
                   </div>
+
+                  <span className="lobby-count-pill tabular-nums">
+                    {listLoading
+                      ? t('common.loading', 'Loading...')
+                      : totalCount > 0
+                        ? `${visibleCount}/${totalCount}`
+                        : `${visibleCount}`}
+                  </span>
                 </div>
               </div>
+            </div>
 
-              {showSmallScopeHint && (
-                <div className="lobby-scope-hint ui-pill">
-                  {t('lobbyNew.hint.smallScope', {
-                    defaultValue: 'Only {{count}} public tables available right now.',
-                    count: totalCount,
-                  })}
+            {showSmallScopeHint && (
+              <div className="lobby-scope-hint ui-pill">
+                {t('lobbyNew.hint.smallScope', {
+                  defaultValue: 'Only {{count}} public tables available right now.',
+                  count: totalCount,
+                })}
+              </div>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="lobby-info ui-muted">
+                <p className="font-semibold text-[var(--text-1)]">
+                  {t('lobbyNew.history.title', 'Your tables')}
+                </p>
+                <p className="text-[11px] text-[var(--text-3)]">
+                  {t('lobbyNew.history.subtitle', 'Tables you have joined recently.')}
+                </p>
+              </div>
+            )}
+
+            <div className="lobby-list" role="list">
+              {activeError && (
+                <div className="lobby-error ui-panel">
+                  <div>
+                    <p className="text-[12px] font-semibold text-[var(--text-1)]">
+                      {t('lobbyNew.error.title', 'Unable to load tables')}
+                    </p>
+                    <p className="text-[11px] text-[var(--text-3)]">{activeError}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshTables}
+                    className="ui-pill lobby-error__action"
+                  >
+                    {t('common.actions.retry', 'Retry')}
+                  </button>
                 </div>
               )}
 
-              {activeTab === 'history' && (
-                <div className="lobby-info ui-muted">
-                  <p className="font-semibold text-[var(--text-1)]">
-                    {t('lobbyNew.history.title', 'Your tables')}
-                  </p>
-                  <p className="text-[11px] text-[var(--text-3)]">
-                    {t('lobbyNew.history.subtitle', 'Tables you have joined recently.')}
-                  </p>
-                </div>
+              {listLoading &&
+                Array.from({ length: 6 }, (_, index) => <SkeletonRow key={`skeleton-${index}`} />)}
+
+              {!listLoading && !activeError && listTables.length === 0 && (
+                <EmptyState
+                  title={emptyState.title}
+                  description={emptyState.description}
+                  actionLabel={emptyState.actionLabel}
+                  onAction={emptyState.onAction}
+                  actionDisabled={actionsDisabled}
+                />
               )}
 
-              <div className="lobby-list" role="list">
-                {activeError && (
-                  <div className="lobby-error ui-panel">
-                    <div>
-                      <p className="text-[12px] font-semibold text-[var(--text-1)]">
-                        {t('lobbyNew.error.title', 'Unable to load tables')}
-                      </p>
-                      <p className="text-[11px] text-[var(--text-3)]">{activeError}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={refreshTables}
-                      className="ui-pill lobby-error__action"
-                    >
-                      {t('common.actions.retry', 'Retry')}
-                    </button>
-                  </div>
-                )}
-
-                {listLoading &&
-                  Array.from({ length: 6 }, (_, index) => <SkeletonRow key={`skeleton-${index}`} />)}
-
-                {!listLoading && !activeError && listTables.length === 0 && (
-                  <EmptyState
-                    title={emptyState.title}
-                    description={emptyState.description}
-                    actionLabel={emptyState.actionLabel}
-                    onAction={emptyState.onAction}
-                    actionDisabled={actionsDisabled}
-                  />
-                )}
-
-                {listTables.map((table) => (
-                  <TableCard
-                    key={table.id}
-                    table={table}
-                    isFavorite={favoriteSet.has(table.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onJoin={handleJoinTable}
-                  />
-                ))}
-              </div>
+              {listTables.map((table) => (
+                <TableCard
+                  key={table.id}
+                  table={table}
+                  isFavorite={favoriteSet.has(table.id)}
+                  onToggleFavorite={toggleFavorite}
+                  onJoin={handleJoinTable}
+                />
+              ))}
             </div>
           </div>
         </div>

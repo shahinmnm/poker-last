@@ -23,6 +23,7 @@ export default function TableCard({
 }: TableCardProps) {
   const { t } = useTranslation()
   const isFull = table.players >= table.maxPlayers
+  const seatsOpen = Math.max(table.maxPlayers - table.players, 0)
 
   const stakesLabel = useMemo(() => {
     const small = table.stakesSmall
@@ -62,21 +63,21 @@ export default function TableCard({
       : t('lobbyNew.table.deep', 'Deep')
   }, [table.speed, t])
 
-  const statusLabel = useMemo(() => {
-    if (!table.status) return null
-    const normalized = table.status.replace(/_/g, ' ')
-    return normalized.charAt(0).toUpperCase() + normalized.slice(1)
-  }, [table.status])
+  const statusState = useMemo(() => {
+    const normalized = table.status?.toLowerCase() ?? ''
+    if (isFull) {
+      return { label: t('lobbyNew.table.status.full', 'Full'), tone: 'muted' as const }
+    }
+    if (['active', 'running', 'in_progress'].includes(normalized)) {
+      return { label: t('lobbyNew.table.status.running', 'Running'), tone: 'success' as const }
+    }
+    if (['waiting', 'open', 'starting'].includes(normalized)) {
+      return { label: t('lobbyNew.table.status.open', 'Open'), tone: 'warning' as const }
+    }
+    return { label: t('lobbyNew.table.status.open', 'Open'), tone: 'warning' as const }
+  }, [isFull, table.status, t])
 
   const normalizedSpeed = speedLabel ?? t('lobbyNew.table.standard', 'Standard')
-  const statusTone = useMemo(() => {
-    const normalized = table.status?.toLowerCase()
-    if (!normalized) return null
-    if (['active', 'running', 'in_progress'].includes(normalized)) return 'success'
-    if (['waiting', 'open'].includes(normalized)) return 'warning'
-    if (['full', 'closed', 'finished'].includes(normalized)) return 'muted'
-    return 'info'
-  }, [table.status])
 
   const badges = useMemo(() => {
     const items: Array<{ key: string; label: string; tone: 'amber' | 'red' | 'blue' }> = []
@@ -101,8 +102,8 @@ export default function TableCard({
   const visibleBadges = badges.slice(0, 2)
   const extraBadgeCount = Math.max(badges.length - visibleBadges.length, 0)
 
-  const seatRatio = table.maxPlayers > 0 ? Math.min(table.players / table.maxPlayers, 1) : 0
-  const seatPercent = Math.round(seatRatio * 100)
+  const seatRatio = table.maxPlayers > 0 ? Math.max(seatsOpen / table.maxPlayers, 0) : 0
+  const seatPercent = Math.round(Math.min(seatRatio, 1) * 100)
   const ringColor = isFull ? 'rgba(239, 75, 75, 0.7)' : 'rgba(30, 198, 120, 0.7)'
   const ringStyle = {
     backgroundImage: `conic-gradient(${ringColor} ${seatPercent}%, rgba(255,255,255,0.08) 0)`,
@@ -179,17 +180,17 @@ export default function TableCard({
                 {table.name}
               </p>
               <div className="table-card__status">
-                <span className="table-card__status-label">
-                  {table.players}/{table.maxPlayers} {t('lobbyNew.table.players', 'players')}
+                <span className="table-card__status-label">{statusState.label}</span>
+                <span className="table-card__status-separator">•</span>
+                <span className="table-card__status-label tabular-nums">
+                  {seatsOpen} {t('lobbyNew.table.seatsOpenShort', 'open')}
                 </span>
-                {statusTone && (
+                {statusState.tone && (
                   <FontAwesomeIcon
                     icon={faCircle}
-                    className={cn('table-card__activity', `is-${statusTone}`)}
+                    className={cn('table-card__activity', `is-${statusState.tone}`)}
                   />
                 )}
-                {statusLabel && <span className="table-card__speed">{statusLabel}</span>}
-                {statusLabel && <span className="table-card__status-separator">•</span>}
                 <span className="table-card__speed">{normalizedSpeed}</span>
               </div>
             </div>
@@ -224,10 +225,10 @@ export default function TableCard({
           <div className="table-card__seat-ring" style={ringStyle}>
             <div className="table-card__seat-core">
               <span className="table-card__seat-count tabular-nums">
-                {table.players}/{table.maxPlayers}
+                {seatsOpen}
               </span>
               <span className="table-card__seat-label">
-                {t('lobbyNew.table.seatsOpen', 'seats')}
+                {t('lobbyNew.table.seatsOpen', 'open')}
               </span>
             </div>
           </div>

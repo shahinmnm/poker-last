@@ -1,22 +1,21 @@
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGear } from '@fortawesome/free-solid-svg-icons'
+import { faGear, faPlay } from '@fortawesome/free-solid-svg-icons'
 
 import { menuTree } from '../config/menu'
 import LanguageSelector from './LanguageSelector'
 import Avatar from './ui/Avatar'
 import PlaySheet from './layout/PlaySheet'
 import AppBackground from './background/AppBackground'
-import FloatingNavPill from './layout/FloatingNavPill'
 import { cn } from '../utils/cn'
 import { useTelegram } from '../hooks/useTelegram'
 import { useUserData } from '../providers/UserDataProvider'
 import { useLayout } from '../providers/LayoutProvider'
 import { formatByCurrency } from '../utils/currency'
 
-const bottomNavKeys = ['home', 'lobby', 'wallet', 'profile'] as const
+const bottomNavKeys = ['lobby', 'wallet', 'profile'] as const
 
 const bottomNavItems = bottomNavKeys
   .map((key) => menuTree.find((item) => item.key === key))
@@ -33,9 +32,9 @@ export default function MainLayout() {
   // Hide header and nav when on Table page for immersive full-screen experience
   const isTablePage = location.pathname.startsWith('/table/')
   const isLobbyPage = location.pathname.startsWith('/lobby')
-  const showFloatingNav = showBottomNav && !isTablePage
+  const showBottomBar = showBottomNav && !isTablePage
   const dockOffset = 'calc(88px + env(safe-area-inset-bottom, 0px))'
-  const basePaddingBottom = showFloatingNav ? dockOffset : 'calc(48px + env(safe-area-inset-bottom, 0px))'
+  const basePaddingBottom = showBottomBar ? dockOffset : 'calc(48px + env(safe-area-inset-bottom, 0px))'
 
   const displayName = user?.first_name || user?.username || 'Player'
   const formatBalance = (bal: number) => formatByCurrency(bal, 'REAL')
@@ -105,11 +104,42 @@ export default function MainLayout() {
           <Outlet />
         </main>
 
-        {showFloatingNav && (
-          <FloatingNavPill
-            items={bottomNavItems}
-            onQuickPlay={() => setIsPlaySheetOpen(true)}
-          />
+        {showBottomBar && (
+          <nav
+            className="app-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border-weak)] backdrop-blur-xl"
+            role="navigation"
+            aria-label={t('nav.main', 'Main navigation')}
+            style={{ background: 'var(--surface-1)' }}
+          >
+            <div className="mx-auto flex max-w-5xl items-center justify-around gap-2 px-3 py-2">
+              {bottomNavItems.map((item) => (
+                <NavLink
+                  key={item.key}
+                  to={item.path}
+                  end={item.path === '/'}
+                  className={({ isActive }) =>
+                    cn(
+                      'app-bottom-nav__link',
+                      isActive && 'is-active',
+                    )
+                  }
+                  aria-label={t(item.labelKey)}
+                >
+                  <FontAwesomeIcon icon={item.icon} />
+                  <span className="truncate">{t(item.labelKey)}</span>
+                </NavLink>
+              ))}
+              <button
+                type="button"
+                onClick={() => setIsPlaySheetOpen(true)}
+                className="app-bottom-nav__link"
+                aria-label={t('nav.play', 'Play')}
+              >
+                <FontAwesomeIcon icon={faPlay} />
+                <span className="truncate">{t('nav.play', 'Play')}</span>
+              </button>
+            </div>
+          </nav>
         )}
       </div>
 
