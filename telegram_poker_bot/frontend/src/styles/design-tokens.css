@@ -103,9 +103,9 @@
   
   /* ==================== SEMANTIC SURFACE HIERARCHY ==================== */
   /* Premium casino surface layers for depth and clarity */
-  --surface-1: rgba(12, 16, 14, 0.94);      /* Primary surface - cards, panels */
-  --surface-2: rgba(9, 13, 11, 0.86);       /* Secondary surface - overlays */
-  --surface-3: rgba(6, 9, 8, 0.72);      /* Tertiary surface - subtle backgrounds */
+  --surface-1: rgba(10, 14, 12, 0.94);      /* Primary surface - cards, panels */
+  --surface-2: rgba(8, 12, 10, 0.9);       /* Secondary surface - overlays */
+  --surface-3: rgba(6, 9, 8, 0.68);      /* Tertiary surface - subtle backgrounds */
   
   /* ==================== SEMANTIC TEXT HIERARCHY ==================== */
   --text-1: #fff7ee;                        /* Primary text - headings, names */
@@ -156,7 +156,7 @@
     #091a12 100%        /* Vignette edge - deep green, NOT black */
   );
   --bg-app: var(--bg-felt);
-  --bg-app-soft: #0d2818;
+  --bg-app-soft: #103020;
   --color-bg: #0d2818;
   --color-bg-muted: #0a1711;
   --color-bg-gradient: var(--bg-felt);
@@ -235,7 +235,7 @@
   --accent-blue: var(--chip-blue);
   --accent-green: var(--chip-emerald);
   --accent-red: var(--chip-red);
-  --glow-primary: rgba(30, 198, 120, 0.5);
+  --glow-primary: rgba(30, 198, 120, 0.35);
 
   /* Status colors */
   --color-success: var(--chip-emerald);
@@ -273,7 +273,7 @@
   /* Component-specific shadows - Poker theme */
   --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.18);
   --shadow-nav: 0 -4px 14px rgba(0, 0, 0, 0.28);
-  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.22);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.2);
   --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.28);
   --shadow-button: 0 4px 12px rgba(0, 0, 0, 0.22);
   --shadow-glow: 0 4px 14px rgba(0, 0, 0, 0.18);
