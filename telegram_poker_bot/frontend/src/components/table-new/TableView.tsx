@@ -262,6 +262,16 @@ export function TableView() {
     })
   }, [state, heroSeat])
 
+  const winnerNameMap = useMemo(() => {
+    if (!state) return {}
+    return state.seat_map.reduce((acc, seat) => {
+      if (seat.user_id !== null && seat.user_id !== undefined) {
+        acc[String(seat.user_id)] = seat.display_name || `Player ${seat.user_id}`
+      }
+      return acc
+    }, {} as Record<string, string>)
+  }, [state])
+
   // Handle sit out toggle
   const handleSitOut = useCallback(async (sitOut: boolean) => {
     if (!tableId || !initData || !heroSeat) return
@@ -408,9 +418,9 @@ export function TableView() {
 
       {/* Main table area with strict Z-Index layering */}
       <div className="table-container relative h-full flex flex-col items-center justify-center">
-        {/* Top HUD lanes: opponent tag + pot */}
+        {/* Top HUD lane: opponent tag */}
         <div
-          className="top-hud pointer-events-none absolute left-1/2 -translate-x-1/2 top-[14%] flex flex-col items-center gap-2"
+          className="top-hud pointer-events-none absolute left-1/2 -translate-x-1/2 top-[14%] flex flex-col items-center"
           style={{ zIndex: 'var(--z-board-hud, 30)' }}
         >
           {actingSeat && heroSeat && actingSeat.user_id !== heroSeat.user_id && (
@@ -418,16 +428,16 @@ export function TableView() {
               {actingSeat.display_name || t('table.meta.opponent', { defaultValue: 'Opponent' })}
             </div>
           )}
-          <div ref={potRef} className="pointer-events-auto">
-            <PotDisplay pots={pots} currency={table_metadata.currency as 'REAL' | 'PLAY'} />
-          </div>
         </div>
 
-        {/* Community cards - Z-Index: cards-chips (20) */}
+        {/* Community cards + pot cluster */}
         <div 
-          className="community-board-container absolute top-[44%] left-1/2 -translate-x-1/2"
+          className="community-board-container absolute left-1/2 -translate-x-1/2 top-[42%] flex flex-col items-center gap-2"
           style={{ zIndex: 'var(--z-cards-chips, 20)' }}
         >
+          <div ref={potRef} className="pointer-events-none">
+            <PotDisplay pots={pots} currency={table_metadata.currency as 'REAL' | 'PLAY'} />
+          </div>
           <CommunityBoard
             communityCards={community_cards}
             street={current_street}
@@ -582,6 +592,7 @@ export function TableView() {
         <WinnerBanner
           winners={state.hand_result.winners}
           currency={table_metadata.currency as 'REAL' | 'PLAY'}
+          playerNames={winnerNameMap}
           onComplete={() => setShowWinnerBanner(false)}
         />
       )}

@@ -1,7 +1,10 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { TableState } from '@/types/game'
 import { formatCurrency } from '../../../../utils/currency'
 import MiniCard from '@/components/ui/MiniCard'
+
+const RESULT_FADE_MS = 2200
+const RESULT_HIDE_MS = 2600
 
 interface HandResultPanelProps {
   liveState: TableState
@@ -36,6 +39,9 @@ function formatCard(card: string): string {
 }
 
 export default function HandResultPanel({ liveState, currentUserId }: HandResultPanelProps) {
+  const [isVisible, setIsVisible] = useState(true)
+  const [isFading, setIsFading] = useState(false)
+
   const result = useMemo(() => {
     if (!liveState.hand_result || !liveState.hand_result.winners || liveState.hand_result.winners.length === 0) {
       return null
@@ -71,14 +77,28 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
     }
   }, [liveState, currentUserId])
 
-  if (!result) {
+  useEffect(() => {
+    if (!result) return
+
+    setIsVisible(true)
+    setIsFading(false)
+    const fadeTimer = window.setTimeout(() => setIsFading(true), RESULT_FADE_MS)
+    const hideTimer = window.setTimeout(() => setIsVisible(false), RESULT_HIDE_MS)
+
+    return () => {
+      window.clearTimeout(fadeTimer)
+      window.clearTimeout(hideTimer)
+    }
+  }, [result, liveState.hand_id])
+
+  if (!result || !isVisible) {
     return null
   }
 
   const { winnersByPot, potIndices, hasSidePots, isCurrentUserWinner, rakeAmount, totalPot } = result
 
   return (
-    <div className="my-2 rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[3%] p-3 backdrop-blur-sm">
+    <div className={`my-2 rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[3%] p-3 backdrop-blur-sm transition-opacity duration-300 ${isFading ? 'opacity-0' : 'opacity-100'}`}>
       {/* Pot and Rake Summary */}
       {totalPot > 0 && (
         <div className="mb-2 pb-2 border-b border-white/10">
@@ -137,15 +157,13 @@ export default function HandResultPanel({ liveState, currentUserId }: HandResult
               
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
                 <span className="font-semibold text-sky-300">{handRankLabel}</span>
-                {bestCards.length > 0 ? (
+                {bestCards.length > 0 && (
                   <div className="flex items-center gap-1" aria-label={formattedCards}>
                     {bestCards.slice(0, 5).map((card) => (
-                      <MiniCard key={card} card={card} size="sm" />
+                      <MiniCard key={`${mainWinner.user_id}-${card}`} card={card} size="sm" />
                     ))}
                   </div>
-                ) : formattedCards ? (
-                  <span className="text-[color:var(--text-muted)]">({formattedCards})</span>
-                ) : null}
+                )}
               </div>
 
               {potWinners.length > 1 && (
