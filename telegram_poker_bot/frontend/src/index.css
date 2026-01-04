@@ -2547,7 +2547,7 @@ button,
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 80px;
+  max-width: 100px;
 }
 
 .lobby-header-v2__balance {
@@ -2668,8 +2668,9 @@ button,
 }
 
 .quickseat-v2__cta {
-  width: 75%;
-  max-width: 280px;
+  width: 70%;
+  min-width: 200px;
+  max-width: 300px;
   min-height: 48px;
   display: flex;
   align-items: center;

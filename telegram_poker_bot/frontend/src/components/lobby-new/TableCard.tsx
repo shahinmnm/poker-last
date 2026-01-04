@@ -9,20 +9,15 @@ import type { TableSummary } from './mockLobbyData'
 
 interface TableCardProps {
   table: TableSummary
-  isFavorite: boolean
-  onToggleFavorite: (tableId: number) => void
+  isFavorite?: boolean
+  onToggleFavorite?: (tableId: number) => void
   onJoin: (table: TableSummary) => void
 }
 
 export default function TableCard({
   table,
-  isFavorite: _isFavorite,
-  onToggleFavorite: _onToggleFavorite,
   onJoin,
 }: TableCardProps) {
-  // Note: _isFavorite and _onToggleFavorite kept for API compatibility
-  void _isFavorite
-  void _onToggleFavorite
   const { t } = useTranslation()
   const isFull = table.players >= table.maxPlayers
   const seatsOpen = Math.max(table.maxPlayers - table.players, 0)
