@@ -49,6 +49,7 @@ from telegram_poker_bot.shared.models import (
     Seat,
     Hand,
     HandStatus,
+    CurrencyType,
     SNGState,
     TableTemplateType,
     TableTemplate,
@@ -193,6 +194,20 @@ class UserProfileResponse(BaseModel):
     language: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+
+
+class UserPreferencesResponse(BaseModel):
+    """Persisted user preference payload."""
+
+    language: str
+    preferred_currency: str
+
+
+class UserPreferencesRequest(BaseModel):
+    """Preference updates from clients."""
+
+    language: Optional[str] = None
+    preferred_currency: Optional[str] = None
 
 
 class GroupInviteResponse(BaseModel):
@@ -1824,8 +1839,11 @@ async def ensure_user(db: AsyncSession, auth: UserAuth) -> User:
     if auth.username and user.username != auth.username:
         user.username = auth.username
         updated = True
-    if normalized_language and user.language != normalized_language:
+    if normalized_language and not user.language:
         user.language = normalized_language
+        updated = True
+    if not user.preferred_currency:
+        user.preferred_currency = CurrencyType.REAL
         updated = True
     if updated:
         await db.flush()
@@ -2035,6 +2053,93 @@ async def register_current_user(
         language=language,
         first_name=auth.first_name,
         last_name=auth.last_name,
+    )
+
+
+@game_router.get("/users/me/preferences", response_model=UserPreferencesResponse)
+async def get_user_preferences(
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch persisted user preferences for language and currency."""
+    if not x_telegram_init_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Telegram init data",
+        )
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram init data",
+        )
+
+    user = await ensure_user(db, auth)
+    preferred_currency = (
+        user.preferred_currency.value
+        if hasattr(user.preferred_currency, "value")
+        else str(user.preferred_currency)
+    )
+    return UserPreferencesResponse(
+        language=user.language or sanitize_language(auth.language_code),
+        preferred_currency=preferred_currency,
+    )
+
+
+@game_router.post("/users/me/preferences", response_model=UserPreferencesResponse)
+async def update_user_preferences(
+    payload: UserPreferencesRequest = Body(...),
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update language or preferred currency for the current user."""
+    if not x_telegram_init_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Telegram init data",
+        )
+
+    auth = verify_telegram_init_data(x_telegram_init_data)
+    if not auth:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram init data",
+        )
+
+    user = await ensure_user(db, auth)
+    updated = False
+
+    if payload.language:
+        normalized = sanitize_language(payload.language)
+        if normalized and normalized != user.language:
+            user.language = normalized
+            updated = True
+
+    if payload.preferred_currency:
+        try:
+            normalized_currency = payload.preferred_currency.upper()
+            currency = CurrencyType(normalized_currency)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid currency preference",
+            ) from exc
+        if user.preferred_currency != currency:
+            user.preferred_currency = currency
+            updated = True
+
+    if updated:
+        await db.commit()
+
+    preferred_currency = (
+        user.preferred_currency.value
+        if hasattr(user.preferred_currency, "value")
+        else str(user.preferred_currency)
+    )
+    return UserPreferencesResponse(
+        language=user.language or sanitize_language(auth.language_code),
+        preferred_currency=preferred_currency,
     )
 
 

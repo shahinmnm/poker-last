@@ -532,6 +532,11 @@
       "title": "Recent activity",
       "empty": "No transactions yet"
     },
+    "sections": {
+      "recentTransactions": "Recent Transactions",
+      "depositHint": "Deposits are handled in the Telegram bot menu.",
+      "withdrawHint": "Withdrawals are handled in the Telegram bot menu."
+    },
     "promo": {
       "label": "Promo code",
       "placeholder": "Enter code",

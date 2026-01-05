@@ -87,6 +87,7 @@ export default function LobbyPage() {
     loading: loadingPublic,
     refreshing: refreshingPublic,
     error: errorPublic,
+    connectionState,
   } = useLobbySync({
     enabled: ready,
     refreshInterval: 25000,
@@ -422,14 +423,6 @@ export default function LobbyPage() {
   const actionsDisabled = !ready
   const activeError =
     !ready || authMissing ? null : activeTab === 'history' ? errorMyTables : errorPublic
-  const lobbyStatusLabel =
-    !ready || loadingPublic
-      ? t('common.loading', 'Loading...')
-      : t('lobbyNew.header.tablesOnlineCount', {
-          defaultValue: '{{count}}',
-          count: publicTables.length,
-        })
-
   const emptyState = useMemo(() => {
     if (activeTab === 'history') {
       if (authMissing) {
@@ -486,9 +479,9 @@ export default function LobbyPage() {
   }, [activeTab, authMissing, handleCreateTable, handleJoinPrivate, t])
 
   return (
-    <div className="lobby-v2">
+      <div className="lobby-v2">
       {/* 1. Safe Header - Fixed 44px max */}
-      <LobbyHeader statusLabel={lobbyStatusLabel} />
+      <LobbyHeader connectionState={connectionState} isOffline={isOffline} />
 
       {/* Banners */}
       {isOffline && (
@@ -511,11 +504,7 @@ export default function LobbyPage() {
         recommendation={quickSeatRecommendation}
         fallbackLabel={quickSeatFallbackLabel}
         onQuickSeat={handleQuickSeat}
-        onCreate={handleCreateTable}
-        onJoinPrivate={handleJoinPrivate}
-        onRefresh={refreshTables}
         disabled={!recommendedTable || actionsDisabled}
-        actionsDisabled={actionsDisabled}
       />
 
       {/* 4. Lobby Controls Row */}

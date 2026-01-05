@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import { apiFetch } from '@/utils/apiClient'
+import { useTelegram } from '@/hooks/useTelegram'
 
 interface Transaction {
   id: number
@@ -31,6 +32,7 @@ const typeIcon = (type: Transaction['type']) =>
   isCredit(type) ? '↑' : '↓'
 
 export default function TransactionHistory() {
+  const { initData } = useTelegram()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,13 +40,19 @@ export default function TransactionHistory() {
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const response = await axios.get<{ transactions: Transaction[] }>('/users/me/transactions')
-        const payload = response.data?.transactions
+        if (!initData) {
+          setLoading(false)
+          return
+        }
+        const response = await apiFetch<{ transactions: Transaction[] } | Transaction[]>('/users/me/transactions', {
+          initData,
+        })
+        const payload = Array.isArray(response)
+          ? response
+          : (response as { transactions?: Transaction[] }).transactions
         const normalized = Array.isArray(payload)
           ? payload
-          : Array.isArray(response.data)
-            ? (response.data as unknown as Transaction[])
-            : []
+          : []
         setTransactions(normalized)
       } catch (err) {
         console.error('Failed to fetch transactions', err)
@@ -55,7 +63,7 @@ export default function TransactionHistory() {
     }
 
     fetchTransactions()
-  }, [])
+  }, [initData])
 
   if (loading) {
     return (

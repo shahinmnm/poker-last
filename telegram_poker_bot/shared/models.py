@@ -153,6 +153,16 @@ class User(Base):
     )  # Play money balance stored in cents
     tg_user_id = Column(BigInteger, unique=True, nullable=False, index=True)
     language = Column(String(10), default="en", nullable=False)
+    preferred_currency = Column(
+        Enum(
+            CurrencyType,
+            values_callable=lambda enum: [member.value for member in enum],
+            name="currencytype",
+        ),
+        default=CurrencyType.REAL.value,
+        server_default=CurrencyType.REAL.value,
+        nullable=False,
+    )
     username = Column(String(255), nullable=True)
     first_seen_at = Column(DateTime(timezone=True), server_default=func.now())
     last_seen_at = Column(DateTime(timezone=True), onupdate=func.now())

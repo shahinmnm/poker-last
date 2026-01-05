@@ -1,4 +1,4 @@
-import { Component, useMemo, useState } from 'react'
+import { Component, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBolt, faShield, faShuffle } from '@fortawesome/free-solid-svg-icons'
@@ -40,13 +40,13 @@ class WalletErrorBoundary extends Component<{ children: React.ReactNode }, { has
 
 function WalletPageInner() {
   const { t } = useTranslation()
-  const { balances, loading } = useUserData()
-  const [activeCurrency, setActiveCurrency] = useState<WalletCurrency>('REAL')
+  const { balances, balanceReal, balancePlay, loading, preferredCurrency, setPreferredCurrency } = useUserData()
+  const activeCurrency = preferredCurrency
 
   const selectedBalance = useMemo(() => {
-    if (!balances) return 0
-    return activeCurrency === 'REAL' ? balances.balance_real : balances.balance_play
-  }, [activeCurrency, balances])
+    if (activeCurrency === 'REAL') return balanceReal ?? 0
+    return balancePlay ?? 0
+  }, [activeCurrency, balancePlay, balanceReal])
 
   const formattedSelected =
     activeCurrency === 'REAL' ? formatMoney(selectedBalance) : formatPlayMoney(selectedBalance, false)
@@ -72,7 +72,7 @@ function WalletPageInner() {
       glow: '0 20px 45px rgba(0, 0, 0, 0.45)',
       textColor: '#f5f1eb',
       icon: '$',
-      balance: formatMoney(balances.balance_real),
+      balance: formatMoney(balanceReal ?? 0),
       sub: 'USD chips • 1 chip = 1¢',
     },
     {
@@ -83,7 +83,7 @@ function WalletPageInner() {
       glow: '0 20px 50px rgba(16, 36, 72, 0.4)',
       textColor: '#e7eefc',
       icon: '💎',
-      balance: formatPlayMoney(balances.balance_play, false),
+      balance: formatPlayMoney(balancePlay ?? 0, false),
       sub: 'Practice chips • 1 chip = 1 point',
     },
   ]
@@ -120,6 +120,11 @@ function WalletPageInner() {
         </div>
       </div>
 
+      <section className="wallet-panel p-5 space-y-4" id="balance">
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          {t('wallet.balance', 'Balance')}
+        </h2>
+
       <div className="grid gap-4 md:grid-cols-2">
         {cards.map((card) => {
           const isActive = activeCurrency === card.key
@@ -127,7 +132,7 @@ function WalletPageInner() {
             <button
               key={card.key}
               type="button"
-              onClick={() => setActiveCurrency(card.key)}
+              onClick={() => void setPreferredCurrency(card.key)}
               className="wallet-panel w-full p-5 text-left transition-transform active:scale-[0.99] focus:outline-none"
               style={{
                 background: card.accent,
@@ -199,7 +204,7 @@ function WalletPageInner() {
           <div className="poker-tile poker-tile--flat inline-flex gap-2 rounded-full p-1">
             <button
               type="button"
-              onClick={() => setActiveCurrency('REAL')}
+              onClick={() => void setPreferredCurrency('REAL')}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                 activeCurrency === 'REAL' ? 'shadow-[0_10px_25px_rgba(0,0,0,0.25)]' : ''
               }`}
@@ -213,7 +218,7 @@ function WalletPageInner() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveCurrency('PLAY')}
+              onClick={() => void setPreferredCurrency('PLAY')}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                 activeCurrency === 'PLAY' ? 'shadow-[0_10px_25px_rgba(0,0,0,0.25)]' : ''
               }`}
@@ -256,14 +261,32 @@ function WalletPageInner() {
         </div>
       </div>
 
-      <div
-        className="poker-panel p-4"
-      >
+      </section>
+
+      <section className="poker-panel p-4" id="history">
         <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-          {t('wallet.transactions.title', 'Transaction History')}
+          {t('wallet.sections.recentTransactions', 'Recent Transactions')}
         </h3>
         <TransactionHistory />
-      </div>
+      </section>
+
+      <section className="wallet-panel p-5 space-y-2" id="deposit">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          {t('wallet.actions.deposit', 'Deposit')}
+        </h3>
+        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          {t('wallet.sections.depositHint', 'Deposits are handled in the Telegram bot menu.')}
+        </p>
+      </section>
+
+      <section className="wallet-panel p-5 space-y-2" id="withdraw">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          {t('wallet.actions.withdraw', 'Withdraw')}
+        </h3>
+        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          {t('wallet.sections.withdrawHint', 'Withdrawals are handled in the Telegram bot menu.')}
+        </p>
+      </section>
     </div>
   )
 }

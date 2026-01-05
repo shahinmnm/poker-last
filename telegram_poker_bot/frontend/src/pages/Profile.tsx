@@ -20,15 +20,17 @@ import {
 import { useTelegram } from '../hooks/useTelegram'
 import { useTheme } from '../providers/ThemeProvider'
 import { useUserData } from '../providers/UserDataProvider'
+import { useLocalization } from '../providers/LocalizationProvider'
 import { formatMoney } from '../utils/currency'
 
 type DropdownKey = 'language' | 'theme' | 'help' | null
 
 export default function ProfilePage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { user } = useTelegram()
   const { mode, setMode } = useTheme()
   const { stats, balanceReal, loading } = useUserData()
+  const { language, changeLanguage: updateLanguage } = useLocalization()
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null)
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window === 'undefined') return true
@@ -41,7 +43,7 @@ export default function ProfilePage() {
   }
 
   const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng)
+    updateLanguage(lng)
     setOpenDropdown(null)
   }
 
@@ -58,7 +60,7 @@ export default function ProfilePage() {
     }
   }
 
-  const currentLangBadge = i18n.language === 'fa' ? t('profile.settings.languageBadge.fa') : t('profile.settings.languageBadge.en')
+  const currentLangBadge = language === 'fa' ? t('profile.settings.languageBadge.fa') : t('profile.settings.languageBadge.en')
 
   if (loading) {
     return (
@@ -236,11 +238,11 @@ export default function ProfilePage() {
                     onClick={() => changeLanguage(lang.code)}
                     className="flex w-full items-center justify-between rounded-lg p-2 text-left"
                     style={{
-                      background: i18n.language === lang.code ? 'var(--glass-bg)' : 'transparent',
+                      background: language === lang.code ? 'var(--glass-bg)' : 'transparent',
                     }}
                   >
                     <span className="text-sm" style={{ color: 'var(--color-text)' }}>{lang.label}</span>
-                    {i18n.language === lang.code && (
+                    {language === lang.code && (
                       <FontAwesomeIcon icon={faCheck} className="text-xs" style={{ color: 'var(--color-accent)' }} />
                     )}
                   </button>
@@ -318,7 +320,7 @@ export default function ProfilePage() {
             </div>
           </button>
 
-          <div>
+          <div id="help">
             <button
               onClick={() => toggleDropdown('help')}
               className="poker-tile flex w-full items-center justify-between p-3 text-left transition-transform active:scale-98"

@@ -7,11 +7,17 @@ import {
   type LanguageConfig,
 } from '../config/env'
 import { useTelegram } from '../hooks/useTelegram'
+import { apiFetch } from '../utils/apiClient'
 
 interface LocalizationContextValue {
   language: string
   supported: LanguageConfig[]
   changeLanguage: (code: string) => void
+}
+
+interface UserPreferencesResponse {
+  language?: string
+  preferred_currency?: string
 }
 
 const LocalizationContext = createContext<LocalizationContextValue>({
@@ -34,8 +40,9 @@ function applyDocumentDirection(config: LanguageConfig) {
 
 export function LocalizationProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<string>(i18n.language)
-  const { user, ready } = useTelegram()
+  const { user, ready, initData } = useTelegram()
   const telegramPrefApplied = useRef(false)
+  const serverPrefApplied = useRef(false)
 
   useEffect(() => {
     const currentConfig =
@@ -62,7 +69,38 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!ready || telegramPrefApplied.current || !user?.language_code) {
+    if (!ready || serverPrefApplied.current || !initData) {
+      return
+    }
+    let isActive = true
+    const fetchPreferences = async () => {
+      try {
+        const data = await apiFetch<UserPreferencesResponse>('/users/me/preferences', { initData })
+        const preferred = data?.language?.toLowerCase()
+        if (!isActive || !preferred) return
+        const match = supportedLanguages.find((item) => preferred.startsWith(item.code))
+        if (match && match.code !== i18n.language) {
+          serverPrefApplied.current = true
+          i18n.changeLanguage(match.code)
+          return
+        }
+        if (match) {
+          serverPrefApplied.current = true
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn('[LocalizationProvider] Failed to load user preferences', error)
+        }
+      }
+    }
+    fetchPreferences()
+    return () => {
+      isActive = false
+    }
+  }, [initData, ready])
+
+  useEffect(() => {
+    if (!ready || serverPrefApplied.current || telegramPrefApplied.current || !user?.language_code) {
       return
     }
 
@@ -81,6 +119,13 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
       return
     }
     i18n.changeLanguage(code)
+    if (initData) {
+      void apiFetch<UserPreferencesResponse>('/users/me/preferences', {
+        method: 'POST',
+        initData,
+        body: { language: code },
+      })
+    }
   }
 
   const value = useMemo(

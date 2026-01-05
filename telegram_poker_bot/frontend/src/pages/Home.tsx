@@ -20,11 +20,14 @@ export default function HomePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useTelegram()
-  const { balance } = useUserData()
+  const { balanceReal, balancePlay, preferredCurrency } = useUserData()
 
   const displayName = user?.first_name || user?.username || t('profile.title', 'Profile')
+  const activeBalance = preferredCurrency === 'PLAY' ? balancePlay : balanceReal
   const balanceLabel =
-    balance === null ? t('common.loading', 'Loading...') : formatByCurrency(balance, 'REAL')
+    activeBalance === null
+      ? t('common.loading', 'Loading...')
+      : formatByCurrency(activeBalance, preferredCurrency)
 
   return (
     <div className="home-menu">

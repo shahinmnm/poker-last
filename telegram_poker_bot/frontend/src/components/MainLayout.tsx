@@ -22,7 +22,7 @@ const bottomNavItems = bottomNavKeys
 export default function MainLayout() {
   const { t } = useTranslation()
   const { user, ready } = useTelegram()
-  const { balance } = useUserData()
+  const { balanceReal, balancePlay, preferredCurrency } = useUserData()
   const { showBottomNav } = useLayout()
   const location = useLocation()
 
@@ -35,7 +35,8 @@ export default function MainLayout() {
   const basePaddingBottom = showBottomBar ? dockOffset : 'calc(48px + env(safe-area-inset-bottom, 0px))'
 
   const displayName = user?.first_name || user?.username || 'Player'
-  const formatBalance = (bal: number) => formatByCurrency(bal, 'REAL')
+  const formatBalance = (bal: number) => formatByCurrency(bal, preferredCurrency)
+  const displayBalance = preferredCurrency === 'PLAY' ? balancePlay : balanceReal
 
   const connectionLabel = ready
     ? t('common.status.connected', 'Connected')
@@ -62,7 +63,7 @@ export default function MainLayout() {
                     {displayName}
                   </span>
                   <span className="app-header__balance">
-                    {balance !== null ? formatBalance(balance) : '...'}
+                    {displayBalance !== null ? formatBalance(displayBalance) : '...'}
                   </span>
                 </div>
               </Link>
