@@ -50,17 +50,20 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
   // Format status display - show table count or status
   const statusDisplay = statusLabel || (ready ? t('common.status.online', 'Online') : t('common.loading', 'Loading...'))
   const isNumeric = /^\d+$/.test(statusDisplay)
-  const tableCount = isNumeric ? parseInt(statusDisplay, 10) : 0
+  const tableCount = isNumeric ? parseInt(statusDisplay, 10) : null
+  const tablesLabel = isNumeric
+    ? t('lobbyNew.header.tablesOnline', { defaultValue: '{{count}} TABLES ONLINE', count: tableCount ?? 0 })
+    : statusDisplay
 
   return (
     <div className="lobby-header-capsule" ref={panelRef}>
       <header className="lobby-header-v2">
-        <Link to="/profile" className="lobby-header-v2__identity">
+        <Link
+          to="/profile"
+          className="lobby-header-v2__avatar-link"
+          aria-label={t('menu.profile.label', 'Profile')}
+        >
           <Avatar size="xs" showTurnIndicator={false} className="lobby-header-v2__avatar" />
-          <div className="lobby-header-v2__user">
-            <span className="lobby-header-v2__name ui-nowrap" dir="auto">{displayName}</span>
-            <span className="lobby-header-v2__balance ui-nowrap">{balanceLabel}</span>
-          </div>
         </Link>
 
         <button
@@ -70,11 +73,12 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
           aria-expanded={isExpanded}
           aria-label={t('lobbyNew.header.togglePanel', 'Toggle panel')}
         >
-          <span className="lobby-header-v2__dot" aria-hidden="true" />
-          <span className="lobby-header-v2__center-label ui-nowrap">
-            {isNumeric
-              ? t('lobbyNew.header.tablesCount', '{{count}} Tables', { count: tableCount })
-              : statusDisplay}
+          <span className="lobby-header-v2__center-text">
+            <span className="lobby-header-v2__title-row">
+              <span className="lobby-header-v2__name ui-nowrap" dir="auto">{displayName}</span>
+              <span className="lobby-header-v2__stack ui-nowrap">{balanceLabel}</span>
+            </span>
+            <span className="lobby-header-v2__tables ui-nowrap">{tablesLabel}</span>
           </span>
           <FontAwesomeIcon
             icon={isExpanded ? faChevronUp : faChevronDown}
@@ -83,14 +87,13 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
         </button>
 
         <div className="lobby-header-v2__actions">
-          <button
-            type="button"
-            onClick={() => changeLanguage(nextLanguage.code)}
-            className="lobby-header-v2__icon-btn"
-            aria-label={t('settings.sections.language.title', 'Language')}
-          >
-            <span className="lobby-header-v2__lang ui-nowrap">{language.toUpperCase()}</span>
-          </button>
+          <span
+            className={`lobby-header-v2__status-dot ${ready ? 'is-online' : 'is-offline'}`}
+            aria-hidden="true"
+          />
+          <Link to="/settings" className="lobby-header-v2__icon-btn" aria-label={t('menu.settings.label', 'Settings')}>
+            <FontAwesomeIcon icon={faGear} />
+          </Link>
         </div>
       </header>
 
@@ -110,7 +113,9 @@ export default function LobbyHeader({ statusLabel }: LobbyHeaderProps) {
             }}
           >
             <FontAwesomeIcon icon={faGlobe} className="lobby-header-v2__panel-icon" />
-            <span className="ui-nowrap">{t('settings.sections.language.title', 'Language')}: {language.toUpperCase()}</span>
+            <span className="ui-nowrap">
+              {t('settings.sections.language.title', 'Language')}: {language.toUpperCase()}
+            </span>
           </button>
           <Link to="/settings" className="lobby-header-v2__panel-item" onClick={() => setIsExpanded(false)}>
             <FontAwesomeIcon icon={faGear} className="lobby-header-v2__panel-icon" />

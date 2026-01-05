@@ -101,7 +101,7 @@ export default function TableCard({
     count: seatsOpen,
   })
 
-  const metaLine = [typeLabel, buyInLabel, seatsLabel].filter(Boolean).join(' • ')
+  const metaLine = [typeLabel, buyInLabel, seatsLabel].filter(Boolean).join(' | ')
 
   const normalizedStatus = table.status?.toLowerCase()
   const badges = useMemo(() => {
@@ -135,6 +135,14 @@ export default function TableCard({
     return next
   }, [isFull, normalizedStatus, table.isPrivate, t])
 
+  const visibleBadges = useMemo(() => {
+    if (badges.length <= 2) return badges
+    return [
+      badges[0],
+      { label: `+${badges.length - 1}`, tone: 'muted' },
+    ]
+  }, [badges])
+
   const handleCardClick = () => {
     if (isFull) return
     onJoin(table)
@@ -148,7 +156,14 @@ export default function TableCard({
     }
   }
 
-  const occupancyText = table.maxPlayers > 0 ? `${table.players}/${table.maxPlayers}` : '--/--'
+  const occupancyText =
+    isFull
+      ? t('lobbyNew.table.status.full', 'FULL')
+      : table.maxPlayers > 0
+        ? `${seatsOpen}`
+        : '--'
+  const occupancyLabel = isFull ? t('lobbyNew.table.status.full', 'FULL') : t('lobbyNew.table.open', 'OPEN')
+  const joinIcon = isFull ? faLock : table.isPrivate ? faLock : faPlay
 
   return (
     <div
@@ -163,7 +178,7 @@ export default function TableCard({
       <div className="table-card-v2__occupancy">
         <div className="table-card-v2__occupancy-ring" style={ringStyle}>
           <span className="table-card-v2__occupancy-text ui-nowrap">{occupancyText}</span>
-          <span className="table-card-v2__occupancy-label ui-nowrap">{t('lobbyNew.table.seats', 'SEATS')}</span>
+          <span className="table-card-v2__occupancy-label ui-nowrap">{occupancyLabel}</span>
         </div>
       </div>
 
@@ -178,9 +193,9 @@ export default function TableCard({
 
         <div className="table-card-v2__bottom">
           <span className="table-card-v2__meta ui-nowrap">{metaLine}</span>
-          {badges.length > 0 && (
+          {visibleBadges.length > 0 && (
             <div className="table-card-v2__badges">
-              {badges.map((badge) => (
+              {visibleBadges.map((badge) => (
                 <span
                   key={badge.label}
                   className={cn('table-card-v2__badge ui-nowrap', `table-card-v2__badge--${badge.tone}`)}
@@ -218,7 +233,7 @@ export default function TableCard({
           disabled={isFull}
           className={cn('table-card-v2__join', isFull && 'table-card-v2__join--disabled')}
         >
-          <FontAwesomeIcon icon={table.isPrivate ? faLock : faPlay} className="table-card-v2__join-icon" />
+          <FontAwesomeIcon icon={joinIcon} className="table-card-v2__join-icon" />
           <span className="table-card-v2__join-text ui-nowrap">
             {isFull
               ? t('lobbyNew.table.status.full', 'FULL')

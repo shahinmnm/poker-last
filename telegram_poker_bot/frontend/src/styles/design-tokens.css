@@ -25,14 +25,14 @@
    * Icon buttons: 999px (circle)
    */
   --radius-sm: 8px;       /* Icons, mini buttons */
-  --radius-md: 12px;      /* Chips, buttons */
-  --radius-lg: 12px;      /* Buttons, inputs */
-  --radius-xl: 16px;      /* Panels */
-  --radius-2xl: 16px;     /* Large containers */
-  --radius-panel: 16px;   /* Panels */
-  --radius-card: 14px;    /* Cards */
-  --radius-button: 12px;  /* Buttons */
-  --radius-chip: 12px;    /* Chips */
+  --radius-md: 16px;      /* Unified radius */
+  --radius-lg: 16px;      /* Unified radius */
+  --radius-xl: 16px;      /* Unified radius */
+  --radius-2xl: 16px;     /* Unified radius */
+  --radius-panel: 16px;   /* Unified radius */
+  --radius-card: 16px;    /* Unified radius */
+  --radius-button: 16px;  /* Unified radius */
+  --radius-chip: 16px;    /* Unified radius */
   --radius-pill: 999px;   /* Pills / badges only */
   --radius-icon: 999px;   /* Icon buttons */
 
@@ -107,8 +107,8 @@
   --surface-1: rgba(10, 14, 12, 0.55);      /* Primary surface overlay */
   --surface-2: rgba(10, 14, 12, 0.70);      /* Secondary surface overlay */
   --surface-3: rgba(6, 9, 8, 0.50);         /* Tertiary surface - subtle */
-  --surface-panel: rgba(5, 8, 7, 0.58);     /* Panel surface */
-  --surface-panel-strong: rgba(5, 8, 7, 0.72); /* Strong panel surface */
+  --surface-panel: var(--surface-1);     /* Panel surface */
+  --surface-panel-strong: var(--surface-2); /* Strong panel surface */
   --border-panel: rgba(255, 255, 255, 0.10);   /* Panel border */
   
   /* ==================== SEMANTIC TEXT HIERARCHY ==================== */

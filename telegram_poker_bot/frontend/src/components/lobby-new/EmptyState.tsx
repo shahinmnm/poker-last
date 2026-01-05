@@ -14,30 +14,22 @@ export default function EmptyState({
   actionDisabled = false,
 }: EmptyStateProps) {
   return (
-    <div className="rounded-2xl border border-[var(--border-2)] bg-[var(--surface-2)] p-5 text-center shadow-[0_12px_24px_rgba(0,0,0,0.2)]">
-      <h3 className="text-[15px] font-semibold text-[var(--text-1)]" dir="auto">
-        {title}
-      </h3>
+    <div className="lobby-empty">
+      <h3 className="lobby-empty__title ui-nowrap" dir="auto">{title}</h3>
       {description && (
-        <p className="mt-2 text-[12px] text-[var(--text-3)]" dir="auto">
+        <p className="lobby-empty__desc ui-nowrap" dir="auto">
           {description}
         </p>
       )}
       {actionLabel && onAction && (
-        <div className="mt-4 flex justify-center">
+        <div className="lobby-empty__actions">
           <button
             type="button"
             onClick={onAction}
             disabled={actionDisabled}
-            className="group inline-flex min-h-[44px] items-center disabled:cursor-not-allowed"
+            className="lobby-empty__cta"
           >
-            <span
-              className={`flex h-9 items-center rounded-full border border-[var(--border-2)] bg-[var(--surface-1)] px-4 text-[12px] font-semibold text-[var(--text-1)] transition group-active:scale-[0.97] ${
-                actionDisabled ? 'opacity-60' : ''
-              }`}
-            >
-              {actionLabel}
-            </span>
+            <span className="ui-nowrap">{actionLabel}</span>
           </button>
         </div>
       )}

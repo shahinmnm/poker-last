@@ -113,7 +113,6 @@ export default function MainLayout() {
             className="app-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border-weak)]"
             role="navigation"
             aria-label={t('nav.main', 'Main navigation')}
-            style={{ background: 'var(--surface-panel-strong)' }}
           >
             <div className="mx-auto flex w-full max-w-none items-center justify-around gap-2 px-3 py-2">
               {bottomNavItems.map((item) => (
