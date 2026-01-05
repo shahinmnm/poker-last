@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 
 import PlayingCard from '@/components/ui/PlayingCard'
 import { CurrencyType, formatByCurrency } from '@/utils/currency'
-import { getCommunityCardSize } from '@/utils/communityCardSizing'
 
 interface CommunityBoardProps {
   potAmount: number
@@ -28,8 +27,6 @@ export default function CommunityBoard({
   const [isPulsing, setIsPulsing] = useState(false)
 
   const dealtCards = useMemo(() => cards.slice(0, 5).filter(Boolean), [cards])
-  const totalCards = dealtCards.length
-  const centerIndex = (totalCards - 1) / 2
 
   useEffect(() => {
     if (!Number.isFinite(potAmount)) return undefined
@@ -39,7 +36,6 @@ export default function CommunityBoard({
     return () => window.clearTimeout(timer)
   }, [potAmount])
 
-  const cardHeight = 'clamp(68px, 13vw, 100px)'
   const safePotAmount = Number.isFinite(potAmount) ? potAmount : 0
   const displayPot = formatByCurrency(safePotAmount, currencyType, { withDecimals: currencyType === 'REAL' })
 
@@ -51,7 +47,7 @@ export default function CommunityBoard({
       {opponentTag && (
         <div className="top-hud top-hud--board">
           <div className="top-hud__lane top-hud__lane--opponent">
-            <div className="top-hud__pill" dir="auto" title={opponentTag}>
+            <div className="top-hud__pill" dir="auto">
               <span className="top-hud__pill-text">{opponentTag}</span>
             </div>
           </div>
@@ -64,7 +60,7 @@ export default function CommunityBoard({
           ref={potRef}
           className={`board-cluster__pot board-pot-anchor pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
         >
-          <div className="table-pot-pill" title={displayPot}>
+          <div className="table-pot-pill">
             <div className="table-pot-pill-amount">
               {t('table.potLabel', { defaultValue: 'Total pot' })} {displayPot}
             </div>
@@ -74,27 +70,16 @@ export default function CommunityBoard({
 
       {/* PHASE 3: Community cards - order: 1 (sacred zone, never overlapped) */}
       <div className="board-cluster__cards flex w-full items-center justify-center px-2 sm:px-4 community-cards-sacred">
-        <div className="relative flex flex-nowrap items-end justify-center" style={{ minHeight: cardHeight }}>
-          {dealtCards.map((card, index) => {
-            const depth = totalCards - Math.abs(index - centerIndex)
-            const stackOffset = Math.abs(index - centerIndex) * 2.5
-            return (
-              <div
-                key={`board-card-slot-${index}`}
-                className={`relative ${index > 0 ? '-ml-4 sm:-ml-5' : ''} transition-transform duration-200`}
-                style={{
-                  zIndex: 10 + depth,
-                  transform: `translateY(${stackOffset}px)`,
-                }}
-              >
-                <PlayingCard
-                  card={card}
-                  size={getCommunityCardSize(index, totalCards)}
-                  highlighted={highlightedCards.includes(card)}
-                />
-              </div>
-            )
-          })}
+        <div className="board-cards-row relative flex flex-nowrap items-end justify-center">
+          {dealtCards.map((card, index) => (
+            <div key={`board-card-slot-${index}`} className="board-card-slot">
+              <PlayingCard
+                card={card}
+                size="md"
+                highlighted={highlightedCards.includes(card)}
+              />
+            </div>
+          ))}
         </div>
       </div>
     </div>

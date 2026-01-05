@@ -112,7 +112,6 @@ const SeatCapsule = forwardRef<HTMLDivElement, SeatCapsuleProps>(
             'seat-capsule-name max-w-[140px] truncate text-[12px] font-semibold leading-tight',
             hasFolded ? 'text-white/50' : 'text-white',
           )}
-          title={safeName}
         >
           {safeName}
         </div>

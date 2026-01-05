@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -14,8 +14,8 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
+import PlayingCard from '../components/ui/PlayingCard'
 import ExpiredTableView from '../legacy/ui/lobby-legacy/tables/ExpiredTableView'
-import HandResultPanel from '../legacy/ui/lobby-legacy/tables/HandResultPanel'
 import RecentHandsModal from '../legacy/ui/lobby-legacy/tables/RecentHandsModal'
 import TableExpiredModal from '../legacy/ui/lobby-legacy/tables/TableExpiredModal'
 import { ChipFlyManager, type ChipAnimation } from '../legacy/ui/lobby-legacy/tables/ChipFly'
@@ -23,11 +23,11 @@ import PokerFeltBackground from '../components/background/PokerFeltBackground'
 import TableMenuCapsule from '../components/table/TableMenuCapsule'
 import CommunityBoard from '@/legacy/ui/table-legacy/table/CommunityBoard'
 import ActionBar from '@/legacy/ui/table-legacy/table/ActionBar'
-import DynamicPokerTable from '@/components/table/DynamicPokerTable'
 import PlayerSeat from '@/legacy/ui/table-legacy/table/PlayerSeat'
 import { getSeatLayout } from '@/config/tableLayout'
 import { useGameVariant } from '@/utils/gameVariant'
 import { CurrencyType, formatByCurrency } from '@/utils/currency'
+import { formatChips } from '@/utils/formatChips'
 import { extractRuleSummary, getTemplateConfig } from '@/utils/tableRules'
 import '../styles/table-layout.css'
 import type {
@@ -111,7 +111,7 @@ interface TableDetails {
 
 type LastAction = NonNullable<TableState['last_action']>
 
-const TABLE_CENTER_Y_APPROX = 56
+const TABLE_CENTER_Y_APPROX = 58
 const TABLE_CENTER_X_APPROX = 50
 const TABLE_SIDE_THRESHOLD = 15  // X distance from center to classify as left/right side
 
@@ -236,8 +236,6 @@ export default function TablePage() {
   const [showTableExpiredModal, setShowTableExpiredModal] = useState(false)
   const [tableExpiredReason, setTableExpiredReason] = useState('')
   const [showVariantRules, setShowVariantRules] = useState(false)
-  const [isTogglingSitOut, setIsTogglingSitOut] = useState(false)
-  const [pendingSitOut, setPendingSitOut] = useState<boolean | null>(null)
   const variantConfig = useGameVariant(tableDetails?.game_variant)
 
   const autoTimeoutRef = useRef<{ handId: number | null; count: number }>({ handId: null, count: 0 })
@@ -501,14 +499,7 @@ export default function TablePage() {
     null
   const heroIdString = heroId !== null ? heroId.toString() : null
   const heroPlayer = liveState?.players.find((p) => p.user_id?.toString() === heroIdString) ?? null
-  const heroIsStandingUp = pendingSitOut ?? Boolean(heroPlayer?.is_sitting_out_next_hand)
-
-  useEffect(() => {
-    if (pendingSitOut === null) return
-    if (typeof heroPlayer?.is_sitting_out_next_hand === 'boolean' && heroPlayer.is_sitting_out_next_hand === pendingSitOut) {
-      setPendingSitOut(null)
-    }
-  }, [heroPlayer?.is_sitting_out_next_hand, pendingSitOut])
+  const heroIsStandingUp = Boolean(heroPlayer?.is_sitting_out_next_hand)
   
   // Robust hero cards extraction with cached fallback to avoid losing visibility mid-hand
   const heroCards = useMemo(() => {
@@ -550,14 +541,23 @@ export default function TablePage() {
     heroPlayer?.username ||
     t('table.players.youTag', { defaultValue: 'You' })
   const heroStackAmount = heroPlayer?.stack ?? 0
-  const heroSeatTags = useMemo(() => {
-    const tags: string[] = []
-    if (heroPlayer?.is_button) tags.push('D')
-    if (heroPlayer?.is_big_blind) tags.push('BB')
-    if (heroPlayer?.is_small_blind) tags.push('SB')
-    return tags
-  }, [heroPlayer?.is_big_blind, heroPlayer?.is_button, heroPlayer?.is_small_blind])
-  const heroIsSittingOut = Boolean(heroPlayer?.is_sitting_out_next_hand && !heroPlayer?.in_hand)
+  const heroHandLabel = useMemo(() => {
+    const heroMeta = liveState?.hero as { hand_label?: string; hand_rank?: string } | null
+    const playerMeta = heroPlayer as { hand_label?: string; hand_rank?: string } | null
+    return (
+      heroMeta?.hand_label ??
+      heroMeta?.hand_rank ??
+      playerMeta?.hand_label ??
+      playerMeta?.hand_rank ??
+      null
+    )
+  }, [liveState?.hero, heroPlayer])
+  const heroSeatCards = useMemo(() => {
+    if (heroCards.length) return heroCards
+    if (heroPlayer?.hole_cards?.length) return heroPlayer.hole_cards
+    if (heroPlayer?.cards?.length) return heroPlayer.cards
+    return []
+  }, [heroCards, heroPlayer])
   
   const currentActorUserId = liveState?.current_actor_user_id ?? liveState?.current_actor ?? null
   const currentPhase = useMemo(() => {
@@ -1317,45 +1317,6 @@ export default function TablePage() {
     }
   }
 
-  // Handle stand up toggle - calls the sitout API endpoint
-  // When toggled on, player will leave their seat after the current hand ends
-  const handleSitOutToggle = async (sitOut: boolean) => {
-    if (!tableId || !initData) {
-      showToast(t('table.errors.unauthorized'))
-      return
-    }
-    setPendingSitOut(sitOut)
-    setIsTogglingSitOut(true)
-    try {
-      await apiFetch(`/tables/${tableId}/sitout`, {
-        method: 'POST',
-        initData,
-        body: { sit_out: sitOut },
-      })
-      showToast(
-        sitOut
-          ? t('table.toast.standingUp', { defaultValue: 'You will stand up after this hand' })
-          : t('table.toast.stayingSeated', { defaultValue: 'You will stay seated' })
-      )
-      // Refresh live state to get updated player data from server
-      // Server state (heroPlayer.is_sitting_out_next_hand) is the source of truth
-      fetchLiveState()
-    } catch (err) {
-      console.error('Error toggling stand up:', err)
-      if (err instanceof ApiError) {
-        const message =
-          (typeof err.data === 'object' && err.data && 'detail' in err.data
-            ? String((err.data as { detail?: unknown }).detail)
-            : null) || t('table.errors.actionFailed')
-        showToast(message)
-      } else {
-        showToast(t('table.errors.actionFailed'))
-      }
-      setPendingSitOut(null)
-    }
-    setIsTogglingSitOut(false)
-  }
-
   const allowedActionsSource =
     liveState?.allowed_actions ?? liveState?.allowed_actions_legacy
   const allowedActions = normalizeAllowedActions(allowedActionsSource)
@@ -1467,11 +1428,6 @@ export default function TablePage() {
   const viewerIsSeated =
     tableDetails?.viewer?.is_seated ??
     Boolean(heroId && liveState?.players?.some((p) => p.user_id?.toString() === heroId.toString()))
-  useEffect(() => {
-    if (!viewerIsSeated && pendingSitOut !== null) {
-      setPendingSitOut(null)
-    }
-  }, [viewerIsSeated, pendingSitOut])
 
   // Derive canStart from liveState for real-time responsiveness (per spec: must depend on WS liveState)
   const livePlayerCount = liveState?.players?.length ?? tableDetails?.player_count ?? 0
@@ -1543,11 +1499,6 @@ export default function TablePage() {
       }),
     [tableDetails?.currency_type, tableDetails?.max_players, tableDetails?.table_name, tableDetails?.template],
   )
-  const uiSchema = useMemo(() => {
-    const tpl = tableDetails?.template as any
-    const configJson = tpl?.config_json ?? tpl?.config
-    return configJson?.ui_schema
-  }, [tableDetails?.template])
   const tableMaxPlayers = templateRules.maxPlayers ?? tableDetails?.max_players ?? 0
   const stakesLabel = templateRules.stakesLabel ?? null
   const currencyType: CurrencyType =
@@ -1994,8 +1945,7 @@ export default function TablePage() {
   }
 
   const renderActionDock = () => {
-    const dockBaseClass = 'hero-control-rail pointer-events-none fixed inset-x-0 bottom-3 z-50 px-3'
-    const dockStyle = { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }
+    const dockBaseClass = 'action-panel-container pointer-events-none'
     // Log rendering decision
     const isActiveGameplayCheck = ACTIVE_GAMEPLAY_STREETS.includes(tableStatus) || tableStatus === 'active'
     console.log('[Table ActionDock] Render decision:', {
@@ -2015,24 +1965,15 @@ export default function TablePage() {
     if (isInterHand) {
       if (viewerIsSeated) {
         return (
-          <div className={dockBaseClass} style={dockStyle}>
+          <div className={dockBaseClass}>
             <div className="w-full pointer-events-auto">
               <ActionBar
                 allowedActions={allowedActions}
                 onAction={handleGameAction}
                 myStack={heroPlayer?.stack ?? 0}
-                isProcessing={actionInFlight || loading || isTogglingSitOut}
+                isProcessing={actionInFlight || loading}
                 isMyTurn={false}
-                onToggleStandUp={(next) => handleSitOutToggle(next)}
-                isStandingUp={heroIsStandingUp}
-                standUpProcessing={isTogglingSitOut}
                 isShowdown={normalizedStatus === 'showdown'}
-                isInterHand={isInterHand}
-                heroName={heroDisplayName}
-                heroStack={heroStackAmount}
-                heroSeatTags={heroSeatTags}
-                isHeroLeaving={heroIsStandingUp}
-                isHeroSittingOut={heroIsSittingOut}
               />
             </div>
           </div>
@@ -2046,24 +1987,15 @@ export default function TablePage() {
     if (viewerIsSeated && tableStatus === 'active') {
       // Use TurnContext.isMyTurn as single source of truth
       return (
-        <div className={dockBaseClass} style={dockStyle}>
+        <div className={dockBaseClass}>
           <div className="w-full pointer-events-auto">
             <ActionBar
               allowedActions={allowedActions}
               onAction={handleGameAction}
               myStack={heroPlayer?.stack ?? 0}
-              isProcessing={actionInFlight || actionPending || loading || isTogglingSitOut}
+              isProcessing={actionInFlight || actionPending || loading}
               isMyTurn={turnContext.isMyTurn}
-              onToggleStandUp={(next) => handleSitOutToggle(next)}
-              isStandingUp={heroIsStandingUp}
-              standUpProcessing={isTogglingSitOut}
               isShowdown={normalizedStatus === 'showdown'}
-              isInterHand={isInterHand}
-              heroName={heroDisplayName}
-              heroStack={heroStackAmount}
-              heroSeatTags={heroSeatTags}
-              isHeroLeaving={heroIsStandingUp}
-              isHeroSittingOut={heroIsSittingOut}
             />
           </div>
         </div>
@@ -2080,7 +2012,7 @@ export default function TablePage() {
       })
       if (viewerIsCreator) {
         return (
-          <div className={dockBaseClass} style={dockStyle}>
+          <div className={dockBaseClass}>
             <div className="pointer-events-auto flex flex-col items-center gap-3">
               <button
                 type="button"
@@ -2097,8 +2029,8 @@ export default function TablePage() {
 
       if (viewerIsSeated) {
         return (
-          <div className={dockBaseClass} style={dockStyle}>
-            <div className="pointer-events-auto rounded-full border border-white/10 bg-black/60 px-4 py-2 text-sm font-medium text-white/80 shadow-lg backdrop-blur-md">
+          <div className={dockBaseClass}>
+            <div className="pointer-events-auto rounded-full border border-white/10 bg-black/60 px-4 py-2 text-sm font-medium text-white/80 shadow-lg">
               {t('table.messages.waitingForHost')}
             </div>
           </div>
@@ -2126,24 +2058,15 @@ export default function TablePage() {
       })
       
       return (
-        <div className={dockBaseClass} style={dockStyle}>
+        <div className={dockBaseClass}>
           <div className="w-full pointer-events-auto">
             <ActionBar
               allowedActions={allowedActions}
               onAction={handleGameAction}
               myStack={heroPlayer?.stack ?? 0}
-              isProcessing={actionInFlight || actionPending || loading || isTogglingSitOut}
+              isProcessing={actionInFlight || actionPending || loading}
               isMyTurn={isMyTurn}
-              onToggleStandUp={(next) => handleSitOutToggle(next)}
-              isStandingUp={heroIsStandingUp}
-              standUpProcessing={isTogglingSitOut}
               isShowdown={normalizedStatus === 'showdown'}
-              isInterHand={isInterHand}
-              heroName={heroDisplayName}
-              heroStack={heroStackAmount}
-              heroSeatTags={heroSeatTags}
-              isHeroLeaving={heroIsStandingUp}
-              isHeroSittingOut={heroIsSittingOut}
             />
           </div>
         </div>
@@ -2178,12 +2101,6 @@ export default function TablePage() {
         confirmDisabled={isDeleting}
       />
       
-      {uiSchema && (
-        <div className="mb-6 flex justify-center">
-          <DynamicPokerTable template={uiSchema} />
-        </div>
-      )}
-
       <div
         className={clsx('table-screen', isTelegramAndroidWebView && 'is-low-transparency')}
         data-ui-mode={uiMode}
@@ -2198,7 +2115,7 @@ export default function TablePage() {
         >
           <button 
             onClick={() => navigate('/lobby')}
-            className="table-back__button flex items-center justify-center w-10 h-10 rounded-full text-white transition-all active:scale-95"
+            className="table-back__button flex items-center justify-center rounded-full text-white transition-all active:scale-95"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 18l-6-6 6-6" />
@@ -2213,7 +2130,7 @@ export default function TablePage() {
               {/* Integrated Winner HUD & Next Hand Timer - Safe zone positioned below board */}
               {isInterHand && (
                 <div 
-                  className="board-cluster__winner absolute left-1/2 -translate-x-1/2 w-full max-w-md pointer-events-none flex flex-col items-center motion-reduce:transition-none"
+                  className="board-cluster__winner absolute left-1/2 -translate-x-1/2 w-full pointer-events-none flex flex-col items-center motion-reduce:transition-none"
                   style={{ 
                     top: 'calc(var(--streets-row-offset, 18vh) + var(--winner-banner-offset, 20vh))',
                     zIndex: 'var(--z-overlays, 40)'
@@ -2236,7 +2153,7 @@ export default function TablePage() {
                   )}
 
                   {/* Next Hand Progress Bar - respects reduced motion */}
-                  <div className="w-48 bg-black/40 h-1.5 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
+                  <div className="winner-progress bg-black/40 h-1.5 rounded-full overflow-hidden border border-white/10">
                     <div 
                       className="h-full bg-emerald-400 shadow-[0_0_10px_currentColor] transition-all ease-linear motion-reduce:transition-none"
                       style={{ width: `${interHandProgress * 100}%`, transitionDuration: '100ms' }}
@@ -2246,10 +2163,7 @@ export default function TablePage() {
               )}
 
               <div className="table-wrapper">
-                <div
-                  className="table-area table-bottom-padding relative"
-                  style={{ '--seat-row-offset': viewerIsSeated ? '70vh' : '66vh' } as CSSProperties}
-                >
+                <div className="table-area table-bottom-padding relative">
                   <div
                     className="table-oval table-oval--portrait"
                     style={{ zIndex: 'var(--z-table-felt, 0)' }}
@@ -2293,7 +2207,7 @@ export default function TablePage() {
 
                   {variantConfig.id === 'no_limit_short_deck_holdem' && showVariantRules ? (
                     <div
-                      className="pointer-events-auto absolute bottom-6 right-6 z-20 flex items-center gap-3 rounded-full border px-4 py-2 text-xs text-amber-100 shadow-xl backdrop-blur-lg"
+                    className="pointer-events-auto absolute bottom-6 right-6 z-20 flex items-center gap-3 rounded-full border px-4 py-2 text-xs text-amber-100 shadow-xl"
                       style={{
                         background: 'linear-gradient(135deg, rgba(255,193,7,0.12), rgba(255,87,34,0.18))',
                         borderColor: 'rgba(255,193,7,0.3)',
@@ -2325,11 +2239,6 @@ export default function TablePage() {
                       opponentTag={null}
                       showPotInBoard
                     />
-                    {liveState.hand_result && (
-                      <div className="mt-0.5 flex justify-center">
-                        <HandResultPanel liveState={liveState} currentUserId={heroId} />
-                      </div>
-                    )}
                   </div>
 
                   {seatLayout.map((slot, layoutIndex) => {
@@ -2373,29 +2282,22 @@ export default function TablePage() {
                     const showOpponentBacks =
                       !isHeroPlayer &&
                       Boolean(player?.in_hand && liveState?.hand_id && !hasFolded && !showShowdownCards)
-                    const heroSeatCards =
-                      heroCards.length > 0
-                        ? heroCards
-                        : heroPlayer?.hole_cards?.length
-                          ? heroPlayer.hole_cards
-                          : heroPlayer?.cards ?? []
                     const baseX = slot.xPercent
                     const baseY = slot.yPercent
-                    const seatXPercent = isHeroSlot
-                      ? baseX
-                      : 50 + (baseX - 50) * 0.78
+                    const depthScale = 0.72 + (baseY / 100) * 0.28
+                    const seatXPercent = 50 + (baseX - 50) * depthScale
                     const seatYPercent = isHeroSlot
-                      ? Math.min(baseY + 4, 86)
-                      : Math.max(Math.min(baseY - 12, 58), 26)
+                      ? Math.min(baseY + 4, 88)
+                      : Math.max(baseY - 3, 14)
                     const seatSide = getSeatSide(seatXPercent, seatYPercent)
                     const seatHoleCards = isHeroPlayer
-                      ? heroSeatCards
+                      ? []
                       : showShowdownCards
                         ? playerCards
                         : []
-                    const showCardBacks = isHeroPlayer ? false : showOpponentBacks
-                    const seatScale = isHeroSlot ? 1 : seatSide === 'top' ? 0.75 : 0.82
-                    const seatDepthTranslate = isHeroSlot ? '2%' : seatSide === 'top' ? '-6%' : '-3%'
+                    const showCardBacks = !isHeroPlayer && showOpponentBacks
+                    const seatScale = isHeroSlot ? 1 : seatSide === 'top' ? 0.72 : seatSide === 'bottom' ? 0.88 : 0.82
+                    const seatDepthTranslate = isHeroSlot ? '2%' : seatSide === 'top' ? '-8%' : '-4%'
                     const seatTransform = `translate(-50%, -50%) translateY(${seatDepthTranslate}) scale(${seatScale})`
                     const isLastActor = player && liveState?.last_action?.user_id?.toString() === player.user_id?.toString()
                     const actionTrigger = isLastActor
@@ -2447,7 +2349,6 @@ export default function TablePage() {
                               onClick={isEmpty && canJoin && !viewerIsSeated ? handleSeat : undefined}
                               side={seatSide}
                               heroScaleReduced={isHeroPlayer && !isMyTurn}
-                              seatIndex={serverIndex}
                               actionLabel={actionLabel}
                               actionTrigger={actionTrigger}
                             />
@@ -2457,6 +2358,36 @@ export default function TablePage() {
                       </Fragment>
                     )
                   })}
+
+                  {viewerIsSeated && (
+                    <div className="hero-hand">
+                      {heroSeatCards.length > 0 && (
+                        <div className="hero-hand__cards">
+                          {heroSeatCards.slice(0, 2).map((card, index) => (
+                            <div
+                              key={`hero-card-${card}-${index}`}
+                              className={`hero-hand__card hero-hand__card--${index}`}
+                            >
+                              <PlayingCard card={card} size="md" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="hero-hand__info">
+                        <div className="hero-hand__name" dir="auto">
+                          {heroDisplayName}
+                        </div>
+                        <div className="hero-hand__stack tabular-nums">
+                          {formatChips(heroStackAmount)}
+                        </div>
+                        {heroHandLabel && (
+                          <div className="hero-hand__label" dir="auto">
+                            {heroHandLabel}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2464,7 +2395,7 @@ export default function TablePage() {
         ) : (
           <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-md px-6">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-xl">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl">
               <h2 className="mb-6 text-2xl font-bold text-white">
                 {tableDetails.status === 'waiting' ? t('table.status.waiting') : t('table.status.loading')}
               </h2>
@@ -2477,7 +2408,7 @@ export default function TablePage() {
                   {players.map((player) => (
                     <div
                       key={`waiting-${player.user_id}-${player.position}`}
-                      className="flex items-center justify-between rounded-xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-md transition-all hover:bg-white/15"
+                      className="flex items-center justify-between rounded-xl border border-white/20 bg-white/10 px-4 py-3 transition-all hover:bg-white/15"
                     >
                       <span className="text-sm font-medium text-white">
                         {player.display_name || player.username || `Player ${player.position + 1}`}
