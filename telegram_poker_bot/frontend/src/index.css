@@ -2815,31 +2815,6 @@ button,
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-  font-size: 0.625rem;
-  font-weight: 600;
-  min-height: var(--touch-target-min);
-  transition: background 0.15s ease;
-  text-decoration: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.lobby-header-v2__panel-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.lobby-header-v2__panel-item:active {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.lobby-header-v2__panel-icon {
-  font-size: 0.75rem;
-  color: var(--text-2);
-  width: 18px;
-  text-align: center;
-}
 
 /* ==================== BANNER ==================== */
 .lobby-v2__banner {
