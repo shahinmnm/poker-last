@@ -600,42 +600,44 @@ export default function LobbyPage() {
       </section>
 
       {/* 6. Table List */}
-      <div className="lobby-v2__list" role="list">
-        {activeError && (
-          <div className="lobby-v2__error">
-            <div>
-              <p className="lobby-v2__error-title">{t('lobbyNew.error.title', 'Unable to load tables')}</p>
-              <p className="lobby-v2__error-text">{activeError}</p>
+      <section className="lobby-v2__tables">
+        <div className="lobby-v2__list" role="list">
+          {activeError && (
+            <div className="lobby-v2__error">
+              <div>
+                <p className="lobby-v2__error-title">{t('lobbyNew.error.title', 'Unable to load tables')}</p>
+                <p className="lobby-v2__error-text">{activeError}</p>
+              </div>
+              <button type="button" onClick={refreshTables} className="lobby-v2__error-btn">
+                {t('common.actions.retry', 'Retry')}
+              </button>
             </div>
-            <button type="button" onClick={refreshTables} className="lobby-v2__error-btn">
-              {t('common.actions.retry', 'Retry')}
-            </button>
-          </div>
-        )}
+          )}
 
-        {listLoading &&
-          Array.from({ length: 5 }, (_, index) => <SkeletonRow key={`skeleton-${index}`} />)}
+          {listLoading &&
+            Array.from({ length: 5 }, (_, index) => <SkeletonRow key={`skeleton-${index}`} />)}
 
-        {!listLoading && !activeError && listTables.length === 0 && (
-          <EmptyState
-            title={emptyState.title}
-            description={emptyState.description}
-            actionLabel={emptyState.actionLabel}
-            onAction={emptyState.onAction}
-            actionDisabled={actionsDisabled}
-          />
-        )}
+          {!listLoading && !activeError && listTables.length === 0 && (
+            <EmptyState
+              title={emptyState.title}
+              description={emptyState.description}
+              actionLabel={emptyState.actionLabel}
+              onAction={emptyState.onAction}
+              actionDisabled={actionsDisabled}
+            />
+          )}
 
-        {listTables.map((table) => (
-          <TableCard
-            key={table.id}
-            table={table}
-            isFavorite={favoriteSet.has(table.id)}
-            onToggleFavorite={toggleFavorite}
-            onJoin={handleJoinTable}
-          />
-        ))}
-      </div>
+          {listTables.map((table) => (
+            <TableCard
+              key={table.id}
+              table={table}
+              isFavorite={favoriteSet.has(table.id)}
+              onToggleFavorite={toggleFavorite}
+              onJoin={handleJoinTable}
+            />
+          ))}
+        </div>
+      </section>
 
       {/* 7. Recent Tables (only in history tab context) */}
       {activeTab === 'history' && filteredMyTables.length > 0 && (

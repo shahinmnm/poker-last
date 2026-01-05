@@ -1,25 +1,22 @@
 export default function SkeletonRow() {
   return (
-    <div
-      className="table-card table-card--skeleton animate-pulse"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-28 rounded-full bg-[var(--surface-3)]" />
-            <div className="h-3 w-16 rounded-full bg-[var(--surface-3)]" />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-4 w-20 rounded-full bg-[var(--surface-3)]" />
-            <div className="h-3 w-24 rounded-full bg-[var(--surface-3)]" />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-20 rounded-full bg-[var(--surface-3)]" />
-            <div className="h-3 w-16 rounded-full bg-[var(--surface-3)]" />
-            <div className="h-3 w-14 rounded-full bg-[var(--surface-3)]" />
-          </div>
+    <div className="table-card-v2 table-card-v2--skeleton animate-pulse" aria-hidden="true">
+      <div className="table-card-v2__occupancy">
+        <div className="table-card-v2__occupancy-ring table-card-v2__occupancy-ring--skeleton" />
+      </div>
+      <div className="table-card-v2__content">
+        <div className="table-card-v2__skeleton-row">
+          <span className="table-card-v2__skeleton-line is-wide" />
+          <span className="table-card-v2__skeleton-chip is-short" />
         </div>
-        <div className="h-8 w-8 rounded-full bg-[var(--surface-3)]" />
+        <div className="table-card-v2__skeleton-row">
+          <span className="table-card-v2__skeleton-line is-medium" />
+          <span className="table-card-v2__skeleton-line is-short" />
+        </div>
+      </div>
+      <div className="table-card-v2__actions">
+        <span className="table-card-v2__skeleton-icon" />
+        <span className="table-card-v2__skeleton-button" />
       </div>
     </div>
   )
