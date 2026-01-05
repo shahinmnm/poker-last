@@ -37,7 +37,6 @@ export default function PlayerHeader({
               ? 'border-emerald-300/60 bg-black/50'
               : 'border-white/10 bg-black/40'
           }`}
-          title={playerName}
         >
           <span className="text-[11px] font-medium text-gray-200">{tableLabel}</span>
           <span className="text-[10px] font-semibold text-emerald-300">

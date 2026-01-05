@@ -16,7 +16,7 @@ This directory contains legacy UI components and utilities that have been supers
 
 These components are kept for reference and to maintain backward compatibility with existing code that hasn't been migrated yet. All new development should use:
 
-- New UI: `src/components/table-new/` and `src/components/lobby-new/`
+- New UI: `src/components/lobby-new/`
 - New hooks: `src/hooks/useTableSync.ts` and `src/hooks/useLobbySync.ts`
 - New types: `src/types/normalized.ts`
 - New services: `src/services/WebSocketManager.ts`
