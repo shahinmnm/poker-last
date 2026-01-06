@@ -2169,9 +2169,9 @@ export default function TablePage() {
                   {/* Single background layer - portrait table asset */}
                   <img
                     src={tablePortraitImage}
-                    alt=""
+                    alt="Poker table surface background"
+                    loading="eager"
                     className="table-surface-img"
-                    aria-hidden="true"
                   />
                   
                   {/* Surface overlay - all anchored elements positioned relative to this */}
