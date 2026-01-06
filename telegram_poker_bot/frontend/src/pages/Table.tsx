@@ -2169,7 +2169,7 @@ export default function TablePage() {
                   {/* Single background layer - portrait table asset */}
                   <img
                     src={tablePortraitImage}
-                    alt="Poker table"
+                    alt="Poker table surface background"
                     loading="eager"
                     className="table-surface-img"
                   />
