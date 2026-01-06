@@ -99,26 +99,6 @@
   --zone-actionbar-width: 88%;
   --zone-actionbar-height: 13%;
   
-  /* Seat positions (centered with transform) */
-  /* Seat 1 - top (opponent) */
-  --zone-seat1-top: 12%;
-  --zone-seat1-left: 50%;
-  /* Seat 2 - upper-left */
-  --zone-seat2-top: 22%;
-  --zone-seat2-left: 15%;
-  /* Seat 3 - upper-right */
-  --zone-seat3-top: 22%;
-  --zone-seat3-left: 85%;
-  /* Seat 4 - lower-left */
-  --zone-seat4-top: 60%;
-  --zone-seat4-left: 15%;
-  /* Seat 5 - lower-right */
-  --zone-seat5-top: 60%;
-  --zone-seat5-left: 85%;
-  /* Seat 6 - hero bottom */
-  --zone-seat6-top: 76%;
-  --zone-seat6-left: 50%;
-  
   /* Telegram safe area tokens */
   --tg-safe-top: env(safe-area-inset-top, 0px);
   --tg-safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -3648,42 +3628,17 @@ button:disabled {
   z-index: var(--z-actionbar, 50);
 }
 
-/* Seat anchors - each seat uses transform centering */
+/* Seat anchors - base styling for dynamically positioned seats */
+/* Note: Specific seat positions are calculated dynamically via getSeatLayout() */
 .seat-anchor {
   position: absolute;
   transform: translate(-50%, -50%);
   z-index: var(--z-seats, 10);
 }
 
-.seat-anchor--1 {
-  top: var(--zone-seat1-top, 12%);
-  left: var(--zone-seat1-left, 50%);
-}
-
-.seat-anchor--2 {
-  top: var(--zone-seat2-top, 22%);
-  left: var(--zone-seat2-left, 15%);
-}
-
-.seat-anchor--3 {
-  top: var(--zone-seat3-top, 22%);
-  left: var(--zone-seat3-left, 85%);
-}
-
-.seat-anchor--4 {
-  top: var(--zone-seat4-top, 60%);
-  left: var(--zone-seat4-left, 15%);
-}
-
-.seat-anchor--5 {
-  top: var(--zone-seat5-top, 60%);
-  left: var(--zone-seat5-left, 85%);
-}
-
-.seat-anchor--6,
+/* Hero seat anchor modifier */
 .seat-anchor--hero {
-  top: var(--zone-seat6-top, 76%);
-  left: var(--zone-seat6-left, 50%);
+  z-index: calc(var(--z-seats, 10) + 1);
 }
 
 /* ==================== NO TEXT WRAPPING HARDENING ==================== */
@@ -3731,12 +3686,6 @@ button:disabled {
     --zone-pot-top: 28%;
     --zone-hero-top: 75%;
     --zone-actionbar-top: 86%;
-    --zone-seat1-top: 10%;
-    --zone-seat2-top: 20%;
-    --zone-seat3-top: 20%;
-    --zone-seat4-top: 58%;
-    --zone-seat5-top: 58%;
-    --zone-seat6-top: 78%;
   }
 }
 
