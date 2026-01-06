@@ -228,3 +228,7 @@ pgdata/
 # Users place their JSON template files here
 templates/
 
+
+# Node.js
+node_modules/
+package-lock.json

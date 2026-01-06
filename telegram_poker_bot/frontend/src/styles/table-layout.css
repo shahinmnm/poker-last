@@ -75,6 +75,18 @@
   /* ==================== HERO DETAIL OVERLAY TOKENS (PHASE 2 REFACTOR) ==================== */
   --hero-overlay-timeout: 2500ms;      /* Auto-dismiss timeout */
   --hero-overlay-radius: 12px;         /* Border radius for overlay */
+  
+  /* ==================== PORTRAIT TABLE SURFACE ANCHOR ZONES ==================== */
+  /* Phase B: Percent-based anchors relative to .table-surface-overlay bounds */
+  /* Board (community cards area) - near upper-middle of felt */
+  --zone-board-top: 36%;
+  --zone-board-left: 16%;
+  --zone-board-width: 68%;
+  --zone-board-height: 18%;
+  
+  /* Telegram safe area tokens */
+  --tg-safe-top: env(safe-area-inset-top, 0px);
+  --tg-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @media (max-width: 400px) {
@@ -3512,4 +3524,146 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ==================== PORTRAIT TABLE SURFACE SYSTEM ==================== */
+/* Phase A: Single background layer with anchored overlays */
+
+.table-portrait-root {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: var(--tg-safe-top);
+  padding-bottom: var(--tg-safe-bottom);
+  background: var(--table-bg, #050b14);
+  overflow: hidden;
+}
+
+.table-surface-stage {
+  position: relative;
+  width: 100%;
+  max-width: 100vw;
+  /* Lock aspect ratio to the portrait table asset (9:16 portrait) */
+  aspect-ratio: 9 / 16;
+  max-height: calc(100dvh - var(--tg-safe-top, 0px) - var(--tg-safe-bottom, 0px));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-surface-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  z-index: var(--z-table-felt, 0);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.table-surface-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-seats, 10);
+  pointer-events: none;
+}
+
+.table-surface-overlay > * {
+  pointer-events: auto;
+}
+
+/* Board zone - positioned using anchor variables */
+.board-zone {
+  position: absolute;
+  top: var(--zone-board-top, 36%);
+  left: var(--zone-board-left, 16%);
+  width: var(--zone-board-width, 68%);
+  height: var(--zone-board-height, 18%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-cards-chips, 20);
+}
+
+/* Seat anchors - base styling for dynamically positioned seats */
+/* Note: Specific seat positions are calculated dynamically via getSeatLayout() */
+.seat-anchor {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-seats, 10);
+}
+
+/* Hero seat anchor modifier */
+.seat-anchor--hero {
+  z-index: calc(var(--z-seats, 10) + 1);
+}
+
+/* ==================== NO TEXT WRAPPING HARDENING ==================== */
+/* Phase D: Ensure all table HUD text is single-line + ellipsis */
+
+.table-portrait-root .player-seat__name,
+.table-portrait-root .player-seat__stack,
+.table-portrait-root .table-pot-pill-label,
+.table-portrait-root .table-pot-pill-amount,
+.table-portrait-root .table-menu-capsule__title,
+.table-portrait-root .table-menu-capsule__stakes,
+.table-portrait-root .hero-hand__name,
+.table-portrait-root .hero-hand__stack,
+.table-portrait-root .hero-hand__label,
+.table-portrait-root .dock-chip,
+.table-portrait-root .action-panel__action-label,
+.table-portrait-root .action-panel__bet-label,
+.table-portrait-root .action-panel__bet-amount {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tabular nums for all numeric displays */
+.table-portrait-root .player-seat__stack,
+.table-portrait-root .table-pot-pill-amount,
+.table-portrait-root .hero-hand__stack,
+.table-portrait-root .action-panel__bet-amount,
+.table-portrait-root .action-panel__action-label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==================== PORTRAIT MEDIA QUERY TUNING ==================== */
+@media (orientation: portrait) {
+  .table-surface-stage {
+    /* In portrait, maximize vertical usage */
+    width: 100%;
+    height: auto;
+    min-height: 0;
+  }
+  
+  /* Adjust zones for portrait viewport */
+  :root {
+    --zone-board-top: 34%;
+  }
+}
+
+/* Low transparency fallback for Telegram Android WebView */
+.table-portrait-root.is-low-transparency .table-surface-overlay,
+.table-portrait-root.is-low-transparency .board-zone {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.table-portrait-root.is-low-transparency .table-pot-pill,
+.table-portrait-root.is-low-transparency .player-seat__info-card,
+.table-portrait-root.is-low-transparency .action-panel,
+.table-portrait-root.is-low-transparency .table-top-hud {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(8, 12, 18, 0.95);
 }

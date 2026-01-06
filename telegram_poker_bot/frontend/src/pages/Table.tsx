@@ -30,6 +30,7 @@ import { CurrencyType, formatByCurrency } from '@/utils/currency'
 import { formatChips } from '@/utils/formatChips'
 import { extractRuleSummary, getTemplateConfig } from '@/utils/tableRules'
 import '../styles/table-layout.css'
+import tablePortraitImage from '@/assets/table-portrait.webp'
 import type {
   AllowedAction,
   AllowedActionsPayload,
@@ -2102,7 +2103,7 @@ export default function TablePage() {
       />
       
       <div
-        className={clsx('table-screen', isTelegramAndroidWebView && 'is-low-transparency')}
+        className={clsx('table-screen table-portrait-root', isTelegramAndroidWebView && 'is-low-transparency')}
         data-ui-mode={uiMode}
       >
         {/* Back to Lobby Button (Top-Left) */}
@@ -2163,73 +2164,78 @@ export default function TablePage() {
               )}
 
               <div className="table-wrapper">
-                <div className="table-area table-bottom-padding relative">
-                  <div
-                    className="table-oval table-oval--portrait"
-                    style={{ zIndex: 'var(--z-table-felt, 0)' }}
+                {/* Portrait table surface stage with aspect-ratio lock */}
+                <div className="table-surface-stage">
+                  {/* Single background layer - portrait table asset */}
+                  <img
+                    src={tablePortraitImage}
+                    alt=""
+                    className="table-surface-img"
                     aria-hidden="true"
                   />
-
-                  {tableDetails && (
-                    <div 
-                      className="table-header-capsule pointer-events-none" 
-                      style={{ top: 'calc(env(safe-area-inset-top) + 8px)', zIndex: 60 }}
-                    >
-                      <div className="table-top-hud">
-                        <TableMenuCapsule
-                          tableName={templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.defaultName', { defaultValue: 'Poker Table' })}
-                          stakesDisplay={stakesDisplay}
-                          connectionStatus={wsStatus === 'connected' ? 'connected' : wsStatus === 'connecting' ? 'connecting' : 'disconnected'}
-                          onLeaveTable={handleLeave}
-                          onRecentHands={() => setShowRecentHands(true)}
-                          canLeave={canLeave}
-                          isLeaving={isLeaving}
-                          className="pointer-events-auto"
-                        />
-                        <div className="table-top-hud__rail pointer-events-auto">
-                          <div className="table-top-hud__pill table-top-hud__pill--info">
-                            <span className="table-top-hud__label">
-                              {t('table.meta.players', { defaultValue: 'Players' })}
-                            </span>
-                            <span className="table-top-hud__value tabular-nums">
-                              {tableDetails.player_count}/{tableMaxPlayers}
-                            </span>
-                          </div>
-                          {opponentTag && (
-                            <div className="table-top-hud__pill table-top-hud__pill--muted" dir="auto">
-                              {t('table.hud.opponent', 'Opponent')} • {opponentTag}
+                  
+                  {/* Surface overlay - all anchored elements positioned relative to this */}
+                  <div className="table-surface-overlay">
+                    {tableDetails && (
+                      <div 
+                        className="table-header-capsule pointer-events-none" 
+                        style={{ top: 'calc(env(safe-area-inset-top) + 8px)', zIndex: 60 }}
+                      >
+                        <div className="table-top-hud">
+                          <TableMenuCapsule
+                            tableName={templateRules.tableName ?? tableDetails.table_name ?? t('table.meta.defaultName', { defaultValue: 'Poker Table' })}
+                            stakesDisplay={stakesDisplay}
+                            connectionStatus={wsStatus === 'connected' ? 'connected' : wsStatus === 'connecting' ? 'connecting' : 'disconnected'}
+                            onLeaveTable={handleLeave}
+                            onRecentHands={() => setShowRecentHands(true)}
+                            canLeave={canLeave}
+                            isLeaving={isLeaving}
+                            className="pointer-events-auto"
+                          />
+                          <div className="table-top-hud__rail pointer-events-auto">
+                            <div className="table-top-hud__pill table-top-hud__pill--info">
+                              <span className="table-top-hud__label">
+                                {t('table.meta.players', { defaultValue: 'Players' })}
+                              </span>
+                              <span className="table-top-hud__value tabular-nums">
+                                {tableDetails.player_count}/{tableMaxPlayers}
+                              </span>
                             </div>
-                          )}
+                            {opponentTag && (
+                              <div className="table-top-hud__pill table-top-hud__pill--muted" dir="auto">
+                                {t('table.hud.opponent', 'Opponent')} • {opponentTag}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {variantConfig.id === 'no_limit_short_deck_holdem' && showVariantRules ? (
-                    <div
-                    className="pointer-events-auto absolute bottom-6 right-6 z-20 flex items-center gap-3 rounded-full border px-4 py-2 text-xs text-amber-100 shadow-xl"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(255,193,7,0.12), rgba(255,87,34,0.18))',
-                        borderColor: 'rgba(255,193,7,0.3)',
-                        boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
-                      }}
-                    >
-                      <span className="text-lg">⚠️</span>
-                      <div className="flex flex-col leading-tight">
-                        <span className="font-semibold uppercase tracking-wide">Short Deck Tips</span>
-                        <span className="text-[11px] opacity-80">Flush beats Full House • No 2-5 cards</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowVariantRules(false)}
-                        className="rounded-full border border-white/10 bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                    {variantConfig.id === 'no_limit_short_deck_holdem' && showVariantRules ? (
+                      <div
+                      className="pointer-events-auto absolute bottom-6 right-6 z-20 flex items-center gap-3 rounded-full border px-4 py-2 text-xs text-amber-100 shadow-xl"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(255,193,7,0.12), rgba(255,87,34,0.18))',
+                          borderColor: 'rgba(255,193,7,0.3)',
+                          boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
+                        }}
                       >
-                        Hide
-                      </button>
-                    </div>
-                  ) : null}
+                        <span className="text-lg">⚠️</span>
+                        <div className="flex flex-col leading-tight">
+                          <span className="font-semibold uppercase tracking-wide">Short Deck Tips</span>
+                          <span className="text-[11px] opacity-80">Flush beats Full House • No 2-5 cards</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowVariantRules(false)}
+                          className="rounded-full border border-white/10 bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                        >
+                          Hide
+                        </button>
+                      </div>
+                    ) : null}
 
-                  <div className="table-board-stack flex flex-col items-center gap-2 px-3 sm:px-4">
+                    {/* Community board with anchor zone */}
                     <CommunityBoard
                       potAmount={potDisplayAmount}
                       currencyType={currencyType}
@@ -2239,7 +2245,6 @@ export default function TablePage() {
                       opponentTag={null}
                       showPotInBoard
                     />
-                  </div>
 
                   {seatLayout.map((slot, layoutIndex) => {
                     // Use the normalized seat data from seatsToRender
@@ -2309,7 +2314,11 @@ export default function TablePage() {
                     return (
                       <Fragment key={`seat-server-${serverIndex}`}>
                         <div
-                          className={`absolute ${player ? 'seat-enter' : ''}`}
+                          className={clsx(
+                            'seat-anchor',
+                            player && 'seat-enter',
+                            isHeroPlayer && 'seat-anchor--hero'
+                          )}
                           style={{
                             left: `${seatXPercent}%`,
                             top: `${seatYPercent}%`,
@@ -2388,7 +2397,8 @@ export default function TablePage() {
                       </div>
                     </div>
                   )}
-                </div>
+                  </div>{/* End table-surface-overlay */}
+                </div>{/* End table-surface-stage */}
               </div>
             </div>
           </div>

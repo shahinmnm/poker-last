@@ -43,43 +43,46 @@ export default function CommunityBoard({
     // PHASE 3: Board cluster container - semantic wrapper for pot + cards
     // Uses CSS gap from --board-cluster-gap variable (set by data-ui-mode)
     // Order: pot (0) -> cards (1) -> winner banner passed via parent
-    <div className="board-cluster board-cluster--expanded" style={{ minHeight: 'clamp(140px, 20vh, 220px)' }}>
-      {opponentTag && (
-        <div className="top-hud top-hud--board">
-          <div className="top-hud__lane top-hud__lane--opponent">
-            <div className="top-hud__pill" dir="auto">
-              <span className="top-hud__pill-text">{opponentTag}</span>
+    // PHASE C: board-zone wrapper for anchor positioning
+    <div className="board-zone">
+      <div className="board-cluster board-cluster--expanded" style={{ minHeight: 'clamp(140px, 20vh, 220px)' }}>
+        {opponentTag && (
+          <div className="top-hud top-hud--board">
+            <div className="top-hud__lane top-hud__lane--opponent">
+              <div className="top-hud__pill" dir="auto">
+                <span className="top-hud__pill-text">{opponentTag}</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Pot display - board anchored above community cards */}
-      {showPotInBoard && (
-        <div
-          ref={potRef}
-          className={`board-cluster__pot board-pot-anchor pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
-        >
-          <div className="table-pot-pill">
-            <div className="table-pot-pill-amount">
-              {t('table.potLabel', { defaultValue: 'Total pot' })} {displayPot}
+        {/* Pot display - board anchored above community cards */}
+        {showPotInBoard && (
+          <div
+            ref={potRef}
+            className={`board-cluster__pot board-pot-anchor pointer-events-none motion-reduce:animate-none ${isPulsing ? 'animate-[pulse_1s_ease-in-out]' : ''}`}
+          >
+            <div className="table-pot-pill">
+              <div className="table-pot-pill-amount">
+                {t('table.potLabel', { defaultValue: 'Total pot' })} {displayPot}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* PHASE 3: Community cards - order: 1 (sacred zone, never overlapped) */}
-      <div className="board-cluster__cards flex w-full items-center justify-center px-2 sm:px-4 community-cards-sacred">
-        <div className="board-cards-row relative flex flex-nowrap items-end justify-center">
-          {dealtCards.map((card, index) => (
-            <div key={`board-card-slot-${index}`} className="board-card-slot">
-              <PlayingCard
-                card={card}
-                size="md"
-                highlighted={highlightedCards.includes(card)}
-              />
-            </div>
-          ))}
+        {/* PHASE 3: Community cards - order: 1 (sacred zone, never overlapped) */}
+        <div className="board-cluster__cards flex w-full items-center justify-center px-2 sm:px-4 community-cards-sacred">
+          <div className="board-cards-row relative flex flex-nowrap items-end justify-center">
+            {dealtCards.map((card, index) => (
+              <div key={`board-card-slot-${index}`} className="board-card-slot">
+                <PlayingCard
+                  card={card}
+                  size="md"
+                  highlighted={highlightedCards.includes(card)}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
