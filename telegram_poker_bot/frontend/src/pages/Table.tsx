@@ -30,6 +30,7 @@ import { CurrencyType, formatByCurrency } from '@/utils/currency'
 import { formatChips } from '@/utils/formatChips'
 import { extractRuleSummary, getTemplateConfig } from '@/utils/tableRules'
 import '../styles/table-layout.css'
+import tablePortraitImage from '@/assets/table-portrait.webp'
 import type {
   AllowedAction,
   AllowedActionsPayload,
@@ -2102,7 +2103,7 @@ export default function TablePage() {
       />
       
       <div
-        className={clsx('table-screen', isTelegramAndroidWebView && 'is-low-transparency')}
+        className={clsx('table-screen table-portrait-root', isTelegramAndroidWebView && 'is-low-transparency')}
         data-ui-mode={uiMode}
       >
         {/* Back to Lobby Button (Top-Left) */}
@@ -2164,9 +2165,11 @@ export default function TablePage() {
 
               <div className="table-wrapper">
                 <div className="table-area table-bottom-padding relative">
-                  <div
-                    className="table-oval table-oval--portrait"
-                    style={{ zIndex: 'var(--z-table-felt, 0)' }}
+                  {/* Portrait table surface - single background layer */}
+                  <img
+                    src={tablePortraitImage}
+                    alt=""
+                    className="table-surface-img"
                     aria-hidden="true"
                   />
 
