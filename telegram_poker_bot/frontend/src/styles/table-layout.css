@@ -84,21 +84,6 @@
   --zone-board-width: 68%;
   --zone-board-height: 18%;
   
-  /* Pot - above the board */
-  --zone-pot-top: 30%;
-  --zone-pot-left: 50%;
-  
-  /* Hero seat - on bottom rim zone */
-  --zone-hero-top: 73%;
-  --zone-hero-left: 10%;
-  --zone-hero-width: 80%;
-  
-  /* Action bar - at bottom inside stage, not viewport */
-  --zone-actionbar-top: 84%;
-  --zone-actionbar-left: 6%;
-  --zone-actionbar-width: 88%;
-  --zone-actionbar-height: 13%;
-  
   /* Telegram safe area tokens */
   --tg-safe-top: env(safe-area-inset-top, 0px);
   --tg-safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -3552,8 +3537,8 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: var(--tg-safe-top, env(safe-area-inset-top, 0px));
-  padding-bottom: var(--tg-safe-bottom, env(safe-area-inset-bottom, 0px));
+  padding-top: var(--tg-safe-top);
+  padding-bottom: var(--tg-safe-bottom);
   background: var(--table-bg, #050b14);
   overflow: hidden;
 }
@@ -3607,25 +3592,6 @@ button:disabled {
   align-items: center;
   justify-content: center;
   z-index: var(--z-cards-chips, 20);
-}
-
-/* Pot zone - positioned above board */
-.pot-zone {
-  position: absolute;
-  top: var(--zone-pot-top, 30%);
-  left: var(--zone-pot-left, 50%);
-  transform: translateX(-50%);
-  z-index: var(--z-board-hud, 30);
-}
-
-/* Actionbar zone - positioned at bottom of stage */
-.actionbar-zone {
-  position: absolute;
-  top: var(--zone-actionbar-top, 84%);
-  left: var(--zone-actionbar-left, 6%);
-  width: var(--zone-actionbar-width, 88%);
-  height: var(--zone-actionbar-height, 13%);
-  z-index: var(--z-actionbar, 50);
 }
 
 /* Seat anchors - base styling for dynamically positioned seats */
@@ -3683,17 +3649,12 @@ button:disabled {
   /* Adjust zones for portrait viewport */
   :root {
     --zone-board-top: 34%;
-    --zone-pot-top: 28%;
-    --zone-hero-top: 75%;
-    --zone-actionbar-top: 86%;
   }
 }
 
 /* Low transparency fallback for Telegram Android WebView */
 .table-portrait-root.is-low-transparency .table-surface-overlay,
-.table-portrait-root.is-low-transparency .board-zone,
-.table-portrait-root.is-low-transparency .pot-zone,
-.table-portrait-root.is-low-transparency .actionbar-zone {
+.table-portrait-root.is-low-transparency .board-zone {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
